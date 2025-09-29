@@ -14,6 +14,11 @@ export default function MembersList() {
   const [focusedTier, setFocusedTier] = useState('S'); // Default to S tier
   const [showPACDetails, setShowPACDetails] = useState(false);
 
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const [displayedCount, setDisplayedCount] = useState(20); // Start with 20 on each page
+  const ITEMS_PER_PAGE = 20;
+
   // Gentle scroll to profile when selected (profile is now near top)
   useEffect(() => {
     if (selectedMember) {
@@ -71,8 +76,43 @@ export default function MembersList() {
     );
   }, [members, searchTerm]);
 
+  // Create showcase page (page 1) with meaningful representatives
+  const showcaseMembers = useMemo(() => {
+    if (currentPage !== 1 || searchTerm) return null; // Only show on page 1 with no search
+
+    const showcase = [];
+
+    // Get top S-tier (truly grassroots)
+    const sTier = filteredMembers
+      .filter(member => member.tier === 'S')
+      .sort((a, b) => b.grassrootsPercent - a.grassrootsPercent)
+      .slice(0, 8);
+
+    // Get top A-tier (mostly clean)
+    const aTier = filteredMembers
+      .filter(member => member.tier === 'A')
+      .sort((a, b) => b.grassrootsPercent - a.grassrootsPercent)
+      .slice(0, 6);
+
+    // Get some B-tier (mixed funding) for context
+    const bTier = filteredMembers
+      .filter(member => member.tier === 'B')
+      .sort((a, b) => b.grassrootsPercent - a.grassrootsPercent)
+      .slice(0, 4);
+
+    // Get a couple C-tier for comparison
+    const cTier = filteredMembers
+      .filter(member => member.tier === 'C')
+      .sort((a, b) => b.grassrootsPercent - a.grassrootsPercent)
+      .slice(0, 2);
+
+    showcase.push(...sTier, ...aTier, ...bTier, ...cTier);
+    return showcase.slice(0, 20); // Ensure exactly 20
+  }, [filteredMembers, currentPage, searchTerm]);
+
+  // Regular sorted members for normal pages
   const sortedMembers = useMemo(() => {
-    return [...filteredMembers].sort((a, b) => {
+    const sorted = [...filteredMembers].sort((a, b) => {
       const tierOrder = { 'S': 6, 'A': 5, 'B': 4, 'C': 3, 'D': 2, 'N/A': 1 };
       if (tierOrder[a.tier] !== tierOrder[b.tier]) {
         return tierOrder[b.tier] - tierOrder[a.tier];
@@ -83,7 +123,23 @@ export default function MembersList() {
       }
       return b.grassrootsPercent - a.grassrootsPercent;
     });
-  }, [filteredMembers]);
+
+    // If showing showcase page, return that
+    if (showcaseMembers) return showcaseMembers;
+
+    // Otherwise return paginated results
+    const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+    return sorted.slice(startIndex, startIndex + displayedCount);
+  }, [filteredMembers, currentPage, displayedCount, showcaseMembers]);
+
+  // Calculate total pages
+  const totalPages = Math.ceil(filteredMembers.length / ITEMS_PER_PAGE);
+
+  // Reset to page 1 when search changes
+  useEffect(() => {
+    setCurrentPage(1);
+    setDisplayedCount(ITEMS_PER_PAGE);
+  }, [searchTerm]);
 
   if (loading) {
     return (
@@ -370,6 +426,26 @@ export default function MembersList() {
           </div>
         </div>
 
+        {/* Page header with showcase explanation */}
+        <div className="mb-4">
+          {showcaseMembers && !searchTerm ? (
+            <div className="bg-gradient-to-r from-purple-50 to-blue-50 border border-purple-200 rounded-lg p-4">
+              <h3 className="font-semibold text-purple-900 mb-2">Top 20 Representatives Showcase</h3>
+              <p className="text-sm text-purple-700">
+                Featuring the most grassroots-funded representatives in Congress - those most accountable to individual constituents like you, not special interests.
+              </p>
+            </div>
+          ) : searchTerm ? (
+            <div className="text-sm text-gray-600">
+              Showing search results for "{searchTerm}"
+            </div>
+          ) : (
+            <div className="text-sm text-gray-600">
+              Page {currentPage} of {totalPages} • Showing all Congress members
+            </div>
+          )}
+        </div>
+
         <div className="grid gap-2">
           {sortedMembers.map((member) => (
             <div
@@ -403,6 +479,79 @@ export default function MembersList() {
             </div>
           ))}
         </div>
+
+        {/* Pagination and Load More controls */}
+        {!searchTerm && (
+          <div className="mt-6 flex flex-col items-center space-y-4">
+            {/* Load More button for current page (if not showing all) */}
+            {displayedCount < ITEMS_PER_PAGE && !showcaseMembers && (
+              <button
+                onClick={() => setDisplayedCount(Math.min(displayedCount + 10, ITEMS_PER_PAGE))}
+                className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
+              >
+                Load More ({Math.min(10, ITEMS_PER_PAGE - displayedCount)} more)
+              </button>
+            )}
+
+            {/* Page navigation */}
+            {totalPages > 1 && (
+              <div className="flex items-center space-x-2">
+                <button
+                  onClick={() => {
+                    setCurrentPage(Math.max(1, currentPage - 1));
+                    setDisplayedCount(ITEMS_PER_PAGE);
+                  }}
+                  disabled={currentPage === 1}
+                  className="px-3 py-1 rounded bg-gray-100 hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Previous
+                </button>
+
+                {/* Page numbers */}
+                {[...Array(Math.min(5, totalPages))].map((_, i) => {
+                  const pageNum = i + 1;
+                  return (
+                    <button
+                      key={pageNum}
+                      onClick={() => {
+                        setCurrentPage(pageNum);
+                        setDisplayedCount(ITEMS_PER_PAGE);
+                      }}
+                      className={`px-3 py-1 rounded ${
+                        currentPage === pageNum
+                          ? 'bg-purple-600 text-white'
+                          : 'bg-gray-100 hover:bg-gray-200'
+                      }`}
+                    >
+                      {pageNum}
+                    </button>
+                  );
+                })}
+
+                {totalPages > 5 && <span className="text-gray-500">...</span>}
+
+                <button
+                  onClick={() => {
+                    setCurrentPage(Math.min(totalPages, currentPage + 1));
+                    setDisplayedCount(ITEMS_PER_PAGE);
+                  }}
+                  disabled={currentPage === totalPages}
+                  className="px-3 py-1 rounded bg-gray-100 hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Next
+                </button>
+              </div>
+            )}
+
+            <div className="text-sm text-gray-500">
+              {showcaseMembers ? (
+                "Showing top 20 representatives"
+              ) : (
+                `Showing ${sortedMembers.length} of ${filteredMembers.length} members`
+              )}
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Tier definitions */}
