@@ -324,7 +324,11 @@ function calculateTier(grassrootsPercent, totalRaised) {
 
 // Process and enrich member data with TWO-CALL STRATEGY
 // First call: Basic tier data (fast), Second call: Detailed PAC data (slower)
-async function processMembers(congressMembers, env) {
+//
+// TESTING PARAMETER: Add ?limit=N to process only first N members for testing
+// Example: POST /api/update-data?limit=5 processes only 5 members
+// Default: undefined (processes all members)
+async function processMembers(congressMembers, env, testLimit = undefined) {
   console.log('🔄 Processing member data with two-call strategy...');
 
   // Load existing data to append to
@@ -345,7 +349,13 @@ async function processMembers(congressMembers, env) {
   let basicProcessed = 0;
   const BASIC_BATCH_SIZE = 25;
 
-  for (const member of congressMembers) {
+  // Apply test limit if specified (for testing small batches)
+  const membersToProcess = testLimit ? congressMembers.slice(0, testLimit) : congressMembers;
+  if (testLimit) {
+    console.log(`🧪 TEST MODE: Processing only first ${testLimit} members (of ${congressMembers.length} total)`);
+  }
+
+  for (const member of membersToProcess) {
     try {
       // Get basic financial data only (no PAC details)
       const financials = await fetchMemberFinancials(member, env);
@@ -401,7 +411,7 @@ async function processMembers(congressMembers, env) {
       }
 
       if (basicProcessed % 5 === 0) {
-        console.log(`📊 Basic processing: ${basicProcessed}/${congressMembers.length} members`);
+        console.log(`📊 Basic processing: ${basicProcessed}/${membersToProcess.length} members`);
       }
 
       // Rate limiting - 4 second delay to stay under FEC 16.67/minute limit (target 15/minute)
@@ -477,14 +487,14 @@ async function processMembers(congressMembers, env) {
 }
 
 // Main data update function
-async function updateCongressionalData(env) {
+async function updateCongressionalData(env, testLimit = undefined) {
   console.log('🚀 Starting full data pipeline update with two-call strategy...');
 
   // Fetch current Congress members
   const congressMembers = await fetchCongressMembers(env);
 
   // Process financial data with two-call strategy (handles storage internally)
-  const processedMembers = await processMembers(congressMembers, env);
+  const processedMembers = await processMembers(congressMembers, env, testLimit);
 
   // Get final processed data from storage (includes both basic and PAC data)
   const finalData = await env.MEMBER_DATA.get('members:all');
@@ -572,7 +582,12 @@ async function handleDataUpdate(env, corsHeaders, request) {
     }
 
     console.log('🔄 Manual data update triggered via API');
-    const result = await updateCongressionalData(env);
+
+    // Parse optional limit parameter for testing small batches
+    const limitParam = url.searchParams.get('limit');
+    const testLimit = limitParam ? parseInt(limitParam, 10) : undefined;
+
+    const result = await updateCongressionalData(env, testLimit);
 
     return new Response(JSON.stringify({
       success: true,
