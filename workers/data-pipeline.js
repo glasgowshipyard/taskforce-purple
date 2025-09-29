@@ -408,8 +408,8 @@ async function processMembers(congressMembers, env) {
         console.log(`📊 Processed ${processed}/${congressMembers.length} members`);
       }
 
-      // Rate limiting - 1 second delay to respect API limits
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      // Rate limiting - 4 second delay to stay under FEC 16.67/minute limit (target 15/minute)
+      await new Promise(resolve => setTimeout(resolve, 4000));
 
     } catch (error) {
       console.warn(`Error processing member ${member.name}:`, error.message);

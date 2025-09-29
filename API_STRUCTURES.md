@@ -74,6 +74,31 @@ Returns financial summary data.
 3. **Chamber values:** "House of Representatives" or "Senate"
 4. **Never assume structure without testing both endpoints**
 
+## API Rate Limits
+
+### FEC API (api.open.fec.gov)
+- **Standard Rate Limit**: 1,000 requests per hour (~16.67 requests per minute)
+- **Enhanced Rate Limit**: 7,200 requests per hour (120 requests per minute) - requires email request
+- **Rate Limit Headers**: Returns `X-RateLimit-Limit` and `X-RateLimit-Remaining`
+- **Error Code**: 429 when rate limit exceeded
+- **Pages**: Limited to 100 results per page
+
+### Congress.gov API
+- **Appears unlimited** for our current usage patterns
+- **Pagination**: 250 members per page works fine
+
+### Current Problem: FEC Rate Limiting
+**Issue**: Processing 535 members × 3 FEC calls each = 1,605 API calls
+- **Candidate search** (1 call per member)
+- **Financial totals** (1 call per member)
+- **PAC details** (1 call per member)
+
+**Math**: 1,605 calls ÷ 16.67 calls/minute = **96.3 minutes needed** minimum
+
+**Current Worker**: 1 second delay = 60 calls/minute = **EXCEEDS RATE LIMIT**
+
+**Solution**: Need 3.6+ second delays between FEC calls to stay under 16.67/minute
+
 ## Common API Test Requests
 
 ### Test Congress.gov List Structure (what Worker uses)

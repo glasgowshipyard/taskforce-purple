@@ -106,7 +106,13 @@ export default function MembersList() {
       .sort((a, b) => b.grassrootsPercent - a.grassrootsPercent)
       .slice(0, 2);
 
-    showcase.push(...sTier, ...aTier, ...bTier, ...cTier);
+    // Get some D-tier members to show the contrast (highest grassroots % within D-tier)
+    const dTier = filteredMembers
+      .filter(member => member.tier === 'D')
+      .sort((a, b) => b.grassrootsPercent - a.grassrootsPercent)
+      .slice(0, 4);
+
+    showcase.push(...sTier, ...aTier, ...bTier, ...cTier, ...dTier);
     return showcase.slice(0, 20); // Ensure exactly 20
   }, [filteredMembers, currentPage, searchTerm]);
 
