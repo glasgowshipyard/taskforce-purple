@@ -51,9 +51,6 @@ export default {
 // Fetch current Congress members from Congress.gov API (with pagination)
 async function fetchCongressMembers(env) {
   const apiKey = env.CONGRESS_API_KEY || 'zVpKDAacmPcazWQxhl5fhodhB9wNUH0urLCLkkV9';  // Temporary fallback
-  if (!apiKey) {
-    throw new Error('CONGRESS_API_KEY not configured');
-  }
 
   console.log('📊 Fetching current 119th Congress members...');
 
@@ -133,9 +130,6 @@ const STATE_ABBREVIATIONS = {
 // Fetch financial data from OpenFEC API using correct endpoints
 async function fetchMemberFinancials(member, env) {
   const apiKey = env.FEC_API_KEY || 'zVpKDAacmPcazWQxhl5fhodhB9wNUH0urLCLkkV9';  // Temporary fallback
-  if (!apiKey) {
-    throw new Error('FEC_API_KEY not configured');
-  }
 
   try {
     console.log(`🔍 Looking up financial data for: ${member.name} (${member.state})`);
@@ -257,9 +251,6 @@ async function fetchMemberFinancials(member, env) {
 // Fetch detailed PAC contributions using Schedule A endpoint
 async function fetchPACDetails(committeeId, env) {
   const apiKey = env.FEC_API_KEY || 'zVpKDAacmPcazWQxhl5fhodhB9wNUH0urLCLkkV9';
-  if (!apiKey) {
-    throw new Error('FEC_API_KEY not configured');
-  }
 
   try {
     console.log(`📊 Fetching PAC details for committee: ${committeeId}`);
