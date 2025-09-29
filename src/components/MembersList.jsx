@@ -77,6 +77,11 @@ export default function MembersList() {
   }, [members, searchTerm]);
 
   // Create showcase page (page 1) with meaningful representatives
+  // Check if showcase should be available (page 1, no search)
+  const hasShowcaseAvailable = useMemo(() => {
+    return !searchTerm; // Showcase available when no search term
+  }, [searchTerm]);
+
   const showcaseMembers = useMemo(() => {
     if (currentPage !== 1 || searchTerm) return null; // Only show on page 1 with no search
 
@@ -136,17 +141,16 @@ export default function MembersList() {
     // Otherwise return paginated results
     // Adjust pagination to account for showcase on page 1
     let adjustedStartIndex;
-    const hasShowcase = showcaseMembers !== null; // Showcase exists when on page 1
 
     if (currentPage === 2) {
-      console.log('Page 2 Debug - hasShowcase:', hasShowcase, 'showcaseMembers:', showcaseMembers);
+      console.log('Page 2 Debug - hasShowcaseAvailable:', hasShowcaseAvailable);
     }
 
-    if (currentPage === 2 && hasShowcase) {
+    if (currentPage === 2 && hasShowcaseAvailable) {
       // Page 2 after showcase: start from position 5 (after the 5 showcase members)
       adjustedStartIndex = 5;
       console.log('Page 2 - Using adjusted start index:', adjustedStartIndex);
-    } else if (currentPage > 2 && hasShowcase) {
+    } else if (currentPage > 2 && hasShowcaseAvailable) {
       // Pages 3+: account for the fact that page 1 had 5 items, page 2 had 20 items
       adjustedStartIndex = 5 + (currentPage - 2) * ITEMS_PER_PAGE;
       console.log(`Page ${currentPage} - Using adjusted start index:`, adjustedStartIndex);
@@ -161,7 +165,7 @@ export default function MembersList() {
       console.log('Page 2 - Returning members:', result.slice(0, 5).map(m => m.name));
     }
     return result;
-  }, [filteredMembers, currentPage, displayedCount, showcaseMembers]);
+  }, [filteredMembers, currentPage, displayedCount, showcaseMembers, hasShowcaseAvailable]);
 
   // Calculate total pages
   const totalPages = Math.ceil(filteredMembers.length / ITEMS_PER_PAGE);
