@@ -317,12 +317,25 @@ function calculateTier(grassrootsPercent, totalRaised) {
   return 'D';
 }
 
-// Process and enrich member data
+// Process and enrich member data with incremental updates
 async function processMembers(congressMembers, env) {
   console.log('🔄 Processing member financial data...');
 
   const processedMembers = [];
   let processed = 0;
+  const BATCH_SIZE = 25; // Update site every 25 members
+
+  // Load existing data to append to
+  let existingMembers = [];
+  try {
+    const existingData = await env.MEMBER_DATA.get('members:all');
+    if (existingData) {
+      existingMembers = JSON.parse(existingData);
+      console.log(`📊 Found ${existingMembers.length} existing members in storage`);
+    }
+  } catch (error) {
+    console.log('No existing data found, starting fresh');
+  }
 
   for (const member of congressMembers) { // Process all Congress members
     try {
@@ -373,6 +386,24 @@ async function processMembers(congressMembers, env) {
       processedMembers.push(processedMember);
       processed++;
 
+      // Incremental update every BATCH_SIZE members
+      if (processed % BATCH_SIZE === 0) {
+        console.log(`📊 Batch update: ${processed}/${congressMembers.length} members`);
+
+        // Merge with existing data (remove duplicates by bioguideId)
+        const existingIds = new Set(existingMembers.map(m => m.bioguideId));
+        const newMembers = processedMembers.filter(m => !existingIds.has(m.bioguideId));
+        const updatedMembers = [...existingMembers, ...newMembers];
+
+        // Store incremental update
+        await env.MEMBER_DATA.put('members:all', JSON.stringify(updatedMembers));
+        await env.MEMBER_DATA.put('last_updated', new Date().toISOString());
+
+        // Update existing for next batch
+        existingMembers = updatedMembers;
+        console.log(`💾 Incremental update saved: ${updatedMembers.length} total members`);
+      }
+
       if (processed % 5 === 0) {
         console.log(`📊 Processed ${processed}/${congressMembers.length} members`);
       }
@@ -385,7 +416,16 @@ async function processMembers(congressMembers, env) {
     }
   }
 
-  console.log(`✅ Successfully processed ${processedMembers.length} members`);
+  // Final update with any remaining members
+  if (processed % BATCH_SIZE !== 0) {
+    const existingIds = new Set(existingMembers.map(m => m.bioguideId));
+    const newMembers = processedMembers.filter(m => !existingIds.has(m.bioguideId));
+    const finalMembers = [...existingMembers, ...newMembers];
+    await env.MEMBER_DATA.put('members:all', JSON.stringify(finalMembers));
+    console.log(`💾 Final update saved: ${finalMembers.length} total members`);
+  }
+
+  console.log(`✅ Successfully processed ${processedMembers.length} new members`);
   return processedMembers;
 }
 
