@@ -13,7 +13,8 @@
       "WebFetch(domain:api.congress.gov)",
       "Bash(gh repo view:*)",
       "Bash(gh issue create:*)",
-      "Bash(npm run dev:*)"
+      "Bash(npm run dev:*)",
+      "Bash(pkill:*)"
     ],
     "deny": [],
     "ask": []
