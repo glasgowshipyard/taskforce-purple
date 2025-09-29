@@ -142,7 +142,8 @@ async function fetchMemberFinancials(member, env) {
     const stateAbbr = STATE_ABBREVIATIONS[member.state] || member.state;
 
     // First, search for the candidate by name since bioguideId != FEC candidate_id
-    const office = member.chamber === 'House' ? 'H' : 'S';
+    const chamberType = member.terms?.item?.[0]?.chamber;
+    const office = chamberType === 'House of Representatives' ? 'H' : 'S';
     const searchResponse = await fetch(
       `https://api.open.fec.gov/v1/candidates/search/?api_key=${apiKey}&q=${encodeURIComponent(member.name.split(',')[0])}&office=${office}&state=${stateAbbr}`,
       {
@@ -281,7 +282,8 @@ async function processMembers(congressMembers, env) {
         party: member.partyName,
         state: member.state,
         district: member.district,
-        chamber: member.terms?.[0]?.chamber || 'Unknown',
+        chamber: (member.terms?.item?.[0]?.chamber === 'House of Representatives') ? 'House' :
+                 (member.terms?.item?.[0]?.chamber === 'Senate') ? 'Senate' : 'Unknown',
 
         // Financial data
         totalRaised: financials?.totalRaised || 0,

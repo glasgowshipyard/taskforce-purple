@@ -9,7 +9,10 @@
       "Bash(npm run build:*)",
       "Bash(npm install:*)",
       "Bash(wrangler:*)",
-      "Bash(curl:*)"
+      "Bash(curl:*)",
+      "WebFetch(domain:api.congress.gov)",
+      "Bash(gh repo view:*)",
+      "Bash(gh issue create:*)"
     ],
     "deny": [],
     "ask": []
