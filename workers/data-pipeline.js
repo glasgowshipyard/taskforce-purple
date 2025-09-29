@@ -22,6 +22,8 @@ export default {
           return await handleMembers(env, corsHeaders);
         case '/api/update-data':
           return await handleDataUpdate(env, corsHeaders, request);
+        case '/api/status':
+          return await handleStatus(env, corsHeaders);
         default:
           return new Response('Not Found', { status: 404, headers: corsHeaders });
       }
@@ -579,5 +581,71 @@ async function handleDataUpdate(env, corsHeaders, request) {
 
   } catch (error) {
     throw new Error(`Data update failed: ${error.message}`);
+  }
+}
+
+// Status endpoint for monitoring Worker progress
+async function handleStatus(env, corsHeaders) {
+  try {
+    const membersData = await env.MEMBER_DATA.get('members:all');
+    const lastUpdated = await env.MEMBER_DATA.get('last_updated');
+
+    if (!membersData) {
+      return new Response(JSON.stringify({
+        status: 'no_data',
+        message: 'No data available. Run data update first.',
+        lastUpdated: null,
+        progress: { total: 0, withFinancialData: 0, withPACDetails: 0 }
+      }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
+    }
+
+    const members = JSON.parse(membersData);
+    const withFinancialData = members.filter(m => m.totalRaised > 0);
+    const withPACDetails = members.filter(m => m.pacDetailsStatus === 'complete');
+
+    // Tier breakdown
+    const tierCounts = {
+      S: members.filter(m => m.tier === 'S').length,
+      A: members.filter(m => m.tier === 'A').length,
+      B: members.filter(m => m.tier === 'B').length,
+      C: members.filter(m => m.tier === 'C').length,
+      D: members.filter(m => m.tier === 'D').length,
+      'N/A': members.filter(m => m.tier === 'N/A').length
+    };
+
+    // Recent updates (last 10 members with financial data by lastUpdated)
+    const recentUpdates = withFinancialData
+      .sort((a, b) => new Date(b.lastUpdated) - new Date(a.lastUpdated))
+      .slice(0, 10)
+      .map(m => ({
+        name: m.name,
+        tier: m.tier,
+        grassrootsPercent: m.grassrootsPercent,
+        lastUpdated: m.lastUpdated
+      }));
+
+    return new Response(JSON.stringify({
+      status: 'active',
+      lastUpdated,
+      progress: {
+        total: members.length,
+        withFinancialData: withFinancialData.length,
+        withPACDetails: withPACDetails.length,
+        pendingPACDetails: withFinancialData.length - withPACDetails.length
+      },
+      tierCounts,
+      recentUpdates,
+      twoCallStrategy: {
+        phase1Complete: withFinancialData.length > 0,
+        phase2Progress: `${withPACDetails.length}/${withFinancialData.length} complete`
+      }
+    }), {
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+    });
+
+  } catch (error) {
+    throw new Error(`Failed to get status: ${error.message}`);
   }
 }
