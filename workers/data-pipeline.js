@@ -252,6 +252,59 @@ async function fetchMemberFinancials(member, env) {
   }
 }
 
+// Fetch detailed PAC contributions using Schedule A endpoint
+async function fetchPACDetails(committeeId, env) {
+  const apiKey = env.FEC_API_KEY || 'zVpKDAacmPcazWQxhl5fhodhB9wNUH0urLCLkkV9';
+  if (!apiKey) {
+    throw new Error('FEC_API_KEY not configured');
+  }
+
+  try {
+    console.log(`📊 Fetching PAC details for committee: ${committeeId}`);
+
+    // Fetch Schedule A receipts (itemized contributions) filtered for PACs
+    const response = await fetch(
+      `https://api.open.fec.gov/v1/schedules/schedule_a/?api_key=${apiKey}&committee_id=${committeeId}&contributor_type=committee&per_page=100&sort=-contribution_receipt_amount&cycle=2024`,
+      {
+        headers: {
+          'User-Agent': 'TaskForcePurple/1.0 (Political Transparency Platform)'
+        }
+      }
+    );
+
+    if (!response.ok) {
+      console.warn(`FEC Schedule A API error for ${committeeId}: ${response.status}`);
+      return [];
+    }
+
+    const data = await response.json();
+    const contributions = data.results || [];
+
+    console.log(`💰 Found ${contributions.length} PAC contributions for ${committeeId}`);
+
+    // Process and clean the contributions
+    const pacContributions = contributions
+      .filter(contrib => contrib.contributor_name && contrib.contribution_receipt_amount > 0)
+      .map(contrib => ({
+        pacName: contrib.contributor_name,
+        amount: contrib.contribution_receipt_amount,
+        date: contrib.contribution_receipt_date,
+        contributorType: contrib.contributor_type,
+        employerName: contrib.contributor_employer,
+        contributorOccupation: contrib.contributor_occupation,
+        contributorState: contrib.contributor_state,
+        receiptDescription: contrib.receipt_description
+      }))
+      .slice(0, 20); // Top 20 PAC contributors
+
+    return pacContributions;
+
+  } catch (error) {
+    console.warn(`Error fetching PAC details for ${committeeId}:`, error.message);
+    return [];
+  }
+}
+
 // Calculate tier based on grassroots percentage
 function calculateTier(grassrootsPercent, totalRaised) {
   // No financial data = no tier assignment
@@ -276,6 +329,17 @@ async function processMembers(congressMembers, env) {
       // Pass the full member object for FEC lookup by name
       const financials = await fetchMemberFinancials(member, env);
 
+      // Fetch detailed PAC contributions if we have committee info
+      let pacDetails = [];
+      if (financials && financials.committeeId) {
+        try {
+          pacDetails = await fetchPACDetails(financials.committeeId, env);
+          console.log(`📊 Retrieved ${pacDetails.length} PAC contributions for ${member.name}`);
+        } catch (error) {
+          console.warn(`Could not fetch PAC details for ${member.name}:`, error.message);
+        }
+      }
+
       const processedMember = {
         bioguideId: member.bioguideId,
         name: member.name,
@@ -291,6 +355,9 @@ async function processMembers(congressMembers, env) {
         grassrootsPercent: financials?.grassrootsPercent || 0,
         pacMoney: financials?.pacMoney || 0,
         partyMoney: financials?.partyMoney || 0,
+
+        // Detailed PAC contributions
+        pacContributions: pacDetails,
 
         // Calculated tier
         tier: calculateTier(financials?.grassrootsPercent || 0, financials?.totalRaised || 0),

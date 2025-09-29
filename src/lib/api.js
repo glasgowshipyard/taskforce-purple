@@ -99,6 +99,57 @@ export class TaskForceAPI {
   static getPACExplanation() {
     return "Political Action Committees (PACs) bundle donations from corporations, special interests, and wealthy individuals. While legal, heavy PAC funding can create dependency on big donors rather than everyday constituents like you. Grassroots donations under $200 represent individual citizens directly supporting their representatives.";
   }
+
+  // Industry categorization for PAC contributors
+  static categorizePACByName(pacName) {
+    const name = pacName.toUpperCase();
+
+    // Financial Services
+    if (name.includes('BANK') || name.includes('FINANCIAL') || name.includes('SECURITIES') ||
+        name.includes('INVESTMENT') || name.includes('CAPITAL') || name.includes('PERSHING') ||
+        name.includes('GOLDMAN') || name.includes('MORGAN')) {
+      return { industry: 'Financial Services', icon: '🏦', color: 'bg-blue-50 text-blue-800 border-blue-200' };
+    }
+
+    // Energy/Oil
+    if (name.includes('ENERGY') || name.includes('OIL') || name.includes('GAS') ||
+        name.includes('PETROLEUM') || name.includes('EXXON') || name.includes('CHEVRON')) {
+      return { industry: 'Energy & Oil', icon: '⛽', color: 'bg-orange-50 text-orange-800 border-orange-200' };
+    }
+
+    // Healthcare/Pharma
+    if (name.includes('HEALTH') || name.includes('PHARMA') || name.includes('MEDICAL') ||
+        name.includes('PFIZER') || name.includes('JOHNSON')) {
+      return { industry: 'Healthcare & Pharma', icon: '⚕️', color: 'bg-green-50 text-green-800 border-green-200' };
+    }
+
+    // Tech
+    if (name.includes('TECH') || name.includes('GOOGLE') || name.includes('AMAZON') ||
+        name.includes('MICROSOFT') || name.includes('APPLE') || name.includes('META')) {
+      return { industry: 'Technology', icon: '💻', color: 'bg-purple-50 text-purple-800 border-purple-200' };
+    }
+
+    // Party Committees
+    if (name.includes('DSCC') || name.includes('DCCC') || name.includes('NRCC') ||
+        name.includes('NRSC') || name.includes('DEMOCRATIC') || name.includes('REPUBLICAN')) {
+      return { industry: 'Party Committee', icon: '🏛️', color: 'bg-indigo-50 text-indigo-800 border-indigo-200' };
+    }
+
+    // Labor Unions
+    if (name.includes('UNION') || name.includes('WORKERS') || name.includes('TEAMSTERS') ||
+        name.includes('AFL') || name.includes('CIO') || name.includes('SEIU')) {
+      return { industry: 'Labor Union', icon: '👷', color: 'bg-yellow-50 text-yellow-800 border-yellow-200' };
+    }
+
+    // Defense/Military
+    if (name.includes('DEFENSE') || name.includes('MILITARY') || name.includes('LOCKHEED') ||
+        name.includes('BOEING') || name.includes('RAYTHEON')) {
+      return { industry: 'Defense & Military', icon: '⚔️', color: 'bg-gray-50 text-gray-800 border-gray-200' };
+    }
+
+    // Default for unrecognized PACs
+    return { industry: 'Other PAC', icon: '🏢', color: 'bg-gray-50 text-gray-600 border-gray-200' };
+  }
 }
 
 // Mock data fallback for development

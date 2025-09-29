@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Search, RefreshCw, AlertCircle, TrendingUp, DollarSign, Eye, Info, HelpCircle } from 'lucide-react';
+import { Search, RefreshCw, AlertCircle, TrendingUp, DollarSign, Eye, Info, HelpCircle, ChevronDown, ChevronUp } from 'lucide-react';
 import { TaskForceAPI, mockCongressData } from '../lib/api.js';
 
 export default function MembersList() {
@@ -12,6 +12,7 @@ export default function MembersList() {
   const [useMockData, setUseMockData] = useState(false);
   const [showTooltip, setShowTooltip] = useState(null);
   const [focusedTier, setFocusedTier] = useState('S'); // Default to S tier
+  const [showPACDetails, setShowPACDetails] = useState(false);
 
   // Gentle scroll to profile when selected (profile is now near top)
   useEffect(() => {
@@ -20,6 +21,8 @@ export default function MembersList() {
       if (profileElement) {
         profileElement.scrollIntoView({ behavior: 'smooth', block: 'start' });
       }
+      // Reset PAC details when selecting new member
+      setShowPACDetails(false);
     }
   }, [selectedMember]);
 
@@ -249,6 +252,73 @@ export default function MembersList() {
               <div className="text-sm text-purple-700">2024 Election Cycle</div>
             </div>
           </div>
+
+          {/* Advanced PAC Breakdown Section */}
+          {selectedMember.pacMoney > 0 && (
+            <div className="mt-6">
+              <button
+                onClick={() => setShowPACDetails(!showPACDetails)}
+                className="flex items-center space-x-2 text-sm font-medium text-purple-600 hover:text-purple-800 transition-colors"
+              >
+                {showPACDetails ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                <span>{showPACDetails ? 'Hide' : 'Show'} Detailed PAC Breakdown</span>
+              </button>
+
+              {showPACDetails && (
+                <div className="mt-4 p-4 bg-gray-50 rounded-lg border">
+                  <h4 className="font-semibold text-gray-900 mb-4">Top PAC Contributors</h4>
+
+                  {selectedMember.pacContributions && selectedMember.pacContributions.length > 0 ? (
+                    selectedMember.pacContributions.map((pac, index) => {
+                      const category = TaskForceAPI.categorizePACByName(pac.pacName);
+                      return (
+                        <div key={index} className="flex items-center justify-between py-3 border-b border-gray-200 last:border-b-0">
+                          <div className="flex-1">
+                            <div className="flex items-center space-x-3">
+                              <span className="text-lg">{category.icon}</span>
+                              <div>
+                                <h5 className="font-medium text-gray-900">{pac.pacName}</h5>
+                                <div className="flex items-center space-x-2 mt-1">
+                                  <span className={`text-xs px-2 py-1 rounded-full border ${category.color}`}>
+                                    {category.industry}
+                                  </span>
+                                  <span className="text-xs text-gray-500">{pac.date}</span>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                          <div className="text-right">
+                            <div className="font-semibold text-gray-900">{TaskForceAPI.formatCurrency(pac.amount)}</div>
+                            <div className="text-xs text-gray-500">
+                              {selectedMember.totalRaised > 0
+                                ? `${((pac.amount / selectedMember.totalRaised) * 100).toFixed(1)}% of total`
+                                : ''}
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })
+                  ) : (
+                    <div className="text-center py-8 text-gray-500">
+                      <div className="text-lg mb-2">📊</div>
+                      <p>No detailed PAC contribution data available</p>
+                      <p className="text-xs mt-1">This could mean limited PAC funding or data collection in progress</p>
+                    </div>
+                  )}
+
+                  <div className="mt-4 p-3 bg-blue-50 rounded border border-blue-200">
+                    <p className="text-sm text-blue-800">
+                      <strong>💡 Understanding PAC Categories:</strong><br />
+                      • <strong>Financial Services</strong> 🏦 - Banks, investment firms, securities companies<br />
+                      • <strong>Party Committees</strong> 🏛️ - Official Democratic/Republican campaign committees<br />
+                      • <strong>Labor Unions</strong> 👷 - Worker organizations and union PACs<br />
+                      • <strong>Other PACs</strong> 🏢 - Issue advocacy groups, trade associations
+                    </p>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Additional member information */}
           {selectedMember.committeeInfo && (
