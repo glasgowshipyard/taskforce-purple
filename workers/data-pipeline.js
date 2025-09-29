@@ -22,6 +22,8 @@ export default {
           return await handleMembers(env, corsHeaders);
         case '/api/update-data':
           return await handleDataUpdate(env, corsHeaders, request);
+        case '/api/update-fec-batch':
+          return await handleFECBatchUpdate(env, corsHeaders, request);
         case '/api/status':
           return await handleStatus(env, corsHeaders);
         default:
@@ -665,5 +667,206 @@ async function handleStatus(env, corsHeaders) {
 
   } catch (error) {
     throw new Error(`Failed to get status: ${error.message}`);
+  }
+}
+
+// NEW: Batch FEC Update Handler - processes small batches without Congress.gov calls
+async function handleFECBatchUpdate(env, corsHeaders, request) {
+  try {
+    // Check for authentication
+    const url = new URL(request.url);
+    const authKey = url.searchParams.get('key') || request.headers.get('Authorization')?.replace('Bearer ', '');
+    const expectedKey = env.UPDATE_SECRET;
+
+    if (!authKey || authKey !== expectedKey) {
+      return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+        status: 401,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
+    }
+
+    console.log('🔄 FEC Batch update triggered via API');
+
+    // Get batch size parameter (default: 3, max: 10 for safety)
+    const batchSize = Math.min(parseInt(url.searchParams.get('batch') || '3'), 10);
+
+    // Load existing members from storage
+    const existingData = await env.MEMBER_DATA.get('members:all');
+    if (!existingData) {
+      return new Response(JSON.stringify({
+        error: 'No existing member data found. Run full update first.'
+      }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
+    }
+
+    const allMembers = JSON.parse(existingData);
+    console.log(`📊 Found ${allMembers.length} existing members`);
+
+    // Get or initialize progress tracking
+    let progressData = { lastProcessedIndex: -1, phase: 'financial' };
+    try {
+      const progressString = await env.MEMBER_DATA.get('batch_progress');
+      if (progressString) {
+        progressData = JSON.parse(progressString);
+      }
+    } catch (error) {
+      console.log('No progress data found, starting from beginning');
+    }
+
+    const { lastProcessedIndex, phase } = progressData;
+    let processed = 0;
+    let updated = 0;
+
+    console.log(`🔄 Resuming from index ${lastProcessedIndex + 1}, phase: ${phase}`);
+
+    if (phase === 'financial') {
+      // Phase 1: Process members without financial data
+      const membersNeedingFinancials = allMembers
+        .map((member, index) => ({ ...member, originalIndex: index }))
+        .filter((member, index) =>
+          index > lastProcessedIndex &&
+          (!member.totalRaised || member.totalRaised === 0)
+        )
+        .slice(0, batchSize);
+
+      console.log(`💰 Processing ${membersNeedingFinancials.length} members for financial data`);
+
+      for (const member of membersNeedingFinancials) {
+        try {
+          console.log(`🔍 Updating financial data for: ${member.name}`);
+
+          // Get fresh financial data
+          const financials = await fetchMemberFinancials(member, env);
+
+          if (financials && financials.totalRaised > 0) {
+            // Update member with new financial data
+            allMembers[member.originalIndex] = {
+              ...allMembers[member.originalIndex],
+              totalRaised: financials.totalRaised,
+              grassrootsDonations: financials.grassrootsDonations,
+              grassrootsPercent: financials.grassrootsPercent,
+              pacMoney: financials.pacMoney,
+              partyMoney: financials.partyMoney,
+              tier: calculateTier(financials.grassrootsPercent),
+              lastUpdated: new Date().toISOString()
+            };
+            updated++;
+            console.log(`✅ Updated financial data for ${member.name}: $${financials.totalRaised.toLocaleString()}`);
+          }
+
+          processed++;
+          progressData.lastProcessedIndex = member.originalIndex;
+
+          // Save progress incrementally
+          await env.MEMBER_DATA.put('batch_progress', JSON.stringify(progressData));
+          await env.MEMBER_DATA.put('members:all', JSON.stringify(allMembers));
+
+        } catch (error) {
+          console.warn(`Error updating ${member.name}:`, error.message);
+        }
+      }
+
+      // Check if we need to move to PAC phase
+      const remainingFinancial = allMembers.filter((member, index) =>
+        index > progressData.lastProcessedIndex &&
+        (!member.totalRaised || member.totalRaised === 0)
+      );
+
+      if (remainingFinancial.length === 0) {
+        console.log('🔄 Financial phase complete, moving to PAC phase');
+        progressData.phase = 'pac';
+        progressData.lastProcessedIndex = -1;
+        await env.MEMBER_DATA.put('batch_progress', JSON.stringify(progressData));
+      }
+
+    } else if (phase === 'pac') {
+      // Phase 2: Process members needing PAC details
+      const membersNeedingPAC = allMembers
+        .map((member, index) => ({ ...member, originalIndex: index }))
+        .filter((member, index) =>
+          index > lastProcessedIndex &&
+          member.totalRaised > 0 &&
+          (!member.pacDetailsStatus || member.pacDetailsStatus !== 'complete')
+        )
+        .slice(0, batchSize);
+
+      console.log(`🏛️ Processing ${membersNeedingPAC.length} members for PAC details`);
+
+      for (const member of membersNeedingPAC) {
+        try {
+          console.log(`🔍 Updating PAC details for: ${member.name}`);
+
+          // Get PAC details if member has financial data
+          if (member.candidateId) {
+            const pacDetails = await fetchPACDetails(member.candidateId, env);
+
+            if (pacDetails && pacDetails.length > 0) {
+              // Update member with PAC details
+              allMembers[member.originalIndex] = {
+                ...allMembers[member.originalIndex],
+                pacContributions: pacDetails,
+                pacDetailsStatus: 'complete',
+                lastUpdated: new Date().toISOString()
+              };
+              updated++;
+              console.log(`✅ Updated PAC details for ${member.name}: ${pacDetails.length} contributions`);
+            }
+          }
+
+          processed++;
+          progressData.lastProcessedIndex = member.originalIndex;
+
+          // Save progress incrementally
+          await env.MEMBER_DATA.put('batch_progress', JSON.stringify(progressData));
+          await env.MEMBER_DATA.put('members:all', JSON.stringify(allMembers));
+
+        } catch (error) {
+          console.warn(`Error updating PAC details for ${member.name}:`, error.message);
+        }
+      }
+
+      // Check if PAC phase is complete
+      const remainingPAC = allMembers.filter((member, index) =>
+        index > progressData.lastProcessedIndex &&
+        member.totalRaised > 0 &&
+        (!member.pacDetailsStatus || member.pacDetailsStatus !== 'complete')
+      );
+
+      if (remainingPAC.length === 0) {
+        console.log('🎉 All phases complete! Resetting progress.');
+        progressData = { lastProcessedIndex: -1, phase: 'financial' };
+        await env.MEMBER_DATA.put('batch_progress', JSON.stringify(progressData));
+      }
+    }
+
+    // Update last updated timestamp
+    await env.MEMBER_DATA.put('last_updated', new Date().toISOString());
+
+    const response = {
+      success: true,
+      message: `FEC batch update completed`,
+      batchSize,
+      processed,
+      updated,
+      phase: progressData.phase,
+      nextIndex: progressData.lastProcessedIndex + 1,
+      totalMembers: allMembers.length,
+      lastUpdated: new Date().toISOString()
+    };
+
+    console.log(`✅ Batch complete: ${processed} processed, ${updated} updated`);
+
+    return new Response(JSON.stringify(response), {
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+    });
+
+  } catch (error) {
+    console.error('FEC batch update failed:', error);
+    return new Response(JSON.stringify({ error: error.message }), {
+      status: 500,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+    });
   }
 }
