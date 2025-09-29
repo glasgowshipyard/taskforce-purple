@@ -513,28 +513,85 @@ export default function MembersList() {
                   Previous
                 </button>
 
-                {/* Page numbers */}
-                {[...Array(Math.min(5, totalPages))].map((_, i) => {
-                  const pageNum = i + 1;
-                  return (
-                    <button
-                      key={pageNum}
-                      onClick={() => {
-                        setCurrentPage(pageNum);
-                        setDisplayedCount(ITEMS_PER_PAGE);
-                      }}
-                      className={`px-3 py-1 rounded ${
-                        currentPage === pageNum
-                          ? 'bg-purple-600 text-white'
-                          : 'bg-gray-100 hover:bg-gray-200'
-                      }`}
-                    >
-                      {pageNum}
-                    </button>
-                  );
-                })}
+                {/* Page numbers with sliding window */}
+                {(() => {
+                  const maxVisible = 7; // Show up to 7 page numbers
+                  const sidePages = Math.floor(maxVisible / 2);
 
-                {totalPages > 5 && <span className="text-gray-500">...</span>}
+                  let startPage = Math.max(1, currentPage - sidePages);
+                  let endPage = Math.min(totalPages, currentPage + sidePages);
+
+                  // Adjust if we're near the beginning or end
+                  if (endPage - startPage + 1 < maxVisible) {
+                    if (startPage === 1) {
+                      endPage = Math.min(totalPages, startPage + maxVisible - 1);
+                    } else if (endPage === totalPages) {
+                      startPage = Math.max(1, endPage - maxVisible + 1);
+                    }
+                  }
+
+                  const pages = [];
+
+                  // Show first page if not in range
+                  if (startPage > 1) {
+                    pages.push(
+                      <button
+                        key={1}
+                        onClick={() => {
+                          setCurrentPage(1);
+                          setDisplayedCount(ITEMS_PER_PAGE);
+                        }}
+                        className="px-3 py-1 rounded bg-gray-100 hover:bg-gray-200"
+                      >
+                        1
+                      </button>
+                    );
+                    if (startPage > 2) {
+                      pages.push(<span key="ellipsis1" className="text-gray-500">...</span>);
+                    }
+                  }
+
+                  // Show page range
+                  for (let i = startPage; i <= endPage; i++) {
+                    pages.push(
+                      <button
+                        key={i}
+                        onClick={() => {
+                          setCurrentPage(i);
+                          setDisplayedCount(ITEMS_PER_PAGE);
+                        }}
+                        className={`px-3 py-1 rounded ${
+                          currentPage === i
+                            ? 'bg-purple-600 text-white'
+                            : 'bg-gray-100 hover:bg-gray-200'
+                        }`}
+                      >
+                        {i}
+                      </button>
+                    );
+                  }
+
+                  // Show last page if not in range
+                  if (endPage < totalPages) {
+                    if (endPage < totalPages - 1) {
+                      pages.push(<span key="ellipsis2" className="text-gray-500">...</span>);
+                    }
+                    pages.push(
+                      <button
+                        key={totalPages}
+                        onClick={() => {
+                          setCurrentPage(totalPages);
+                          setDisplayedCount(ITEMS_PER_PAGE);
+                        }}
+                        className="px-3 py-1 rounded bg-gray-100 hover:bg-gray-200"
+                      >
+                        {totalPages}
+                      </button>
+                    );
+                  }
+
+                  return pages;
+                })()}
 
                 <button
                   onClick={() => {
@@ -558,19 +615,6 @@ export default function MembersList() {
             </div>
           </div>
         )}
-      </div>
-
-      {/* Tier definitions */}
-      <div className="bg-white rounded-lg shadow-lg p-6">
-        <h3 className="text-lg font-semibold mb-4">Tier Definitions</h3>
-        <div className="grid grid-cols-1 md:grid-cols-6 gap-3">
-          {['S', 'A', 'B', 'C', 'D', 'N/A'].map(tier => (
-            <div key={tier} className={`p-3 rounded-lg ${TaskForceAPI.getTierColor(tier)}`}>
-              <div className="text-2xl font-bold mb-1">{tier}</div>
-              <div className="text-xs">{TaskForceAPI.getTierDescription(tier)}</div>
-            </div>
-          ))}
-        </div>
       </div>
 
     </div>
