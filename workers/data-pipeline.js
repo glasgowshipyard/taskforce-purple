@@ -317,13 +317,10 @@ function calculateTier(grassrootsPercent, totalRaised) {
   return 'D';
 }
 
-// Process and enrich member data with incremental updates
+// Process and enrich member data with TWO-CALL STRATEGY
+// First call: Basic tier data (fast), Second call: Detailed PAC data (slower)
 async function processMembers(congressMembers, env) {
-  console.log('🔄 Processing member financial data...');
-
-  const processedMembers = [];
-  let processed = 0;
-  const BATCH_SIZE = 25; // Update site every 25 members
+  console.log('🔄 Processing member data with two-call strategy...');
 
   // Load existing data to append to
   let existingMembers = [];
@@ -337,23 +334,18 @@ async function processMembers(congressMembers, env) {
     console.log('No existing data found, starting fresh');
   }
 
-  for (const member of congressMembers) { // Process all Congress members
+  // PHASE 1: Basic tier data (fast population)
+  console.log('🚀 PHASE 1: Fetching basic tier data for all members...');
+  const basicProcessedMembers = [];
+  let basicProcessed = 0;
+  const BASIC_BATCH_SIZE = 25;
+
+  for (const member of congressMembers) {
     try {
-      // Pass the full member object for FEC lookup by name
+      // Get basic financial data only (no PAC details)
       const financials = await fetchMemberFinancials(member, env);
 
-      // Fetch detailed PAC contributions if we have committee info
-      let pacDetails = [];
-      if (financials && financials.committeeId) {
-        try {
-          pacDetails = await fetchPACDetails(financials.committeeId, env);
-          console.log(`📊 Retrieved ${pacDetails.length} PAC contributions for ${member.name}`);
-        } catch (error) {
-          console.warn(`Could not fetch PAC details for ${member.name}:`, error.message);
-        }
-      }
-
-      const processedMember = {
+      const basicMember = {
         bioguideId: member.bioguideId,
         name: member.name,
         party: member.partyName,
@@ -362,104 +354,161 @@ async function processMembers(congressMembers, env) {
         chamber: (member.terms?.item?.[0]?.chamber === 'House of Representatives') ? 'House' :
                  (member.terms?.item?.[0]?.chamber === 'Senate') ? 'Senate' : 'Unknown',
 
-        // Financial data
+        // Basic financial data
         totalRaised: financials?.totalRaised || 0,
         grassrootsDonations: financials?.grassrootsDonations || 0,
         grassrootsPercent: financials?.grassrootsPercent || 0,
         pacMoney: financials?.pacMoney || 0,
         partyMoney: financials?.partyMoney || 0,
 
-        // Detailed PAC contributions
-        pacContributions: pacDetails,
+        // Empty PAC details initially (will be filled in Phase 2)
+        pacContributions: [],
 
-        // Calculated tier
+        // Calculated tier (available immediately)
         tier: calculateTier(financials?.grassrootsPercent || 0, financials?.totalRaised || 0),
 
         // Metadata
         lastUpdated: new Date().toISOString(),
+        pacDetailsStatus: 'pending', // Track PAC detail status
         committeeInfo: financials ? {
           id: financials.committeeId,
           name: financials.committeeName
         } : null
       };
 
-      processedMembers.push(processedMember);
-      processed++;
+      basicProcessedMembers.push(basicMember);
+      basicProcessed++;
 
-      // Incremental update every BATCH_SIZE members
-      if (processed % BATCH_SIZE === 0) {
-        console.log(`📊 Batch update: ${processed}/${congressMembers.length} members`);
+      // Incremental update every BASIC_BATCH_SIZE members
+      if (basicProcessed % BASIC_BATCH_SIZE === 0) {
+        console.log(`📊 Basic batch update: ${basicProcessed}/${congressMembers.length} members`);
 
         // Merge with existing data (remove duplicates by bioguideId)
         const existingIds = new Set(existingMembers.map(m => m.bioguideId));
-        const newMembers = processedMembers.filter(m => !existingIds.has(m.bioguideId));
+        const newMembers = basicProcessedMembers.filter(m => !existingIds.has(m.bioguideId));
         const updatedMembers = [...existingMembers, ...newMembers];
 
-        // Store incremental update
+        // Store incremental basic update
         await env.MEMBER_DATA.put('members:all', JSON.stringify(updatedMembers));
-        await env.MEMBER_DATA.put('last_updated', new Date().toISOString());
-
         // Update existing for next batch
         existingMembers = updatedMembers;
-        console.log(`💾 Incremental update saved: ${updatedMembers.length} total members`);
+        console.log(`💾 Basic data saved: ${updatedMembers.length} total members`);
       }
 
-      if (processed % 5 === 0) {
-        console.log(`📊 Processed ${processed}/${congressMembers.length} members`);
+      if (basicProcessed % 5 === 0) {
+        console.log(`📊 Basic processing: ${basicProcessed}/${congressMembers.length} members`);
       }
 
       // Rate limiting - 4 second delay to stay under FEC 16.67/minute limit (target 15/minute)
       await new Promise(resolve => setTimeout(resolve, 4000));
 
     } catch (error) {
-      console.warn(`Error processing member ${member.name}:`, error.message);
+      console.warn(`Error processing basic data for ${member.name}:`, error.message);
     }
   }
 
-  // Final update with any remaining members
-  if (processed % BATCH_SIZE !== 0) {
+  // Final basic update with any remaining members
+  if (basicProcessed % BASIC_BATCH_SIZE !== 0) {
     const existingIds = new Set(existingMembers.map(m => m.bioguideId));
-    const newMembers = processedMembers.filter(m => !existingIds.has(m.bioguideId));
-    const finalMembers = [...existingMembers, ...newMembers];
-    await env.MEMBER_DATA.put('members:all', JSON.stringify(finalMembers));
-    console.log(`💾 Final update saved: ${finalMembers.length} total members`);
+    const newMembers = basicProcessedMembers.filter(m => !existingIds.has(m.bioguideId));
+    const finalBasicMembers = [...existingMembers, ...newMembers];
+    await env.MEMBER_DATA.put('members:all', JSON.stringify(finalBasicMembers));
+    console.log(`💾 Final basic data saved: ${finalBasicMembers.length} total members`);
+    existingMembers = finalBasicMembers;
   }
 
-  console.log(`✅ Successfully processed ${processedMembers.length} new members`);
-  return processedMembers;
+  console.log(`✅ PHASE 1 COMPLETE: Basic tier data for ${basicProcessedMembers.length} members`);
+
+  // PHASE 2: Detailed PAC data (progressive enhancement)
+  console.log('🔍 PHASE 2: Fetching detailed PAC data progressively...');
+  let pacDetailsProcessed = 0;
+  const PAC_BATCH_SIZE = 10; // Smaller batches for PAC details
+
+  for (const basicMember of basicProcessedMembers) {
+    try {
+      // Only fetch PAC details for members with committee info
+      if (basicMember.committeeInfo?.id) {
+        console.log(`🔍 Fetching PAC details for ${basicMember.name}...`);
+        const pacDetails = await fetchPACDetails(basicMember.committeeInfo.id, env);
+
+        // Update the member in storage with PAC details
+        const currentData = await env.MEMBER_DATA.get('members:all');
+        if (currentData) {
+          const currentMembers = JSON.parse(currentData);
+          const memberIndex = currentMembers.findIndex(m => m.bioguideId === basicMember.bioguideId);
+
+          if (memberIndex !== -1) {
+            currentMembers[memberIndex].pacContributions = pacDetails;
+            currentMembers[memberIndex].pacDetailsStatus = 'complete';
+            currentMembers[memberIndex].lastUpdated = new Date().toISOString();
+
+            await env.MEMBER_DATA.put('members:all', JSON.stringify(currentMembers));
+            console.log(`✅ PAC details updated for ${basicMember.name}: ${pacDetails.length} contributions`);
+          }
+        }
+      } else {
+        console.log(`⚠️ No committee info for ${basicMember.name}, skipping PAC details`);
+      }
+
+      pacDetailsProcessed++;
+
+      // Progress update every few members
+      if (pacDetailsProcessed % PAC_BATCH_SIZE === 0) {
+        console.log(`📊 PAC details: ${pacDetailsProcessed}/${basicProcessedMembers.length} members processed`);
+      }
+
+      // Rate limiting - same 4 second delay for PAC API calls
+      await new Promise(resolve => setTimeout(resolve, 4000));
+
+    } catch (error) {
+      console.warn(`Error fetching PAC details for ${basicMember.name}:`, error.message);
+    }
+  }
+
+  console.log(`✅ PHASE 2 COMPLETE: PAC details for ${pacDetailsProcessed} members`);
+  console.log(`🎉 TWO-CALL STRATEGY COMPLETE: ${basicProcessedMembers.length} members with basic data, ${pacDetailsProcessed} with detailed PAC data`);
+
+  return basicProcessedMembers;
 }
 
 // Main data update function
 async function updateCongressionalData(env) {
-  console.log('🚀 Starting full data pipeline update...');
+  console.log('🚀 Starting full data pipeline update with two-call strategy...');
 
   // Fetch current Congress members
   const congressMembers = await fetchCongressMembers(env);
 
-  // Process financial data for each member
+  // Process financial data with two-call strategy (handles storage internally)
   const processedMembers = await processMembers(congressMembers, env);
 
-  // Store in KV storage
-  await env.MEMBER_DATA.put('members:all', JSON.stringify(processedMembers));
+  // Get final processed data from storage (includes both basic and PAC data)
+  const finalData = await env.MEMBER_DATA.get('members:all');
+  const finalMembers = finalData ? JSON.parse(finalData) : processedMembers;
+
+  // Update final timestamp
   await env.MEMBER_DATA.put('last_updated', new Date().toISOString());
 
-  // Create tier-specific lists
+  // Create tier-specific lists from final data
   const tierLists = {
-    S: processedMembers.filter(m => m.tier === 'S'),
-    A: processedMembers.filter(m => m.tier === 'A'),
-    B: processedMembers.filter(m => m.tier === 'B'),
-    C: processedMembers.filter(m => m.tier === 'C'),
-    D: processedMembers.filter(m => m.tier === 'D')
+    S: finalMembers.filter(m => m.tier === 'S'),
+    A: finalMembers.filter(m => m.tier === 'A'),
+    B: finalMembers.filter(m => m.tier === 'B'),
+    C: finalMembers.filter(m => m.tier === 'C'),
+    D: finalMembers.filter(m => m.tier === 'D')
   };
 
   for (const [tier, members] of Object.entries(tierLists)) {
     await env.MEMBER_DATA.put(`tier:${tier}`, JSON.stringify(members));
   }
 
-  console.log('💾 Data stored successfully in KV');
+  console.log('💾 Two-call strategy complete - data stored successfully in KV');
+
+  // Count members with PAC details for reporting
+  const membersWithPACDetails = finalMembers.filter(m => m.pacDetailsStatus === 'complete').length;
 
   return {
-    total: processedMembers.length,
+    total: finalMembers.length,
+    membersWithPACDetails,
     tiers: Object.fromEntries(
       Object.entries(tierLists).map(([tier, members]) => [tier, members.length])
     ),
