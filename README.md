@@ -34,7 +34,7 @@ Task Force Purple exposes how politicians from both parties often serve the same
 
 ```bash
 # Clone repository
-git clone https://github.com/[username]/taskforce-purple.git
+git clone https://github.com/glasgowshipyard/taskforce-purple.git
 cd taskforce-purple
 
 # Install dependencies

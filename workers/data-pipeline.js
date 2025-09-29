@@ -114,7 +114,7 @@ async function fetchCongressMembers(env) {
   return allMembers;
 }
 
-// Fetch financial data from OpenFEC API
+// Fetch financial data from OpenFEC API using correct endpoints
 async function fetchMemberFinancials(candidateId, env) {
   const apiKey = env.FEC_API_KEY;
   if (!apiKey) {
@@ -122,9 +122,11 @@ async function fetchMemberFinancials(candidateId, env) {
   }
 
   try {
-    // Get candidate committees
-    const committeesResponse = await fetch(
-      `https://api.open.fec.gov/v1/candidates/${candidateId}/committees/?api_key=${apiKey}&election_year=2024`,
+    console.log(`🔍 Looking up financial data for candidate: ${candidateId}`);
+
+    // First, try to find committees for this candidate
+    const candidateResponse = await fetch(
+      `https://api.open.fec.gov/v1/candidates/?api_key=${apiKey}&candidate_id=${candidateId}`,
       {
         headers: {
           'User-Agent': 'TaskForcePurple/1.0 (Political Transparency Platform)'
@@ -132,22 +134,23 @@ async function fetchMemberFinancials(candidateId, env) {
       }
     );
 
-    if (!committeesResponse.ok) {
-      console.warn(`FEC committees API error for ${candidateId}: ${committeesResponse.status}`);
+    if (!candidateResponse.ok) {
+      console.warn(`FEC candidate API error for ${candidateId}: ${candidateResponse.status}`);
       return null;
     }
 
-    const committeesData = await committeesResponse.json();
-    const principalCommittee = committeesData.results?.find(c => c.designation === 'P') || committeesData.results?.[0];
-
-    if (!principalCommittee) {
-      console.warn(`No committee found for candidate ${candidateId}`);
+    const candidateData = await candidateResponse.json();
+    if (!candidateData.results || candidateData.results.length === 0) {
+      console.warn(`No FEC candidate record found for ${candidateId}`);
       return null;
     }
 
-    // Get committee financial totals
+    // Get the most recent candidate record
+    const candidate = candidateData.results[0];
+
+    // Now get totals using the candidate entity type endpoint
     const totalsResponse = await fetch(
-      `https://api.open.fec.gov/v1/committees/${principalCommittee.committee_id}/totals/?api_key=${apiKey}&election_year=2024`,
+      `https://api.open.fec.gov/v1/totals/by_entity/?api_key=${apiKey}&candidate_id=${candidateId}&election_year=2024&cycle=2024`,
       {
         headers: {
           'User-Agent': 'TaskForcePurple/1.0 (Political Transparency Platform)'
@@ -156,7 +159,46 @@ async function fetchMemberFinancials(candidateId, env) {
     );
 
     if (!totalsResponse.ok) {
-      console.warn(`FEC totals API error for ${principalCommittee.committee_id}: ${totalsResponse.status}`);
+      console.warn(`FEC totals API error for ${candidateId}: ${totalsResponse.status}`);
+
+      // Fallback: try the committee totals endpoint if candidate has a committee
+      if (candidate.principal_committees && candidate.principal_committees.length > 0) {
+        const committeeId = candidate.principal_committees[0];
+        console.log(`📊 Trying committee totals for ${committeeId}`);
+
+        const committeeTotalsResponse = await fetch(
+          `https://api.open.fec.gov/v1/committee/${committeeId}/totals/?api_key=${apiKey}&cycle=2024`,
+          {
+            headers: {
+              'User-Agent': 'TaskForcePurple/1.0 (Political Transparency Platform)'
+            }
+          }
+        );
+
+        if (committeeTotalsResponse.ok) {
+          const committeeTotalsData = await committeeTotalsResponse.json();
+          const latestTotal = committeeTotalsData.results?.[0];
+
+          if (latestTotal) {
+            console.log(`💰 Found committee financial data for ${candidateId}: $${latestTotal.receipts || 0}`);
+
+            const totalRaised = latestTotal.receipts || 0;
+            const grassrootsDonations = latestTotal.individual_unitemized_contributions || 0;
+            const grassrootsPercent = totalRaised > 0 ? Math.round((grassrootsDonations / totalRaised) * 100) : 0;
+
+            return {
+              totalRaised,
+              grassrootsDonations,
+              grassrootsPercent,
+              pacMoney: latestTotal.other_political_committee_contributions || 0,
+              partyMoney: latestTotal.political_party_committee_contributions || 0,
+              committeeId: committeeId,
+              committeeName: candidate.name
+            };
+          }
+        }
+      }
+
       return null;
     }
 
@@ -164,8 +206,11 @@ async function fetchMemberFinancials(candidateId, env) {
     const latestTotal = totalsData.results?.[0];
 
     if (!latestTotal) {
+      console.warn(`No financial totals found for ${candidateId}`);
       return null;
     }
+
+    console.log(`💰 Found financial data for ${candidateId}: $${latestTotal.receipts || 0}`);
 
     // Calculate grassroots percentage (donations under $200)
     const totalRaised = latestTotal.receipts || 0;
@@ -178,8 +223,8 @@ async function fetchMemberFinancials(candidateId, env) {
       grassrootsPercent,
       pacMoney: latestTotal.other_political_committee_contributions || 0,
       partyMoney: latestTotal.political_party_committee_contributions || 0,
-      committeeId: principalCommittee.committee_id,
-      committeeName: principalCommittee.name
+      committeeId: candidate.principal_committees?.[0] || candidateId,
+      committeeName: candidate.name
     };
 
   } catch (error) {
