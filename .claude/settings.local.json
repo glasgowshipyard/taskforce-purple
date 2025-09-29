@@ -6,7 +6,10 @@
       "WebFetch(domain:www.congress.gov)",
       "WebFetch(domain:github.com)",
       "Bash(npm install)",
-      "Bash(npm run build:*)"
+      "Bash(npm run build:*)",
+      "Bash(npm install:*)",
+      "Bash(wrangler:*)",
+      "Bash(curl:*)"
     ],
     "deny": [],
     "ask": []

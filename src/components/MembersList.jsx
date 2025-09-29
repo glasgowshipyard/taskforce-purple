@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Search, RefreshCw, AlertCircle, TrendingUp, DollarSign, Eye } from 'lucide-react';
+import { Search, RefreshCw, AlertCircle, TrendingUp, DollarSign, Eye, Info } from 'lucide-react';
 import { TaskForceAPI, mockCongressData } from '../lib/api.js';
 
 export default function MembersList() {
@@ -10,6 +10,7 @@ export default function MembersList() {
   const [selectedMember, setSelectedMember] = useState(null);
   const [lastUpdated, setLastUpdated] = useState(null);
   const [useMockData, setUseMockData] = useState(false);
+  const [showTooltip, setShowTooltip] = useState(null);
 
   // Load data on component mount
   useEffect(() => {
@@ -198,6 +199,22 @@ export default function MembersList() {
             </button>
           </div>
 
+          {/* Financial data explanation for $0 amounts */}
+          {selectedMember.totalRaised === 0 && (
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
+              <div className="flex items-start space-x-2">
+                <Info className="w-5 h-5 text-blue-600 mt-0.5 flex-shrink-0" />
+                <div className="text-blue-800">
+                  <p className="font-medium">Why $0 amounts?</p>
+                  <p className="text-sm text-blue-700 mt-1">
+                    This member may be newly elected, have limited FEC filings, or their campaign committee
+                    data isn't yet linked in our system. We're working to improve data coverage for all members.
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <div className="bg-green-50 p-4 rounded-lg">
               <div className="flex items-center space-x-2 mb-2">
@@ -214,7 +231,12 @@ export default function MembersList() {
                 <span className="font-semibold text-red-800">PAC Money</span>
               </div>
               <div className="text-2xl font-bold text-red-600">{TaskForceAPI.formatCurrency(selectedMember.pacMoney)}</div>
-              <div className="text-sm text-red-700">{((selectedMember.pacMoney / selectedMember.totalRaised) * 100).toFixed(1)}% of total</div>
+              <div className="text-sm text-red-700">
+                {selectedMember.totalRaised > 0
+                  ? `${((selectedMember.pacMoney / selectedMember.totalRaised) * 100).toFixed(1)}% of total`
+                  : 'No data available'
+                }
+              </div>
             </div>
 
             <div className="bg-purple-50 p-4 rounded-lg">

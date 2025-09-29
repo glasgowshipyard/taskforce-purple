@@ -22,6 +22,7 @@ build/
 
 # API Keys
 .env.production
+API_KEYS.md
 
 # Runtime data
 pids
