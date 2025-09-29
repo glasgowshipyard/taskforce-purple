@@ -44,6 +44,17 @@ export default function App() {
 
   const renderOverlap = () => (
     <div className="space-y-6">
+      {/* Development notice */}
+      <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+        <div className="flex items-center space-x-2 text-yellow-800">
+          <Users className="w-5 h-5" />
+          <span className="font-medium">Feature In Development</span>
+        </div>
+        <p className="text-yellow-700 text-sm mt-1">
+          Real bipartisan voting data integration is currently under development. Sample data shown below.
+        </p>
+      </div>
+
       <div className="bg-white rounded-lg shadow-lg p-6">
         <h2 className="text-2xl font-bold text-gray-900 mb-6">Bipartisan Overlap Tracker</h2>
         <div className="grid gap-4">
@@ -139,17 +150,6 @@ export default function App() {
                 <GitCompare className="w-4 h-4" />
                 <span>Overlap Tracker</span>
               </button>
-              <button
-                onClick={() => setActiveTab('profile')}
-                className={`flex items-center space-x-2 px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
-                  activeTab === 'profile'
-                    ? 'bg-white/25 text-white backdrop-blur-sm ring-1 ring-white/30'
-                    : 'text-white/80 hover:text-white hover:bg-white/10'
-                }`}
-              >
-                <Users className="w-4 h-4" />
-                <span>Profile</span>
-              </button>
             </nav>
           </div>
         </div>
@@ -158,19 +158,18 @@ export default function App() {
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {activeTab === 'leaderboard' && renderLeaderboard()}
         {activeTab === 'overlap' && renderOverlap()}
-        {activeTab === 'profile' && renderProfile()}
       </main>
 
       <footer className="bg-white border-t mt-12">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
           <div className="flex items-center justify-between">
             <div className="text-sm text-gray-600">
-              Data sources: <a href="#" className="text-purple-600 hover:underline">FEC API</a>, <a href="#" className="text-purple-600 hover:underline">Senate Lobbying Database</a>, <a href="#" className="text-purple-600 hover:underline">Congress.gov</a>
+              Data sources: <a href="https://api.open.fec.gov/developers/" target="_blank" rel="noopener noreferrer" className="text-purple-600 hover:underline">OpenFEC API</a>, <a href="https://www.congress.gov/help/using-data-offsite" target="_blank" rel="noopener noreferrer" className="text-purple-600 hover:underline">Congress.gov API</a>
             </div>
             <div className="flex items-center space-x-4 text-sm text-gray-600">
-              <a href="#" className="hover:text-gray-900">About</a>
-              <a href="#" className="hover:text-gray-900">Methodology</a>
-              <a href="#" className="hover:text-gray-900">API</a>
+              <a href="https://github.com/zielinski/taskforce-purple" target="_blank" rel="noopener noreferrer" className="hover:text-gray-900">GitHub</a>
+              <a href="https://api.open.fec.gov/developers/" target="_blank" rel="noopener noreferrer" className="hover:text-gray-900">Data Sources</a>
+              <a href="https://taskforce-purple-api.dev-a4b.workers.dev/api/members" target="_blank" rel="noopener noreferrer" className="hover:text-gray-900">API</a>
             </div>
           </div>
         </div>

@@ -207,7 +207,7 @@ async function processMembers(congressMembers, env) {
   const processedMembers = [];
   let processed = 0;
 
-  for (const member of congressMembers) { // Process all members
+  for (const member of congressMembers.slice(0, 10)) { // Limited test - first 10 established members
     try {
       // Get FEC candidate ID (usually bioguideId works, but may need mapping)
       const candidateId = member.bioguideId;
@@ -247,8 +247,8 @@ async function processMembers(congressMembers, env) {
         console.log(`📊 Processed ${processed}/${congressMembers.length} members`);
       }
 
-      // Rate limiting - 40 second delay = ~90 requests/hour (safe buffer)
-      await new Promise(resolve => setTimeout(resolve, 40000));
+      // Rate limiting - 5 second delay for testing (faster for limited run)
+      await new Promise(resolve => setTimeout(resolve, 5000));
 
     } catch (error) {
       console.warn(`Error processing member ${member.name}:`, error.message);

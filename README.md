@@ -30,12 +30,7 @@ Task Force Purple exposes how politicians from both parties often serve the same
 
 ## Getting Started
 
-### Prerequisites
-
-- Node.js 18+
-- API keys (see Setup section)
-
-### Installation
+### Local Development
 
 ```bash
 # Clone repository
@@ -47,16 +42,6 @@ npm install
 
 # Start development server
 npm run dev
-```
-
-### API Key Setup
-
-1. **Congress.gov API**: Register at https://api.congress.gov/sign-up
-2. **OpenFEC API**: Register at https://api.data.gov
-3. **Create `.env.local`**:
-```bash
-CONGRESS_API_KEY=your_congress_api_key
-FEC_API_KEY=your_fec_api_key
 ```
 
 ## Data Sources
@@ -72,25 +57,9 @@ FEC_API_KEY=your_fec_api_key
 3. **Processing**: Calculate grassroots percentage from contributions <$200
 4. **Storage**: Store processed tier rankings in Cloudflare KV
 
-## Deployment
+## Live Platform
 
-### Cloudflare Setup
-1. **Pages**: Connect GitHub repo for automatic deploys
-2. **Workers**: Deploy data pipeline and API endpoints
-3. **KV**: Create namespace for data storage
-4. **Environment Variables**: Add API keys to dashboard
-
-### Build Commands
-```bash
-# Build for production
-npm run build
-
-# Run data pipeline (manual)
-npm run update-data
-
-# Deploy to Cloudflare
-wrangler deploy
-```
+Visit **https://taskforcepurple.pages.dev** to see the platform in action with real congressional data.
 
 ## Development
 

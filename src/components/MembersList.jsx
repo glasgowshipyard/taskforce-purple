@@ -12,6 +12,16 @@ export default function MembersList() {
   const [useMockData, setUseMockData] = useState(false);
   const [showTooltip, setShowTooltip] = useState(null);
 
+  // Auto-scroll to member profile when selected
+  useEffect(() => {
+    if (selectedMember) {
+      const profileElement = document.getElementById('member-profile');
+      if (profileElement) {
+        profileElement.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+    }
+  }, [selectedMember]);
+
   // Load data on component mount
   useEffect(() => {
     loadMembers();
@@ -189,7 +199,7 @@ export default function MembersList() {
 
       {/* Member profile modal/detail */}
       {selectedMember && (
-        <div className="bg-white rounded-lg shadow-lg p-6">
+        <div className="bg-white rounded-lg shadow-lg p-6" id="member-profile">
           <div className="flex items-start justify-between mb-6">
             <div className="flex items-center space-x-4">
               <div className={`w-16 h-16 rounded-full flex items-center justify-center text-2xl font-bold ${TaskForceAPI.getTierColor(selectedMember.tier)}`}>
