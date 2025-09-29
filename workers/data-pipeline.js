@@ -134,6 +134,9 @@ async function fetchMemberFinancials(member, env) {
   try {
     console.log(`🔍 Looking up financial data for: ${member.name} (${member.state})`);
 
+    // FEC API Rate Limiting: 3.6+ second delay to stay under 16.67 calls/minute
+    await new Promise(resolve => setTimeout(resolve, 3600));
+
     // Convert state name to abbreviation for FEC API
     const stateAbbr = STATE_ABBREVIATIONS[member.state] || member.state;
 
@@ -151,6 +154,8 @@ async function fetchMemberFinancials(member, env) {
 
     if (!searchResponse.ok) {
       console.warn(`FEC search API error for ${member.name}: ${searchResponse.status}`);
+      // Consume the response body to prevent deadlock
+      try { await searchResponse.json(); } catch {}
       return null;
     }
 
@@ -199,6 +204,9 @@ async function fetchMemberFinancials(member, env) {
             committeeName: candidate.name
           };
         }
+      } else {
+        // Consume the response body to prevent deadlock
+        try { await committeeTotalsResponse.json(); } catch {}
       }
     }
 
@@ -214,6 +222,8 @@ async function fetchMemberFinancials(member, env) {
 
     if (!totalsResponse.ok) {
       console.warn(`FEC totals API error for ${candidate.candidate_id}: ${totalsResponse.status}`);
+      // Consume the response body to prevent deadlock
+      try { await totalsResponse.json(); } catch {}
       return null;
     }
 
@@ -267,6 +277,8 @@ async function fetchPACDetails(committeeId, env) {
 
     if (!response.ok) {
       console.warn(`FEC Schedule A API error for ${committeeId}: ${response.status}`);
+      // Consume the response body to prevent deadlock
+      try { await response.json(); } catch {}
       return [];
     }
 
