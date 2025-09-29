@@ -210,3 +210,93 @@ Use existing `/api/status` endpoint to track progress:
 - `withFinancialData`: Members with Phase 1 complete
 - `withPACDetails`: Members with Phase 2 complete
 - `twoCallStrategy.phase2Progress`: Shows PAC completion ratio
+
+## PROPOSED: Enhanced PAC Tiering System
+
+### Current Problem
+Current tier calculations may be unfairly penalizing decent representatives by treating all PAC money equally. A $1000 donation from a candidate's own committee vs. a Super PAC should have different transparency implications.
+
+### Solution: FEC Committee Type/Designation Tiering
+
+Instead of subjective hardcoded PAC rankings, use **official FEC metadata** to create dynamic tier adjustments:
+
+#### FEC Committee Types (`committee_type`)
+**Source**: [FEC Committee Types](https://18f.github.io/openFEC-documentation/codes/#committee-type-codes)
+
+| Code | Type | Transparency Impact |
+|------|------|-------------------|
+| `"O"` | **Super PAC** (independent expenditure only) | 🚩 **High concern** - unlimited corporate money |
+| `"N"` | **Nonqualified PAC** | ⚠️ **Medium concern** - limited contributions |
+| `"Q"` | **Qualified PAC** (multicandidate) | ⚠️ **Medium concern** - established PAC |
+| `"P"` | **Principal candidate committee** | ✅ **Low concern** - candidate's own committee |
+
+#### FEC Designations (`designation`)
+**Source**: [FEC Designation Codes](https://18f.github.io/openFEC-documentation/codes/#committee-designation-codes)
+
+| Code | Type | Transparency Impact |
+|------|------|-------------------|
+| `"D"` | **Leadership PAC** | 🚩 **High concern** - political influence vehicle |
+| `"B"` | **Lobbyist/registrant PAC** | 🚩 **High concern** - direct lobbying connection |
+| `"U"` | **Unauthorized PAC** | ⚠️ **Medium concern** - not candidate-controlled |
+| `"P"` | **Principal campaign committee** | ✅ **Low concern** - official candidate committee |
+| `"A"` | **Authorized by candidate** | ✅ **Low concern** - candidate oversight |
+
+### Proposed Tier Adjustment Logic
+
+**Base Calculation**: Current grassroots percentage determines base tier (S/A/B/C/D)
+
+**PAC Weight Adjustments**: Apply multipliers to PAC contribution amounts based on committee metadata:
+
+```javascript
+function getPACTransparencyWeight(committee) {
+  // Base weight: 1.0 (normal PAC concern)
+  let weight = 1.0;
+
+  // Committee Type adjustments
+  if (committee.committee_type === 'O') {
+    weight *= 2.0; // Super PACs are 2x more concerning
+  } else if (committee.committee_type === 'P') {
+    weight *= 0.3; // Candidate committees are 70% less concerning
+  }
+
+  // Designation adjustments
+  if (committee.designation === 'D' || committee.designation === 'B') {
+    weight *= 1.5; // Leadership/Lobbyist PACs 50% more concerning
+  } else if (committee.designation === 'P' || committee.designation === 'A') {
+    weight *= 0.5; // Authorized committees 50% less concerning
+  }
+
+  return weight;
+}
+```
+
+**Example Impact**:
+- $10,000 from Super PAC → Weighted as $20,000 (worse tier)
+- $10,000 from candidate committee → Weighted as $3,000 (better tier)
+- $10,000 from Leadership PAC → Weighted as $15,000 (worse tier)
+
+### Implementation Complexity: **LOW-MEDIUM**
+
+**✅ Easy Parts**:
+- FEC API already returns `committee_type` and `designation` fields
+- No additional API calls needed
+- Logic is straightforward mathematical weighting
+
+**⚠️ Medium Complexity**:
+- Need to modify tier calculation in `workers/data-pipeline.js:315-325`
+- Requires updating PAC data structure to store metadata
+- Need to recalculate existing member tiers with new weights
+
+### Implementation Steps:
+1. **Update PAC fetching** to capture `committee_type` and `designation`
+2. **Modify tier calculation** to apply transparency weights
+3. **Add new fields** to member data structure
+4. **Recalculate existing tiers** with new methodology
+5. **Update frontend** to show PAC transparency categories
+
+### API Changes Needed:
+- **PAC Details**: Add `committee_type`, `designation`, `transparency_weight` fields
+- **Member Data**: Add `weighted_pac_total`, `transparency_breakdown` fields
+- **Status API**: Add PAC category distribution stats
+
+This would make tier calculations much more nuanced and fair while staying completely objective and based on official FEC classifications.

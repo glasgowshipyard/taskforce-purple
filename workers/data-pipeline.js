@@ -297,6 +297,7 @@ async function fetchPACDetails(committeeId, env) {
         amount: contrib.contribution_receipt_amount,
         date: contrib.contribution_receipt_date,
         contributorType: contrib.contributor_type,
+        contributorId: contrib.contributor_id, // NEW: Store for metadata lookup
         employerName: contrib.contributor_employer,
         contributorOccupation: contrib.contributor_occupation,
         contributorState: contrib.contributor_state,
@@ -304,12 +305,137 @@ async function fetchPACDetails(committeeId, env) {
       }))
       .slice(0, 20); // Top 20 PAC contributors
 
-    return pacContributions;
+    // NEW: Enhance with committee metadata for transparency weighting
+    console.log(`🔍 Enhancing PAC data with committee metadata...`);
+    const enhancedContributions = [];
+    const uniqueCommittees = new Set();
+
+    for (const contrib of pacContributions) {
+      if (contrib.contributorId && !uniqueCommittees.has(contrib.contributorId)) {
+        uniqueCommittees.add(contrib.contributorId);
+
+        // Add delay to respect FEC rate limits
+        await new Promise(resolve => setTimeout(resolve, 1000));
+
+        const metadata = await fetchCommitteeMetadata(contrib.contributorId, env);
+
+        const enhancedContrib = {
+          ...contrib,
+          committee_type: metadata.committee_type,
+          designation: metadata.designation,
+          transparency_weight: getPACTransparencyWeight(metadata.committee_type, metadata.designation),
+          committee_category: getCommitteeCategory(metadata.committee_type, metadata.designation),
+          weighted_amount: contrib.amount * getPACTransparencyWeight(metadata.committee_type, metadata.designation)
+        };
+
+        enhancedContributions.push(enhancedContrib);
+
+        console.log(`✅ Enhanced ${contrib.pacName}: ${enhancedContrib.committee_category} (weight: ${enhancedContrib.transparency_weight})`);
+      } else {
+        // Find existing metadata for this committee
+        const existing = enhancedContributions.find(c => c.contributorId === contrib.contributorId);
+        if (existing) {
+          enhancedContributions.push({
+            ...contrib,
+            committee_type: existing.committee_type,
+            designation: existing.designation,
+            transparency_weight: existing.transparency_weight,
+            committee_category: existing.committee_category,
+            weighted_amount: contrib.amount * existing.transparency_weight
+          });
+        } else {
+          // Fallback without metadata
+          enhancedContributions.push({
+            ...contrib,
+            committee_type: null,
+            designation: null,
+            transparency_weight: 1.0,
+            committee_category: 'Unknown',
+            weighted_amount: contrib.amount
+          });
+        }
+      }
+    }
+
+    return enhancedContributions;
 
   } catch (error) {
     console.warn(`Error fetching PAC details for ${committeeId}:`, error.message);
     return [];
   }
+}
+
+// NEW: Fetch committee metadata for transparency weighting
+async function fetchCommitteeMetadata(committeeId, env) {
+  const apiKey = env.FEC_API_KEY || 'zVpKDAacmPcazWQxhl5fhodhB9wNUH0urLCLkkV9';
+
+  try {
+    const response = await fetch(
+      `https://api.open.fec.gov/v1/committee/${committeeId}/?api_key=${apiKey}`,
+      {
+        headers: {
+          'User-Agent': 'TaskForcePurple/1.0 (Political Transparency Platform)'
+        }
+      }
+    );
+
+    if (!response.ok) {
+      console.warn(`Committee API error for ${committeeId}: ${response.status}`);
+      try { await response.json(); } catch {} // Consume response body
+      return { committee_type: null, designation: null };
+    }
+
+    const data = await response.json();
+    const committee = data.results?.[0];
+
+    if (!committee) {
+      return { committee_type: null, designation: null };
+    }
+
+    return {
+      committee_type: committee.committee_type,
+      designation: committee.designation,
+      name: committee.name
+    };
+
+  } catch (error) {
+    console.warn(`Error fetching committee metadata for ${committeeId}:`, error.message);
+    return { committee_type: null, designation: null };
+  }
+}
+
+// NEW: Calculate transparency weight for PAC contributions
+function getPACTransparencyWeight(committee_type, designation) {
+  // Base weight: 1.0 (normal PAC concern)
+  let weight = 1.0;
+
+  // Committee Type adjustments
+  if (committee_type === 'O') {
+    weight *= 2.0; // Super PACs are 2x more concerning
+  } else if (committee_type === 'P') {
+    weight *= 0.3; // Candidate committees are 70% less concerning
+  }
+
+  // Designation adjustments
+  if (designation === 'D' || designation === 'B') {
+    weight *= 1.5; // Leadership/Lobbyist PACs 50% more concerning
+  } else if (designation === 'P' || designation === 'A') {
+    weight *= 0.5; // Authorized committees 50% less concerning
+  }
+
+  return weight;
+}
+
+// NEW: Get committee category for display
+function getCommitteeCategory(committee_type, designation) {
+  if (committee_type === 'O') return 'Super PAC';
+  if (designation === 'D') return 'Leadership PAC';
+  if (designation === 'B') return 'Lobbyist PAC';
+  if (committee_type === 'P' || designation === 'P' || designation === 'A') return 'Candidate Committee';
+  if (committee_type === 'Q') return 'Qualified PAC';
+  if (committee_type === 'N') return 'Nonqualified PAC';
+  if (designation === 'U') return 'Unauthorized PAC';
+  return 'Other PAC';
 }
 
 // Calculate tier based on grassroots percentage
@@ -322,6 +448,31 @@ function calculateTier(grassrootsPercent, totalRaised) {
   if (grassrootsPercent >= 50) return 'B';
   if (grassrootsPercent >= 30) return 'C';
   return 'D';
+}
+
+// NEW: Calculate enhanced tier using weighted PAC transparency scores
+function calculateEnhancedTier(member) {
+  if (!member.totalRaised || member.totalRaised === 0) return 'N/A';
+
+  // If we have PAC contributions with transparency weights, use enhanced calculation
+  if (member.pacContributions && member.pacContributions.length > 0) {
+    const totalWeightedPAC = member.pacContributions.reduce((sum, pac) =>
+      sum + (pac.weighted_amount || pac.amount), 0);
+
+    // Recalculate grassroots percentage using weighted PAC amounts
+    const enhancedGrassrootsDonations = member.totalRaised - totalWeightedPAC;
+    const enhancedGrassrootsPercent = (enhancedGrassrootsDonations / member.totalRaised) * 100;
+
+    // Apply tier calculation with enhanced percentage
+    if (enhancedGrassrootsPercent >= 85) return 'S';
+    if (enhancedGrassrootsPercent >= 70) return 'A';
+    if (enhancedGrassrootsPercent >= 50) return 'B';
+    if (enhancedGrassrootsPercent >= 30) return 'C';
+    return 'D';
+  }
+
+  // Fallback to standard calculation
+  return calculateTier(member.grassrootsPercent, member.totalRaised);
 }
 
 // Process and enrich member data with TWO-CALL STRATEGY
@@ -458,6 +609,8 @@ async function processMembers(congressMembers, env, testLimit = undefined) {
             currentMembers[memberIndex].pacContributions = pacDetails;
             currentMembers[memberIndex].pacDetailsStatus = 'complete';
             currentMembers[memberIndex].lastUpdated = new Date().toISOString();
+            // NEW: Recalculate tier with enhanced transparency weighting
+            currentMembers[memberIndex].tier = calculateEnhancedTier(currentMembers[memberIndex]);
 
             await env.MEMBER_DATA.put('members:all', JSON.stringify(currentMembers));
             console.log(`✅ PAC details updated for ${basicMember.name}: ${pacDetails.length} contributions`);
@@ -810,6 +963,8 @@ async function handleFECBatchUpdate(env, corsHeaders, request) {
                 pacDetailsStatus: 'complete',
                 lastUpdated: new Date().toISOString()
               };
+              // NEW: Recalculate tier with enhanced transparency weighting
+              allMembers[member.originalIndex].tier = calculateEnhancedTier(allMembers[member.originalIndex]);
               updated++;
               console.log(`✅ Updated PAC details for ${member.name}: ${pacDetails.length} contributions`);
             }
