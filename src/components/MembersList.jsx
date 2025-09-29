@@ -147,6 +147,13 @@ export default function MembersList() {
     setDisplayedCount(ITEMS_PER_PAGE);
   }, [searchTerm]);
 
+  // Scroll to top when member is selected for profile view
+  useEffect(() => {
+    if (selectedMember) {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  }, [selectedMember]);
+
   if (loading) {
     return (
       <div className="flex items-center justify-center py-12">
