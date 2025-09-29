@@ -1,10 +1,8 @@
 // API client for Task Force Purple
 // Handles communication with Cloudflare Worker backend
 
-// Dynamically determine API URL based on environment
-const API_BASE_URL = import.meta.env.PROD
-  ? '/api'  // Production: routed to Worker via Pages Functions
-  : 'https://your-worker-name.your-subdomain.workers.dev/api';  // Development: direct Worker URL
+// Direct Worker URL since Pages routing isn't set up yet
+const API_BASE_URL = 'https://taskforce-purple-api.dev-a4b.workers.dev/api';
 
 export class TaskForceAPI {
   static async fetchMembers() {
@@ -13,6 +11,14 @@ export class TaskForceAPI {
 
       if (!response.ok) {
         throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
+
+      // Check if response is actually JSON
+      const contentType = response.headers.get('content-type');
+      if (!contentType || !contentType.includes('application/json')) {
+        const text = await response.text();
+        console.error('Non-JSON response:', text);
+        throw new Error(`API returned non-JSON response: ${text.substring(0, 100)}...`);
       }
 
       const data = await response.json();
