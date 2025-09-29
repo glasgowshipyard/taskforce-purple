@@ -108,47 +108,47 @@ export class TaskForceAPI {
     if (name.includes('BANK') || name.includes('FINANCIAL') || name.includes('SECURITIES') ||
         name.includes('INVESTMENT') || name.includes('CAPITAL') || name.includes('PERSHING') ||
         name.includes('GOLDMAN') || name.includes('MORGAN')) {
-      return { industry: 'Financial Services', icon: '🏦', color: 'bg-blue-50 text-blue-800 border-blue-200' };
+      return { industry: 'Financial Services', color: 'bg-blue-50 text-blue-800 border-blue-200' };
     }
 
     // Energy/Oil
     if (name.includes('ENERGY') || name.includes('OIL') || name.includes('GAS') ||
         name.includes('PETROLEUM') || name.includes('EXXON') || name.includes('CHEVRON')) {
-      return { industry: 'Energy & Oil', icon: '⛽', color: 'bg-orange-50 text-orange-800 border-orange-200' };
+      return { industry: 'Energy & Oil', color: 'bg-orange-50 text-orange-800 border-orange-200' };
     }
 
     // Healthcare/Pharma
     if (name.includes('HEALTH') || name.includes('PHARMA') || name.includes('MEDICAL') ||
         name.includes('PFIZER') || name.includes('JOHNSON')) {
-      return { industry: 'Healthcare & Pharma', icon: '⚕️', color: 'bg-green-50 text-green-800 border-green-200' };
+      return { industry: 'Healthcare & Pharma', color: 'bg-green-50 text-green-800 border-green-200' };
     }
 
     // Tech
     if (name.includes('TECH') || name.includes('GOOGLE') || name.includes('AMAZON') ||
         name.includes('MICROSOFT') || name.includes('APPLE') || name.includes('META')) {
-      return { industry: 'Technology', icon: '💻', color: 'bg-purple-50 text-purple-800 border-purple-200' };
+      return { industry: 'Technology', color: 'bg-purple-50 text-purple-800 border-purple-200' };
     }
 
     // Party Committees
     if (name.includes('DSCC') || name.includes('DCCC') || name.includes('NRCC') ||
         name.includes('NRSC') || name.includes('DEMOCRATIC') || name.includes('REPUBLICAN')) {
-      return { industry: 'Party Committee', icon: '🏛️', color: 'bg-indigo-50 text-indigo-800 border-indigo-200' };
+      return { industry: 'Party Committee', color: 'bg-indigo-50 text-indigo-800 border-indigo-200' };
     }
 
     // Labor Unions
     if (name.includes('UNION') || name.includes('WORKERS') || name.includes('TEAMSTERS') ||
         name.includes('AFL') || name.includes('CIO') || name.includes('SEIU')) {
-      return { industry: 'Labor Union', icon: '👷', color: 'bg-yellow-50 text-yellow-800 border-yellow-200' };
+      return { industry: 'Labor Union', color: 'bg-yellow-50 text-yellow-800 border-yellow-200' };
     }
 
     // Defense/Military
     if (name.includes('DEFENSE') || name.includes('MILITARY') || name.includes('LOCKHEED') ||
         name.includes('BOEING') || name.includes('RAYTHEON')) {
-      return { industry: 'Defense & Military', icon: '⚔️', color: 'bg-gray-50 text-gray-800 border-gray-200' };
+      return { industry: 'Defense & Military', color: 'bg-gray-50 text-gray-800 border-gray-200' };
     }
 
     // Default for unrecognized PACs
-    return { industry: 'Other PAC', icon: '🏢', color: 'bg-gray-50 text-gray-600 border-gray-200' };
+    return { industry: 'Other PAC', color: 'bg-gray-50 text-gray-600 border-gray-200' };
   }
 }
 

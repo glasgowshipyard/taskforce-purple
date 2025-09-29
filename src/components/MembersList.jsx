@@ -275,7 +275,6 @@ export default function MembersList() {
                         <div key={index} className="flex items-center justify-between py-3 border-b border-gray-200 last:border-b-0">
                           <div className="flex-1">
                             <div className="flex items-center space-x-3">
-                              <span className="text-lg">{category.icon}</span>
                               <div>
                                 <h5 className="font-medium text-gray-900">{pac.pacName}</h5>
                                 <div className="flex items-center space-x-2 mt-1">
@@ -300,7 +299,6 @@ export default function MembersList() {
                     })
                   ) : (
                     <div className="text-center py-8 text-gray-500">
-                      <div className="text-lg mb-2">📊</div>
                       <p>No detailed PAC contribution data available</p>
                       <p className="text-xs mt-1">This could mean limited PAC funding or data collection in progress</p>
                     </div>
@@ -308,11 +306,11 @@ export default function MembersList() {
 
                   <div className="mt-4 p-3 bg-blue-50 rounded border border-blue-200">
                     <p className="text-sm text-blue-800">
-                      <strong>💡 Understanding PAC Categories:</strong><br />
-                      • <strong>Financial Services</strong> 🏦 - Banks, investment firms, securities companies<br />
-                      • <strong>Party Committees</strong> 🏛️ - Official Democratic/Republican campaign committees<br />
-                      • <strong>Labor Unions</strong> 👷 - Worker organizations and union PACs<br />
-                      • <strong>Other PACs</strong> 🏢 - Issue advocacy groups, trade associations
+                      <strong>Understanding PAC Categories:</strong><br />
+                      • <strong>Financial Services</strong> - Banks, investment firms, securities companies<br />
+                      • <strong>Party Committees</strong> - Official Democratic/Republican campaign committees<br />
+                      • <strong>Labor Unions</strong> - Worker organizations and union PACs<br />
+                      • <strong>Other PACs</strong> - Issue advocacy groups, trade associations
                     </p>
                   </div>
                 </div>

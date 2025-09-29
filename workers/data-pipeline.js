@@ -324,7 +324,7 @@ async function processMembers(congressMembers, env) {
   const processedMembers = [];
   let processed = 0;
 
-  for (const member of congressMembers.slice(0, 10)) { // Limited test - first 10 established members
+  for (const member of congressMembers) { // Process all Congress members
     try {
       // Pass the full member object for FEC lookup by name
       const financials = await fetchMemberFinancials(member, env);
@@ -377,8 +377,8 @@ async function processMembers(congressMembers, env) {
         console.log(`📊 Processed ${processed}/${congressMembers.length} members`);
       }
 
-      // Rate limiting - 5 second delay for testing (faster for limited run)
-      await new Promise(resolve => setTimeout(resolve, 5000));
+      // Rate limiting - 1 second delay to respect API limits
+      await new Promise(resolve => setTimeout(resolve, 1000));
 
     } catch (error) {
       console.warn(`Error processing member ${member.name}:`, error.message);
