@@ -136,18 +136,31 @@ export default function MembersList() {
     // Otherwise return paginated results
     // Adjust pagination to account for showcase on page 1
     let adjustedStartIndex;
-    if (currentPage === 2 && showcaseMembers !== null) {
+    const hasShowcase = showcaseMembers !== null; // Showcase exists when on page 1
+
+    if (currentPage === 2) {
+      console.log('Page 2 Debug - hasShowcase:', hasShowcase, 'showcaseMembers:', showcaseMembers);
+    }
+
+    if (currentPage === 2 && hasShowcase) {
       // Page 2 after showcase: start from position 5 (after the 5 showcase members)
       adjustedStartIndex = 5;
-    } else if (currentPage > 2 && showcaseMembers !== null) {
+      console.log('Page 2 - Using adjusted start index:', adjustedStartIndex);
+    } else if (currentPage > 2 && hasShowcase) {
       // Pages 3+: account for the fact that page 1 had 5 items, page 2 had 20 items
       adjustedStartIndex = 5 + (currentPage - 2) * ITEMS_PER_PAGE;
+      console.log(`Page ${currentPage} - Using adjusted start index:`, adjustedStartIndex);
     } else {
       // Normal pagination when no showcase
       adjustedStartIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+      console.log(`Page ${currentPage} - Using normal start index:`, adjustedStartIndex);
     }
 
-    return sorted.slice(adjustedStartIndex, adjustedStartIndex + displayedCount);
+    const result = sorted.slice(adjustedStartIndex, adjustedStartIndex + displayedCount);
+    if (currentPage === 2) {
+      console.log('Page 2 - Returning members:', result.slice(0, 5).map(m => m.name));
+    }
+    return result;
   }, [filteredMembers, currentPage, displayedCount, showcaseMembers]);
 
   // Calculate total pages
