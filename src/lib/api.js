@@ -83,6 +83,22 @@ export class TaskForceAPI {
     };
     return descriptions[tier] || 'Unknown';
   }
+
+  static getTierExplanation(tier) {
+    const explanations = {
+      'S': 'Truly people-funded representatives - your voice is likely to be theirs! These members get 85%+ of their funding from small grassroots donations.',
+      'A': 'Mostly grassroots funded with some larger donations. Still primarily accountable to constituents like you.',
+      'B': 'Mixed funding sources. Some independence from special interests, but also some dependency on larger donors.',
+      'C': 'PAC heavy funding. These members rely significantly on Political Action Committees, which bundle corporate and special interest money. Your voice may compete with big donors.',
+      'D': 'Corporate captured. These representatives depend heavily on PAC money and large donations, creating dependency on big donors vs. constituents like you.',
+      'N/A': 'No recent financial data available. This could mean they\'re not up for re-election or we haven\'t found their committee records yet.'
+    };
+    return explanations[tier] || 'No explanation available.';
+  }
+
+  static getPACExplanation() {
+    return "Political Action Committees (PACs) bundle donations from corporations, special interests, and wealthy individuals. While legal, heavy PAC funding can create dependency on big donors rather than everyday constituents like you. Grassroots donations under $200 represent individual citizens directly supporting their representatives.";
+  }
 }
 
 // Mock data fallback for development

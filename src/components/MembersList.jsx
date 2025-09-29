@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Search, RefreshCw, AlertCircle, TrendingUp, DollarSign, Eye, Info } from 'lucide-react';
+import { Search, RefreshCw, AlertCircle, TrendingUp, DollarSign, Eye, Info, HelpCircle } from 'lucide-react';
 import { TaskForceAPI, mockCongressData } from '../lib/api.js';
 
 export default function MembersList() {
@@ -12,7 +12,7 @@ export default function MembersList() {
   const [useMockData, setUseMockData] = useState(false);
   const [showTooltip, setShowTooltip] = useState(null);
 
-  // Auto-scroll to member profile when selected
+  // Gentle scroll to profile when selected (profile is now near top)
   useEffect(() => {
     if (selectedMember) {
       const profileElement = document.getElementById('member-profile');
@@ -117,6 +117,128 @@ export default function MembersList() {
         </div>
       )}
 
+      {/* Tier System Explanation */}
+      <div className="bg-gradient-to-r from-purple-50 to-blue-50 rounded-lg shadow p-6">
+        <div className="flex items-center space-x-2 mb-4">
+          <HelpCircle className="w-5 h-5 text-purple-600" />
+          <h3 className="text-lg font-semibold text-gray-900">How We Rate Your Representatives</h3>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-4">
+          {['S', 'A', 'B', 'C', 'D'].map((tier) => (
+            <div key={tier} className={`rounded-lg p-3 text-center ${TaskForceAPI.getTierColor(tier)}`}>
+              <div className="text-lg font-bold mb-1">{tier} Tier</div>
+              <div className="text-xs opacity-90">{TaskForceAPI.getTierDescription(tier)}</div>
+            </div>
+          ))}
+        </div>
+        <div className="text-sm text-gray-700">
+          <p className="mb-2">{TaskForceAPI.getPACExplanation()}</p>
+          <p className="text-xs text-gray-600">Click any representative below to see their detailed funding breakdown.</p>
+        </div>
+      </div>
+
+      {/* Selected Member Profile - Shows at top when member is clicked */}
+      {selectedMember && (
+        <div className="bg-white rounded-lg shadow-lg p-6" id="member-profile">
+          <div className="flex items-start justify-between mb-6">
+            <div className="flex items-center space-x-4">
+              <div className={`w-16 h-16 rounded-full flex items-center justify-center text-2xl font-bold ${TaskForceAPI.getTierColor(selectedMember.tier)}`}>
+                {selectedMember.tier}
+              </div>
+              <div>
+                <h2 className="text-2xl font-bold text-gray-900">{selectedMember.name}</h2>
+                <p className="text-gray-600">
+                  {selectedMember.party} - {selectedMember.state} {selectedMember.district && `(${selectedMember.district})`} | {selectedMember.chamber}
+                </p>
+                <p className="text-sm text-gray-500 mt-1">{TaskForceAPI.getTierDescription(selectedMember.tier)}</p>
+                <p className="text-sm text-purple-600 mt-2 italic">{TaskForceAPI.getTierExplanation(selectedMember.tier)}</p>
+                {selectedMember.lastUpdated && (
+                  <p className="text-xs text-gray-400 mt-1">
+                    Data last updated: {new Date(selectedMember.lastUpdated).toLocaleDateString('en-US', {
+                      year: 'numeric',
+                      month: 'short',
+                      day: 'numeric',
+                    })}
+                  </p>
+                )}
+              </div>
+            </div>
+            <button
+              onClick={() => setSelectedMember(null)}
+              className="text-gray-400 hover:text-gray-600 text-lg font-bold"
+            >
+              ×
+            </button>
+          </div>
+
+          {/* Financial data explanation for $0 amounts */}
+          {selectedMember.totalRaised === 0 && (
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
+              <div className="flex items-start space-x-2">
+                <Info className="w-5 h-5 text-blue-600 mt-0.5 flex-shrink-0" />
+                <div className="text-blue-800 text-sm">
+                  <p className="font-medium">No Recent Campaign Finance Data</p>
+                  <p>This could mean they're not up for re-election in 2024, newly elected, or we haven't found their FEC committee records yet. We're working to expand our data coverage.</p>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Financial breakdown */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+            <div className="bg-green-50 p-4 rounded-lg">
+              <div className="flex items-center space-x-2 mb-2">
+                <TrendingUp className="w-5 h-5 text-green-600" />
+                <span className="font-semibold text-green-800">Grassroots Funding</span>
+              </div>
+              <div className="text-2xl font-bold text-green-600">{selectedMember.grassrootsPercent}%</div>
+              <div className="text-sm text-green-700">{TaskForceAPI.formatCurrency(selectedMember.grassrootsDonations)}</div>
+            </div>
+
+            <div className="bg-red-50 p-4 rounded-lg">
+              <div className="flex items-center space-x-2 mb-2">
+                <DollarSign className="w-5 h-5 text-red-600" />
+                <span className="font-semibold text-red-800">PAC Money</span>
+              </div>
+              <div className="text-2xl font-bold text-red-600">{TaskForceAPI.formatCurrency(selectedMember.pacMoney)}</div>
+              <div className="text-sm text-red-700">
+                {selectedMember.totalRaised > 0
+                  ? `${((selectedMember.pacMoney / selectedMember.totalRaised) * 100).toFixed(1)}% of total`
+                  : 'No data available'
+                }
+              </div>
+            </div>
+
+            <div className="bg-purple-50 p-4 rounded-lg">
+              <div className="flex items-center space-x-2 mb-2">
+                <Eye className="w-5 h-5 text-purple-600" />
+                <span className="font-semibold text-purple-800">Total Raised</span>
+              </div>
+              <div className="text-2xl font-bold text-purple-600">{TaskForceAPI.formatCurrency(selectedMember.totalRaised)}</div>
+              <div className="text-sm text-purple-700">2024 Election Cycle</div>
+            </div>
+          </div>
+
+          {/* Additional member information */}
+          {selectedMember.committeeInfo && (
+            <div className="mt-6 pt-6 border-t">
+              <h4 className="font-semibold text-gray-900 mb-2">Campaign Committee</h4>
+              <p className="text-sm text-gray-600">{selectedMember.committeeInfo.name}</p>
+              <p className="text-xs text-gray-500">ID: {selectedMember.committeeInfo.id}</p>
+            </div>
+          )}
+
+          {selectedMember.totalRaised === 0 && (
+            <div className="mt-6 pt-6 border-t">
+              <p className="text-xs text-gray-500">
+                <strong>Note:</strong> This member may be newly elected or their FEC committee data
+                might not be available for the 2024 cycle yet.
+              </p>
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Main leaderboard */}
       <div className="bg-white rounded-lg shadow-lg p-6">
         <div className="flex items-center justify-between mb-6">
@@ -197,110 +319,6 @@ export default function MembersList() {
         </div>
       </div>
 
-      {/* Member profile modal/detail */}
-      {selectedMember && (
-        <div className="bg-white rounded-lg shadow-lg p-6" id="member-profile">
-          <div className="flex items-start justify-between mb-6">
-            <div className="flex items-center space-x-4">
-              <div className={`w-16 h-16 rounded-full flex items-center justify-center text-2xl font-bold ${TaskForceAPI.getTierColor(selectedMember.tier)}`}>
-                {selectedMember.tier}
-              </div>
-              <div>
-                <h2 className="text-2xl font-bold text-gray-900">{selectedMember.name}</h2>
-                <p className="text-gray-600">
-                  {selectedMember.party} - {selectedMember.state} {selectedMember.district && `(${selectedMember.district})`} | {selectedMember.chamber}
-                </p>
-                <p className="text-sm text-gray-500 mt-1">{TaskForceAPI.getTierDescription(selectedMember.tier)}</p>
-                {selectedMember.lastUpdated && (
-                  <p className="text-xs text-gray-400 mt-1">
-                    Data last updated: {new Date(selectedMember.lastUpdated).toLocaleDateString('en-US', {
-                      year: 'numeric',
-                      month: 'short',
-                      day: 'numeric',
-                      hour: '2-digit',
-                      minute: '2-digit'
-                    })}
-                  </p>
-                )}
-              </div>
-            </div>
-            <button
-              onClick={() => setSelectedMember(null)}
-              className="text-gray-500 hover:text-gray-700"
-            >
-              ×
-            </button>
-          </div>
-
-          {/* Financial data explanation for $0 amounts */}
-          {selectedMember.totalRaised === 0 && (
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
-              <div className="flex items-start space-x-2">
-                <Info className="w-5 h-5 text-blue-600 mt-0.5 flex-shrink-0" />
-                <div className="text-blue-800">
-                  <p className="font-medium">Why $0 amounts?</p>
-                  <p className="text-sm text-blue-700 mt-1">
-                    This member may be newly elected, have limited FEC filings, or their campaign committee
-                    data isn't yet linked in our system. We're working to improve data coverage for all members.
-                  </p>
-                </div>
-              </div>
-            </div>
-          )}
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div className="bg-green-50 p-4 rounded-lg">
-              <div className="flex items-center space-x-2 mb-2">
-                <TrendingUp className="w-5 h-5 text-green-600" />
-                <span className="font-semibold text-green-800">Grassroots Funding</span>
-              </div>
-              <div className="text-2xl font-bold text-green-600">{selectedMember.grassrootsPercent}%</div>
-              <div className="text-sm text-green-700">{TaskForceAPI.formatCurrency(selectedMember.grassrootsDonations)}</div>
-            </div>
-
-            <div className="bg-red-50 p-4 rounded-lg">
-              <div className="flex items-center space-x-2 mb-2">
-                <DollarSign className="w-5 h-5 text-red-600" />
-                <span className="font-semibold text-red-800">PAC Money</span>
-              </div>
-              <div className="text-2xl font-bold text-red-600">{TaskForceAPI.formatCurrency(selectedMember.pacMoney)}</div>
-              <div className="text-sm text-red-700">
-                {selectedMember.totalRaised > 0
-                  ? `${((selectedMember.pacMoney / selectedMember.totalRaised) * 100).toFixed(1)}% of total`
-                  : 'No data available'
-                }
-              </div>
-            </div>
-
-            <div className="bg-purple-50 p-4 rounded-lg">
-              <div className="flex items-center space-x-2 mb-2">
-                <Eye className="w-5 h-5 text-purple-600" />
-                <span className="font-semibold text-purple-800">Total Raised</span>
-              </div>
-              <div className="text-2xl font-bold text-purple-600">{TaskForceAPI.formatCurrency(selectedMember.totalRaised)}</div>
-              <div className="text-sm text-purple-700">2024 Election Cycle</div>
-            </div>
-          </div>
-
-          {/* Additional member information */}
-          {selectedMember.committeeInfo && (
-            <div className="mt-6 pt-6 border-t">
-              <h4 className="font-semibold text-gray-900 mb-2">Campaign Committee</h4>
-              <p className="text-sm text-gray-600">{selectedMember.committeeInfo.name}</p>
-              <p className="text-xs text-gray-500">ID: {selectedMember.committeeInfo.id}</p>
-            </div>
-          )}
-
-          {selectedMember.totalRaised === 0 && (
-            <div className="mt-6 pt-6 border-t">
-              <p className="text-xs text-gray-500">
-                <strong>Note:</strong> This member may be newly elected or their FEC committee data
-                hasn't been linked yet. Financial data will be updated as it becomes available.
-              </p>
-            </div>
-          )}
-        </div>
-      )}
     </div>
   );
 }
