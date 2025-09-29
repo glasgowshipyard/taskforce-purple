@@ -66,7 +66,8 @@ export class TaskForceAPI {
       'A': 'bg-blue-500 text-white',
       'B': 'bg-yellow-500 text-black',
       'C': 'bg-orange-500 text-white',
-      'D': 'bg-red-500 text-white'
+      'D': 'bg-red-500 text-white',
+      'N/A': 'bg-gray-300 text-gray-600'
     };
     return colors[tier] || 'bg-gray-500 text-white';
   }
@@ -77,7 +78,8 @@ export class TaskForceAPI {
       'A': 'Mostly Clean (70-84%)',
       'B': 'Mixed Funding (50-69%)',
       'C': 'PAC Heavy (30-49%)',
-      'D': 'Captured (0-29%)'
+      'D': 'Captured (0-29%)',
+      'N/A': 'No Financial Data Available'
     };
     return descriptions[tier] || 'Unknown';
   }

@@ -59,9 +59,13 @@ export default function MembersList() {
 
   const sortedMembers = useMemo(() => {
     return [...filteredMembers].sort((a, b) => {
-      const tierOrder = { 'S': 5, 'A': 4, 'B': 3, 'C': 2, 'D': 1 };
+      const tierOrder = { 'S': 6, 'A': 5, 'B': 4, 'C': 3, 'D': 2, 'N/A': 1 };
       if (tierOrder[a.tier] !== tierOrder[b.tier]) {
         return tierOrder[b.tier] - tierOrder[a.tier];
+      }
+      // For same tier, sort by grassroots percentage (but N/A members by name)
+      if (a.tier === 'N/A' && b.tier === 'N/A') {
+        return a.name.localeCompare(b.name);
       }
       return b.grassrootsPercent - a.grassrootsPercent;
     });
@@ -154,9 +158,17 @@ export default function MembersList() {
                 </div>
               </div>
               <div className="text-right">
-                <div className="text-lg font-bold text-green-600">{member.grassrootsPercent}%</div>
-                <div className="text-sm text-gray-500">Grassroots</div>
-              </div>
+                {member.totalRaised === 0 ? (
+                  <div>
+                    <div className="text-lg font-bold text-gray-400">No Filings</div>
+                    <div className="text-sm text-gray-400">Financial Data</div>
+                  </div>
+                ) : (
+                  <div>
+                    <div className="text-lg font-bold text-green-600">{member.grassrootsPercent}%</div>
+                    <div className="text-sm text-gray-500">Grassroots</div>
+                  </div>
+                )}</div>
             </div>
           ))}
         </div>
@@ -165,8 +177,8 @@ export default function MembersList() {
       {/* Tier definitions */}
       <div className="bg-white rounded-lg shadow-lg p-6">
         <h3 className="text-lg font-semibold mb-4">Tier Definitions</h3>
-        <div className="grid grid-cols-1 md:grid-cols-5 gap-3">
-          {['S', 'A', 'B', 'C', 'D'].map(tier => (
+        <div className="grid grid-cols-1 md:grid-cols-6 gap-3">
+          {['S', 'A', 'B', 'C', 'D', 'N/A'].map(tier => (
             <div key={tier} className={`p-3 rounded-lg ${TaskForceAPI.getTierColor(tier)}`}>
               <div className="text-2xl font-bold mb-1">{tier}</div>
               <div className="text-xs">{TaskForceAPI.getTierDescription(tier)}</div>
@@ -189,6 +201,17 @@ export default function MembersList() {
                   {selectedMember.party} - {selectedMember.state} {selectedMember.district && `(${selectedMember.district})`} | {selectedMember.chamber}
                 </p>
                 <p className="text-sm text-gray-500 mt-1">{TaskForceAPI.getTierDescription(selectedMember.tier)}</p>
+                {selectedMember.lastUpdated && (
+                  <p className="text-xs text-gray-400 mt-1">
+                    Data last updated: {new Date(selectedMember.lastUpdated).toLocaleDateString('en-US', {
+                      year: 'numeric',
+                      month: 'short',
+                      day: 'numeric',
+                      hour: '2-digit',
+                      minute: '2-digit'
+                    })}
+                  </p>
+                )}
               </div>
             </div>
             <button
@@ -248,6 +271,24 @@ export default function MembersList() {
               <div className="text-sm text-purple-700">2024 Election Cycle</div>
             </div>
           </div>
+
+          {/* Additional member information */}
+          {selectedMember.committeeInfo && (
+            <div className="mt-6 pt-6 border-t">
+              <h4 className="font-semibold text-gray-900 mb-2">Campaign Committee</h4>
+              <p className="text-sm text-gray-600">{selectedMember.committeeInfo.name}</p>
+              <p className="text-xs text-gray-500">ID: {selectedMember.committeeInfo.id}</p>
+            </div>
+          )}
+
+          {selectedMember.totalRaised === 0 && (
+            <div className="mt-6 pt-6 border-t">
+              <p className="text-xs text-gray-500">
+                <strong>Note:</strong> This member may be newly elected or their FEC committee data
+                hasn't been linked yet. Financial data will be updated as it becomes available.
+              </p>
+            </div>
+          )}
         </div>
       )}
     </div>

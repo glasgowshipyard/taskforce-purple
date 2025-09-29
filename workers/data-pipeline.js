@@ -46,7 +46,7 @@ export default {
   }
 };
 
-// Fetch current Congress members from Congress.gov API
+// Fetch current Congress members from Congress.gov API (with pagination)
 async function fetchCongressMembers(env) {
   const apiKey = env.CONGRESS_API_KEY;
   if (!apiKey) {
@@ -55,8 +55,13 @@ async function fetchCongressMembers(env) {
 
   console.log('📊 Fetching current 119th Congress members...');
 
-  const response = await fetch(
-    `https://api.congress.gov/v3/member/congress/119?currentMember=true&limit=250&api_key=${apiKey}`,
+  let allMembers = [];
+  let offset = 0;
+  const limit = 250;
+
+  // First, get total count to determine pagination strategy
+  const firstResponse = await fetch(
+    `https://api.congress.gov/v3/member/congress/119?currentMember=true&offset=0&limit=1&api_key=${apiKey}`,
     {
       headers: {
         'User-Agent': 'TaskForcePurple/1.0 (Political Transparency Platform)'
@@ -64,14 +69,49 @@ async function fetchCongressMembers(env) {
     }
   );
 
-  if (!response.ok) {
-    throw new Error(`Congress API error: ${response.status} ${response.statusText}`);
+  if (!firstResponse.ok) {
+    throw new Error(`Congress API error: ${firstResponse.status} ${firstResponse.statusText}`);
   }
 
-  const data = await response.json();
-  console.log(`📈 Found ${data.members?.length || 0} current members`);
+  const firstData = await firstResponse.json();
+  const totalCount = firstData.pagination?.count || 0;
+  console.log(`📊 Total members available: ${totalCount}`);
 
-  return data.members || [];
+  // Calculate pages to fetch in reverse order (oldest first)
+  const totalPages = Math.ceil(totalCount / limit);
+
+  for (let page = totalPages - 1; page >= 0; page--) {
+    const currentOffset = page * limit;
+
+    console.log(`📥 Fetching page ${page + 1}/${totalPages} (offset ${currentOffset}) - ${page === totalPages - 1 ? 'ESTABLISHED' : page === 0 ? 'NEWEST' : 'MID-TENURE'} members`);
+
+    const response = await fetch(
+      `https://api.congress.gov/v3/member/congress/119?currentMember=true&offset=${currentOffset}&limit=${limit}&api_key=${apiKey}`,
+      {
+        headers: {
+          'User-Agent': 'TaskForcePurple/1.0 (Political Transparency Platform)'
+        }
+      }
+    );
+
+    if (!response.ok) {
+      throw new Error(`Congress API error: ${response.status} ${response.statusText}`);
+    }
+
+    const data = await response.json();
+    const members = data.members || [];
+    allMembers = allMembers.concat(members);
+
+    console.log(`📈 Fetched ${members.length} members, total so far: ${allMembers.length}`);
+
+    // Small delay between paginated requests (except for last page)
+    if (page > 0) {
+      await new Promise(resolve => setTimeout(resolve, 1000));
+    }
+  }
+
+  console.log(`✅ Total members fetched: ${allMembers.length}`);
+  return allMembers;
 }
 
 // Fetch financial data from OpenFEC API
@@ -149,7 +189,10 @@ async function fetchMemberFinancials(candidateId, env) {
 }
 
 // Calculate tier based on grassroots percentage
-function calculateTier(grassrootsPercent) {
+function calculateTier(grassrootsPercent, totalRaised) {
+  // No financial data = no tier assignment
+  if (totalRaised === 0) return 'N/A';
+
   if (grassrootsPercent >= 85) return 'S';
   if (grassrootsPercent >= 70) return 'A';
   if (grassrootsPercent >= 50) return 'B';
@@ -164,7 +207,7 @@ async function processMembers(congressMembers, env) {
   const processedMembers = [];
   let processed = 0;
 
-  for (const member of congressMembers.slice(0, 20)) { // Limit for testing
+  for (const member of congressMembers) { // Process all members
     try {
       // Get FEC candidate ID (usually bioguideId works, but may need mapping)
       const candidateId = member.bioguideId;
@@ -187,7 +230,7 @@ async function processMembers(congressMembers, env) {
         partyMoney: financials?.partyMoney || 0,
 
         // Calculated tier
-        tier: calculateTier(financials?.grassrootsPercent || 0),
+        tier: calculateTier(financials?.grassrootsPercent || 0, financials?.totalRaised || 0),
 
         // Metadata
         lastUpdated: new Date().toISOString(),
@@ -204,8 +247,8 @@ async function processMembers(congressMembers, env) {
         console.log(`📊 Processed ${processed}/${congressMembers.length} members`);
       }
 
-      // Rate limiting - small delay between requests
-      await new Promise(resolve => setTimeout(resolve, 100));
+      // Rate limiting - 40 second delay = ~90 requests/hour (safe buffer)
+      await new Promise(resolve => setTimeout(resolve, 40000));
 
     } catch (error) {
       console.warn(`Error processing member ${member.name}:`, error.message);
