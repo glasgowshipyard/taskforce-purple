@@ -135,6 +135,19 @@ export default function MembersList() {
 
     // Otherwise return paginated results
     const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+
+    // Debug: log first few members on Page 2 to understand the issue
+    if (currentPage === 2) {
+      console.log('Page 2 Debug - First 10 sorted members:',
+        sorted.slice(0, 10).map(m => ({
+          name: m.name,
+          tier: m.tier,
+          grassrootsPercent: m.grassrootsPercent,
+          totalRaised: m.totalRaised
+        }))
+      );
+    }
+
     return sorted.slice(startIndex, startIndex + displayedCount);
   }, [filteredMembers, currentPage, displayedCount, showcaseMembers]);
 
