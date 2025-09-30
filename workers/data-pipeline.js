@@ -30,6 +30,8 @@ export default {
           return await handleTestMember(env, corsHeaders, request);
         case '/api/recalculate-tiers':
           return await handleRecalculateTiers(env, corsHeaders, request);
+        case '/api/process-candidate':
+          return await handleProcessCandidate(env, corsHeaders, request);
         default:
           return new Response('Not Found', { status: 404, headers: corsHeaders });
       }
@@ -1307,6 +1309,151 @@ async function handleRecalculateTiers(env, corsHeaders, request) {
 
   } catch (error) {
     console.error('Tier recalculation failed:', error);
+    return new Response(JSON.stringify({
+      error: error.message,
+      success: false
+    }), {
+      status: 500,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+    });
+  }
+}
+
+// Process specific candidate by name or bioguideId
+async function handleProcessCandidate(env, corsHeaders, request) {
+  try {
+    const url = new URL(request.url);
+    const name = url.searchParams.get('name');
+    const bioguideId = url.searchParams.get('bioguideId');
+
+    if (!name && !bioguideId) {
+      return new Response(JSON.stringify({
+        error: 'Either name or bioguideId parameter required'
+      }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
+    }
+
+    console.log(`🎯 Processing specific candidate: ${name || bioguideId}`);
+
+    // Get current member data
+    const currentData = await env.MEMBER_DATA.get('members:all');
+    if (!currentData) {
+      return new Response(JSON.stringify({
+        error: 'No member data found in storage'
+      }), {
+        status: 404,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
+    }
+
+    const members = JSON.parse(currentData);
+    let targetMember = null;
+
+    // Find the member by name or bioguideId
+    if (bioguideId) {
+      targetMember = members.find(m => m.bioguideId === bioguideId);
+    } else if (name) {
+      // Try exact match first, then partial match
+      targetMember = members.find(m =>
+        m.name.toLowerCase() === name.toLowerCase() ||
+        m.name.toLowerCase().includes(name.toLowerCase()) ||
+        name.toLowerCase().includes(m.name.toLowerCase().split(',')[0])
+      );
+    }
+
+    if (!targetMember) {
+      return new Response(JSON.stringify({
+        error: `Member not found: ${name || bioguideId}`,
+        suggestion: 'Try searching with full name format: "LastName, FirstName" or exact bioguideId'
+      }), {
+        status: 404,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
+    }
+
+    console.log(`✅ Found member: ${targetMember.name} (${targetMember.bioguideId})`);
+
+    // Get member's chamber info for FEC processing
+    const chamberType = targetMember.chamber === 'House' ? 'House of Representatives' : 'Senate';
+
+    // Process the member through the full FEC pipeline
+    const memberIndex = members.findIndex(m => m.bioguideId === targetMember.bioguideId);
+    const originalMember = { ...targetMember };
+
+    try {
+      // Step 1: Get financial data from FEC
+      console.log(`💰 Fetching FEC financial data for ${targetMember.name}...`);
+      await fetchFinancialData(targetMember, env, chamberType);
+
+      // Step 2: Get PAC details if they have financial data
+      if (targetMember.totalRaised > 0) {
+        console.log(`🏛️ Fetching PAC details for ${targetMember.name}...`);
+        await fetchPACDetails(targetMember, env);
+
+        // Step 3: Calculate enhanced tier
+        const newTier = calculateEnhancedTier(targetMember);
+        targetMember.tier = newTier;
+        targetMember.lastProcessed = new Date().toISOString();
+        targetMember.processingStatus = 'complete';
+
+        console.log(`🎯 Updated tier for ${targetMember.name}: ${newTier}`);
+      }
+
+      // Update the member in the array
+      members[memberIndex] = targetMember;
+
+      // Save updated data
+      await env.MEMBER_DATA.put('members:all', JSON.stringify(members));
+
+      const response = {
+        success: true,
+        member: {
+          name: targetMember.name,
+          bioguideId: targetMember.bioguideId,
+          state: targetMember.state,
+          chamber: targetMember.chamber,
+          tier: targetMember.tier,
+          grassrootsPercent: targetMember.grassrootsPercent,
+          totalRaised: targetMember.totalRaised,
+          pacCount: targetMember.pacContributions?.length || 0,
+          processingStatus: targetMember.processingStatus,
+          lastProcessed: targetMember.lastProcessed
+        },
+        changes: {
+          tierChanged: originalMember.tier !== targetMember.tier,
+          financialDataAdded: originalMember.totalRaised === 0 && targetMember.totalRaised > 0,
+          oldTier: originalMember.tier,
+          newTier: targetMember.tier
+        }
+      };
+
+      console.log(`✅ Successfully processed ${targetMember.name}`);
+
+      return new Response(JSON.stringify(response), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
+
+    } catch (processingError) {
+      console.error(`❌ Error processing ${targetMember.name}:`, processingError);
+
+      return new Response(JSON.stringify({
+        error: `Processing failed for ${targetMember.name}: ${processingError.message}`,
+        member: {
+          name: targetMember.name,
+          bioguideId: targetMember.bioguideId,
+          state: targetMember.state,
+          chamber: targetMember.chamber
+        }
+      }), {
+        status: 500,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
+    }
+
+  } catch (error) {
+    console.error('Process candidate failed:', error);
     return new Response(JSON.stringify({
       error: error.message,
       success: false
