@@ -78,3 +78,6 @@ temp/
 # Backup files
 *.bak
 *.backup
+
+# Development analysis files
+BROKEN_CALCULATIONS.md

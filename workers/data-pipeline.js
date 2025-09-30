@@ -28,6 +28,8 @@ export default {
           return await handleStatus(env, corsHeaders);
         case '/api/test-member':
           return await handleTestMember(env, corsHeaders, request);
+        case '/api/recalculate-tiers':
+          return await handleRecalculateTiers(env, corsHeaders, request);
         default:
           return new Response('Not Found', { status: 404, headers: corsHeaders });
       }
@@ -528,29 +530,57 @@ function calculateTier(grassrootsPercent, totalRaised) {
   return 'D';
 }
 
-// NEW: Calculate enhanced tier using weighted PAC transparency scores
+// NEW: Calculate enhanced tier using transparency penalty system
 function calculateEnhancedTier(member) {
   if (!member.totalRaised || member.totalRaised === 0) return 'N/A';
 
-  // If we have PAC contributions with transparency weights, use enhanced calculation
-  if (member.pacContributions && member.pacContributions.length > 0) {
-    const totalWeightedPAC = member.pacContributions.reduce((sum, pac) =>
-      sum + (pac.weighted_amount || pac.amount), 0);
+  // Calculate ACTUAL grassroots percentage (no phantom money)
+  const actualPACTotal = member.pacContributions?.reduce((sum, pac) => sum + pac.amount, 0) || 0;
+  const actualGrassrootsPercent = ((member.totalRaised - actualPACTotal) / member.totalRaised) * 100;
 
-    // Recalculate grassroots percentage using weighted PAC amounts
-    const enhancedGrassrootsDonations = member.totalRaised - totalWeightedPAC;
-    const enhancedGrassrootsPercent = (enhancedGrassrootsDonations / member.totalRaised) * 100;
+  // Apply transparency penalty based on concerning PAC relationships
+  const transparencyPenalty = calculateTransparencyPenalty(member);
+  const adjustedThresholds = getAdjustedThresholds(transparencyPenalty);
 
-    // Apply tier calculation with enhanced percentage
-    if (enhancedGrassrootsPercent >= 85) return 'S';
-    if (enhancedGrassrootsPercent >= 70) return 'A';
-    if (enhancedGrassrootsPercent >= 50) return 'B';
-    if (enhancedGrassrootsPercent >= 30) return 'C';
-    return 'D';
+  // Use stricter thresholds if they have concerning PAC relationships
+  if (actualGrassrootsPercent >= adjustedThresholds.S) return 'S';
+  if (actualGrassrootsPercent >= adjustedThresholds.A) return 'A';
+  if (actualGrassrootsPercent >= adjustedThresholds.B) return 'B';
+  if (actualGrassrootsPercent >= adjustedThresholds.C) return 'C';
+  return 'D';
+}
+
+// Calculate transparency penalty based on proportion of concerning PAC funding
+function calculateTransparencyPenalty(member) {
+  if (!member.pacContributions?.length || !member.totalRaised) return 0;
+
+  let concerningPACMoney = 0;
+
+  for (const pac of member.pacContributions) {
+    // Count money from concerning committee types/designations
+    if (pac.committee_type === 'O' ||  // Super PACs (unlimited corporate money)
+        pac.designation === 'D' ||     // Leadership PACs (influence vehicles)
+        pac.designation === 'B') {     // Lobbyist/registrant PACs
+      concerningPACMoney += pac.amount;
+    }
+    // Candidate committees (P, A) and normal PACs don't add penalty
   }
 
-  // Fallback to standard calculation
-  return calculateTier(member.grassrootsPercent, member.totalRaised);
+  // Calculate what % of their total funding is from concerning sources
+  const concerningPercent = (concerningPACMoney / member.totalRaised) * 100;
+
+  // Apply penalty: 1 point per 1% of concerning funding, max 15 points
+  return Math.min(Math.floor(concerningPercent), 15);
+}
+
+// Get adjusted tier thresholds based on transparency penalty
+function getAdjustedThresholds(penaltyPoints) {
+  return {
+    S: 85 + penaltyPoints,  // Need higher grassroots % if you have concerning PACs
+    A: 70 + penaltyPoints,
+    B: 50 + penaltyPoints,
+    C: 30 + penaltyPoints
+  };
 }
 
 // Process and enrich member data with TWO-CALL STRATEGY
@@ -1173,6 +1203,104 @@ async function handleTestMember(env, corsHeaders, request) {
   } catch (error) {
     console.error('Test member processing failed:', error);
     return new Response(JSON.stringify({ error: error.message }), {
+      status: 500,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+    });
+  }
+}
+
+// NEW: Handler for recalculating tiers for all members with existing data
+async function handleRecalculateTiers(env, corsHeaders, request) {
+  try {
+    // Check for authorization
+    const authHeader = request.headers.get('Authorization');
+    const expectedAuth = `Bearer ${env.UPDATE_SECRET || 'taskforce_purple_2025_update'}`;
+
+    if (!authHeader || authHeader !== expectedAuth) {
+      return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+        status: 401,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
+    }
+
+    console.log('🔄 Starting tier recalculation for all members...');
+
+    // Get all member data from storage
+    const currentData = await env.MEMBER_DATA.get('members:all');
+    if (!currentData) {
+      return new Response(JSON.stringify({ error: 'No member data found' }), {
+        status: 404,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
+    }
+
+    const members = JSON.parse(currentData);
+    let recalculated = 0;
+    let unchanged = 0;
+    let errors = 0;
+
+    console.log(`📊 Processing ${members.length} members for tier recalculation...`);
+
+    // Process each member
+    for (let i = 0; i < members.length; i++) {
+      const member = members[i];
+
+      try {
+        // Only recalculate if member has financial data
+        if (!member.totalRaised || member.totalRaised === 0) {
+          continue;
+        }
+
+        // Calculate new tier using enhanced logic
+        const oldTier = member.tier;
+        const newTier = calculateEnhancedTier(member);
+
+        // Update tier if it changed
+        if (oldTier !== newTier) {
+          members[i] = {
+            ...member,
+            tier: newTier,
+            lastTierRecalculated: new Date().toISOString()
+          };
+          recalculated++;
+          console.log(`✅ Updated ${member.name} (${member.bioguideId}): ${oldTier} → ${newTier}`);
+        } else {
+          unchanged++;
+        }
+
+      } catch (error) {
+        console.error(`❌ Error processing ${member.name} (${member.bioguideId}):`, error);
+        errors++;
+      }
+    }
+
+    // Save updated data back to storage
+    await env.MEMBER_DATA.put('members:all', JSON.stringify(members));
+
+    const response = {
+      success: true,
+      message: 'Tier recalculation completed',
+      stats: {
+        totalMembers: members.length,
+        recalculated,
+        unchanged,
+        errors,
+        completedAt: new Date().toISOString()
+      }
+    };
+
+    console.log('🎯 Tier recalculation completed:', response.stats);
+
+    return new Response(JSON.stringify(response), {
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+    });
+
+  } catch (error) {
+    console.error('Tier recalculation failed:', error);
+    return new Response(JSON.stringify({
+      error: error.message,
+      success: false
+    }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }
     });
