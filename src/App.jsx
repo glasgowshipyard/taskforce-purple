@@ -163,16 +163,76 @@ export default function App() {
         {activeTab === 'overlap' && renderOverlap()}
       </main>
 
-      <footer className="bg-white border-t mt-12">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-          <div className="flex items-center justify-between">
-            <div className="text-sm text-gray-600">
-              Data sources: <a href="https://api.open.fec.gov/developers/" target="_blank" rel="noopener noreferrer" className="text-purple-600 hover:underline">OpenFEC API</a>, <a href="https://www.congress.gov/help/using-data-offsite" target="_blank" rel="noopener noreferrer" className="text-purple-600 hover:underline">Congress.gov API</a>
+      <footer className="bg-gray-50 border-t mt-12">
+        {/* Methodology Explanation */}
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          <div className="bg-white rounded-lg p-6 shadow-sm border">
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">How We Calculate Transparency Tiers</h3>
+
+            <div className="grid md:grid-cols-2 gap-6">
+              <div>
+                <h4 className="font-semibold text-gray-800 mb-3">🎯 Tier Thresholds</h4>
+                <div className="space-y-2 text-sm">
+                  <div><span className="font-medium text-green-700">S-Tier (Champion):</span> 85%+ grassroots funding</div>
+                  <div><span className="font-medium text-blue-700">A-Tier (Independent):</span> 70%+ grassroots funding</div>
+                  <div><span className="font-medium text-yellow-700">B-Tier (Mixed):</span> 50%+ grassroots funding</div>
+                  <div><span className="font-medium text-orange-700">C-Tier (Influenced):</span> 30%+ grassroots funding</div>
+                  <div><span className="font-medium text-red-700">D-Tier (Corporate):</span> Less than 30% grassroots</div>
+                </div>
+
+                <h4 className="font-semibold text-gray-800 mb-3 mt-6">⚖️ Enhanced Weighting System</h4>
+                <div className="space-y-2 text-sm">
+                  <div><span className="font-medium text-red-600">Super PACs (Type O):</span> 2.0x penalty multiplier</div>
+                  <div><span className="font-medium text-orange-600">Leadership PACs (Class D):</span> 1.5x penalty</div>
+                  <div><span className="font-medium text-orange-600">Lobbyist PACs (Class B):</span> 1.5x penalty</div>
+                  <div><span className="font-medium text-green-600">Candidate Committees (P/A):</span> 0.15x (85% discount)</div>
+                  <div><span className="font-medium text-blue-600">Regular PACs:</span> 1.0x (neutral weight)</div>
+                </div>
+              </div>
+
+              <div>
+                <h4 className="font-semibold text-gray-800 mb-3">🔍 Transparency Penalty System</h4>
+                <div className="space-y-2 text-sm text-gray-700">
+                  <p>We apply dynamic tier adjustments based on the transparency concerns of PAC funding sources:</p>
+                  <ul className="list-disc list-inside space-y-1 ml-4">
+                    <li>Concerning PACs (Super PACs, Leadership PACs) have their amounts weighted higher</li>
+                    <li>Personal candidate committees get massive discounts (85% off)</li>
+                    <li>Transparency penalty increases tier thresholds by up to 15 points</li>
+                    <li>Only weighted amounts above 1.0x contribute to penalties</li>
+                  </ul>
+                </div>
+
+                <h4 className="font-semibold text-gray-800 mb-3 mt-6">📊 FEC Classification Guide</h4>
+                <div className="space-y-1 text-sm text-gray-700">
+                  <div><strong>Committee Types:</strong> O=Super PAC, P=Candidate, Q=Qualified PAC</div>
+                  <div><strong>Designations:</strong> A=Authorized, D=Leadership, B=Lobbyist, P=Principal</div>
+                  <div className="mt-2 text-xs italic">Full FEC codes displayed in member profiles for transparency</div>
+                </div>
+              </div>
             </div>
-            <div className="flex items-center space-x-4 text-sm text-gray-600">
-              <a href="https://github.com/glasgowshipyard/taskforce-purple" target="_blank" rel="noopener noreferrer" className="hover:text-gray-900">GitHub</a>
-              <a href="https://api.open.fec.gov/developers/" target="_blank" rel="noopener noreferrer" className="hover:text-gray-900">Data Sources</a>
-              <a href="https://taskforce-purple-api.dev-a4b.workers.dev/api/members" target="_blank" rel="noopener noreferrer" className="hover:text-gray-900">API</a>
+
+            <div className="mt-6 pt-4 border-t border-gray-200">
+              <p className="text-sm text-gray-600">
+                <strong>Methodology Note:</strong> Our enhanced algorithm weighs different types of political committees based on their transparency implications.
+                Candidate's own committees receive significant discounts while Super PACs and Leadership PACs face penalties.
+                This approach better reflects the true independence of representatives from special interest influence.
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {/* Original Footer */}
+        <div className="bg-white border-t">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+            <div className="flex items-center justify-between">
+              <div className="text-sm text-gray-600">
+                Data sources: <a href="https://api.open.fec.gov/developers/" target="_blank" rel="noopener noreferrer" className="text-purple-600 hover:underline">OpenFEC API</a>, <a href="https://www.congress.gov/help/using-data-offsite" target="_blank" rel="noopener noreferrer" className="text-purple-600 hover:underline">Congress.gov API</a>
+              </div>
+              <div className="flex items-center space-x-4 text-sm text-gray-600">
+                <a href="https://github.com/glasgowshipyard/taskforce-purple" target="_blank" rel="noopener noreferrer" className="hover:text-gray-900">GitHub</a>
+                <a href="https://api.open.fec.gov/developers/" target="_blank" rel="noopener noreferrer" className="hover:text-gray-900">Data Sources</a>
+                <a href="https://taskforce-purple-api.dev-a4b.workers.dev/api/members" target="_blank" rel="noopener noreferrer" className="hover:text-gray-900">API</a>
+              </div>
             </div>
           </div>
         </div>

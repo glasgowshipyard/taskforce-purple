@@ -502,7 +502,7 @@ function getPACTransparencyWeight(committee_type, designation) {
   if (designation === 'D' || designation === 'B') {
     weight *= 1.5; // Leadership/Lobbyist PACs 50% more concerning
   } else if (designation === 'P' || designation === 'A') {
-    weight *= 0.5; // Authorized committees 50% less concerning
+    weight *= 0.15; // Candidate/Authorized committees 85% less concerning (personal PACs)
   }
 
   return weight;
@@ -566,20 +566,22 @@ function calculateEnhancedTier(member) {
 function calculateTransparencyPenalty(member) {
   if (!member.pacContributions?.length || !member.totalRaised) return 0;
 
-  let concerningPACMoney = 0;
+  let totalWeightedPACMoney = 0;
 
   for (const pac of member.pacContributions) {
-    // Count money from concerning committee types/designations
-    if (pac.committee_type === 'O' ||  // Super PACs (unlimited corporate money)
-        pac.designation === 'D' ||     // Leadership PACs (influence vehicles)
-        pac.designation === 'B') {     // Lobbyist/registrant PACs
-      concerningPACMoney += pac.amount;
+    // Use transparency weight to properly assess impact
+    const weight = calculateTransparencyWeight(pac.committee_type, pac.designation);
+    const weightedAmount = pac.amount * weight;
+
+    // Only count weighted amounts above baseline (1.0x means neutral)
+    if (weight > 1.0) {
+      totalWeightedPACMoney += weightedAmount;
     }
-    // Candidate committees (P, A) and normal PACs don't add penalty
+    // Candidate committees and good PACs (weight < 1.0) don't contribute to penalty
   }
 
-  // Calculate what % of their total funding is from concerning sources
-  const concerningPercent = (concerningPACMoney / member.totalRaised) * 100;
+  // Calculate what % of their total funding is from weighted concerning sources
+  const concerningPercent = (totalWeightedPACMoney / member.totalRaised) * 100;
 
   // Apply penalty: 1 point per 1% of concerning funding, max 15 points
   return Math.min(Math.floor(concerningPercent), 15);

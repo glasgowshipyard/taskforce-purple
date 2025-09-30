@@ -382,6 +382,26 @@ export default function MembersList() {
                                   </span>
                                   <span className="text-xs text-gray-500">{pac.date}</span>
                                 </div>
+                                {/* FEC Committee Details */}
+                                {(pac.committee_id || pac.committee_type || pac.designation) && (
+                                  <div className="flex items-center space-x-2 mt-1">
+                                    {pac.committee_id && (
+                                      <span className="text-xs px-2 py-1 bg-blue-100 text-blue-800 rounded border border-blue-200 font-mono">
+                                        FEC: {pac.committee_id}
+                                      </span>
+                                    )}
+                                    {pac.committee_type && (
+                                      <span className="text-xs px-2 py-1 bg-gray-100 text-gray-700 rounded border">
+                                        Type: {pac.committee_type}
+                                      </span>
+                                    )}
+                                    {pac.designation && (
+                                      <span className="text-xs px-2 py-1 bg-gray-100 text-gray-700 rounded border">
+                                        Class: {pac.designation}
+                                      </span>
+                                    )}
+                                  </div>
+                                )}
                               </div>
                             </div>
                           </div>
