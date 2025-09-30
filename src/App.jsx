@@ -117,23 +117,23 @@ export default function App() {
     <div className="min-h-screen bg-gray-100">
       <header className="bg-gradient-to-r from-red-500 via-purple-600 to-blue-600 shadow-lg">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-20">
+          <div className="flex flex-col sm:flex-row items-center justify-between py-4 sm:h-20 gap-4 sm:gap-0">
             <button
               onClick={() => window.location.reload()}
-              className="flex items-center space-x-4 hover:bg-white/10 rounded-lg p-2 transition-colors group"
+              className="flex items-center space-x-4 hover:bg-white/10 rounded-lg p-2 transition-colors group w-full sm:w-auto justify-center sm:justify-start"
             >
               <div className="w-12 h-12 bg-white/20 backdrop-blur-sm rounded-xl flex items-center justify-center ring-2 ring-white/30 group-hover:ring-white/50 transition-all">
                 <span className="text-white font-bold text-lg font-display">TP</span>
               </div>
-              <div>
-                <h1 className="text-2xl font-bold text-white font-display tracking-tight">Task Force Purple</h1>
-                <p className="text-white/80 text-sm font-medium">Political Transparency Platform</p>
+              <div className="text-center sm:text-left">
+                <h1 className="text-xl sm:text-2xl font-bold text-white font-display tracking-tight">Task Force Purple</h1>
+                <p className="text-white/80 text-xs sm:text-sm font-medium">Political Transparency Platform</p>
               </div>
             </button>
-            <nav className="flex space-x-8">
+            <nav className="flex flex-col sm:flex-row w-full sm:w-auto gap-2 sm:gap-8 sm:space-x-0">
               <button
                 onClick={() => setActiveTab('leaderboard')}
-                className={`flex items-center space-x-2 px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
+                className={`flex items-center justify-center space-x-2 px-4 py-3 sm:py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
                   activeTab === 'leaderboard'
                     ? 'bg-white/25 text-white backdrop-blur-sm ring-1 ring-white/30'
                     : 'text-white/80 hover:text-white hover:bg-white/10'
@@ -144,7 +144,7 @@ export default function App() {
               </button>
               <button
                 onClick={() => setActiveTab('overlap')}
-                className={`flex items-center space-x-2 px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
+                className={`flex items-center justify-center space-x-2 px-4 py-3 sm:py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
                   activeTab === 'overlap'
                     ? 'bg-white/25 text-white backdrop-blur-sm ring-1 ring-white/30'
                     : 'text-white/80 hover:text-white hover:bg-white/10'
