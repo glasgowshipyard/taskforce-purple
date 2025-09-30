@@ -15,7 +15,9 @@
       "Bash(gh issue create:*)",
       "Bash(npm run dev:*)",
       "Bash(pkill:*)",
-      "Bash(git pull:*)"
+      "Bash(git pull:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)"
     ],
     "deny": [],
     "ask": []
