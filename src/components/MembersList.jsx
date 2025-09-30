@@ -143,11 +143,11 @@ export default function MembersList() {
     let adjustedStartIndex;
 
     if (currentPage === 2 && hasShowcaseAvailable) {
-      // Page 2 after showcase: start from position 5 (after the 5 showcase members)
-      adjustedStartIndex = 5;
+      // Page 2 after showcase: start from position 20 (after the 20 showcase members)
+      adjustedStartIndex = 20;
     } else if (currentPage > 2 && hasShowcaseAvailable) {
-      // Pages 3+: account for the fact that page 1 had 5 items, page 2 had 20 items
-      adjustedStartIndex = 5 + (currentPage - 2) * ITEMS_PER_PAGE;
+      // Pages 3+: account for the fact that page 1 had 20 items, page 2 had 20 items
+      adjustedStartIndex = 20 + (currentPage - 2) * ITEMS_PER_PAGE;
     } else {
       // Normal pagination when no showcase
       adjustedStartIndex = (currentPage - 1) * ITEMS_PER_PAGE;
