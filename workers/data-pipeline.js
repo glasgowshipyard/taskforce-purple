@@ -534,20 +534,28 @@ function calculateTier(grassrootsPercent, totalRaised) {
 function calculateEnhancedTier(member) {
   if (!member.totalRaised || member.totalRaised === 0) return 'N/A';
 
-  // Calculate ACTUAL grassroots percentage (no phantom money)
-  const actualPACTotal = member.pacContributions?.reduce((sum, pac) => sum + pac.amount, 0) || 0;
-  const actualGrassrootsPercent = ((member.totalRaised - actualPACTotal) / member.totalRaised) * 100;
+  // Check if we have enhanced PAC data
+  const hasEnhancedData = member.pacContributions && member.pacContributions.length > 0;
 
-  // Apply transparency penalty based on concerning PAC relationships
-  const transparencyPenalty = calculateTransparencyPenalty(member);
-  const adjustedThresholds = getAdjustedThresholds(transparencyPenalty);
+  if (hasEnhancedData) {
+    // Use enhanced calculation with transparency penalties
+    const actualPACTotal = member.pacContributions.reduce((sum, pac) => sum + pac.amount, 0);
+    const actualGrassrootsPercent = ((member.totalRaised - actualPACTotal) / member.totalRaised) * 100;
 
-  // Use stricter thresholds if they have concerning PAC relationships
-  if (actualGrassrootsPercent >= adjustedThresholds.S) return 'S';
-  if (actualGrassrootsPercent >= adjustedThresholds.A) return 'A';
-  if (actualGrassrootsPercent >= adjustedThresholds.B) return 'B';
-  if (actualGrassrootsPercent >= adjustedThresholds.C) return 'C';
-  return 'D';
+    // Apply transparency penalty based on concerning PAC relationships
+    const transparencyPenalty = calculateTransparencyPenalty(member);
+    const adjustedThresholds = getAdjustedThresholds(transparencyPenalty);
+
+    // Use stricter thresholds if they have concerning PAC relationships
+    if (actualGrassrootsPercent >= adjustedThresholds.S) return 'S';
+    if (actualGrassrootsPercent >= adjustedThresholds.A) return 'A';
+    if (actualGrassrootsPercent >= adjustedThresholds.B) return 'B';
+    if (actualGrassrootsPercent >= adjustedThresholds.C) return 'C';
+    return 'D';
+  }
+
+  // Fallback to standard calculation when enhanced data not available
+  return calculateTier(member.grassrootsPercent, member.totalRaised);
 }
 
 // Calculate transparency penalty based on proportion of concerning PAC funding
