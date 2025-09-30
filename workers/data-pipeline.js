@@ -26,6 +26,8 @@ export default {
           return await handleFECBatchUpdate(env, corsHeaders, request);
         case '/api/status':
           return await handleStatus(env, corsHeaders);
+        case '/api/test-member':
+          return await handleTestMember(env, corsHeaders, request);
         default:
           return new Response('Not Found', { status: 404, headers: corsHeaders });
       }
@@ -1095,6 +1097,81 @@ async function handleFECBatchUpdate(env, corsHeaders, request) {
 
   } catch (error) {
     console.error('FEC batch update failed:', error);
+    return new Response(JSON.stringify({ error: error.message }), {
+      status: 500,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+    });
+  }
+}
+
+// Test endpoint to force enhanced PAC processing on specific member
+async function handleTestMember(env, corsHeaders, request) {
+  try {
+    const url = new URL(request.url);
+    const bioguideId = url.searchParams.get('bioguideId');
+
+    if (!bioguideId) {
+      return new Response(JSON.stringify({ error: 'bioguideId parameter required' }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
+    }
+
+    // Get current member data
+    const currentData = await env.MEMBER_DATA.get('members:all');
+    if (!currentData) {
+      return new Response(JSON.stringify({ error: 'No member data found' }), {
+        status: 404,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
+    }
+
+    const members = JSON.parse(currentData);
+    const member = members.find(m => m.bioguideId === bioguideId);
+
+    if (!member) {
+      return new Response(JSON.stringify({ error: `Member ${bioguideId} not found` }), {
+        status: 404,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
+    }
+
+    if (!member.candidateId) {
+      return new Response(JSON.stringify({ error: `Member ${bioguideId} has no candidateId` }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
+    }
+
+    console.log(`🧪 Testing enhanced PAC processing for ${member.name} (${bioguideId})`);
+
+    // Force enhanced PAC details processing
+    const enhancedPACDetails = await fetchPACDetails(member.candidateId, env);
+
+    // Update member with enhanced data
+    const memberIndex = members.findIndex(m => m.bioguideId === bioguideId);
+    members[memberIndex] = {
+      ...members[memberIndex],
+      pacContributions: enhancedPACDetails,
+      pacDetailsStatus: 'complete',
+      lastUpdated: new Date().toISOString(),
+      tier: calculateEnhancedTier({ ...members[memberIndex], pacContributions: enhancedPACDetails })
+    };
+
+    // Save updated data
+    await env.MEMBER_DATA.put('members:all', JSON.stringify(members));
+
+    return new Response(JSON.stringify({
+      success: true,
+      member: members[memberIndex],
+      enhancedPACCount: enhancedPACDetails.filter(p => p.committee_type).length,
+      message: `Enhanced PAC processing completed for ${member.name}`
+    }), {
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+    });
+
+  } catch (error) {
+    console.error('Test member processing failed:', error);
     return new Response(JSON.stringify({ error: error.message }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }
