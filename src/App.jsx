@@ -118,15 +118,18 @@ export default function App() {
       <header className="bg-gradient-to-r from-red-500 via-purple-600 to-blue-600 shadow-lg">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-20">
-            <div className="flex items-center space-x-4">
-              <div className="w-12 h-12 bg-white/20 backdrop-blur-sm rounded-xl flex items-center justify-center ring-2 ring-white/30">
+            <button
+              onClick={() => window.location.reload()}
+              className="flex items-center space-x-4 hover:bg-white/10 rounded-lg p-2 transition-colors group"
+            >
+              <div className="w-12 h-12 bg-white/20 backdrop-blur-sm rounded-xl flex items-center justify-center ring-2 ring-white/30 group-hover:ring-white/50 transition-all">
                 <span className="text-white font-bold text-lg font-display">TP</span>
               </div>
               <div>
                 <h1 className="text-2xl font-bold text-white font-display tracking-tight">Task Force Purple</h1>
                 <p className="text-white/80 text-sm font-medium">Political Transparency Platform</p>
               </div>
-            </div>
+            </button>
             <nav className="flex space-x-8">
               <button
                 onClick={() => setActiveTab('leaderboard')}

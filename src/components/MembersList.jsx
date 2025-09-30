@@ -19,15 +19,19 @@ export default function MembersList() {
   const [displayedCount, setDisplayedCount] = useState(20); // Start with 20 on each page
   const ITEMS_PER_PAGE = 20;
 
-  // Gentle scroll to profile when selected (profile is now near top)
+  // Scroll to profile when selected and reset PAC details
   useEffect(() => {
     if (selectedMember) {
-      const profileElement = document.getElementById('member-profile');
-      if (profileElement) {
-        profileElement.scrollIntoView({ behavior: 'smooth', block: 'start' });
-      }
       // Reset PAC details when selecting new member
       setShowPACDetails(false);
+
+      // Scroll to top first, then to profile
+      setTimeout(() => {
+        const profileElement = document.getElementById('member-profile');
+        if (profileElement) {
+          profileElement.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+      }, 100);
     }
   }, [selectedMember]);
 
@@ -165,12 +169,6 @@ export default function MembersList() {
     setDisplayedCount(ITEMS_PER_PAGE);
   }, [searchTerm]);
 
-  // Scroll to top when member is selected for profile view
-  useEffect(() => {
-    if (selectedMember) {
-      window.scrollTo({ top: 0, behavior: 'smooth' });
-    }
-  }, [selectedMember]);
 
   if (loading) {
     return (
@@ -216,7 +214,7 @@ export default function MembersList() {
         </div>
 
         {/* Interactive Tier Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-6">
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2 sm:gap-4 mb-6">
           {['S', 'A', 'B', 'C', 'D'].map((tier) => (
             <button
               key={tier}
@@ -306,7 +304,7 @@ export default function MembersList() {
           )}
 
           {/* Financial breakdown */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
             <div className="bg-green-50 p-4 rounded-lg">
               <div className="flex items-center space-x-2 mb-2">
                 <TrendingUp className="w-5 h-5 text-green-600" />
