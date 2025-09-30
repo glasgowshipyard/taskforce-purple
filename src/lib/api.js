@@ -74,7 +74,7 @@ export class TaskForceAPI {
 
   static getTierDescription(tier) {
     const descriptions = {
-      'S': 'Clean - Grassroots Funded (85%+)',
+      'S': 'Clean - Grassroots (85%+)',
       'A': 'Mostly Clean (70-84%)',
       'B': 'Mixed Funding (50-69%)',
       'C': 'PAC Heavy (30-49%)',
