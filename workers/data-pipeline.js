@@ -311,14 +311,31 @@ async function fetchPACDetails(committeeId, env) {
     const uniqueCommittees = new Set();
 
     for (const contrib of pacContributions) {
+      let metadata = null;
+      let lookupKey = null;
+
+      // Try contributorId first (for new data)
       if (contrib.contributorId && !uniqueCommittees.has(contrib.contributorId)) {
+        lookupKey = contrib.contributorId;
         uniqueCommittees.add(contrib.contributorId);
 
         // Add delay to respect FEC rate limits
         await new Promise(resolve => setTimeout(resolve, 1000));
 
-        const metadata = await fetchCommitteeMetadata(contrib.contributorId, env);
+        metadata = await fetchCommitteeMetadata(contrib.contributorId, env);
+      }
+      // Try pacName search (for existing data)
+      else if (contrib.pacName && !uniqueCommittees.has(contrib.pacName)) {
+        lookupKey = contrib.pacName;
+        uniqueCommittees.add(contrib.pacName);
 
+        // Add delay to respect FEC rate limits
+        await new Promise(resolve => setTimeout(resolve, 1000));
+
+        metadata = await searchCommitteeByName(contrib.pacName, env);
+      }
+
+      if (metadata && lookupKey) {
         const enhancedContrib = {
           ...contrib,
           committee_type: metadata.committee_type,
@@ -332,8 +349,12 @@ async function fetchPACDetails(committeeId, env) {
 
         console.log(`✅ Enhanced ${contrib.pacName}: ${enhancedContrib.committee_category} (weight: ${enhancedContrib.transparency_weight})`);
       } else {
-        // Find existing metadata for this committee
-        const existing = enhancedContributions.find(c => c.contributorId === contrib.contributorId);
+        // Find existing metadata for this committee (by contributorId or pacName)
+        const existing = enhancedContributions.find(c =>
+          (contrib.contributorId && c.contributorId === contrib.contributorId) ||
+          (contrib.pacName && c.pacName === contrib.pacName)
+        );
+
         if (existing) {
           enhancedContributions.push({
             ...contrib,
@@ -400,6 +421,61 @@ async function fetchCommitteeMetadata(committeeId, env) {
 
   } catch (error) {
     console.warn(`Error fetching committee metadata for ${committeeId}:`, error.message);
+    return { committee_type: null, designation: null };
+  }
+}
+
+// NEW: Search for committee by name to get ID and metadata
+async function searchCommitteeByName(committeeName, env) {
+  const apiKey = env.FEC_API_KEY || 'zVpKDAacmPcazWQxhl5fhodhB9wNUH0urLCLkkV9';
+  try {
+    console.log(`🔍 Searching for committee by name: ${committeeName}`);
+
+    // Clean the committee name for search
+    const searchName = committeeName.trim().toUpperCase();
+
+    const response = await fetch(
+      `https://api.open.fec.gov/v1/committees/?api_key=${apiKey}&name=${encodeURIComponent(searchName)}&per_page=10`,
+      {
+        headers: {
+          'User-Agent': 'TaskForcePurple/1.0 (Political Transparency Platform)'
+        }
+      }
+    );
+
+    if (!response.ok) {
+      console.warn(`FEC Committee search error for "${searchName}": ${response.status}`);
+      try { await response.json(); } catch {}
+      return { committee_type: null, designation: null };
+    }
+
+    const data = await response.json();
+    const committees = data.results || [];
+
+    if (committees.length === 0) {
+      console.warn(`No committees found for name: ${searchName}`);
+      return { committee_type: null, designation: null };
+    }
+
+    // Find exact match first, then partial match
+    let committee = committees.find(c => c.name?.toUpperCase() === searchName);
+    if (!committee) {
+      committee = committees.find(c => c.name?.toUpperCase().includes(searchName.split(' ')[0]));
+    }
+    if (!committee) {
+      committee = committees[0]; // Fallback to first result
+    }
+
+    console.log(`✅ Found committee: ${committee.name} (${committee.committee_type}/${committee.designation})`);
+    return {
+      committee_type: committee.committee_type,
+      designation: committee.designation,
+      committee_id: committee.committee_id,
+      name: committee.name
+    };
+
+  } catch (error) {
+    console.warn(`Error searching for committee "${committeeName}":`, error.message);
     return { committee_type: null, designation: null };
   }
 }
