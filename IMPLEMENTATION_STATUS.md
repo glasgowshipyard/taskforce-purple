@@ -1,0 +1,95 @@
+# Task Force Purple - Implementation Status
+
+## Current Implementation State (as of 2025-09-30)
+
+### Enhanced Transparency Algorithm ✅ WORKING
+
+**Status**: Deployed and functional
+**Commit**: `6e1cdcb` - "Fix enhanced tier calculation to work with existing PAC data"
+
+**What works**:
+- Enhanced tier calculation runs with existing PAC data
+- Graceful fallback when committee metadata is missing (uses 1.0x neutral weight)
+- P/A committee discount (0.15x) applies when metadata is available
+- Super PAC penalties (2.0x) apply when metadata is available
+
+**Technical details**:
+- File: `workers/data-pipeline.js`
+- Function: `calculateEnhancedTier()` - line ~536
+- Uses `calculateTransparencyWeight()` with fallback to 1.0 for missing metadata
+
+### FEC Committee Metadata Enhancement ❌ NOT WORKING
+
+**Status**: Phase 2 is NOT running in production
+**Confirmed Issue**: PAC contributions only have basic fields, no `committee_type` or `designation`
+
+**Current PAC data structure**:
+```json
+{
+  "amount": 97199.96,
+  "contributorOccupation": null,
+  "contributorState": "NJ",
+  "date": "2024-07-15",
+  "employerName": null,
+  "pacName": "PERSHING LLC"
+}
+```
+
+**Missing fields that should be populated by Phase 2**:
+- `committee_type` (e.g., "O" for Super PAC, "P" for Candidate)
+- `designation` (e.g., "A" for Authorized, "D" for Leadership)
+- `committee_id` (FEC committee identifier)
+- `transparency_weight` (calculated weight for tier adjustment)
+
+**Files**:
+- `workers/data-pipeline.js` - lines 712+ (Phase 2 implementation exists but not running)
+- Functions: `fetchPACDetails()`, `searchCommitteeByName()`, `fetchCommitteeMetadata()`
+
+**Root Cause**: Phase 2 is being skipped due to rate limiting concerns or execution timeouts
+
+### UI Features ✅ WORKING
+
+**Status**: Deployed and functional
+
+**Features**:
+- FEC committee IDs display in PAC breakdown (`MembersList.jsx`)
+- Collapsible methodology explanation in footer (`App.jsx`)
+- Enhanced weighting system explanation
+- Mobile responsive design fixes
+
+### Data Pipeline Architecture
+
+**Phase 1**: Basic Financial Data (Fast)
+- Fetches grassroots percentage and total raised for all members
+- Uses standard FEC financial endpoints
+- Completes within worker timeout limits
+
+**Phase 2**: Enhanced Committee Metadata (Slow)
+- Should run incrementally on subset of members per execution
+- Looks up FEC committee details for PAC contributors
+- Populates `committee_type` and `designation` fields
+- Applies transparency weights based on committee classification
+
+## Critical Issues to Investigate
+
+1. **Phase 2 Status**: Verify if committee metadata enhancement is running
+2. **Rate Limiting**: Confirm current batch sizes work within Cloudflare limits
+3. **Documentation Gap**: This conversation history shows we solved this before but lost track
+
+## Next Steps
+
+1. Check worker logs to confirm Phase 2 execution
+2. Verify if any members have populated `committee_type`/`designation` fields
+3. Document exact batch sizes and timing that were working
+4. Create proper git workflow to track all worker deployments
+
+## Questions for Investigation
+
+- What was the agreed-upon batch size for Phase 2 enhancement?
+- How many members should be enhanced per 15-minute cron run?
+- Should we be seeing `🔍 PHASE 2` logs in production?
+- Are there members with enhanced PAC data in storage?
+
+---
+*Last updated: 2025-09-30*
+*This document should be updated whenever significant changes are made to the data pipeline.*
