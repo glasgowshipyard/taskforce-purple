@@ -36,6 +36,8 @@ export default {
           return await handleSocialHandles(env, corsHeaders);
         case '/api/refresh-social-handles':
           return await handleRefreshSocialHandles(env, corsHeaders, request);
+        case '/api/smart-batch':
+          return await handleSmartBatch(env, corsHeaders, request);
         default:
           // Check for individual member update pattern: /api/update-member/@username
           if (url.pathname.startsWith('/api/update-member/@')) {
@@ -1208,6 +1210,43 @@ async function handleTestMember(env, corsHeaders, request) {
   } catch (error) {
     console.error('Test member processing failed:', error);
     return new Response(JSON.stringify({ error: error.message }), {
+      status: 500,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+    });
+  }
+}
+
+// NEW: HTTP handler for manual smart batch testing
+async function handleSmartBatch(env, corsHeaders, request) {
+  try {
+    // Check for authorization
+    const authHeader = request.headers.get('Authorization');
+    const expectedAuth = `Bearer ${env.UPDATE_SECRET || 'taskforce_purple_2025_update'}`;
+
+    if (!authHeader || authHeader !== expectedAuth) {
+      return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+        status: 401,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
+    }
+
+    console.log('🔄 Manual smart batch processing triggered...');
+    const result = await processSmartBatch(env);
+
+    return new Response(JSON.stringify({
+      success: true,
+      message: 'Smart batch processing completed',
+      result
+    }), {
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+    });
+
+  } catch (error) {
+    console.error('Smart batch processing failed:', error);
+    return new Response(JSON.stringify({
+      error: error.message,
+      success: false
+    }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }
     });
