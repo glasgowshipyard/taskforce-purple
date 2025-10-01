@@ -34,6 +34,8 @@ export default {
           return await handleProcessCandidate(env, corsHeaders, request);
         case '/api/social-handles':
           return await handleSocialHandles(env, corsHeaders);
+        case '/api/refresh-social-handles':
+          return await handleRefreshSocialHandles(env, corsHeaders, request);
         default:
           // Check for individual member update pattern: /api/update-member/@username
           if (url.pathname.startsWith('/api/update-member/@')) {
@@ -1764,6 +1766,55 @@ async function handleSocialHandles(env, corsHeaders) {
     console.error('Error fetching social handles:', error);
     return new Response(JSON.stringify({
       error: 'Failed to fetch social handles',
+      message: error.message
+    }), {
+      status: 500,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+    });
+  }
+}
+
+// Force refresh social handle mapping (requires authorization)
+async function handleRefreshSocialHandles(env, corsHeaders, request) {
+  try {
+    // Check authorization
+    const authHeader = request.headers.get('Authorization');
+    if (!authHeader || !authHeader.startsWith('Bearer ') || authHeader.slice(7) !== 'taskforce_purple_2025_update') {
+      return new Response(JSON.stringify({
+        error: 'Unauthorized'
+      }), {
+        status: 401,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
+    }
+
+    console.log('🔄 Force refreshing social handle mapping...');
+
+    // Delete existing cache to force refresh
+    await env.MEMBER_DATA.delete('social_handle_mapping');
+
+    // Get fresh mapping (this will rebuild with aliases)
+    const handles = await getOrCreateSocialHandleMapping(env);
+
+    return new Response(JSON.stringify({
+      success: true,
+      message: 'Social handle mapping refreshed',
+      count: Object.keys(handles).length,
+      aliases: {
+        aoc: handles.aoc || null,
+        bernie: handles.bernie || null,
+        warren: handles.warren || null,
+        ted: handles.ted || null,
+        marco: handles.marco || null
+      }
+    }), {
+      status: 200,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+    });
+  } catch (error) {
+    console.error('Error refreshing social handles:', error);
+    return new Response(JSON.stringify({
+      error: 'Failed to refresh social handles',
       message: error.message
     }), {
       status: 500,
