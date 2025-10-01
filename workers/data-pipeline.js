@@ -1387,7 +1387,9 @@ async function handleProcessCandidate(env, corsHeaders, request) {
     try {
       // Step 1: Get financial data from FEC
       console.log(`💰 Fetching FEC financial data for ${targetMember.name}...`);
-      await fetchFinancialData(targetMember, env, chamberType);
+      const financials = await fetchMemberFinancials(targetMember, env);
+      // Apply financial data to target member
+      Object.assign(targetMember, financials);
 
       // Step 2: Get PAC details if they have financial data
       if (targetMember.totalRaised > 0) {
