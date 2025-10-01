@@ -38,6 +38,8 @@ export default {
           return await handleRefreshSocialHandles(env, corsHeaders, request);
         case '/api/smart-batch':
           return await handleSmartBatch(env, corsHeaders, request);
+        case '/api/clear-fec-mapping':
+          return await handleClearFECMapping(env, corsHeaders, request);
         default:
           // Check for individual member update pattern: /api/update-member/@username
           if (url.pathname.startsWith('/api/update-member/@')) {
@@ -158,34 +160,76 @@ async function fetchMemberFinancials(member, env) {
     // Convert state name to abbreviation for FEC API
     const stateAbbr = STATE_ABBREVIATIONS[member.state] || member.state;
 
-    // First, search for the candidate by name since bioguideId != FEC candidate_id
-    const chamberType = member.terms?.item?.[0]?.chamber;
-    const office = chamberType === 'House of Representatives' ? 'H' : 'S';
-    const searchResponse = await fetch(
-      `https://api.open.fec.gov/v1/candidates/search/?api_key=${apiKey}&q=${encodeURIComponent(member.name.split(',')[0])}&office=${office}&state=${stateAbbr}`,
-      {
-        headers: {
-          'User-Agent': 'TaskForcePurple/1.0 (Political Transparency Platform)'
+    // Check for cached FEC candidate mapping first
+    const cacheKey = `fec_mapping_${member.bioguideId}`;
+    const cachedMapping = await env.MEMBER_DATA.get(cacheKey);
+
+    let candidate = null;
+
+    if (cachedMapping) {
+      const mapping = JSON.parse(cachedMapping);
+      console.log(`🔄 Using cached FEC mapping: ${member.name} → ${mapping.candidate_id}`);
+      candidate = {
+        candidate_id: mapping.candidate_id,
+        name: mapping.candidate_name,
+        principal_committees: mapping.principal_committees
+      };
+    } else {
+      // First time lookup - search for the candidate by name with validation
+      const chamberType = member.terms?.item?.[0]?.chamber;
+      const office = chamberType === 'House of Representatives' ? 'H' : 'S';
+      const searchResponse = await fetch(
+        `https://api.open.fec.gov/v1/candidates/search/?api_key=${apiKey}&q=${encodeURIComponent(member.name.split(',')[0])}&office=${office}&state=${stateAbbr}`,
+        {
+          headers: {
+            'User-Agent': 'TaskForcePurple/1.0 (Political Transparency Platform)'
+          }
         }
+      );
+
+      if (!searchResponse.ok) {
+        console.warn(`FEC search API error for ${member.name}: ${searchResponse.status}`);
+        try { await searchResponse.json(); } catch {}
+        return null;
       }
-    );
 
-    if (!searchResponse.ok) {
-      console.warn(`FEC search API error for ${member.name}: ${searchResponse.status}`);
-      // Consume the response body to prevent deadlock
-      try { await searchResponse.json(); } catch {}
-      return null;
+      const searchData = await searchResponse.json();
+      if (!searchData.results || searchData.results.length === 0) {
+        console.warn(`No FEC candidate record found for ${member.name}`);
+        return null;
+      }
+
+      // CRITICAL FIX: Find candidate that actually matches our member's state and office
+      candidate = searchData.results.find(c => {
+        const candidateState = c.state?.toUpperCase();
+        const candidateOffice = c.office_sought?.toUpperCase();
+        const expectedState = stateAbbr?.toUpperCase();
+        const expectedOffice = office?.toUpperCase();
+
+        return candidateState === expectedState && candidateOffice === expectedOffice;
+      });
+
+      if (!candidate) {
+        console.warn(`❌ No matching FEC candidate for ${member.name} (${stateAbbr}-${office}). Found candidates: ${searchData.results.map(c => `${c.name} (${c.state}-${c.office_sought})`).join(', ')}`);
+        return null;
+      }
+
+      console.log(`✅ Found validated FEC candidate: ${candidate.name} (ID: ${candidate.candidate_id}) for ${member.name} (${stateAbbr}-${office})`);
+
+      // Cache the validated mapping for future use
+      const mappingToCache = {
+        candidate_id: candidate.candidate_id,
+        candidate_name: candidate.name,
+        principal_committees: candidate.principal_committees,
+        verified_date: new Date().toISOString(),
+        verification_method: 'auto_validated',
+        member_state: stateAbbr,
+        member_office: office
+      };
+
+      await env.MEMBER_DATA.put(cacheKey, JSON.stringify(mappingToCache));
+      console.log(`💾 Cached FEC mapping for ${member.name}: ${candidate.candidate_id}`);
     }
-
-    const searchData = await searchResponse.json();
-    if (!searchData.results || searchData.results.length === 0) {
-      console.warn(`No FEC candidate record found for ${member.name}`);
-      return null;
-    }
-
-    // Get the most recent/active candidate record
-    const candidate = searchData.results[0];
-    console.log(`✅ Found FEC candidate: ${candidate.name} (ID: ${candidate.candidate_id})`);
 
     // Use the committee data directly from search results (more reliable than /candidates/ endpoint)
     if (candidate.principal_committees && candidate.principal_committees.length > 0) {
@@ -2338,5 +2382,59 @@ async function updateProcessingStatus(env, stats) {
 
   } catch (error) {
     console.error('Error updating processing status:', error);
+  }
+}
+// Handle clearing bad FEC candidate mappings
+async function handleClearFECMapping(env, corsHeaders, request) {
+  try {
+    // Check for authorization
+    const authHeader = request.headers.get('Authorization');
+    const expectedAuth = `Bearer ${env.UPDATE_SECRET || 'taskforce_purple_2025_update'}`;
+
+    if (!authHeader || authHeader !== expectedAuth) {
+      return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+        status: 401,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
+    }
+
+    const url = new URL(request.url);
+    const bioguideId = url.searchParams.get('bioguideId');
+
+    if (!bioguideId) {
+      return new Response(JSON.stringify({
+        error: 'bioguideId parameter required',
+        example: '/api/clear-fec-mapping?bioguideId=G000359'
+      }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
+    }
+
+    // Clear the cached FEC mapping
+    const cacheKey = `fec_mapping_${bioguideId}`;
+    await env.MEMBER_DATA.delete(cacheKey);
+
+    console.log(`🗑️ Cleared FEC mapping for ${bioguideId}`);
+
+    return new Response(JSON.stringify({
+      success: true,
+      message: `Cleared FEC mapping for ${bioguideId}`,
+      bioguideId: bioguideId,
+      action: 'Next lookup will search FEC API fresh and cache new result'
+    }), {
+      status: 200,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+    });
+
+  } catch (error) {
+    console.error('Error clearing FEC mapping:', error);
+    return new Response(JSON.stringify({
+      error: 'Failed to clear FEC mapping',
+      message: error.message
+    }), {
+      status: 500,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+    });
   }
 }
