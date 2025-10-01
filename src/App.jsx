@@ -173,20 +173,23 @@ export default function App() {
               className="flex items-center space-x-2 text-sm font-medium text-gray-700 hover:text-gray-900 transition-colors"
             >
               <span>{showMethodology ? '▼' : '▶'}</span>
-              <span>How We Calculate Transparency</span>
+              <span>How We Calculate Tiers</span>
             </button>
 
             {showMethodology && (
               <div className="mt-4 p-4 bg-gray-50 rounded-lg border">
                 <div className="space-y-4">
                   <div>
-                    <h4 className="font-semibold text-gray-800 mb-2">Enhanced Weighting System</h4>
+                    <h4 className="font-semibold text-gray-800 mb-2">Enhanced Grassroots Calculation</h4>
                     <div className="space-y-1 text-sm text-gray-700">
-                      <div><span className="font-medium text-red-600">Super PACs (Type O):</span> 2.0x penalty multiplier</div>
-                      <div><span className="font-medium text-orange-600">Leadership PACs (Class D):</span> 1.5x penalty</div>
-                      <div><span className="font-medium text-orange-600">Lobbyist PACs (Class B):</span> 1.5x penalty</div>
-                      <div><span className="font-medium text-green-600">Candidate Committees (P/A):</span> 0.15x (85% discount)</div>
-                      <div><span className="font-medium text-blue-600">Regular PACs:</span> 1.0x (neutral weight)</div>
+                      <div><span className="font-medium text-green-600">Considered Grassroots-Friendly:</span></div>
+                      <div className="ml-4">• <span className="font-medium">Candidate Committees (Type P):</span> Representative's own fundraising - heavily discounted in PAC calculation</div>
+                      <div className="ml-4">• <span className="font-medium">Personal/Candidate PACs (Designation P):</span> Personal political committees - 85% discount</div>
+                      <div className="ml-4">• <span className="font-medium">Authorized Committees (Designation A):</span> Authorized by candidate - 85% discount</div>
+                      <div className="mt-2"><span className="font-medium text-red-600">Considered Corporate/Special Interest:</span></div>
+                      <div className="ml-4">• <span className="font-medium">Super PACs (Type O):</span> 2.0x penalty multiplier</div>
+                      <div className="ml-4">• <span className="font-medium">Leadership PACs (Designation D):</span> 1.5x penalty</div>
+                      <div className="ml-4">• <span className="font-medium">Lobbyist PACs (Designation B):</span> 1.5x penalty</div>
                     </div>
                   </div>
 
@@ -200,9 +203,9 @@ export default function App() {
 
                   <div className="pt-3 border-t border-gray-200">
                     <p className="text-sm text-gray-600">
-                      <strong>Methodology Note:</strong> Our enhanced algorithm weighs different types of political committees based on their transparency implications.
-                      Candidate's own committees receive significant discounts while Super PACs and Leadership PACs face penalties.
-                      This approach better reflects the true independence of representatives from special interest influence.
+                      <strong>Why This Matters:</strong> Raw FEC data treats all PAC money equally, but a candidate's own committee is fundamentally different from corporate Super PACs.
+                      Our enhanced calculation recognizes that funding from a representative's own authorized committees represents direct constituent support,
+                      while Super PACs and Leadership PACs often bundle corporate and special interest money. This gives you a clearer picture of who's truly grassroots-funded vs. corporate-captured.
                     </p>
                   </div>
                 </div>
