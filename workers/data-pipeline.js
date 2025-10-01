@@ -773,45 +773,19 @@ async function processMembers(congressMembers, env, testLimit = undefined) {
 
 // Main data update function
 async function updateCongressionalData(env, testLimit = undefined) {
-  console.log('🚀 Starting full data pipeline update with two-call strategy...');
+  console.log('🚀 Starting smart batch processing update...');
 
-  // Fetch current Congress members
-  const congressMembers = await fetchCongressMembers(env);
-
-  // Process financial data with two-call strategy (handles storage internally)
-  const processedMembers = await processMembers(congressMembers, env, testLimit);
-
-  // Get final processed data from storage (includes both basic and PAC data)
-  const finalData = await env.MEMBER_DATA.get('members:all');
-  const finalMembers = finalData ? JSON.parse(finalData) : processedMembers;
+  // Use smart batch processing instead of bulk processing
+  const result = await processSmartBatch(env);
 
   // Update final timestamp
   await env.MEMBER_DATA.put('last_updated', new Date().toISOString());
 
-  // Create tier-specific lists from final data
-  const tierLists = {
-    S: finalMembers.filter(m => m.tier === 'S'),
-    A: finalMembers.filter(m => m.tier === 'A'),
-    B: finalMembers.filter(m => m.tier === 'B'),
-    C: finalMembers.filter(m => m.tier === 'C'),
-    D: finalMembers.filter(m => m.tier === 'D')
-  };
-
-  for (const [tier, members] of Object.entries(tierLists)) {
-    await env.MEMBER_DATA.put(`tier:${tier}`, JSON.stringify(members));
-  }
-
-  console.log('💾 Two-call strategy complete - data stored successfully in KV');
-
-  // Count members with PAC details for reporting
-  const membersWithPACDetails = finalMembers.filter(m => m.pacDetailsStatus === 'complete').length;
-
   return {
-    total: finalMembers.length,
-    membersWithPACDetails,
-    tiers: Object.fromEntries(
-      Object.entries(tierLists).map(([tier, members]) => [tier, members.length])
-    ),
+    smartBatch: true,
+    callsUsed: result.callsUsed,
+    membersProcessed: result.membersProcessed,
+    executionTime: result.executionTime,
     lastUpdated: new Date().toISOString()
   };
 }
