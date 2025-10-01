@@ -1049,8 +1049,11 @@ async function handleFECBatchUpdate(env, corsHeaders, request) {
         (!member.totalRaised || member.totalRaised === 0)
       );
 
-      if (remainingFinancial.length === 0) {
-        console.log('🔄 Financial phase complete, moving to PAC phase');
+      // Cycle to PAC phase either when:
+      // 1. All financial data complete, OR
+      // 2. We've processed our batch (cycle phases to respect rate limits)
+      if (remainingFinancial.length === 0 || processed >= batchSize) {
+        console.log(`🔄 Cycling from financial to PAC phase (${processed} processed, ${remainingFinancial.length} remaining financial)`);
         progressData.phase = 'pac';
         progressData.lastProcessedIndex = -1;
         await env.MEMBER_DATA.put('batch_progress', JSON.stringify(progressData));
@@ -1111,9 +1114,13 @@ async function handleFECBatchUpdate(env, corsHeaders, request) {
         (!member.pacDetailsStatus || member.pacDetailsStatus !== 'complete')
       );
 
-      if (remainingPAC.length === 0) {
-        console.log('🎉 All phases complete! Resetting progress.');
-        progressData = { lastProcessedIndex: -1, phase: 'financial' };
+      // Cycle back to financial phase either when:
+      // 1. All PAC processing complete, OR
+      // 2. We've processed our batch (cycle phases to respect rate limits)
+      if (remainingPAC.length === 0 || processed >= batchSize) {
+        console.log(`🔄 Cycling from PAC to financial phase (${processed} processed, ${remainingPAC.length} remaining PAC)`);
+        progressData.phase = 'financial';
+        progressData.lastProcessedIndex = -1;
         await env.MEMBER_DATA.put('batch_progress', JSON.stringify(progressData));
       }
     }
