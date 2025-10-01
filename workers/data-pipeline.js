@@ -33,6 +33,10 @@ export default {
         case '/api/process-candidate':
           return await handleProcessCandidate(env, corsHeaders, request);
         default:
+          // Check for individual member update pattern: /api/update-member/@username
+          if (url.pathname.startsWith('/api/update-member/@')) {
+            return await handleIndividualMemberUpdate(env, corsHeaders, request);
+          }
           return new Response('Not Found', { status: 404, headers: corsHeaders });
       }
     } catch (error) {
@@ -1474,4 +1478,304 @@ async function handleProcessCandidate(env, corsHeaders, request) {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }
     });
   }
+}
+
+// Individual Member Update Endpoint: /api/update-member/@username
+async function handleIndividualMemberUpdate(env, corsHeaders, request) {
+  try {
+    // Check for authentication
+    const url = new URL(request.url);
+    const authKey = url.searchParams.get('key') || request.headers.get('Authorization')?.replace('Bearer ', '');
+    const expectedKey = env.UPDATE_SECRET;
+
+    if (!expectedKey) {
+      throw new Error('UPDATE_SECRET not configured');
+    }
+
+    if (!authKey || authKey !== expectedKey) {
+      return new Response(JSON.stringify({
+        error: 'Unauthorized - valid API key required'
+      }), {
+        status: 401,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
+    }
+
+    // Extract username from URL path
+    const username = url.pathname.replace('/api/update-member/@', '');
+
+    if (!username) {
+      return new Response(JSON.stringify({
+        error: 'Username required - use format /api/update-member/@username'
+      }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
+    }
+
+    console.log(`🎯 Individual member update requested for: @${username}`);
+
+    // Get or create social handle mapping
+    const handleMap = await getOrCreateSocialHandleMapping(env);
+
+    // Look up bioguide ID from handle
+    const bioguideId = handleMap[username.toLowerCase()];
+
+    if (!bioguideId) {
+      return new Response(JSON.stringify({
+        error: `No member found for handle @${username}`,
+        suggestion: 'Try updating social handle mapping first'
+      }), {
+        status: 404,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
+    }
+
+    console.log(`✅ Found bioguide ID ${bioguideId} for @${username}`);
+
+    // Get current members data
+    const membersData = await env.MEMBER_DATA.get('members:all');
+    if (!membersData) {
+      throw new Error('No members data found. Run full update first.');
+    }
+
+    const members = JSON.parse(membersData);
+    const memberIndex = members.findIndex(m => m.bioguideId === bioguideId);
+
+    if (memberIndex === -1) {
+      return new Response(JSON.stringify({
+        error: `Member with bioguide ID ${bioguideId} not found in current data`
+      }), {
+        status: 404,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
+    }
+
+    const member = members[memberIndex];
+    console.log(`🔄 Updating ${member.name} (${member.chamber} - ${member.state})`);
+
+    // Run full pipeline on this specific member
+    const updatedMember = await updateSingleMember(member, env);
+
+    if (updatedMember) {
+      // Update the member in storage
+      members[memberIndex] = updatedMember;
+      await env.MEMBER_DATA.put('members:all', JSON.stringify(members));
+
+      console.log(`✅ Successfully updated ${updatedMember.name}`);
+
+      return new Response(JSON.stringify({
+        success: true,
+        member: updatedMember,
+        message: `Successfully updated ${updatedMember.name}`,
+        tier: updatedMember.tier,
+        totalRaised: updatedMember.totalRaised,
+        grassrootsPercent: updatedMember.grassrootsPercent,
+        pacContributions: updatedMember.pacContributions?.length || 0
+      }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
+    } else {
+      throw new Error(`Failed to update member data for ${member.name}`);
+    }
+
+  } catch (error) {
+    console.error('Individual member update failed:', error);
+    return new Response(JSON.stringify({
+      error: error.message,
+      success: false
+    }), {
+      status: 500,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+    });
+  }
+}
+
+// Function to update a single member through the full pipeline
+async function updateSingleMember(member, env) {
+  try {
+    // Phase 1: Update financial data
+    console.log(`💰 Phase 1: Updating financial data for ${member.name}...`);
+
+    const financialData = await fetchMemberFinancials(member, env);
+    if (financialData) {
+      member.totalRaised = financialData.totalRaised;
+      member.grassrootsPercent = financialData.grassrootsPercent;
+      member.committeeId = financialData.committeeId;
+      member.lastUpdated = new Date().toISOString();
+
+      console.log(`✅ Financial data updated: $${member.totalRaised.toLocaleString()} raised, ${member.grassrootsPercent}% grassroots`);
+    }
+
+    // Phase 2: Update PAC details if we have committee info
+    if (member.committeeId) {
+      console.log(`🏛️ Phase 2: Updating PAC details for ${member.name}...`);
+
+      const pacDetails = await fetchPACDetails(member.committeeId, env);
+      if (pacDetails && pacDetails.length > 0) {
+        member.pacContributions = pacDetails;
+        member.pacDetailsStatus = 'complete';
+
+        console.log(`✅ PAC data updated: ${pacDetails.length} contributions`);
+      }
+    }
+
+    // Recalculate tier with enhanced algorithm
+    member.tier = calculateEnhancedTier(member);
+
+    console.log(`🎯 Final tier: ${member.tier}`);
+
+    return member;
+
+  } catch (error) {
+    console.error(`Error updating single member ${member.name}:`, error);
+    return null;
+  }
+}
+
+// Function to get or create social handle mapping from congress-legislators repo
+async function getOrCreateSocialHandleMapping(env) {
+  try {
+    // Check if we have cached mapping
+    const cachedMapping = await env.MEMBER_DATA.get('social_handle_mapping');
+
+    if (cachedMapping) {
+      const mapping = JSON.parse(cachedMapping);
+      const cacheAge = Date.now() - new Date(mapping.lastUpdated).getTime();
+
+      // Use cached data if less than 24 hours old
+      if (cacheAge < 24 * 60 * 60 * 1000) {
+        console.log('📱 Using cached social handle mapping');
+        return mapping.handles;
+      }
+    }
+
+    console.log('📱 Fetching fresh social media data from congress-legislators...');
+
+    // Fetch social media YAML
+    const response = await fetch('https://raw.githubusercontent.com/unitedstates/congress-legislators/main/legislators-social-media.yaml');
+
+    if (!response.ok) {
+      throw new Error(`Failed to fetch social media data: ${response.status}`);
+    }
+
+    const yamlText = await response.text();
+
+    // Parse YAML manually (simple parsing for our specific use case)
+    const socialData = parseCongressSocialYAML(yamlText);
+
+    // Create handle mapping according to priority strategy
+    const handleMapping = {};
+    let mappedCount = 0;
+
+    for (const entry of socialData) {
+      if (entry.id?.bioguide && entry.social) {
+        const bioguide = entry.id.bioguide;
+        const social = entry.social;
+
+        // Priority: Twitter > Instagram > Generated from name
+        let selectedHandle = null;
+
+        if (social.twitter) {
+          selectedHandle = social.twitter.toLowerCase();
+        } else if (social.instagram) {
+          selectedHandle = social.instagram.toLowerCase();
+        }
+
+        if (selectedHandle) {
+          handleMapping[selectedHandle] = bioguide;
+          mappedCount++;
+        }
+      }
+    }
+
+    console.log(`✅ Created social handle mapping: ${mappedCount} handles mapped`);
+
+    // Cache the mapping
+    const mappingData = {
+      handles: handleMapping,
+      lastUpdated: new Date().toISOString(),
+      totalMapped: mappedCount
+    };
+
+    await env.MEMBER_DATA.put('social_handle_mapping', JSON.stringify(mappingData));
+
+    return handleMapping;
+
+  } catch (error) {
+    console.error('Error creating social handle mapping:', error);
+
+    // Fallback to cached data if available
+    const cachedMapping = await env.MEMBER_DATA.get('social_handle_mapping');
+    if (cachedMapping) {
+      console.log('⚠️ Using stale cached mapping due to error');
+      return JSON.parse(cachedMapping).handles;
+    }
+
+    throw error;
+  }
+}
+
+// Simple YAML parser for congress social media data
+function parseCongressSocialYAML(yamlText) {
+  const entries = [];
+  const lines = yamlText.split('\n');
+
+  let currentEntry = null;
+  let indentLevel = 0;
+
+  for (const line of lines) {
+    const trimmed = line.trim();
+
+    // Skip comments and empty lines
+    if (trimmed.startsWith('#') || trimmed === '') continue;
+
+    const currentIndent = line.length - line.trimLeft().length;
+
+    // New entry starts
+    if (trimmed === '- id:') {
+      if (currentEntry) {
+        entries.push(currentEntry);
+      }
+      currentEntry = { id: {}, social: {} };
+      indentLevel = currentIndent;
+      continue;
+    }
+
+    if (!currentEntry) continue;
+
+    // Parse ID fields
+    if (currentIndent === indentLevel + 4 && trimmed.includes(':')) {
+      const [key, value] = trimmed.split(':', 2);
+      const cleanKey = key.trim();
+      const cleanValue = value ? value.trim().replace(/['"]/g, '') : '';
+
+      if (['bioguide', 'thomas', 'govtrack'].includes(cleanKey)) {
+        currentEntry.id[cleanKey] = cleanValue;
+      }
+    }
+
+    // Parse social fields
+    if (trimmed === 'social:') {
+      // Continue to next line for social fields
+      continue;
+    }
+
+    if (currentIndent === indentLevel + 4 && trimmed.includes(':') && !['bioguide', 'thomas', 'govtrack'].includes(trimmed.split(':')[0].trim())) {
+      const [key, value] = trimmed.split(':', 2);
+      const cleanKey = key.trim();
+      const cleanValue = value ? value.trim().replace(/['"]/g, '') : '';
+
+      if (['twitter', 'instagram', 'facebook', 'youtube'].includes(cleanKey)) {
+        currentEntry.social[cleanKey] = cleanValue;
+      }
+    }
+  }
+
+  // Add the last entry
+  if (currentEntry) {
+    entries.push(currentEntry);
+  }
+
+  return entries;
 }
