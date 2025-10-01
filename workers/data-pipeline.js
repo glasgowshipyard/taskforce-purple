@@ -209,6 +209,35 @@ async function fetchMemberFinancials(member, env) {
         return candidateState === expectedState && candidateOffice === expectedOffice;
       });
 
+      // FALLBACK: If office_sought is undefined, use committee ID pattern matching
+      if (!candidate) {
+        console.log(`🔄 Primary matching failed, trying committee ID pattern fallback for ${member.name}`);
+
+        candidate = searchData.results.find(c => {
+          const candidateState = c.state?.toUpperCase();
+          const expectedState = stateAbbr?.toUpperCase();
+
+          if (candidateState !== expectedState) return false;
+
+          // Check if candidate has committees that match expected chamber
+          if (c.principal_committees && c.principal_committees.length > 0) {
+            return c.principal_committees.some(committee => {
+              const committeeId = committee.committee_id;
+              if (office === 'S' && committeeId && committeeId.startsWith('S')) {
+                console.log(`✅ Committee pattern match: ${committeeId} (Senate) for ${member.name}`);
+                return true;
+              }
+              if (office === 'H' && committeeId && (committeeId.startsWith('H') || committeeId.startsWith('C'))) {
+                console.log(`✅ Committee pattern match: ${committeeId} (House) for ${member.name}`);
+                return true;
+              }
+              return false;
+            });
+          }
+          return false;
+        });
+      }
+
       if (!candidate) {
         console.warn(`❌ No matching FEC candidate for ${member.name} (${stateAbbr}-${office}). Found candidates: ${searchData.results.map(c => `${c.name} (${c.state}-${c.office_sought})`).join(', ')}`);
         return null;
