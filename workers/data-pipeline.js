@@ -677,7 +677,7 @@ async function processMembers(congressMembers, env, testLimit = undefined) {
   console.log('🚀 PHASE 1: Fetching basic tier data for all members...');
   const basicProcessedMembers = [];
   let basicProcessed = 0;
-  const BASIC_BATCH_SIZE = 25;
+  const BASIC_BATCH_SIZE = 50;
 
   // Apply test limit if specified (for testing small batches)
   const membersToProcess = testLimit ? congressMembers.slice(0, testLimit) : congressMembers;
@@ -767,7 +767,7 @@ async function processMembers(congressMembers, env, testLimit = undefined) {
   // PHASE 2: Detailed PAC data (progressive enhancement)
   console.log('🔍 PHASE 2: Fetching detailed PAC data progressively...');
   let pacDetailsProcessed = 0;
-  const PAC_BATCH_SIZE = 10; // Smaller batches for PAC details
+  const PAC_BATCH_SIZE = 25; // Increased batch size for PAC details
 
   for (const basicMember of basicProcessedMembers) {
     try {
@@ -2006,7 +2006,7 @@ function parseCongressSocialYAML(yamlText) {
 // Main smart batch processing function
 async function processSmartBatch(env) {
   const startTime = Date.now();
-  const callBudget = 15; // Conservative FEC API call limit per 15-minute window
+  const callBudget = 15; // Restored original limit - FEC rate limiting delays are the bottleneck
   let callsUsed = 0;
   let membersProcessed = [];
 
@@ -2022,7 +2022,7 @@ async function processSmartBatch(env) {
     console.log(`📋 Phase 1 queue: ${phase1Queue.length} members remaining`);
     console.log(`📋 Phase 2 queue: ${phase2Queue.length} members remaining`);
 
-    // Mixed batching strategy: 2 Phase 1 + 1 Phase 2 per cycle (2*3 + 1*4 = 10 calls, CPU optimized)
+    // Mixed batching strategy: Process more members per cycle to stay under CPU limits
     while ((phase1Queue.length > 0 || phase2Queue.length > 0) && callsUsed < callBudget) {
 
       // Process up to 2 Phase 1 members (6 calls)
