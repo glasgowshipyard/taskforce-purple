@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { Search, ExternalLink, TrendingUp, Users, DollarSign, Eye, BarChart3, GitCompare } from 'lucide-react';
 
 // Mock data structure representing what we'd get from APIs
@@ -188,13 +188,41 @@ export default function TeamPurple() {
   const [activeTab, setActiveTab] = useState('leaderboard');
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedMember, setSelectedMember] = useState(null);
+  const [congressData, setCongressData] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  // Fetch real data from API
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        setLoading(true);
+        const response = await fetch('https://taskforce-purple-api.dev-a4b.workers.dev/api/members');
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        const data = await response.json();
+        setCongressData(data.members || []);
+        setError(null);
+      } catch (err) {
+        console.error('Failed to fetch data:', err);
+        setError(err.message);
+        // Fallback to mock data if API fails
+        setCongressData(mockCongressData);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchData();
+  }, []);
 
   const filteredMembers = useMemo(() => {
-    return mockCongressData.filter(member =>
+    return congressData.filter(member =>
       member.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       member.state.toLowerCase().includes(searchTerm.toLowerCase())
     );
-  }, [searchTerm]);
+  }, [searchTerm, congressData]);
 
   const sortedMembers = useMemo(() => {
     return [...filteredMembers].sort((a, b) => {
@@ -348,8 +376,20 @@ export default function TeamPurple() {
                 <TrendingUp className="w-5 h-5 text-green-600" />
                 <span className="font-semibold text-green-800">Grassroots Funding</span>
               </div>
-              <div className="text-2xl font-bold text-green-600">{selectedMember.grassrootsPercent}%</div>
-              <div className="text-sm text-green-700">{formatCurrency(selectedMember.grassrootsDonations)}</div>
+              <div className="text-2xl font-bold text-green-600">
+                {selectedMember.grassrootsPercent}%
+                {selectedMember.hasEnhancedData && selectedMember.grassrootsPACTypes && selectedMember.grassrootsPACTypes.length > 0 && (
+                  <span className="text-sm font-normal text-green-600">*</span>
+                )}
+              </div>
+              <div className="text-sm text-green-700">
+                {formatCurrency(selectedMember.grassrootsDonations || (selectedMember.totalRaised * selectedMember.grassrootsPercent / 100))}
+                {selectedMember.hasEnhancedData && selectedMember.grassrootsPACTypes && selectedMember.grassrootsPACTypes.length > 0 && (
+                  <div className="text-xs text-green-600 mt-1">
+                    *includes {selectedMember.grassrootsPACTypes.join(', ')}
+                  </div>
+                )}
+              </div>
             </div>
 
             <div className="bg-red-50 p-4 rounded-lg">
@@ -459,14 +499,20 @@ export default function TeamPurple() {
 
       <footer className="bg-white border-t mt-12">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-          <div className="flex items-center justify-between">
-            <div className="text-sm text-gray-600">
-              Data sources: <a href="#" className="text-purple-600 hover:underline">FEC API</a>, <a href="#" className="text-purple-600 hover:underline">Senate Lobbying Database</a>, <a href="#" className="text-purple-600 hover:underline">Congress.gov</a>
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <div className="text-sm text-gray-600">
+                Data sources: <a href="#" className="text-purple-600 hover:underline">FEC API</a>, <a href="#" className="text-purple-600 hover:underline">Senate Lobbying Database</a>, <a href="#" className="text-purple-600 hover:underline">Congress.gov</a>
+              </div>
+              <div className="flex items-center space-x-4 text-sm text-gray-600">
+                <a href="#" className="hover:text-gray-900">About</a>
+                <a href="#" className="hover:text-gray-900">Methodology</a>
+                <a href="#" className="hover:text-gray-900">API</a>
+              </div>
             </div>
-            <div className="flex items-center space-x-4 text-sm text-gray-600">
-              <a href="#" className="hover:text-gray-900">About</a>
-              <a href="#" className="hover:text-gray-900">Methodology</a>
-              <a href="#" className="hover:text-gray-900">API</a>
+            <div className="text-xs text-gray-500 border-t pt-4">
+              <strong>Enhanced Transparency Calculation:</strong> Grassroots percentages marked with * use enhanced calculations that weight PAC types by transparency.
+              Candidate committees and personal PACs are treated as more grassroots-friendly, while Super PACs and Leadership PACs receive transparency penalties in tier calculations.
             </div>
           </div>
         </div>
