@@ -83,12 +83,29 @@
 3. Document exact batch sizes and timing that were working
 4. Create proper git workflow to track all worker deployments
 
-## Questions for Investigation
+## Available Endpoints for Small Batch Processing
 
-- What was the agreed-upon batch size for Phase 2 enhancement?
-- How many members should be enhanced per 15-minute cron run?
-- Should we be seeing `🔍 PHASE 2` logs in production?
-- Are there members with enhanced PAC data in storage?
+1. **`/api/update-data?limit=N`** - Regular pipeline with test limit
+   - Processes only first N members through full pipeline
+   - Example: `POST /api/update-data?limit=5`
+   - Requires `UPDATE_SECRET` header
+
+2. **`/api/update-fec-batch?batch=N`** - Dedicated FEC enhancement
+   - Default batch: 3, max: 10 for safety
+   - Two-phase: financial data first, then PAC details
+   - Has progress tracking and state persistence
+   - Skips Congress.gov calls, FEC-only
+   - Example: `POST /api/update-fec-batch?batch=3`
+   - Requires `UPDATE_SECRET` header
+
+**This explains why small batched FEC runs were working last night** - they were using the dedicated `/api/update-fec-batch` endpoint, which was unaffected by the main pipeline bug.
+
+## Critical Bug Fixed (2025-09-30)
+
+**Bug**: Line 1390 had `fetchFinancialData` instead of `fetchMemberFinancials`
+**Effect**: Main pipeline crashed during Phase 1, preventing Phase 2
+**Fix**: Corrected function name in commit `e7d3daf`
+**Status**: Both main pipeline and dedicated batch endpoint should now work
 
 ---
 *Last updated: 2025-09-30*
