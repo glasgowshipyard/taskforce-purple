@@ -222,13 +222,14 @@ async function fetchMemberFinancials(member, env) {
           // Check if candidate has committees that match expected chamber
           if (c.principal_committees && c.principal_committees.length > 0) {
             return c.principal_committees.some(committee => {
+              const committeeType = committee.committee_type;
               const committeeId = committee.committee_id;
-              if (office === 'S' && committeeId && committeeId.startsWith('S')) {
-                console.log(`✅ Committee pattern match: ${committeeId} (Senate) for ${member.name}`);
+              if (office === 'S' && committeeType === 'S') {
+                console.log(`✅ Committee type match: ${committeeId} (Senate) for ${member.name}`);
                 return true;
               }
-              if (office === 'H' && committeeId && (committeeId.startsWith('H') || committeeId.startsWith('C'))) {
-                console.log(`✅ Committee pattern match: ${committeeId} (House) for ${member.name}`);
+              if (office === 'H' && committeeType === 'H') {
+                console.log(`✅ Committee type match: ${committeeId} (House) for ${member.name}`);
                 return true;
               }
               return false;
@@ -2398,6 +2399,9 @@ async function reconcileFECMismatch(member, env) {
     // Force fresh FEC lookup with improved validation
     const financials = await fetchMemberFinancials(member, env);
 
+    // DEBUG: Log detailed financials response
+    console.log(`🔍 DEBUG: fetchMemberFinancials returned for ${member.name}:`, JSON.stringify(financials, null, 2));
+
     if (financials && financials.totalRaised > 0) {
       console.log(`✅ Reconciled ${member.name}: Found correct FEC data with $${financials.totalRaised}`);
 
@@ -2407,6 +2411,7 @@ async function reconcileFECMismatch(member, env) {
       return true;
     } else {
       console.warn(`⚠️ Still no FEC data found for ${member.name} after reconciliation`);
+      console.log(`🔍 DEBUG: Financials was ${financials ? 'truthy' : 'falsy'}, totalRaised: ${financials?.totalRaised}`);
       return false;
     }
 
