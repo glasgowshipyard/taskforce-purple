@@ -52,14 +52,14 @@ export default {
     }
   },
 
-  // Scheduled task to update data daily
+  // Smart batch processing - rate-limited progressive updates
   async scheduled(event, env, ctx) {
-    console.log('🔄 Starting scheduled data update...');
+    console.log('🔄 Starting smart batch processing...');
     try {
-      await updateCongressionalData(env);
-      console.log('✅ Data update completed successfully');
+      const result = await processSmartBatch(env);
+      console.log(`✅ Smart batch completed: ${result.callsUsed}/15 API calls, ${result.membersProcessed} members`);
     } catch (error) {
-      console.error('❌ Scheduled data update failed:', error);
+      console.error('❌ Smart batch processing failed:', error);
     }
   }
 };
@@ -1885,4 +1885,373 @@ function parseCongressSocialYAML(yamlText) {
   }
 
   return entries;
+}
+
+// =============================================================================
+// SMART BATCH PROCESSING SYSTEM - Rate-Limited Progressive Updates
+// =============================================================================
+
+// Main smart batch processing function
+async function processSmartBatch(env) {
+  const startTime = Date.now();
+  const callBudget = 15; // Conservative FEC API call limit per 15-minute window
+  let callsUsed = 0;
+  let membersProcessed = [];
+
+  try {
+    console.log('📊 Starting smart batch processing...');
+
+    // Initialize or get existing processing queues
+    await initializeProcessingQueues(env);
+
+    // Priority 1: Process Phase 1 members (financial data)
+    const phase1Queue = await getPhase1Queue(env);
+    console.log(`📋 Phase 1 queue: ${phase1Queue.length} members remaining`);
+
+    while (phase1Queue.length > 0 && callsUsed + 3 <= callBudget) {
+      const member = phase1Queue.shift();
+      try {
+        console.log(`💰 Processing Phase 1: ${member.name}`);
+        const financials = await fetchMemberFinancials(member, env);
+        await updateMemberWithPhase1Data(member, financials, env);
+
+        callsUsed += 3;
+        membersProcessed.push({name: member.name, phase: 1, status: 'success'});
+
+        // Update queue after successful processing
+        await updatePhase1Queue(env, phase1Queue);
+
+      } catch (error) {
+        console.warn(`⚠️ Phase 1 failed for ${member.name}:`, error.message);
+        membersProcessed.push({name: member.name, phase: 1, status: 'failed', error: error.message});
+
+        // Check for rate limiting scenarios
+        if (error.message.includes('Too many subrequests')) {
+          console.log('🛑 Cloudflare subrequest limit detected, stopping batch processing');
+          break;
+        }
+
+        // Check for 503 Service Unavailable (API rate limiting)
+        if (error.message.includes('503') || error.message.includes('Service Unavailable') ||
+            error.message.includes('rate limit') || error.message.includes('Rate limit')) {
+          console.log('🛑 API rate limit (503) detected, stopping batch processing');
+          break;
+        }
+
+        // Check for 429 Too Many Requests
+        if (error.message.includes('429') || error.message.includes('Too Many Requests')) {
+          console.log('🛑 HTTP 429 rate limit detected, stopping batch processing');
+          break;
+        }
+      }
+    }
+
+    // Priority 2: Process Phase 2 members (PAC enhancement) if budget allows
+    if (callsUsed + 4 <= callBudget) {
+      const phase2Queue = await getPhase2Queue(env);
+      console.log(`📋 Phase 2 queue: ${phase2Queue.length} members remaining`);
+
+      while (phase2Queue.length > 0 && callsUsed + 4 <= callBudget) {
+        const member = phase2Queue.shift();
+        try {
+          console.log(`🏛️ Processing Phase 2: ${member.name}`);
+          await enhanceMemberWithPACData(member, env);
+
+          callsUsed += 4; // Average PAC enhancement calls
+          membersProcessed.push({name: member.name, phase: 2, status: 'success'});
+
+          // Update queue after successful processing
+          await updatePhase2Queue(env, phase2Queue);
+
+        } catch (error) {
+          console.warn(`⚠️ Phase 2 failed for ${member.name}:`, error.message);
+          membersProcessed.push({name: member.name, phase: 2, status: 'failed', error: error.message});
+
+          // Check for rate limiting scenarios
+          if (error.message.includes('Too many subrequests')) {
+            console.log('🛑 Cloudflare subrequest limit detected, stopping batch processing');
+            break;
+          }
+
+          // Check for 503 Service Unavailable (API rate limiting)
+          if (error.message.includes('503') || error.message.includes('Service Unavailable') ||
+              error.message.includes('rate limit') || error.message.includes('Rate limit')) {
+            console.log('🛑 API rate limit (503) detected, stopping batch processing');
+            break;
+          }
+
+          // Check for 429 Too Many Requests
+          if (error.message.includes('429') || error.message.includes('Too Many Requests')) {
+            console.log('🛑 HTTP 429 rate limit detected, stopping batch processing');
+            break;
+          }
+        }
+      }
+    }
+
+    // Update processing status
+    await updateProcessingStatus(env, {
+      callsUsed,
+      membersProcessed: membersProcessed.length,
+      lastRun: new Date().toISOString(),
+      executionTime: Date.now() - startTime
+    });
+
+    console.log(`📊 Smart batch summary: ${callsUsed}/${callBudget} API calls, ${membersProcessed.length} members processed`);
+
+    return {
+      callsUsed,
+      membersProcessed: membersProcessed.length,
+      members: membersProcessed,
+      remainingBudget: callBudget - callsUsed,
+      executionTime: Date.now() - startTime
+    };
+
+  } catch (error) {
+    console.error('❌ Smart batch processing error:', error);
+    throw error;
+  }
+}
+
+// Initialize processing queues from current member data
+async function initializeProcessingQueues(env) {
+  try {
+    // Check if queues already exist
+    const existingPhase1 = await env.MEMBER_DATA.get('processing_queue_phase1');
+    const existingPhase2 = await env.MEMBER_DATA.get('processing_queue_phase2');
+
+    if (existingPhase1 && existingPhase2) {
+      console.log('📋 Processing queues already initialized');
+      return;
+    }
+
+    console.log('🔄 Initializing processing queues from current data...');
+
+    // Get all current members
+    const membersData = await env.MEMBER_DATA.get('members:all');
+    if (!membersData) {
+      console.log('⚠️ No member data found, fetching from Congress API...');
+      const congressMembers = await fetchCongressMembers(env);
+
+      // Create Phase 1 queue with all members
+      const phase1Queue = congressMembers.map(member => ({
+        bioguideId: member.bioguideId,
+        name: member.name,
+        state: member.state,
+        district: member.district,
+        party: member.partyName
+      }));
+
+      await env.MEMBER_DATA.put('processing_queue_phase1', JSON.stringify(phase1Queue));
+      await env.MEMBER_DATA.put('processing_queue_phase2', JSON.stringify([]));
+
+      console.log(`✅ Initialized queues: ${phase1Queue.length} members in Phase 1, 0 in Phase 2`);
+      return;
+    }
+
+    const members = JSON.parse(membersData);
+    const phase1Queue = [];
+    const phase2Queue = [];
+
+    for (const member of members) {
+      if (member.totalRaised === 0 || member.totalRaised === null) {
+        // Needs Phase 1 (financial data)
+        phase1Queue.push({
+          bioguideId: member.bioguideId,
+          name: member.name,
+          state: member.state,
+          district: member.district,
+          party: member.party
+        });
+      } else if (member.pacContributions.length === 0 ||
+                 !member.pacContributions.some(pac => pac.committee_type)) {
+        // Has financial data but needs Phase 2 (PAC enhancement)
+        phase2Queue.push({
+          bioguideId: member.bioguideId,
+          name: member.name,
+          state: member.state,
+          district: member.district,
+          party: member.party,
+          committeeId: member.committeeInfo?.id
+        });
+      }
+    }
+
+    await env.MEMBER_DATA.put('processing_queue_phase1', JSON.stringify(phase1Queue));
+    await env.MEMBER_DATA.put('processing_queue_phase2', JSON.stringify(phase2Queue));
+
+    console.log(`✅ Initialized queues: ${phase1Queue.length} members in Phase 1, ${phase2Queue.length} in Phase 2`);
+
+  } catch (error) {
+    console.error('❌ Error initializing processing queues:', error);
+    throw error;
+  }
+}
+
+// Get Phase 1 processing queue
+async function getPhase1Queue(env) {
+  try {
+    const queueData = await env.MEMBER_DATA.get('processing_queue_phase1');
+    return queueData ? JSON.parse(queueData) : [];
+  } catch (error) {
+    console.error('Error getting Phase 1 queue:', error);
+    return [];
+  }
+}
+
+// Get Phase 2 processing queue
+async function getPhase2Queue(env) {
+  try {
+    const queueData = await env.MEMBER_DATA.get('processing_queue_phase2');
+    return queueData ? JSON.parse(queueData) : [];
+  } catch (error) {
+    console.error('Error getting Phase 2 queue:', error);
+    return [];
+  }
+}
+
+// Update Phase 1 queue after processing
+async function updatePhase1Queue(env, updatedQueue) {
+  try {
+    await env.MEMBER_DATA.put('processing_queue_phase1', JSON.stringify(updatedQueue));
+  } catch (error) {
+    console.error('Error updating Phase 1 queue:', error);
+  }
+}
+
+// Update Phase 2 queue after processing
+async function updatePhase2Queue(env, updatedQueue) {
+  try {
+    await env.MEMBER_DATA.put('processing_queue_phase2', JSON.stringify(updatedQueue));
+  } catch (error) {
+    console.error('Error updating Phase 2 queue:', error);
+  }
+}
+
+// Update member with Phase 1 data and move to Phase 2 queue if successful
+async function updateMemberWithPhase1Data(member, financials, env) {
+  try {
+    // Get existing members data
+    const membersData = await env.MEMBER_DATA.get('members:all');
+    const members = membersData ? JSON.parse(membersData) : [];
+
+    // Find and update the member
+    const memberIndex = members.findIndex(m => m.bioguideId === member.bioguideId);
+    if (memberIndex === -1) {
+      // Add new member
+      const newMember = {
+        bioguideId: member.bioguideId,
+        name: member.name,
+        party: member.party,
+        state: member.state,
+        district: member.district,
+        chamber: member.chamber || 'Unknown',
+        totalRaised: financials?.totalRaised || 0,
+        grassrootsDonations: financials?.grassrootsDonations || 0,
+        grassrootsPercent: financials?.grassrootsPercent || 0,
+        pacMoney: financials?.pacMoney || 0,
+        partyMoney: financials?.partyMoney || 0,
+        pacContributions: [],
+        tier: calculateTier(financials?.grassrootsPercent || 0, financials?.totalRaised || 0),
+        lastUpdated: new Date().toISOString(),
+        committeeInfo: financials?.committeeId ? { id: financials.committeeId } : null
+      };
+      members.push(newMember);
+    } else {
+      // Update existing member
+      members[memberIndex] = {
+        ...members[memberIndex],
+        totalRaised: financials?.totalRaised || 0,
+        grassrootsDonations: financials?.grassrootsDonations || 0,
+        grassrootsPercent: financials?.grassrootsPercent || 0,
+        pacMoney: financials?.pacMoney || 0,
+        partyMoney: financials?.partyMoney || 0,
+        tier: calculateTier(financials?.grassrootsPercent || 0, financials?.totalRaised || 0),
+        lastUpdated: new Date().toISOString(),
+        committeeInfo: financials?.committeeId ? { id: financials.committeeId } : null
+      };
+    }
+
+    // Save updated members data
+    await env.MEMBER_DATA.put('members:all', JSON.stringify(members));
+
+    // If successful and has committee ID, add to Phase 2 queue
+    if (financials?.committeeId) {
+      const phase2Queue = await getPhase2Queue(env);
+      phase2Queue.push({
+        bioguideId: member.bioguideId,
+        name: member.name,
+        state: member.state,
+        district: member.district,
+        party: member.party,
+        committeeId: financials.committeeId
+      });
+      await updatePhase2Queue(env, phase2Queue);
+      console.log(`➡️ Moved ${member.name} to Phase 2 queue`);
+    }
+
+  } catch (error) {
+    console.error(`Error updating member ${member.name} with Phase 1 data:`, error);
+    throw error;
+  }
+}
+
+// Enhance member with PAC data (existing function integration)
+async function enhanceMemberWithPACData(member, env) {
+  try {
+    // Get existing members data
+    const membersData = await env.MEMBER_DATA.get('members:all');
+    const members = membersData ? JSON.parse(membersData) : [];
+
+    // Find the member
+    const memberIndex = members.findIndex(m => m.bioguideId === member.bioguideId);
+    if (memberIndex === -1) {
+      throw new Error(`Member ${member.name} not found for Phase 2 processing`);
+    }
+
+    const targetMember = members[memberIndex];
+
+    // Use existing PAC enhancement logic
+    if (targetMember.committeeInfo?.id || member.committeeId) {
+      const committeeId = targetMember.committeeInfo?.id || member.committeeId;
+      console.log(`📊 Fetching PAC details for committee: ${committeeId}`);
+
+      const pacContributions = await fetchPACDetails(committeeId, env);
+      targetMember.pacContributions = pacContributions;
+
+      // Recalculate tier with enhanced data
+      targetMember.tier = calculateEnhancedTier(targetMember);
+      targetMember.lastUpdated = new Date().toISOString();
+
+      // Save updated data
+      members[memberIndex] = targetMember;
+      await env.MEMBER_DATA.put('members:all', JSON.stringify(members));
+
+      console.log(`✅ Enhanced ${member.name} with ${pacContributions.length} PAC contributions`);
+    }
+
+  } catch (error) {
+    console.error(`Error enhancing member ${member.name} with PAC data:`, error);
+    throw error;
+  }
+}
+
+// Update processing status for monitoring
+async function updateProcessingStatus(env, stats) {
+  try {
+    const status = {
+      lastRun: stats.lastRun,
+      callsUsed: stats.callsUsed,
+      membersProcessed: stats.membersProcessed,
+      executionTime: stats.executionTime,
+      phase1Remaining: (await getPhase1Queue(env)).length,
+      phase2Remaining: (await getPhase2Queue(env)).length
+    };
+
+    await env.MEMBER_DATA.put('processing_status', JSON.stringify(status));
+    console.log(`📊 Processing status updated: ${status.phase1Remaining} Phase 1, ${status.phase2Remaining} Phase 2 remaining`);
+
+  } catch (error) {
+    console.error('Error updating processing status:', error);
+  }
 }
