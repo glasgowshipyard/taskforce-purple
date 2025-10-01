@@ -80,4 +80,7 @@ temp/
 *.backup
 
 # Development analysis files
-BROKEN_CALCULATIONS.md
+# (removed BROKEN_CALCULATIONS.md - was redundant)
+
+# Claude reference docs (keep internal)
+.claude-reference.md

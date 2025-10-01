@@ -70,11 +70,41 @@
 - Populates `committee_type` and `designation` fields
 - Applies transparency weights based on committee classification
 
-## Critical Issues to Investigate
+## GitHub Issue Resolution Status (HONEST Assessment - 2025-10-01)
 
-1. **Phase 2 Status**: Verify if committee metadata enhancement is running
-2. **Rate Limiting**: Confirm current batch sizes work within Cloudflare limits
-3. **Documentation Gap**: This conversation history shows we solved this before but lost track
+### ❌ ISSUES STILL NOT RESOLVED
+
+**Issue #2: "Existing members not recalculated with enhanced PAC tiering"**
+- **Status**: NOT RESOLVED - Phase 2 FEC enhancement is not running in production
+- **Root Cause**: Small batch endpoint works but is stuck in Phase 1 (financial data collection)
+- **Current State**: 503/538 members (93.5%) still lack financial data, preventing Phase 2 transition
+- **Real Fix Needed**: Run Phase 1 to completion OR implement parallel phase processing
+
+**Issue #4: "Tier calculation producing unexpected results after recalculation"**
+- **Status**: NOT RESOLVED - enhanced tier algorithm cannot work without committee metadata
+- **Root Cause**: PAC contributions still missing `committee_type`, `designation`, `committee_id` fields
+- **Current State**: Enhanced calculation falls back to legacy mode due to missing Phase 2 data
+- **Real Fix Needed**: Complete Phase 2 FEC enhancement to populate committee metadata
+
+### 🔄 PARTIALLY RESOLVED Issues
+
+**Issue #3: "Batch processing progress calculations incorrect"**
+- **Status**: PARTIALLY RESOLVED - better endpoints documented
+- **Fix**: Documented realistic small batch endpoints (`/api/update-fec-batch?batch=N`)
+- **Remaining**: Update progress estimates based on actual performance data
+- **Action Needed**: Update issue with realistic timelines, keep open for monitoring
+
+### ❌ UNRESOLVED Issues
+
+**Issue #5: "Complete force-update functionality for individual member processing"**
+- **Status**: NOT ADDRESSED - different functionality
+- **Reason**: Focused on pipeline bug fixes, not individual member updates
+
+**Issue #1: "Implement Real Bipartisan Voting Data for Overlap Tracker"**
+- **Status**: NOT ADDRESSED - different feature entirely
+- **Reason**: Focused on FEC data pipeline, not bipartisan voting integration
+
+## Critical Issues to Investigate
 
 ## Next Steps
 
@@ -100,12 +130,22 @@
 
 **This explains why small batched FEC runs were working last night** - they were using the dedicated `/api/update-fec-batch` endpoint, which was unaffected by the main pipeline bug.
 
-## Critical Bug Fixed (2025-09-30)
+## What Actually Works vs. What's Broken (2025-10-01)
 
-**Bug**: Line 1390 had `fetchFinancialData` instead of `fetchMemberFinancials`
-**Effect**: Main pipeline crashed during Phase 1, preventing Phase 2
-**Fix**: Corrected function name in commit `e7d3daf`
-**Status**: Both main pipeline and dedicated batch endpoint should now work
+### ✅ WORKING Components
+1. **Authorization system** - `Authorization: Bearer taskforce_purple_2025_update` works correctly
+2. **Small batch endpoint** - `/api/update-fec-batch?batch=N` processes members successfully
+3. **Phase 1 data collection** - Basic financial data collection functions properly
+4. **Function name bug fixed** - `fetchMemberFinancials` call is correct (commit `e7d3daf`)
+
+### ❌ BROKEN Components
+1. **Phase 2 FEC enhancement** - Cannot execute because 503/538 members (93.5%) lack financial data
+2. **Committee metadata population** - PAC contributions missing `committee_type`, `designation`, `committee_id`
+3. **Enhanced tier calculations** - Falls back to legacy algorithm due to missing metadata
+4. **Sequential phase dependency** - Phase 2 blocked until ALL Phase 1 complete
+
+### 🔍 ROOT CAUSE
+The system architecture requires **sequential completion**: Phase 1 must finish ALL 538 members before Phase 2 can start. With 503 members still needing financial data and processing 1 member per batch run, **Phase 2 will never execute** under current conditions.
 
 ---
 *Last updated: 2025-09-30*
