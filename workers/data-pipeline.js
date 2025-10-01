@@ -1925,12 +1925,12 @@ async function processSmartBatch(env) {
     console.log(`📋 Phase 1 queue: ${phase1Queue.length} members remaining`);
     console.log(`📋 Phase 2 queue: ${phase2Queue.length} members remaining`);
 
-    // Mixed batching strategy: 3 Phase 1 + 1 Phase 2 per cycle (3*3 + 1*4 = 13 calls, leaves 2 calls buffer)
+    // Mixed batching strategy: 2 Phase 1 + 1 Phase 2 per cycle (2*3 + 1*4 = 10 calls, CPU optimized)
     while ((phase1Queue.length > 0 || phase2Queue.length > 0) && callsUsed < callBudget) {
 
-      // Process up to 3 Phase 1 members (9 calls)
+      // Process up to 2 Phase 1 members (6 calls)
       let phase1Count = 0;
-      while (phase1Queue.length > 0 && phase1Count < 3 && callsUsed + 3 <= callBudget) {
+      while (phase1Queue.length > 0 && phase1Count < 2 && callsUsed + 3 <= callBudget) {
         const member = phase1Queue.shift();
         try {
           console.log(`💰 Processing Phase 1: ${member.name}`);
