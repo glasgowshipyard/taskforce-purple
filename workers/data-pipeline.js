@@ -1024,6 +1024,7 @@ async function handleFECBatchUpdate(env, corsHeaders, request) {
               grassrootsPercent: financials.grassrootsPercent,
               pacMoney: financials.pacMoney,
               partyMoney: financials.partyMoney,
+              committeeId: financials.committeeId, // NEW: Save committee ID for Phase 2
               tier: calculateTier(financials.grassrootsPercent),
               lastUpdated: new Date().toISOString()
             };
@@ -1077,8 +1078,8 @@ async function handleFECBatchUpdate(env, corsHeaders, request) {
           console.log(`🔍 Updating PAC details for: ${member.name}`);
 
           // Get PAC details if member has financial data
-          if (member.candidateId) {
-            const pacDetails = await fetchPACDetails(member.candidateId, env);
+          if (member.committeeId) {
+            const pacDetails = await fetchPACDetails(member.committeeId, env);
 
             if (pacDetails && pacDetails.length > 0) {
               // Update member with PAC details
