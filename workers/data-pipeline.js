@@ -1214,6 +1214,63 @@ async function handleTestMember(env, corsHeaders, request) {
   }
 }
 
+// Helper function to perform tier recalculation (without HTTP handling)
+async function performTierRecalculation(env) {
+  // Get all member data from storage
+  const currentData = await env.MEMBER_DATA.get('members:all');
+  if (!currentData) {
+    throw new Error('No member data found');
+  }
+
+  const members = JSON.parse(currentData);
+  let recalculated = 0;
+  let unchanged = 0;
+  let errors = 0;
+
+  // Process each member
+  for (let i = 0; i < members.length; i++) {
+    const member = members[i];
+
+    try {
+      // Only recalculate if member has financial data
+      if (!member.totalRaised || member.totalRaised === 0) {
+        continue;
+      }
+
+      // Calculate new tier using enhanced logic
+      const oldTier = member.tier;
+      const newTier = calculateEnhancedTier(member);
+
+      // Update tier if it changed
+      if (oldTier !== newTier) {
+        members[i] = {
+          ...member,
+          tier: newTier,
+          lastTierRecalculated: new Date().toISOString()
+        };
+        recalculated++;
+      } else {
+        unchanged++;
+      }
+
+    } catch (error) {
+      console.error(`❌ Error processing ${member.name} (${member.bioguideId}):`, error);
+      errors++;
+    }
+  }
+
+  // Save updated data back to storage
+  await env.MEMBER_DATA.put('members:all', JSON.stringify(members));
+
+  return {
+    totalMembers: members.length,
+    recalculated,
+    unchanged,
+    errors,
+    completedAt: new Date().toISOString()
+  };
+}
+
 // NEW: Handler for recalculating tiers for all members with existing data
 async function handleRecalculateTiers(env, corsHeaders, request) {
   try {
@@ -1230,68 +1287,12 @@ async function handleRecalculateTiers(env, corsHeaders, request) {
 
     console.log('🔄 Starting tier recalculation for all members...');
 
-    // Get all member data from storage
-    const currentData = await env.MEMBER_DATA.get('members:all');
-    if (!currentData) {
-      return new Response(JSON.stringify({ error: 'No member data found' }), {
-        status: 404,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-      });
-    }
-
-    const members = JSON.parse(currentData);
-    let recalculated = 0;
-    let unchanged = 0;
-    let errors = 0;
-
-    console.log(`📊 Processing ${members.length} members for tier recalculation...`);
-
-    // Process each member
-    for (let i = 0; i < members.length; i++) {
-      const member = members[i];
-
-      try {
-        // Only recalculate if member has financial data
-        if (!member.totalRaised || member.totalRaised === 0) {
-          continue;
-        }
-
-        // Calculate new tier using enhanced logic
-        const oldTier = member.tier;
-        const newTier = calculateEnhancedTier(member);
-
-        // Update tier if it changed
-        if (oldTier !== newTier) {
-          members[i] = {
-            ...member,
-            tier: newTier,
-            lastTierRecalculated: new Date().toISOString()
-          };
-          recalculated++;
-          console.log(`✅ Updated ${member.name} (${member.bioguideId}): ${oldTier} → ${newTier}`);
-        } else {
-          unchanged++;
-        }
-
-      } catch (error) {
-        console.error(`❌ Error processing ${member.name} (${member.bioguideId}):`, error);
-        errors++;
-      }
-    }
-
-    // Save updated data back to storage
-    await env.MEMBER_DATA.put('members:all', JSON.stringify(members));
+    const stats = await performTierRecalculation(env);
 
     const response = {
       success: true,
       message: 'Tier recalculation completed',
-      stats: {
-        totalMembers: members.length,
-        recalculated,
-        unchanged,
-        errors,
-        completedAt: new Date().toISOString()
-      }
+      stats
     };
 
     console.log('🎯 Tier recalculation completed:', response.stats);
@@ -1972,6 +1973,18 @@ async function processSmartBatch(env) {
       executionTime: Date.now() - startTime
     });
 
+    // Auto-recalculate tiers if any members were processed to keep frontend updated
+    let tierRecalcStats = null;
+    if (membersProcessed.length > 0) {
+      try {
+        console.log('🔄 Auto-triggering tier recalculation after batch processing...');
+        tierRecalcStats = await performTierRecalculation(env);
+        console.log(`✅ Tier recalculation complete: ${tierRecalcStats.recalculated} updated, ${tierRecalcStats.unchanged} unchanged`);
+      } catch (error) {
+        console.warn('⚠️ Tier recalculation failed after batch processing:', error.message);
+      }
+    }
+
     console.log(`📊 Smart batch summary: ${callsUsed}/${callBudget} API calls, ${membersProcessed.length} members processed`);
 
     return {
@@ -1979,7 +1992,8 @@ async function processSmartBatch(env) {
       membersProcessed: membersProcessed.length,
       members: membersProcessed,
       remainingBudget: callBudget - callsUsed,
-      executionTime: Date.now() - startTime
+      executionTime: Date.now() - startTime,
+      tierRecalculation: tierRecalcStats
     };
 
   } catch (error) {
