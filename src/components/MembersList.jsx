@@ -324,8 +324,18 @@ export default function MembersList() {
                 <TrendingUp className="w-5 h-5 text-green-600" />
                 <span className="font-semibold text-green-800">Grassroots Funding</span>
               </div>
-              <div className="text-2xl font-bold text-green-600">{selectedMember.grassrootsPercent}%</div>
+              <div className="text-2xl font-bold text-green-600">
+                {selectedMember.grassrootsPercent}%
+                {selectedMember.hasEnhancedData && selectedMember.grassrootsPACTypes && (
+                  <span className="text-sm font-normal text-green-600">*</span>
+                )}
+              </div>
               <div className="text-sm text-green-700">{TaskForceAPI.formatCurrency(selectedMember.grassrootsDonations)}</div>
+              {selectedMember.hasEnhancedData && selectedMember.grassrootsPACTypes && (
+                <div className="text-xs text-green-600 mt-1">
+                  *includes {selectedMember.grassrootsPACTypes.join(', ')}
+                </div>
+              )}
             </div>
 
             <div className="bg-red-50 p-4 rounded-lg">
@@ -533,7 +543,12 @@ export default function MembersList() {
                   </div>
                 ) : (
                   <div>
-                    <div className="text-base sm:text-lg font-bold text-green-600">{member.grassrootsPercent}%</div>
+                    <div className="text-base sm:text-lg font-bold text-green-600">
+                      {member.grassrootsPercent}%
+                      {member.hasEnhancedData && member.grassrootsPACTypes && (
+                        <span className="text-xs font-normal text-green-600">*</span>
+                      )}
+                    </div>
                     <div className="text-[10px] sm:text-sm text-gray-500">Grassroots</div>
                   </div>
                 )}</div>
