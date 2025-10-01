@@ -544,8 +544,9 @@ function calculateTier(grassrootsPercent, totalRaised) {
 function calculateEnhancedTier(member) {
   if (!member.totalRaised || member.totalRaised === 0) return 'N/A';
 
-  // Check if we have enhanced PAC data
-  const hasEnhancedData = member.pacContributions && member.pacContributions.length > 0;
+  // Check if we have enhanced PAC data with actual committee metadata
+  const hasEnhancedData = member.pacContributions && member.pacContributions.length > 0
+    && member.pacContributions.some(pac => pac.committee_type || pac.designation);
 
   if (hasEnhancedData) {
     // Use enhanced calculation with transparency penalties
