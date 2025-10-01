@@ -32,6 +32,8 @@ export default {
           return await handleRecalculateTiers(env, corsHeaders, request);
         case '/api/process-candidate':
           return await handleProcessCandidate(env, corsHeaders, request);
+        case '/api/social-handles':
+          return await handleSocialHandles(env, corsHeaders);
         default:
           // Check for individual member update pattern: /api/update-member/@username
           if (url.pathname.startsWith('/api/update-member/@')) {
@@ -1713,6 +1715,39 @@ async function getOrCreateSocialHandleMapping(env) {
     }
 
     throw error;
+  }
+}
+
+// Handle social handles endpoint - return available handles for individual member updates
+async function handleSocialHandles(env, corsHeaders) {
+  try {
+    // Get the social handle mapping (same as used by individual member updates)
+    const handleMap = await getOrCreateSocialHandleMapping(env);
+
+    const handleCount = Object.keys(handleMap).length;
+
+    return new Response(JSON.stringify({
+      handles: handleMap,
+      count: handleCount,
+      description: "Available social handles for individual member updates via /api/update-member/@handle",
+      examples: [
+        "/api/update-member/@repaoc",
+        "/api/update-member/@repjasmine",
+        "/api/update-member/@senatorhassan"
+      ]
+    }), {
+      status: 200,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+    });
+  } catch (error) {
+    console.error('Error fetching social handles:', error);
+    return new Response(JSON.stringify({
+      error: 'Failed to fetch social handles',
+      message: error.message
+    }), {
+      status: 500,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+    });
   }
 }
 
