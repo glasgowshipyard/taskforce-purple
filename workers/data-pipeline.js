@@ -536,10 +536,8 @@ function calculateTier(grassrootsPercent, totalRaised) {
 function calculateEnhancedTier(member) {
   if (!member.totalRaised || member.totalRaised === 0) return 'N/A';
 
-  // Check if we have enhanced PAC data with meaningful committee metadata
-  const hasEnhancedData = member.pacContributions &&
-    member.pacContributions.length > 0 &&
-    member.pacContributions.some(pac => pac.committee_type || pac.designation);
+  // Check if we have enhanced PAC data
+  const hasEnhancedData = member.pacContributions && member.pacContributions.length > 0;
 
   if (hasEnhancedData) {
     // Use enhanced calculation with transparency penalties
@@ -569,8 +567,10 @@ function calculateTransparencyPenalty(member) {
   let totalWeightedPACMoney = 0;
 
   for (const pac of member.pacContributions) {
-    // Use transparency weight to properly assess impact
-    const weight = calculateTransparencyWeight(pac.committee_type, pac.designation);
+    // Use transparency weight when committee metadata is available, default to 1.0 when missing
+    const weight = (pac.committee_type || pac.designation)
+      ? calculateTransparencyWeight(pac.committee_type, pac.designation)
+      : 1.0; // Neutral weight for PACs without committee metadata
     const weightedAmount = pac.amount * weight;
 
     // Only count weighted amounts above baseline (1.0x means neutral)
