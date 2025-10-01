@@ -1007,7 +1007,7 @@ async function handleFECBatchUpdate(env, corsHeaders, request) {
               pacMoney: financials.pacMoney,
               partyMoney: financials.partyMoney,
               committeeId: financials.committeeId, // NEW: Save committee ID for Phase 2
-              tier: calculateTier(financials.grassrootsPercent),
+              tier: calculateTier(financials.grassrootsPercent, financials.totalRaised),
               lastUpdated: new Date().toISOString()
             };
             updated++;
