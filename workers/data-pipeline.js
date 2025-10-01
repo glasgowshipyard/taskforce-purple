@@ -812,6 +812,27 @@ function calculateEnhancedGrassrootsPercent(member) {
   return member.grassrootsPercent || 0;
 }
 
+// Get grassroots-friendly PAC types summary for display
+function getGrassrootsPACTypesSummary(member) {
+  if (!member.pacContributions?.length) return null;
+
+  const grassrootsFriendlyTypes = new Set();
+
+  for (const pac of member.pacContributions) {
+    const weight = (pac.committee_type || pac.designation)
+      ? getPACTransparencyWeight(pac.committee_type, pac.designation)
+      : 1.0;
+
+    // Only include PAC types that are grassroots-friendly (weight < 1.0)
+    if (weight < 1.0) {
+      const category = getCommitteeCategory(pac.committee_type, pac.designation);
+      grassrootsFriendlyTypes.add(category);
+    }
+  }
+
+  return grassrootsFriendlyTypes.size > 0 ? Array.from(grassrootsFriendlyTypes) : null;
+}
+
 // API handlers
 async function handleMembers(env, corsHeaders) {
   try {
@@ -830,13 +851,17 @@ async function handleMembers(env, corsHeaders) {
     const members = JSON.parse(membersData);
 
     // Enhance grassroots percentage display for members with PAC data
-    const enhancedMembers = members.map(member => ({
-      ...member,
-      grassrootsPercent: calculateEnhancedGrassrootsPercent(member),
-      rawFECGrassrootsPercent: member.grassrootsPercent, // Keep original for reference
-      hasEnhancedData: member.pacContributions && member.pacContributions.length > 0
-        && member.pacContributions.some(pac => pac.committee_type || pac.designation)
-    }));
+    const enhancedMembers = members.map(member => {
+      const grassrootsPACTypes = getGrassrootsPACTypesSummary(member);
+      return {
+        ...member,
+        grassrootsPercent: calculateEnhancedGrassrootsPercent(member),
+        rawFECGrassrootsPercent: member.grassrootsPercent, // Keep original for reference
+        hasEnhancedData: member.pacContributions && member.pacContributions.length > 0
+          && member.pacContributions.some(pac => pac.committee_type || pac.designation),
+        grassrootsPACTypes: grassrootsPACTypes // Array of grassroots-friendly PAC types
+      };
+    });
 
     return new Response(JSON.stringify({
       members: enhancedMembers,
