@@ -573,7 +573,7 @@ function calculateTransparencyPenalty(member) {
   for (const pac of member.pacContributions) {
     // Use transparency weight when committee metadata is available, default to 1.0 when missing
     const weight = (pac.committee_type || pac.designation)
-      ? calculateTransparencyWeight(pac.committee_type, pac.designation)
+      ? getPACTransparencyWeight(pac.committee_type, pac.designation)
       : 1.0; // Neutral weight for PACs without committee metadata
     const weightedAmount = pac.amount * weight;
 
