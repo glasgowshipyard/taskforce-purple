@@ -2016,14 +2016,34 @@ async function processSmartBatch(env) {
     // Initialize or get existing processing queues
     await initializeProcessingQueues(env);
 
-    // Mixed batch processing: alternate between Phase 1 and Phase 2 to ensure both get budget
+    // PRIORITY: Phase 0 - Reconcile FEC mapping mismatches FIRST
+    const mismatchQueue = await getMismatchQueue(env);
+    console.log(`🔧 FEC Mismatch queue: ${mismatchQueue.length} members to reconcile`);
+
+    // Mixed batch processing: prioritize mismatches, then alternate between Phase 1 and Phase 2
     const phase1Queue = await getPhase1Queue(env);
     const phase2Queue = await getPhase2Queue(env);
     console.log(`📋 Phase 1 queue: ${phase1Queue.length} members remaining`);
     console.log(`📋 Phase 2 queue: ${phase2Queue.length} members remaining`);
 
-    // Mixed batching strategy: Process more members per cycle to stay under CPU limits
-    while ((phase1Queue.length > 0 || phase2Queue.length > 0) && callsUsed < callBudget) {
+    // PRIORITY PROCESSING: Mismatches first, then regular phases
+    while ((mismatchQueue.length > 0 || phase1Queue.length > 0 || phase2Queue.length > 0) && callsUsed < callBudget) {
+
+      // FIRST PRIORITY: Process mismatch reconciliation (highest priority)
+      if (mismatchQueue.length > 0 && callsUsed + 3 <= callBudget) {
+        const member = mismatchQueue.shift();
+        try {
+          console.log(`🔧 Reconciling FEC mismatch: ${member.name}`);
+          await reconcileFECMismatch(member, env);
+          callsUsed += 3; // FEC lookup uses ~3 calls
+          membersProcessed.push({name: member.name, phase: 'mismatch', status: 'reconciled'});
+          await updateMismatchQueue(env, mismatchQueue);
+        } catch (error) {
+          console.warn(`⚠️ Mismatch reconciliation failed for ${member.name}:`, error.message);
+          membersProcessed.push({name: member.name, phase: 'mismatch', status: 'failed'});
+        }
+        continue; // Process another mismatch if budget allows
+      }
 
       // Process up to 2 Phase 1 members (6 calls)
       let phase1Count = 0;
@@ -2254,6 +2274,116 @@ async function updatePhase2Queue(env, updatedQueue) {
     await env.MEMBER_DATA.put('processing_queue_phase2', JSON.stringify(updatedQueue));
   } catch (error) {
     console.error('Error updating Phase 2 queue:', error);
+  }
+}
+
+// =============================================================================
+// FEC MISMATCH DETECTION AND RECONCILIATION SYSTEM
+// =============================================================================
+
+// Get FEC mismatch queue - identifies members with potential mapping issues
+async function getMismatchQueue(env) {
+  try {
+    const queueData = await env.MEMBER_DATA.get('processing_queue_mismatch');
+    if (queueData) {
+      return JSON.parse(queueData);
+    }
+
+    // First time - scan for potential mismatches
+    console.log('🔍 Scanning for FEC mapping mismatches...');
+    const mismatchQueue = await scanForFECMismatches(env);
+    await env.MEMBER_DATA.put('processing_queue_mismatch', JSON.stringify(mismatchQueue));
+    return mismatchQueue;
+  } catch (error) {
+    console.error('Error getting mismatch queue:', error);
+    return [];
+  }
+}
+
+// Update mismatch queue after processing
+async function updateMismatchQueue(env, updatedQueue) {
+  try {
+    await env.MEMBER_DATA.put('processing_queue_mismatch', JSON.stringify(updatedQueue));
+  } catch (error) {
+    console.error('Error updating mismatch queue:', error);
+  }
+}
+
+// Scan current members for potential FEC mapping mismatches
+async function scanForFECMismatches(env) {
+  const mismatchQueue = [];
+
+  try {
+    const membersData = await env.MEMBER_DATA.get('members:all');
+    if (!membersData) return mismatchQueue;
+
+    const members = JSON.parse(membersData);
+
+    for (const member of members) {
+      // Check for potential mismatches:
+      // 1. Members with $0 raised despite being well-known senators
+      // 2. Committee IDs that don't match chamber (House vs Senate)
+      // 3. Common names that might be mixed up
+
+      const isHighProfileSenator = member.chamber === 'Senate' && member.totalRaised === 0;
+      const hasWrongCommitteePattern = (
+        (member.chamber === 'Senate' && member.committeeInfo?.id && !member.committeeInfo.id.startsWith('S')) ||
+        (member.chamber === 'House' && member.committeeInfo?.id && !member.committeeInfo.id.startsWith('H'))
+      );
+      const hasCommonName = ['Graham', 'Johnson', 'Smith', 'Brown', 'Miller', 'Wilson', 'Davis', 'Garcia'].some(name =>
+        member.name.includes(name)
+      );
+
+      if (isHighProfileSenator || hasWrongCommitteePattern || (hasCommonName && member.totalRaised === 0)) {
+        mismatchQueue.push({
+          bioguideId: member.bioguideId,
+          name: member.name,
+          state: member.state,
+          chamber: member.chamber,
+          party: member.party,
+          currentCommitteeId: member.committeeInfo?.id,
+          reason: isHighProfileSenator ? 'high-profile-zero' :
+                  hasWrongCommitteePattern ? 'wrong-committee-pattern' : 'common-name-zero'
+        });
+      }
+    }
+
+    console.log(`🔍 Found ${mismatchQueue.length} potential FEC mismatches to reconcile`);
+    return mismatchQueue;
+
+  } catch (error) {
+    console.error('Error scanning for mismatches:', error);
+    return mismatchQueue;
+  }
+}
+
+// Reconcile a specific FEC mapping mismatch
+async function reconcileFECMismatch(member, env) {
+  try {
+    console.log(`🔧 Reconciling FEC mapping for ${member.name} (${member.reason})`);
+
+    // Clear existing cached mapping to force fresh lookup
+    const cacheKey = `fec_mapping_${member.bioguideId}`;
+    await env.MEMBER_DATA.delete(cacheKey);
+
+    // Force fresh FEC lookup with improved validation
+    const financials = await fetchMemberFinancials(member, env);
+
+    if (financials && financials.totalRaised > 0) {
+      console.log(`✅ Reconciled ${member.name}: Found correct FEC data with $${financials.totalRaised}`);
+
+      // Update the member data immediately
+      await updateMemberWithPhase1Data(member, financials, env);
+
+      return true;
+    } else {
+      console.warn(`⚠️ Still no FEC data found for ${member.name} after reconciliation`);
+      return false;
+    }
+
+  } catch (error) {
+    console.error(`❌ Failed to reconcile FEC mapping for ${member.name}:`, error);
+    throw error;
   }
 }
 
