@@ -1919,54 +1919,58 @@ async function processSmartBatch(env) {
     // Initialize or get existing processing queues
     await initializeProcessingQueues(env);
 
-    // Priority 1: Process Phase 1 members (financial data)
+    // Mixed batch processing: alternate between Phase 1 and Phase 2 to ensure both get budget
     const phase1Queue = await getPhase1Queue(env);
+    const phase2Queue = await getPhase2Queue(env);
     console.log(`📋 Phase 1 queue: ${phase1Queue.length} members remaining`);
+    console.log(`📋 Phase 2 queue: ${phase2Queue.length} members remaining`);
 
-    while (phase1Queue.length > 0 && callsUsed + 3 <= callBudget) {
-      const member = phase1Queue.shift();
-      try {
-        console.log(`💰 Processing Phase 1: ${member.name}`);
-        const financials = await fetchMemberFinancials(member, env);
-        await updateMemberWithPhase1Data(member, financials, env);
+    // Mixed batching strategy: 3 Phase 1 + 1 Phase 2 per cycle (3*3 + 1*4 = 13 calls, leaves 2 calls buffer)
+    while ((phase1Queue.length > 0 || phase2Queue.length > 0) && callsUsed < callBudget) {
 
-        callsUsed += 3;
-        membersProcessed.push({name: member.name, phase: 1, status: 'success'});
+      // Process up to 3 Phase 1 members (9 calls)
+      let phase1Count = 0;
+      while (phase1Queue.length > 0 && phase1Count < 3 && callsUsed + 3 <= callBudget) {
+        const member = phase1Queue.shift();
+        try {
+          console.log(`💰 Processing Phase 1: ${member.name}`);
+          const financials = await fetchMemberFinancials(member, env);
+          await updateMemberWithPhase1Data(member, financials, env);
 
-        // Update queue after successful processing
-        await updatePhase1Queue(env, phase1Queue);
+          callsUsed += 3;
+          phase1Count++;
+          membersProcessed.push({name: member.name, phase: 1, status: 'success'});
 
-      } catch (error) {
-        console.warn(`⚠️ Phase 1 failed for ${member.name}:`, error.message);
-        membersProcessed.push({name: member.name, phase: 1, status: 'failed', error: error.message});
+          // Update queue after successful processing
+          await updatePhase1Queue(env, phase1Queue);
 
-        // Check for rate limiting scenarios
-        if (error.message.includes('Too many subrequests')) {
-          console.log('🛑 Cloudflare subrequest limit detected, stopping batch processing');
-          break;
-        }
+        } catch (error) {
+          console.warn(`⚠️ Phase 1 failed for ${member.name}:`, error.message);
+          membersProcessed.push({name: member.name, phase: 1, status: 'failed', error: error.message});
 
-        // Check for 503 Service Unavailable (API rate limiting)
-        if (error.message.includes('503') || error.message.includes('Service Unavailable') ||
-            error.message.includes('rate limit') || error.message.includes('Rate limit')) {
-          console.log('🛑 API rate limit (503) detected, stopping batch processing');
-          break;
-        }
+          // Check for rate limiting scenarios
+          if (error.message.includes('Too many subrequests')) {
+            console.log('🛑 Cloudflare subrequest limit detected, stopping batch processing');
+            break;
+          }
 
-        // Check for 429 Too Many Requests
-        if (error.message.includes('429') || error.message.includes('Too Many Requests')) {
-          console.log('🛑 HTTP 429 rate limit detected, stopping batch processing');
-          break;
+          // Check for 503 Service Unavailable (API rate limiting)
+          if (error.message.includes('503') || error.message.includes('Service Unavailable') ||
+              error.message.includes('rate limit') || error.message.includes('Rate limit')) {
+            console.log('🛑 API rate limit (503) detected, stopping batch processing');
+            break;
+          }
+
+          // Check for 429 Too Many Requests
+          if (error.message.includes('429') || error.message.includes('Too Many Requests')) {
+            console.log('🛑 HTTP 429 rate limit detected, stopping batch processing');
+            break;
+          }
         }
       }
-    }
 
-    // Priority 2: Process Phase 2 members (PAC enhancement) if budget allows
-    if (callsUsed + 4 <= callBudget) {
-      const phase2Queue = await getPhase2Queue(env);
-      console.log(`📋 Phase 2 queue: ${phase2Queue.length} members remaining`);
-
-      while (phase2Queue.length > 0 && callsUsed + 4 <= callBudget) {
+      // Process 1 Phase 2 member if budget allows (4 calls)
+      if (phase2Queue.length > 0 && callsUsed + 4 <= callBudget) {
         const member = phase2Queue.shift();
         try {
           console.log(`🏛️ Processing Phase 2: ${member.name}`);

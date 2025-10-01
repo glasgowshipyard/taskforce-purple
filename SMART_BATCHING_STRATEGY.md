@@ -46,10 +46,12 @@
 
 ## Smart Batching Mathematics
 
-### Proposed Batch Sizes
-- **Phase 1 Batch**: 4 members per run (4 × 3 = 12 FEC calls)
-- **Phase 2 Batch**: 3 members per run (3 × 4 = 12 FEC calls)
-- **Mixed Batch**: 2 Phase 1 + 2 Phase 2 = 14 FEC calls total
+### Implemented Mixed Batch Sizes (CURRENT)
+- **Mixed Batch Strategy**: 3 Phase 1 + 1 Phase 2 per cycle
+- **Phase 1**: 3 members × 3 calls = 9 FEC calls
+- **Phase 2**: 1 member × 4 calls = 4 FEC calls
+- **Total per cycle**: 13 FEC calls (leaves 2 calls buffer)
+- **Benefit**: Ensures Phase 2 processing even with 47+ members waiting
 
 ### Rate Limit Compliance Check
 
@@ -68,9 +70,9 @@
 
 #### Per-Day Rate
 - **Executions Per Day**: 96 runs (24 hours × 4)
-- **Calls Per Day**: 96 × 14 = **1,344 calls**
+- **Calls Per Day**: 96 × 13 = **1,248 calls**
 - **Monthly Allowance**: 30 × 1,000 = 30,000 calls
-- **Daily Percentage**: 4.5% of monthly budget ✅
+- **Daily Percentage**: 4.2% of monthly budget ✅
 
 ## Completion Timeline
 
@@ -143,29 +145,37 @@ member_status_[bioguideId]: {
 }
 ```
 
-### Smart Batch Processing Logic
+### Smart Batch Processing Logic (IMPLEMENTED)
 ```javascript
 async function processSmartBatch(env) {
   const callBudget = 15; // Conservative limit
   let callsUsed = 0;
   let processedMembers = [];
 
-  // Priority 1: Phase 1 members (highest value)
+  // Mixed batch processing: alternate between Phase 1 and Phase 2
   const phase1Queue = await getPhase1Queue(env);
-  while (phase1Queue.length > 0 && callsUsed + 3 <= callBudget) {
-    const member = phase1Queue.shift();
-    await processPhase1Member(member, env);
-    callsUsed += 3;
-    processedMembers.push({member: member.name, phase: 1});
-  }
-
-  // Priority 2: Phase 2 members (if budget allows)
   const phase2Queue = await getPhase2Queue(env);
-  while (phase2Queue.length > 0 && callsUsed + 4 <= callBudget) {
-    const member = phase2Queue.shift();
-    await processPhase2Member(member, env);
-    callsUsed += 4;
-    processedMembers.push({member: member.name, phase: 2});
+
+  // Mixed batching strategy: 3 Phase 1 + 1 Phase 2 per cycle (13 calls, 2 buffer)
+  while ((phase1Queue.length > 0 || phase2Queue.length > 0) && callsUsed < callBudget) {
+
+    // Process up to 3 Phase 1 members (9 calls)
+    let phase1Count = 0;
+    while (phase1Queue.length > 0 && phase1Count < 3 && callsUsed + 3 <= callBudget) {
+      const member = phase1Queue.shift();
+      await processPhase1Member(member, env);
+      callsUsed += 3;
+      phase1Count++;
+      processedMembers.push({member: member.name, phase: 1});
+    }
+
+    // Process 1 Phase 2 member if budget allows (4 calls)
+    if (phase2Queue.length > 0 && callsUsed + 4 <= callBudget) {
+      const member = phase2Queue.shift();
+      await processPhase2Member(member, env);
+      callsUsed += 4;
+      processedMembers.push({member: member.name, phase: 2});
+    }
   }
 
   await updateProcessingStatus(env, callsUsed, processedMembers);
