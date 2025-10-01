@@ -1693,6 +1693,27 @@ async function getOrCreateSocialHandleMapping(env) {
 
     console.log(`✅ Created social handle mapping: ${mappedCount} handles mapped`);
 
+    // Add user-friendly aliases for popular handles
+    const aliases = {
+      'aoc': 'O000172',        // Alexandria Ocasio-Cortez -> @repaoc
+      'bernie': 'S000033',     // Bernie Sanders
+      'warren': 'W000817',     // Elizabeth Warren
+      'ted': 'C001098',        // Ted Cruz
+      'marco': 'R000595'       // Marco Rubio
+    };
+
+    let aliasCount = 0;
+    for (const [alias, bioguide] of Object.entries(aliases)) {
+      if (!handleMapping[alias]) {  // Don't overwrite existing handles
+        handleMapping[alias] = bioguide;
+        aliasCount++;
+      }
+    }
+
+    if (aliasCount > 0) {
+      console.log(`✅ Added ${aliasCount} user-friendly aliases`);
+    }
+
     // Cache the mapping
     const mappingData = {
       handles: handleMapping,
@@ -1731,7 +1752,7 @@ async function handleSocialHandles(env, corsHeaders) {
       count: handleCount,
       description: "Available social handles for individual member updates via /api/update-member/@handle",
       examples: [
-        "/api/update-member/@repaoc",
+        "/api/update-member/@aoc",
         "/api/update-member/@repjasmine",
         "/api/update-member/@senatorhassan"
       ]
