@@ -793,6 +793,25 @@ async function updateCongressionalData(env, testLimit = undefined) {
   };
 }
 
+// Calculate enhanced grassroots percentage for display
+function calculateEnhancedGrassrootsPercent(member) {
+  if (!member.totalRaised || member.totalRaised === 0) return member.grassrootsPercent || 0;
+
+  // Check if we have enhanced PAC data with actual committee metadata
+  const hasEnhancedData = member.pacContributions && member.pacContributions.length > 0
+    && member.pacContributions.some(pac => pac.committee_type || pac.designation);
+
+  if (hasEnhancedData) {
+    // Use enhanced calculation with actual PAC totals
+    const actualPACTotal = member.pacContributions.reduce((sum, pac) => sum + pac.amount, 0);
+    const actualGrassrootsPercent = Math.round(((member.totalRaised - actualPACTotal) / member.totalRaised) * 100);
+    return actualGrassrootsPercent;
+  }
+
+  // Fallback to stored FEC grassroots percentage
+  return member.grassrootsPercent || 0;
+}
+
 // API handlers
 async function handleMembers(env, corsHeaders) {
   try {
@@ -810,10 +829,19 @@ async function handleMembers(env, corsHeaders) {
 
     const members = JSON.parse(membersData);
 
+    // Enhance grassroots percentage display for members with PAC data
+    const enhancedMembers = members.map(member => ({
+      ...member,
+      grassrootsPercent: calculateEnhancedGrassrootsPercent(member),
+      rawFECGrassrootsPercent: member.grassrootsPercent, // Keep original for reference
+      hasEnhancedData: member.pacContributions && member.pacContributions.length > 0
+        && member.pacContributions.some(pac => pac.committee_type || pac.designation)
+    }));
+
     return new Response(JSON.stringify({
-      members,
+      members: enhancedMembers,
       lastUpdated,
-      total: members.length
+      total: enhancedMembers.length
     }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }
     });
