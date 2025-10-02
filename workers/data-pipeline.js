@@ -1672,13 +1672,19 @@ async function handleIndividualMemberUpdate(env, corsHeaders, request) {
     // Get or create social handle mapping
     const handleMap = await getOrCreateSocialHandleMapping(env);
 
-    // Look up bioguide ID from handle
-    const bioguideId = handleMap[username.toLowerCase()];
+    // Look up bioguide ID from handle, or use directly if it looks like a bioguide ID
+    let bioguideId = handleMap[username.toLowerCase()];
+
+    // If not found in handle mapping, check if it's already a bioguide ID pattern (letter followed by 6 digits)
+    if (!bioguideId && /^[A-Z]\d{6}$/.test(username.toUpperCase())) {
+      bioguideId = username.toUpperCase();
+      console.log(`🔧 Using ${username} as direct bioguide ID (not found in social handle mapping)`);
+    }
 
     if (!bioguideId) {
       return new Response(JSON.stringify({
         error: `No member found for handle @${username}`,
-        suggestion: 'Try updating social handle mapping first'
+        suggestion: 'Try updating social handle mapping first, or use bioguide ID format (e.g., G000386)'
       }), {
         status: 404,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
