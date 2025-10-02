@@ -127,8 +127,19 @@ curl -s "https://taskforce-purple-api.dev-a4b.workers.dev/api/members" | jq '.me
 
 ### Test Update Endpoint
 ```bash
-curl -X POST "https://taskforce-purple-api.dev-a4b.workers.dev/api/update-data" -H "UPDATE_SECRET: taskforce_purple_2025_update"
+curl -X POST "https://taskforce-purple-api.dev-a4b.workers.dev/api/update-data" -H "Authorization: Bearer taskforce_purple_2025_update"
 ```
+
+### Individual Member Update
+```bash
+# Update by username (requires social handle mapping)
+curl -X POST "https://taskforce-purple-api.dev-a4b.workers.dev/api/update-member/@bernie" -H "Authorization: Bearer taskforce_purple_2025_update"
+
+# Update by bioguide ID (fallback for members without usernames)
+curl -X POST "https://taskforce-purple-api.dev-a4b.workers.dev/api/update-member/@G000386" -H "Authorization: Bearer taskforce_purple_2025_update"
+```
+
+**Note**: The endpoint first tries to find the username in social handle mapping. If not found, it checks if the input matches bioguide ID pattern (letter + 6 digits) and uses it directly. This allows updating members like Chuck Grassley who have `"username": null`.
 
 ## NEW: Batch FEC Update System
 
