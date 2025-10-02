@@ -1,4 +1,4 @@
-# 🔴 F-Tier Enhancement: Corporate Capture Classification
+# F-Tier Enhancement: Corporate Capture Classification
 
 **Date**: 2025-10-01
 **Priority**: MEDIUM - Quality of Life Improvement
