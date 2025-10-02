@@ -155,6 +155,65 @@ const STATE_ABBREVIATIONS = {
   'Virginia': 'VA', 'Washington': 'WA', 'West Virginia': 'WV', 'Wisconsin': 'WI', 'Wyoming': 'WY'
 };
 
+// Select current committee using proper cycle and designation filtering
+async function selectCurrentCommittee(candidateId, env) {
+  const apiKey = env.FEC_API_KEY || 'zVpKDAacmPcazWQxhl5fhodhB9wNUH0urLCLkkV9';
+
+  try {
+    const response = await fetch(
+      `https://api.open.fec.gov/v1/candidate/${candidateId}/committees/?` +
+      `api_key=${apiKey}&cycle=${ELECTION_CYCLE}`,
+      {
+        headers: {
+          'User-Agent': 'TaskForcePurple/1.0 (Political Transparency Platform)'
+        }
+      }
+    );
+
+    if (!response.ok) {
+      throw new Error(`Committee lookup failed: ${response.status}`);
+    }
+
+    const data = await response.json();
+
+    if (!data.results || data.results.length === 0) {
+      throw new Error(`No committees found for candidate ${candidateId} in cycle ${ELECTION_CYCLE}`);
+    }
+
+    // Filter by designation only (P = Principal, A = Authorized)
+    // Don't filter by committee_type to avoid excluding Senate (S) or House (H) candidates
+    const campaignCommittees = data.results.filter(c =>
+      c.designation === 'P' || c.designation === 'A'
+    );
+
+    if (campaignCommittees.length === 0) {
+      // Fallback: use most recent committee
+      console.log(`⚠️ No P/A committees found for ${candidateId}, using most recent committee`);
+      return data.results.sort((a, b) =>
+        new Date(b.last_file_date || '1900-01-01') - new Date(a.last_file_date || '1900-01-01')
+      )[0];
+    }
+
+    // Prefer Principal (P), fallback to most recent Authorized (A)
+    const principal = campaignCommittees.find(c => c.designation === 'P');
+    if (principal) {
+      console.log(`✅ Selected Principal committee: ${principal.name} (${principal.committee_id})`);
+      return principal;
+    }
+
+    const mostRecentAuthorized = campaignCommittees.sort((a, b) =>
+      new Date(b.last_file_date || '1900-01-01') - new Date(a.last_file_date || '1900-01-01')
+    )[0];
+
+    console.log(`✅ Selected Authorized committee: ${mostRecentAuthorized.name} (${mostRecentAuthorized.committee_id})`);
+    return mostRecentAuthorized;
+
+  } catch (error) {
+    console.error(`❌ Committee selection failed for ${candidateId}:`, error.message);
+    throw error;
+  }
+}
+
 // Fetch financial data from OpenFEC API using correct endpoints
 async function fetchMemberFinancials(member, env) {
   const apiKey = env.FEC_API_KEY || 'zVpKDAacmPcazWQxhl5fhodhB9wNUH0urLCLkkV9';  // Temporary fallback
@@ -269,9 +328,11 @@ async function fetchMemberFinancials(member, env) {
       console.log(`💾 Cached FEC mapping for ${member.name}: ${candidate.candidate_id}`);
     }
 
-    // Use the committee data directly from search results (more reliable than /candidates/ endpoint)
+    // Use proper committee selection with cycle and designation filtering
     if (candidate.principal_committees && candidate.principal_committees.length > 0) {
-      const committeeId = candidate.principal_committees[0].committee_id;
+      // Get the correct committee using filtered selection
+      const committee = await selectCurrentCommittee(candidate.candidate_id, env);
+      const committeeId = committee.committee_id;
       console.log(`📊 Getting committee totals for ${committeeId}`);
 
       const committeeTotalsResponse = await fetch(
@@ -348,7 +409,7 @@ async function fetchMemberFinancials(member, env) {
       grassrootsPercent,
       pacMoney: latestTotal.other_political_committee_contributions || 0,
       partyMoney: latestTotal.political_party_committee_contributions || 0,
-      committeeId: candidate.principal_committees?.[0]?.committee_id || candidate.candidate_id,
+      committeeId: committee.committee_id,
       committeeName: candidate.name
     };
 
