@@ -68,6 +68,14 @@ export default {
   }
 };
 
+// Calculate election cycle once at module load
+const ELECTION_CYCLE = (() => {
+  const currentYear = new Date().getFullYear();
+  // For odd years, use the previous even year (e.g., 2025 -> 2024)
+  // For even years, use the current year (e.g., 2024 -> 2024)
+  return currentYear % 2 === 0 ? currentYear : currentYear - 1;
+})();
+
 // Fetch current Congress members from Congress.gov API (with pagination)
 async function fetchCongressMembers(env) {
   const apiKey = env.CONGRESS_API_KEY || 'zVpKDAacmPcazWQxhl5fhodhB9wNUH0urLCLkkV9';  // Temporary fallback
@@ -267,7 +275,7 @@ async function fetchMemberFinancials(member, env) {
       console.log(`📊 Getting committee totals for ${committeeId}`);
 
       const committeeTotalsResponse = await fetch(
-        `https://api.open.fec.gov/v1/committee/${committeeId}/totals/?api_key=${apiKey}&cycle=2024`,
+        `https://api.open.fec.gov/v1/committee/${committeeId}/totals/?api_key=${apiKey}&cycle=${ELECTION_CYCLE}`,
         {
           headers: {
             'User-Agent': 'TaskForcePurple/1.0 (Political Transparency Platform)'
@@ -304,7 +312,7 @@ async function fetchMemberFinancials(member, env) {
 
     // Fallback: try the totals by entity endpoint
     const totalsResponse = await fetch(
-      `https://api.open.fec.gov/v1/totals/by_entity/?api_key=${apiKey}&candidate_id=${candidate.candidate_id}&election_year=2024&cycle=2024`,
+      `https://api.open.fec.gov/v1/totals/by_entity/?api_key=${apiKey}&candidate_id=${candidate.candidate_id}&election_year=${ELECTION_CYCLE}&cycle=${ELECTION_CYCLE}`,
       {
         headers: {
           'User-Agent': 'TaskForcePurple/1.0 (Political Transparency Platform)'
@@ -359,7 +367,7 @@ async function fetchPACDetails(committeeId, env) {
 
     // Fetch Schedule A receipts (itemized contributions) filtered for PACs
     const response = await fetch(
-      `https://api.open.fec.gov/v1/schedules/schedule_a/?api_key=${apiKey}&committee_id=${committeeId}&contributor_type=committee&per_page=100&sort=-contribution_receipt_amount&cycle=2024`,
+      `https://api.open.fec.gov/v1/schedules/schedule_a/?api_key=${apiKey}&committee_id=${committeeId}&contributor_type=committee&per_page=100&sort=-contribution_receipt_amount&two_year_transaction_period=${ELECTION_CYCLE}`,
       {
         headers: {
           'User-Agent': 'TaskForcePurple/1.0 (Political Transparency Platform)'
