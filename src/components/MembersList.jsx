@@ -319,20 +319,20 @@ export default function MembersList() {
 
           {/* Financial breakdown */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
-            <div className="bg-green-50 p-4 rounded-lg">
+            <div className={`p-4 rounded-lg ${selectedMember.grassrootsPercent <= 15 ? 'bg-red-50' : 'bg-green-50'}`}>
               <div className="flex items-center space-x-2 mb-2">
-                <TrendingUp className="w-5 h-5 text-green-600" />
-                <span className="font-semibold text-green-800">Grassroots Funding</span>
+                <TrendingUp className={`w-5 h-5 ${selectedMember.grassrootsPercent <= 15 ? 'text-red-600' : 'text-green-600'}`} />
+                <span className={`font-semibold ${selectedMember.grassrootsPercent <= 15 ? 'text-red-800' : 'text-green-800'}`}>Grassroots Funding</span>
               </div>
-              <div className="text-2xl font-bold text-green-600">
+              <div className={`text-2xl font-bold ${selectedMember.grassrootsPercent <= 15 ? 'text-red-600' : 'text-green-600'}`}>
                 {selectedMember.grassrootsPercent}%
                 {selectedMember.hasEnhancedData && selectedMember.grassrootsPACTypes && (
-                  <span className="text-sm font-normal text-green-600">*</span>
+                  <span className={`text-sm font-normal ${selectedMember.grassrootsPercent <= 15 ? 'text-red-600' : 'text-green-600'}`}>*</span>
                 )}
               </div>
-              <div className="text-sm text-green-700">{TaskForceAPI.formatCurrency(selectedMember.grassrootsDonations)}</div>
+              <div className={`text-sm ${selectedMember.grassrootsPercent <= 15 ? 'text-red-700' : 'text-green-700'}`}>{TaskForceAPI.formatCurrency(selectedMember.grassrootsDonations)}</div>
               {selectedMember.hasEnhancedData && selectedMember.grassrootsPACTypes && (
-                <div className="text-xs text-green-600 mt-1">
+                <div className={`text-xs mt-1 ${selectedMember.grassrootsPercent <= 15 ? 'text-red-600' : 'text-green-600'}`}>
                   *includes {selectedMember.grassrootsPACTypes.join(', ')}
                 </div>
               )}

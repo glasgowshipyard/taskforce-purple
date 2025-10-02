@@ -879,7 +879,7 @@ function calculateEnhancedGrassrootsPercent(member) {
     // Use enhanced calculation with actual PAC totals
     const actualPACTotal = member.pacContributions.reduce((sum, pac) => sum + pac.amount, 0);
     const actualGrassrootsPercent = Math.round(((member.totalRaised - actualPACTotal) / member.totalRaised) * 100);
-    return actualGrassrootsPercent;
+    return Math.max(0, actualGrassrootsPercent); // Ensure never negative
   }
 
   // Fallback to stored FEC grassroots percentage
