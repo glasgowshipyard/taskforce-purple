@@ -63,9 +63,9 @@
 Returns candidates with `candidate_id` needed for financial lookups.
 
 ### Financial Totals
-`GET /v1/committee/{committeeId}/totals/?cycle=2024`
+`GET /v1/committee/{committeeId}/totals/?cycle=${ELECTION_CYCLE}`
 
-Returns financial summary data.
+Returns financial summary data. Uses dynamic election cycle calculation (2025→2024, 2026→2026, etc.).
 
 ## CRITICAL NOTES
 
@@ -300,3 +300,32 @@ function getPACTransparencyWeight(committee) {
 - **Status API**: Add PAC category distribution stats
 
 This would make tier calculations much more nuanced and fair while staying completely objective and based on official FEC classifications.
+
+## FEC Election Cycle Handling
+
+### Current Implementation (2025-01-01)
+Dynamic election cycle calculation using system date:
+```javascript
+const ELECTION_CYCLE = (() => {
+  const currentYear = new Date().getFullYear();
+  // For odd years, use the previous even year (e.g., 2025 -> 2024)
+  // For even years, use the current year (e.g., 2024 -> 2024)
+  return currentYear % 2 === 0 ? currentYear : currentYear - 1;
+})();
+```
+
+### Applied to FEC API Calls
+- **Committee Totals**: `cycle=${ELECTION_CYCLE}`
+- **Entity Totals**: `election_year=${ELECTION_CYCLE}&cycle=${ELECTION_CYCLE}`
+- **Schedule A**: `two_year_transaction_period=${ELECTION_CYCLE}`
+
+### Calculation Results
+- **2025 → 2024** (current situation)
+- **2024 → 2024**
+- **2026 → 2026**
+- **2027 → 2026**
+
+### Benefits
+- **Automatic updates**: No manual intervention needed each election cycle
+- **Performance**: Calculated once per worker cold start, not per API call
+- **Accuracy**: Always pulls data from the correct election cycle
