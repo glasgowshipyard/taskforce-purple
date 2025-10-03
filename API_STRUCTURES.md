@@ -141,6 +141,32 @@ curl -X POST "https://taskforce-purple-api.dev-a4b.workers.dev/api/update-member
 
 **Note**: The endpoint first tries to find the username in social handle mapping. If not found, it checks if the input matches bioguide ID pattern (letter + 6 digits) and uses it directly. This allows updating members like Chuck Grassley who have `"username": null`.
 
+### Remove Member from Storage
+```bash
+# Remove corrupted member data from KV storage (requires bioguide ID)
+curl -X POST "https://taskforce-purple-api.dev-a4b.workers.dev/api/remove-member/G000386" -H "Authorization: Bearer taskforce_purple_2025_update"
+```
+
+**Purpose**: Surgically removes a member's data from the `members:all` KV storage key. This is useful for fixing corrupted data (like Chuck Grassley's 1977-1978 PAC dates) by removing the bad data so fresh data can be fetched on the next update.
+
+**Response format:**
+```json
+{
+  "success": true,
+  "message": "Successfully removed member from storage",
+  "removedMember": {
+    "bioguideId": "G000386",
+    "name": "Grassley, Chuck",
+    "state": "IA",
+    "party": "Republican"
+  },
+  "remainingMembers": 537,
+  "lastUpdated": "2025-10-02T15:30:00.000Z"
+}
+```
+
+**Use Case**: When a member has corrupted or outdated data cached in KV storage that isn't being refreshed by normal update calls. After removal, the next update call will fetch fresh data from APIs.
+
 ## NEW: Batch FEC Update System
 
 ### Problem Solved

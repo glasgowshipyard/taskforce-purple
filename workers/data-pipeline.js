@@ -45,6 +45,10 @@ export default {
           if (url.pathname.startsWith('/api/update-member/@')) {
             return await handleIndividualMemberUpdate(env, corsHeaders, request);
           }
+          // Check for remove member pattern: /api/remove-member/{bioguideId}
+          if (url.pathname.startsWith('/api/remove-member/')) {
+            return await handleRemoveMember(env, corsHeaders, request);
+          }
           return new Response('Not Found', { status: 404, headers: corsHeaders });
       }
     } catch (error) {
@@ -2671,6 +2675,107 @@ async function handleClearFECMapping(env, corsHeaders, request) {
     return new Response(JSON.stringify({
       error: 'Failed to clear FEC mapping',
       message: error.message
+    }), {
+      status: 500,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+    });
+  }
+}
+
+// Handle removing a member from KV storage
+async function handleRemoveMember(env, corsHeaders, request) {
+  try {
+    // Check for authentication
+    const url = new URL(request.url);
+    const authKey = url.searchParams.get('key') || request.headers.get('Authorization')?.replace('Bearer ', '');
+    const expectedKey = env.UPDATE_SECRET;
+
+    if (!expectedKey) {
+      throw new Error('UPDATE_SECRET not configured');
+    }
+
+    if (!authKey || authKey !== expectedKey) {
+      return new Response(JSON.stringify({
+        error: 'Unauthorized - valid API key required'
+      }), {
+        status: 401,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
+    }
+
+    // Extract bioguideId from URL path
+    const bioguideId = url.pathname.replace('/api/remove-member/', '');
+
+    if (!bioguideId) {
+      return new Response(JSON.stringify({
+        error: 'bioguideId required - use format /api/remove-member/{bioguideId}'
+      }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
+    }
+
+    console.log(`🗑️ Member removal requested for bioguideId: ${bioguideId}`);
+
+    // Get current members data from KV
+    const membersData = await env.MEMBER_DATA.get('members:all');
+    if (!membersData) {
+      return new Response(JSON.stringify({
+        error: 'No member data found in storage',
+        bioguideId: bioguideId
+      }), {
+        status: 404,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
+    }
+
+    const members = JSON.parse(membersData);
+
+    // Find the member to remove
+    const memberIndex = members.findIndex(member => member.bioguideId === bioguideId);
+    if (memberIndex === -1) {
+      return new Response(JSON.stringify({
+        error: `Member with bioguideId ${bioguideId} not found`,
+        bioguideId: bioguideId,
+        totalMembers: members.length
+      }), {
+        status: 404,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
+    }
+
+    // Get member info before removal for response
+    const removedMember = members[memberIndex];
+
+    // Remove the member from the array
+    members.splice(memberIndex, 1);
+
+    // Save updated array back to KV
+    await env.MEMBER_DATA.put('members:all', JSON.stringify(members));
+
+    console.log(`✅ Removed ${removedMember.name} (${bioguideId}) from storage`);
+
+    return new Response(JSON.stringify({
+      success: true,
+      message: `Successfully removed member from storage`,
+      removedMember: {
+        bioguideId: removedMember.bioguideId,
+        name: removedMember.name,
+        state: removedMember.state,
+        party: removedMember.party
+      },
+      remainingMembers: members.length,
+      lastUpdated: new Date().toISOString()
+    }), {
+      status: 200,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+    });
+
+  } catch (error) {
+    console.error('Member removal failed:', error);
+    return new Response(JSON.stringify({
+      error: error.message,
+      success: false
     }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }
