@@ -2282,10 +2282,12 @@ async function processSmartBatch(env) {
         continue; // Process another mismatch if budget allows
       }
 
-      // Process up to 1 Phase 1 member (3 calls) - reduced to stay under CPU limit
-      // Each member takes ~11 seconds (3 calls × 3.6s delay + processing time)
-      let phase1Count = 0;
-      while (phase1Queue.length > 0 && phase1Count < 1 && callsUsed + 3 <= callBudget) {
+      // CPU LIMIT PROTECTION: Process only ONE member per run (Phase 1 priority)
+      // Phase 1: ~11 seconds (3 calls × 3.6s delay + processing)
+      // Phase 2: ~8 seconds (2 calls × 3.6s delay + processing)
+
+      if (phase1Queue.length > 0 && callsUsed + 3 <= callBudget) {
+        // PHASE 1 processing
         const member = phase1Queue.shift();
         try {
           console.log(`💰 Processing Phase 1: ${member.name}`);
@@ -2293,7 +2295,6 @@ async function processSmartBatch(env) {
           await updateMemberWithPhase1Data(member, financials, env);
 
           callsUsed += 3;
-          phase1Count++;
           membersProcessed.push({name: member.name, phase: 1, status: 'success'});
 
           // Update queue after successful processing
@@ -2322,10 +2323,11 @@ async function processSmartBatch(env) {
             break;
           }
         }
-      }
 
-      // Process 1 Phase 2 member if budget allows (4 calls)
-      if (phase2Queue.length > 0 && callsUsed + 4 <= callBudget) {
+        // Exit outer loop after processing one Phase 1 member to stay under CPU limit
+        break;
+
+      } else if (phase2Queue.length > 0 && callsUsed + 4 <= callBudget) {
         const member = phase2Queue.shift();
         try {
           console.log(`🏛️ Processing Phase 2: ${member.name}`);
@@ -2360,6 +2362,9 @@ async function processSmartBatch(env) {
             break;
           }
         }
+
+        // Exit outer loop after processing one Phase 2 member to stay under CPU limit
+        break;
       }
     }
 
