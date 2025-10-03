@@ -2253,6 +2253,11 @@ async function processSmartBatch(env) {
     // Initialize or get existing processing queues
     await initializeProcessingQueues(env);
 
+    // Get run counter for round-robin scheduling (define at function scope)
+    const statusData = await env.MEMBER_DATA.get('processing_status');
+    const status = statusData ? JSON.parse(statusData) : {};
+    const runCount = status.runCount || 0;
+
     // PRIORITY: Phase 0 - Reconcile FEC mapping mismatches FIRST
     const mismatchQueue = await getMismatchQueue(env);
     console.log(`🔧 FEC Mismatch queue: ${mismatchQueue.length} members to reconcile`);
@@ -2285,11 +2290,6 @@ async function processSmartBatch(env) {
       // CPU LIMIT PROTECTION: Process only ONE member per run
       // Use round-robin: 3 Phase 1, then 1 Phase 2 (75% Phase 1, 25% Phase 2)
       // This keeps Phase 2 progressing while prioritizing Phase 1 backlog
-
-      // Read processing status to get run counter
-      const statusData = await env.MEMBER_DATA.get('processing_status');
-      const status = statusData ? JSON.parse(statusData) : {};
-      const runCount = status.runCount || 0;
       const shouldProcessPhase2 = (runCount % 4 === 3) && phase2Queue.length > 0;
 
       if (!shouldProcessPhase2 && phase1Queue.length > 0 && callsUsed + 3 <= callBudget) {
