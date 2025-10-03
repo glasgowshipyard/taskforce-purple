@@ -2282,12 +2282,18 @@ async function processSmartBatch(env) {
         continue; // Process another mismatch if budget allows
       }
 
-      // CPU LIMIT PROTECTION: Process only ONE member per run (Phase 1 priority)
-      // Phase 1: ~11 seconds (3 calls × 3.6s delay + processing)
-      // Phase 2: ~8 seconds (2 calls × 3.6s delay + processing)
+      // CPU LIMIT PROTECTION: Process only ONE member per run
+      // Use round-robin: 3 Phase 1, then 1 Phase 2 (75% Phase 1, 25% Phase 2)
+      // This keeps Phase 2 progressing while prioritizing Phase 1 backlog
 
-      if (phase1Queue.length > 0 && callsUsed + 3 <= callBudget) {
-        // PHASE 1 processing
+      // Read processing status to get run counter
+      const statusData = await env.MEMBER_DATA.get('processing_status');
+      const status = statusData ? JSON.parse(statusData) : {};
+      const runCount = status.runCount || 0;
+      const shouldProcessPhase2 = (runCount % 4 === 3) && phase2Queue.length > 0;
+
+      if (!shouldProcessPhase2 && phase1Queue.length > 0 && callsUsed + 3 <= callBudget) {
+        // PHASE 1 processing (3 out of 4 runs)
         const member = phase1Queue.shift();
         try {
           console.log(`💰 Processing Phase 1: ${member.name}`);
@@ -2328,6 +2334,7 @@ async function processSmartBatch(env) {
         break;
 
       } else if (phase2Queue.length > 0 && callsUsed + 4 <= callBudget) {
+        // PHASE 2 processing (1 out of 4 runs, or when Phase 1 is empty)
         const member = phase2Queue.shift();
         try {
           console.log(`🏛️ Processing Phase 2: ${member.name}`);
@@ -2368,12 +2375,13 @@ async function processSmartBatch(env) {
       }
     }
 
-    // Update processing status
+    // Update processing status (increment run counter for round-robin)
     await updateProcessingStatus(env, {
       callsUsed,
       membersProcessed: membersProcessed.length,
       lastRun: new Date().toISOString(),
-      executionTime: Date.now() - startTime
+      executionTime: Date.now() - startTime,
+      runCount: runCount + 1
     });
 
     // Auto-recalculate tiers if any members were processed to keep frontend updated
