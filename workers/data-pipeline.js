@@ -375,6 +375,85 @@ async function fetchMemberFinancials(member, env) {
       }
     }
 
+    // HOUSE-SPECIFIC ENHANCEMENT: Discover committees when principal_committees is missing
+    if (!candidate.principal_committees || candidate.principal_committees.length === 0) {
+      if (office === 'H') {
+        console.log(`🏛️ House member ${member.name} missing principal_committees - attempting committee discovery`);
+
+        try {
+          const committeesResponse = await fetch(
+            `https://api.open.fec.gov/v1/candidates/${candidate.candidate_id}/committees/?api_key=${apiKey}&cycle=${ELECTION_CYCLE}`,
+            {
+              headers: {
+                'User-Agent': 'TaskForcePurple/1.0 (Political Transparency Platform)'
+              }
+            }
+          );
+
+          if (committeesResponse.ok) {
+            const committeesData = await committeesResponse.json();
+            console.log(`🔍 Found ${committeesData.results?.length || 0} committees for ${member.name}`);
+
+            // Filter for principal campaign committees (designation P or A)
+            const principalCommittees = committeesData.results?.filter(committee =>
+              ['P', 'A'].includes(committee.designation) &&
+              committee.cycle >= ELECTION_CYCLE - 2
+            ) || [];
+
+            if (principalCommittees.length > 0) {
+              const primaryCommittee = principalCommittees[0];
+              console.log(`✅ Discovered principal committee for ${member.name}: ${primaryCommittee.committee_id} (${primaryCommittee.name})`);
+
+              // Get financial data using the discovered committee
+              const committeeTotalsResponse = await fetch(
+                `https://api.open.fec.gov/v1/committee/${primaryCommittee.committee_id}/totals/?api_key=${apiKey}&cycle=${ELECTION_CYCLE}`,
+                {
+                  headers: {
+                    'User-Agent': 'TaskForcePurple/1.0 (Political Transparency Platform)'
+                  }
+                }
+              );
+
+              if (committeeTotalsResponse.ok) {
+                const committeeTotalsData = await committeeTotalsResponse.json();
+                const latestTotal = committeeTotalsData.results?.[0];
+
+                if (latestTotal) {
+                  console.log(`💰 House discovery success for ${member.name}: $${latestTotal.receipts || 0}`);
+
+                  const totalRaised = latestTotal.receipts || 0;
+                  const grassrootsDonations = latestTotal.individual_unitemized_contributions || 0;
+                  const grassrootsPercent = totalRaised > 0 ? Math.round((grassrootsDonations / totalRaised) * 100) : 0;
+
+                  return {
+                    totalRaised,
+                    grassrootsDonations,
+                    grassrootsPercent,
+                    pacMoney: latestTotal.other_political_committee_contributions || 0,
+                    partyMoney: latestTotal.political_party_committee_contributions || 0,
+                    committeeId: primaryCommittee.committee_id,
+                    committeeName: primaryCommittee.name
+                  };
+                }
+              } else {
+                try { await committeeTotalsResponse.json(); } catch {}
+              }
+            } else {
+              console.log(`⚠️ No principal committees found for House member ${member.name}`);
+            }
+          } else {
+            try { await committeesResponse.json(); } catch {}
+            console.log(`❌ Committee discovery failed for ${member.name}`);
+          }
+        } catch (error) {
+          console.error(`❌ Error during House committee discovery for ${member.name}:`, error);
+        }
+
+        // Add delay after House-specific API calls to respect rate limits
+        await new Promise(resolve => setTimeout(resolve, 15000));
+      }
+    }
+
     // Fallback: try the totals by entity endpoint
     const totalsResponse = await fetch(
       `https://api.open.fec.gov/v1/totals/by_entity/?api_key=${apiKey}&candidate_id=${candidate.candidate_id}&election_year=${ELECTION_CYCLE}&cycle=${ELECTION_CYCLE}`,
