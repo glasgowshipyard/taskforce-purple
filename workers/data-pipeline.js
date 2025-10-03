@@ -2282,9 +2282,10 @@ async function processSmartBatch(env) {
         continue; // Process another mismatch if budget allows
       }
 
-      // Process up to 2 Phase 1 members (6 calls)
+      // Process up to 1 Phase 1 member (3 calls) - reduced to stay under CPU limit
+      // Each member takes ~11 seconds (3 calls × 3.6s delay + processing time)
       let phase1Count = 0;
-      while (phase1Queue.length > 0 && phase1Count < 2 && callsUsed + 3 <= callBudget) {
+      while (phase1Queue.length > 0 && phase1Count < 1 && callsUsed + 3 <= callBudget) {
         const member = phase1Queue.shift();
         try {
           console.log(`💰 Processing Phase 1: ${member.name}`);
