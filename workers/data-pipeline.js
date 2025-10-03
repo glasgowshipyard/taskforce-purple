@@ -253,6 +253,10 @@ async function fetchMemberFinancials(member, env) {
     // Convert state name to abbreviation for FEC API
     const stateAbbr = STATE_ABBREVIATIONS[member.state] || member.state;
 
+    // Determine chamber/office early (needed throughout)
+    const chamberType = member.terms?.item?.[0]?.chamber || member.chamber;
+    const office = chamberType === 'House of Representatives' || chamberType === 'House' ? 'H' : 'S';
+
     // Check for cached FEC candidate mapping first
     const cacheKey = `fec_mapping_${member.bioguideId}`;
     const cachedMapping = await env.MEMBER_DATA.get(cacheKey);
@@ -269,8 +273,6 @@ async function fetchMemberFinancials(member, env) {
       };
     } else {
       // First time lookup - search for the candidate by name with validation
-      const chamberType = member.terms?.item?.[0]?.chamber;
-      const office = chamberType === 'House of Representatives' ? 'H' : 'S';
       const searchResponse = await fetch(
         `https://api.open.fec.gov/v1/candidates/search/?api_key=${apiKey}&q=${encodeURIComponent(member.name.split(',')[0])}&office=${office}&state=${stateAbbr}`,
         {
