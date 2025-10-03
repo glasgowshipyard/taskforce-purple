@@ -160,28 +160,50 @@ const STATE_ABBREVIATIONS = {
 };
 
 // Select current committee using proper cycle and designation filtering
-async function selectCurrentCommittee(candidateId, env) {
+// Returns: { committee, usedCycle }
+async function selectCurrentCommittee(candidateId, env, office = null) {
   const apiKey = env.FEC_API_KEY || 'zVpKDAacmPcazWQxhl5fhodhB9wNUH0urLCLkkV9';
 
   try {
-    const response = await fetch(
-      `https://api.open.fec.gov/v1/candidate/${candidateId}/committees/?` +
-      `api_key=${apiKey}&cycle=${ELECTION_CYCLE}`,
-      {
-        headers: {
-          'User-Agent': 'TaskForcePurple/1.0 (Political Transparency Platform)'
-        }
-      }
-    );
+    // Chamber-aware fallback strategy:
+    // House (2-year terms): Try current cycle, then -2 (one cycle back)
+    // Senate (6-year terms): Try current cycle, then -2, -4 (two cycles back)
+    const cyclesToTry = office === 'H'
+      ? [ELECTION_CYCLE, ELECTION_CYCLE - 2]
+      : [ELECTION_CYCLE, ELECTION_CYCLE - 2, ELECTION_CYCLE - 4];
 
-    if (!response.ok) {
-      throw new Error(`Committee lookup failed: ${response.status}`);
+    let data = null;
+    let usedCycle = null;
+
+    for (const cycle of cyclesToTry) {
+      const response = await fetch(
+        `https://api.open.fec.gov/v1/candidate/${candidateId}/committees/?` +
+        `api_key=${apiKey}&cycle=${cycle}`,
+        {
+          headers: {
+            'User-Agent': 'TaskForcePurple/1.0 (Political Transparency Platform)'
+          }
+        }
+      );
+
+      if (!response.ok) {
+        console.warn(`⚠️ Committee lookup for cycle ${cycle} failed: ${response.status}`);
+        continue;
+      }
+
+      const responseData = await response.json();
+      if (responseData.results && responseData.results.length > 0) {
+        data = responseData;
+        usedCycle = cycle;
+        if (cycle !== ELECTION_CYCLE) {
+          console.log(`🔄 Using committee data from previous cycle ${cycle} for ${candidateId} (${office || 'unknown chamber'})`);
+        }
+        break;
+      }
     }
 
-    const data = await response.json();
-
-    if (!data.results || data.results.length === 0) {
-      throw new Error(`No committees found for candidate ${candidateId} in cycle ${ELECTION_CYCLE}`);
+    if (!data || !data.results || data.results.length === 0) {
+      throw new Error(`No committees found for candidate ${candidateId} in any recent cycle`);
     }
 
     // Filter by designation only (P = Principal, A = Authorized)
@@ -201,16 +223,16 @@ async function selectCurrentCommittee(candidateId, env) {
     // Prefer Principal (P), fallback to most recent Authorized (A)
     const principal = campaignCommittees.find(c => c.designation === 'P');
     if (principal) {
-      console.log(`✅ Selected Principal committee: ${principal.name} (${principal.committee_id})`);
-      return principal;
+      console.log(`✅ Selected Principal committee: ${principal.name} (${principal.committee_id}) - cycle ${usedCycle}`);
+      return { committee: principal, usedCycle };
     }
 
     const mostRecentAuthorized = campaignCommittees.sort((a, b) =>
       new Date(b.last_file_date || '1900-01-01') - new Date(a.last_file_date || '1900-01-01')
     )[0];
 
-    console.log(`✅ Selected Authorized committee: ${mostRecentAuthorized.name} (${mostRecentAuthorized.committee_id})`);
-    return mostRecentAuthorized;
+    console.log(`✅ Selected Authorized committee: ${mostRecentAuthorized.name} (${mostRecentAuthorized.committee_id}) - cycle ${usedCycle}`);
+    return { committee: mostRecentAuthorized, usedCycle };
 
   } catch (error) {
     console.error(`❌ Committee selection failed for ${candidateId}:`, error.message);
@@ -334,13 +356,13 @@ async function fetchMemberFinancials(member, env) {
 
     // Use proper committee selection with cycle and designation filtering
     if (candidate.principal_committees && candidate.principal_committees.length > 0) {
-      // Get the correct committee using filtered selection
-      const committee = await selectCurrentCommittee(candidate.candidate_id, env);
+      // Get the correct committee using filtered selection with chamber-aware fallback
+      const { committee, usedCycle } = await selectCurrentCommittee(candidate.candidate_id, env, office);
       const committeeId = committee.committee_id;
-      console.log(`📊 Getting committee totals for ${committeeId}`);
+      console.log(`📊 Getting committee totals for ${committeeId} (cycle ${usedCycle})`);
 
       const committeeTotalsResponse = await fetch(
-        `https://api.open.fec.gov/v1/committee/${committeeId}/totals/?api_key=${apiKey}&cycle=${ELECTION_CYCLE}`,
+        `https://api.open.fec.gov/v1/committee/${committeeId}/totals/?api_key=${apiKey}&cycle=${usedCycle}`,
         {
           headers: {
             'User-Agent': 'TaskForcePurple/1.0 (Political Transparency Platform)'
@@ -366,7 +388,8 @@ async function fetchMemberFinancials(member, env) {
             pacMoney: latestTotal.other_political_committee_contributions || 0,
             partyMoney: latestTotal.political_party_committee_contributions || 0,
             committeeId: committeeId,
-            committeeName: candidate.name
+            committeeName: candidate.name,
+            dataCycle: usedCycle // Track which cycle the data is from
           };
         }
       } else {
@@ -375,38 +398,59 @@ async function fetchMemberFinancials(member, env) {
       }
     }
 
-    // HOUSE-SPECIFIC ENHANCEMENT: Discover committees when principal_committees is missing
+    // COMMITTEE DISCOVERY: Discover committees when principal_committees is missing
     if (!candidate.principal_committees || candidate.principal_committees.length === 0) {
-      if (office === 'H') {
-        console.log(`🏛️ House member ${member.name} missing principal_committees - attempting committee discovery`);
+      console.log(`🏛️ ${office === 'H' ? 'House' : 'Senate'} member ${member.name} missing principal_committees - attempting committee discovery`);
 
         try {
-          const committeesResponse = await fetch(
-            `https://api.open.fec.gov/v1/candidates/${candidate.candidate_id}/committees/?api_key=${apiKey}&cycle=${ELECTION_CYCLE}`,
-            {
-              headers: {
-                'User-Agent': 'TaskForcePurple/1.0 (Political Transparency Platform)'
-              }
-            }
-          );
+          // Chamber-aware cycle fallback: House tries 2 cycles, Senate tries 3
+          const cyclesToTry = office === 'H'
+            ? [ELECTION_CYCLE, ELECTION_CYCLE - 2]
+            : [ELECTION_CYCLE, ELECTION_CYCLE - 2, ELECTION_CYCLE - 4];
 
-          if (committeesResponse.ok) {
-            const committeesData = await committeesResponse.json();
-            console.log(`🔍 Found ${committeesData.results?.length || 0} committees for ${member.name}`);
+          let committeesData = null;
+          let usedCycle = null;
+
+          for (const cycle of cyclesToTry) {
+            const committeesResponse = await fetch(
+              `https://api.open.fec.gov/v1/candidates/${candidate.candidate_id}/committees/?api_key=${apiKey}&cycle=${cycle}`,
+              {
+                headers: {
+                  'User-Agent': 'TaskForcePurple/1.0 (Political Transparency Platform)'
+                }
+              }
+            );
+
+            if (committeesResponse.ok) {
+              const data = await committeesResponse.json();
+              if (data.results && data.results.length > 0) {
+                committeesData = data;
+                usedCycle = cycle;
+                if (cycle !== ELECTION_CYCLE) {
+                  console.log(`🔄 Using committee data from cycle ${cycle} for ${member.name}`);
+                }
+                break;
+              }
+            } else {
+              try { await committeesResponse.json(); } catch {}
+            }
+          }
+
+          if (committeesData) {
+            console.log(`🔍 Found ${committeesData.results?.length || 0} committees for ${member.name} (cycle ${usedCycle})`);
 
             // Filter for principal campaign committees (designation P or A)
             const principalCommittees = committeesData.results?.filter(committee =>
-              ['P', 'A'].includes(committee.designation) &&
-              committee.cycle >= ELECTION_CYCLE - 2
+              ['P', 'A'].includes(committee.designation)
             ) || [];
 
             if (principalCommittees.length > 0) {
               const primaryCommittee = principalCommittees[0];
-              console.log(`✅ Discovered principal committee for ${member.name}: ${primaryCommittee.committee_id} (${primaryCommittee.name})`);
+              console.log(`✅ Discovered principal committee for ${member.name} (${office}): ${primaryCommittee.committee_id} (${primaryCommittee.name})`);
 
-              // Get financial data using the discovered committee
+              // Get financial data using the discovered committee (use the cycle we found)
               const committeeTotalsResponse = await fetch(
-                `https://api.open.fec.gov/v1/committee/${primaryCommittee.committee_id}/totals/?api_key=${apiKey}&cycle=${ELECTION_CYCLE}`,
+                `https://api.open.fec.gov/v1/committee/${primaryCommittee.committee_id}/totals/?api_key=${apiKey}&cycle=${usedCycle}`,
                 {
                   headers: {
                     'User-Agent': 'TaskForcePurple/1.0 (Political Transparency Platform)'
@@ -419,7 +463,7 @@ async function fetchMemberFinancials(member, env) {
                 const latestTotal = committeeTotalsData.results?.[0];
 
                 if (latestTotal) {
-                  console.log(`💰 House discovery success for ${member.name}: $${latestTotal.receipts || 0}`);
+                  console.log(`💰 Committee discovery success for ${member.name}: $${latestTotal.receipts || 0}`);
 
                   const totalRaised = latestTotal.receipts || 0;
                   const grassrootsDonations = latestTotal.individual_unitemized_contributions || 0;
@@ -432,26 +476,26 @@ async function fetchMemberFinancials(member, env) {
                     pacMoney: latestTotal.other_political_committee_contributions || 0,
                     partyMoney: latestTotal.political_party_committee_contributions || 0,
                     committeeId: primaryCommittee.committee_id,
-                    committeeName: primaryCommittee.name
+                    committeeName: primaryCommittee.name,
+                    dataCycle: usedCycle // Track which cycle the data is from
                   };
                 }
               } else {
                 try { await committeeTotalsResponse.json(); } catch {}
               }
             } else {
-              console.log(`⚠️ No principal committees found for House member ${member.name}`);
+              console.log(`⚠️ No principal committees found for ${member.name} (${office})`);
             }
           } else {
             try { await committeesResponse.json(); } catch {}
             console.log(`❌ Committee discovery failed for ${member.name}`);
           }
         } catch (error) {
-          console.error(`❌ Error during House committee discovery for ${member.name}:`, error);
+          console.error(`❌ Error during committee discovery for ${member.name}:`, error);
         }
 
-        // Add delay after House-specific API calls to respect rate limits
+        // Add delay after committee discovery API calls to respect rate limits
         await new Promise(resolve => setTimeout(resolve, 15000));
-      }
     }
 
     // Fallback: try the totals by entity endpoint
@@ -493,7 +537,8 @@ async function fetchMemberFinancials(member, env) {
       pacMoney: latestTotal.other_political_committee_contributions || 0,
       partyMoney: latestTotal.political_party_committee_contributions || 0,
       committeeId: committee.committee_id,
-      committeeName: candidate.name
+      committeeName: candidate.name,
+      dataCycle: ELECTION_CYCLE // Generic fallback uses current cycle
     };
 
   } catch (error) {
@@ -887,6 +932,7 @@ async function processMembers(congressMembers, env, testLimit = undefined) {
         grassrootsPercent: financials?.grassrootsPercent || 0,
         pacMoney: financials?.pacMoney || 0,
         partyMoney: financials?.partyMoney || 0,
+        dataCycle: financials?.dataCycle || ELECTION_CYCLE,
 
         // Empty PAC details initially (will be filled in Phase 2)
         pacContributions: [],
@@ -1289,6 +1335,7 @@ async function handleFECBatchUpdate(env, corsHeaders, request) {
               pacMoney: financials.pacMoney,
               partyMoney: financials.partyMoney,
               committeeId: financials.committeeId, // NEW: Save committee ID for Phase 2
+              dataCycle: financials.dataCycle || ELECTION_CYCLE,
               tier: calculateTier(financials.grassrootsPercent, financials.totalRaised),
               lastUpdated: new Date().toISOString()
             };
@@ -2602,6 +2649,7 @@ async function updateMemberWithPhase1Data(member, financials, env) {
         grassrootsPercent: financials?.grassrootsPercent || 0,
         pacMoney: financials?.pacMoney || 0,
         partyMoney: financials?.partyMoney || 0,
+        dataCycle: financials?.dataCycle || ELECTION_CYCLE,
         pacContributions: [],
         tier: calculateTier(financials?.grassrootsPercent || 0, financials?.totalRaised || 0),
         lastUpdated: new Date().toISOString(),
@@ -2617,6 +2665,7 @@ async function updateMemberWithPhase1Data(member, financials, env) {
         grassrootsPercent: financials?.grassrootsPercent || 0,
         pacMoney: financials?.pacMoney || 0,
         partyMoney: financials?.partyMoney || 0,
+        dataCycle: financials?.dataCycle || ELECTION_CYCLE,
         tier: calculateTier(financials?.grassrootsPercent || 0, financials?.totalRaised || 0),
         lastUpdated: new Date().toISOString(),
         committeeInfo: financials?.committeeId ? { id: financials.committeeId } : null
