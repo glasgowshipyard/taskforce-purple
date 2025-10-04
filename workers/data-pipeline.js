@@ -2978,6 +2978,7 @@ async function updateProcessingStatus(env, stats) {
       callsUsed: stats.callsUsed,
       membersProcessed: stats.membersProcessed,
       executionTime: stats.executionTime,
+      runCount: stats.runCount || 0,
       phase1Remaining: (await getPhase1Queue(env)).length,
       phase2Remaining: (await getPhase2Queue(env)).length
     };
