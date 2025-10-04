@@ -363,21 +363,21 @@ export default function MembersList() {
           </div>
 
           {/* Advanced PAC Breakdown Section */}
-          {selectedMember.pacMoney > 0 && (
+          {selectedMember.pacContributions && selectedMember.pacContributions.length > 0 && (
             <div className="mt-6">
               <button
                 onClick={() => setShowPACDetails(!showPACDetails)}
                 className="flex items-center space-x-2 text-sm font-medium text-purple-600 hover:text-purple-800 transition-colors"
               >
                 {showPACDetails ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
-                <span>{showPACDetails ? 'Hide' : 'Show'} Detailed PAC Breakdown</span>
+                <span>{showPACDetails ? 'Hide' : 'Show'} Detailed PAC Breakdown ({selectedMember.pacContributions.length} contributions)</span>
               </button>
 
               {showPACDetails && (
                 <div className="mt-4 p-4 bg-gray-50 rounded-lg border">
                   <h4 className="font-semibold text-gray-900 mb-4">Top PAC Contributors</h4>
 
-                  {selectedMember.pacContributions && selectedMember.pacContributions.length > 0 ? (
+                  {selectedMember.pacContributions.length > 0 ? (
                     selectedMember.pacContributions.map((pac, index) => {
                       const category = TaskForceAPI.categorizePACByName(pac.pacName);
                       return (

@@ -40,7 +40,13 @@ export default {
           return await handleSmartBatch(env, corsHeaders, request);
         case '/api/clear-fec-mapping':
           return await handleClearFECMapping(env, corsHeaders, request);
+        case '/api/reset-pac-data':
+          return await handleResetPACData(env, corsHeaders, request);
         default:
+          // Check for individual member lookup pattern: /api/members/{bioguideId}
+          if (url.pathname.startsWith('/api/members/')) {
+            return await handleSingleMember(env, corsHeaders, url);
+          }
           // Check for individual member update pattern: /api/update-member/@username
           if (url.pathname.startsWith('/api/update-member/@')) {
             return await handleIndividualMemberUpdate(env, corsHeaders, request);
@@ -72,13 +78,60 @@ export default {
   }
 };
 
-// Calculate election cycle once at module load
-const ELECTION_CYCLE = (() => {
-  const currentYear = new Date().getFullYear();
-  // For odd years, use the previous even year (e.g., 2025 -> 2024)
-  // For even years, use the current year (e.g., 2024 -> 2024)
-  return currentYear % 2 === 0 ? currentYear : currentYear - 1;
-})();
+// Get current year from reliable external NTP/time sources (Cloudflare Workers Date is broken)
+async function getCurrentYear() {
+  // Primary + 3 fallback NTP/time APIs (1+3 = 4 total)
+  const timeSources = [
+    {
+      name: 'time.gov (NIST)',
+      url: 'https://time.gov/currenttime',
+      parse: (data) => new Date(data.datetime).getFullYear()
+    },
+    {
+      name: 'worldtimeapi.org',
+      url: 'https://worldtimeapi.org/api/timezone/America/New_York',
+      parse: (data) => new Date(data.datetime).getFullYear()
+    },
+    {
+      name: 'timeapi.io',
+      url: 'https://timeapi.io/api/Time/current/zone?timeZone=America/New_York',
+      parse: (data) => new Date(data.dateTime).getFullYear()
+    },
+    {
+      name: 'worldclockapi.com',
+      url: 'http://worldclockapi.com/api/json/est/now',
+      parse: (data) => new Date(data.currentDateTime).getFullYear()
+    }
+  ];
+
+  // Try each source in order
+  for (const source of timeSources) {
+    try {
+      const response = await fetch(source.url, {
+        signal: AbortSignal.timeout(2000) // 2 second timeout per source
+      });
+      if (response.ok) {
+        const data = await response.json();
+        const year = source.parse(data);
+        console.log(`📅 Got year from ${source.name}: ${year}`);
+        return year;
+      }
+    } catch (error) {
+      console.warn(`⚠️ ${source.name} failed: ${error.message}`);
+      // Continue to next source
+    }
+  }
+
+  // All sources failed - this is a critical error, cannot proceed
+  throw new Error('All 4 NTP time sources failed - cannot determine current year');
+}
+
+// Calculate election cycle from current year
+async function getElectionCycle() {
+  const currentYear = await getCurrentYear();
+  const cycle = currentYear % 2 === 0 ? currentYear : currentYear - 1;
+  return cycle;
+}
 
 // Fetch current Congress members from Congress.gov API (with pagination)
 async function fetchCongressMembers(env) {
@@ -188,10 +241,11 @@ async function selectCurrentCommittee(candidateId, env, office = null) {
 
     // Chamber-aware fallback strategy:
     // House (2-year terms): Try current cycle, then -2 (one cycle back)
-    // Senate (6-year terms): Try current cycle, then -2, -4 (two cycles back)
+    // Senate (6-year terms): Try current cycle, then -2, -4, -6, -8 (four cycles back = 10 years)
+    const runtimeCycle = await getElectionCycle();
     const cyclesToTry = office === 'H'
-      ? [ELECTION_CYCLE, ELECTION_CYCLE - 2]
-      : [ELECTION_CYCLE, ELECTION_CYCLE - 2, ELECTION_CYCLE - 4];
+      ? [runtimeCycle, runtimeCycle - 2]
+      : [runtimeCycle, runtimeCycle - 2, runtimeCycle - 4, runtimeCycle - 6, runtimeCycle - 8];
 
     // Find committee with the most recent cycle from our priority list
     let usedCycle = null;
@@ -202,7 +256,8 @@ async function selectCurrentCommittee(candidateId, env, office = null) {
       );
       if (hasCommitteeInCycle) {
         usedCycle = cycle;
-        if (cycle !== ELECTION_CYCLE) {
+        const currentCycle = await getElectionCycle();
+        if (cycle !== currentCycle) {
           console.log(`🔄 Using committee data from previous cycle ${cycle} for ${candidateId} (${office || 'unknown chamber'})`);
         }
         break;
@@ -366,13 +421,17 @@ async function fetchMemberFinancials(member, env) {
       console.log(`💾 Cached FEC mapping for ${member.name}: ${candidate.candidate_id}`);
     }
 
+    // Track if we successfully retrieved financial data
+    let hasFinancialData = false;
+
     // Use proper committee selection with cycle and designation filtering
     if (candidate.principal_committees && candidate.principal_committees.length > 0) {
       // Use the principal_committees we already have (no redundant API call)
-      // Chamber-aware cycle priority: House tries [2024, 2022], Senate tries [2024, 2022, 2020]
+      // Chamber-aware cycle priority: House tries [2024, 2022], Senate tries [2024, 2022, 2020, 2018, 2016]
+      const runtimeCycle = await getElectionCycle();
       const cyclesToTry = office === 'H'
-        ? [ELECTION_CYCLE, ELECTION_CYCLE - 2]
-        : [ELECTION_CYCLE, ELECTION_CYCLE - 2, ELECTION_CYCLE - 4];
+        ? [runtimeCycle, runtimeCycle - 2]
+        : [runtimeCycle, runtimeCycle - 2, runtimeCycle - 4, runtimeCycle - 6, runtimeCycle - 8];
 
       // Find committee with most recent cycle from priority list
       let selectedCommittee = null;
@@ -387,17 +446,15 @@ async function fetchMemberFinancials(member, env) {
         if (committee) {
           selectedCommittee = committee;
           usedCycle = cycle;
-          if (cycle !== ELECTION_CYCLE) {
+          if (cycle !== runtimeCycle) {
             console.log(`🔄 Using committee from previous cycle ${cycle} for ${member.name}`);
           }
           break;
         }
       }
 
-      if (!selectedCommittee) {
-        console.warn(`⚠️ No committee found in recent cycles for ${member.name}`);
-        // Fall through to committee discovery
-      } else {
+      if (selectedCommittee) {
+        // Successfully found committee in principal_committees with matching cycle
         const committeeId = selectedCommittee.committee_id;
         console.log(`📊 Getting committee totals for ${committeeId} (cycle ${usedCycle})`);
 
@@ -421,6 +478,7 @@ async function fetchMemberFinancials(member, env) {
           const grassrootsDonations = latestTotal.individual_unitemized_contributions || 0;
           const grassrootsPercent = totalRaised > 0 ? Math.round((grassrootsDonations / totalRaised) * 100) : 0;
 
+          hasFinancialData = true;
           return {
             totalRaised,
             grassrootsDonations,
@@ -439,14 +497,14 @@ async function fetchMemberFinancials(member, env) {
       }
     }
 
-    // COMMITTEE DISCOVERY: Discover committees when principal_committees is missing
-    if (!candidate.principal_committees || candidate.principal_committees.length === 0) {
-      console.log(`🏛️ ${office === 'H' ? 'House' : 'Senate'} member ${member.name} missing principal_committees - attempting committee discovery`);
-
-        try {
+    // COMMITTEE DISCOVERY: If we still don't have financial data, try explicit committee lookup
+    // This runs when principal_committees was missing OR when none matched our cycle criteria
+    if (!hasFinancialData) {
+      console.log(`🔍 Attempting committee discovery for ${member.name}...`);
+      try {
           // Fetch all committees (without cycle filter to get cycles[] array)
           const committeesResponse = await fetch(
-            `https://api.open.fec.gov/v1/candidates/${candidate.candidate_id}/committees/?api_key=${apiKey}`,
+            `https://api.open.fec.gov/v1/candidate/${candidate.candidate_id}/committees/?api_key=${apiKey}`,
             {
               headers: {
                 'User-Agent': 'TaskForcePurple/1.0 (Political Transparency Platform)'
@@ -461,20 +519,32 @@ async function fetchMemberFinancials(member, env) {
             const committeesData = await committeesResponse.json();
 
             if (committeesData.results && committeesData.results.length > 0) {
-              // Chamber-aware cycle fallback: House tries 2 cycles, Senate tries 3
+              console.log(`🔎 Found ${committeesData.results.length} total committees for ${member.name}`);
+
+              // Log all available cycles for debugging
+              const allCycles = [...new Set(committeesData.results.flatMap(c => c.cycles || []))].sort((a,b) => b-a);
+              console.log(`📅 Available committee cycles: ${allCycles.join(', ')}`);
+
+              // Chamber-aware cycle fallback: House tries 2 cycles, Senate tries 5 cycles (10 years)
+              // Get cycle from external time source (Cloudflare Date is unreliable)
+              const runtimeCycle = await getElectionCycle();
+              console.log(`🔍 DEBUG: office='${office}', runtime=${runtimeCycle}`);
               const cyclesToTry = office === 'H'
-                ? [ELECTION_CYCLE, ELECTION_CYCLE - 2]
-                : [ELECTION_CYCLE, ELECTION_CYCLE - 2, ELECTION_CYCLE - 4];
+                ? [runtimeCycle, runtimeCycle - 2]
+                : [runtimeCycle, runtimeCycle - 2, runtimeCycle - 4, runtimeCycle - 6, runtimeCycle - 8];
 
               // Find most recent cycle from our priority list
               let usedCycle = null;
+              console.log(`🔍 Checking cycles for ${office === 'H' ? 'House' : 'Senate'}: ${cyclesToTry.join(', ')}`);
               for (const cycle of cyclesToTry) {
-                const hasCommitteeInCycle = committeesData.results.some(c =>
+                const committeesInCycle = committeesData.results.filter(c =>
                   c.cycles && c.cycles.includes(cycle)
                 );
-                if (hasCommitteeInCycle) {
+                console.log(`  Cycle ${cycle}: ${committeesInCycle.length} committees found`);
+                if (committeesInCycle.length > 0) {
                   usedCycle = cycle;
-                  if (cycle !== ELECTION_CYCLE) {
+                  const currentCycle = await getElectionCycle();
+                  if (cycle !== currentCycle) {
                     console.log(`🔄 Using committee data from cycle ${cycle} for ${member.name}`);
                   }
                   break;
@@ -484,11 +554,17 @@ async function fetchMemberFinancials(member, env) {
               if (usedCycle) {
                 console.log(`🔍 Found ${committeesData.results?.length || 0} committees for ${member.name} (cycle ${usedCycle})`);
 
+                // Log committee designations for debugging
+                const designations = committeesData.results.map(c => `${c.designation || 'N/A'}:${c.committee_id}`).join(', ');
+                console.log(`📋 Committee designations: ${designations}`);
+
                 // Filter for principal campaign committees (designation P or A) in the target cycle
                 const principalCommittees = committeesData.results?.filter(committee =>
                   ['P', 'A'].includes(committee.designation) &&
                   committee.cycles && committee.cycles.includes(usedCycle)
                 ) || [];
+
+                console.log(`✅ Found ${principalCommittees.length} P/A committees in cycle ${usedCycle}`);
 
             if (principalCommittees.length > 0) {
               const primaryCommittee = principalCommittees[0];
@@ -515,6 +591,7 @@ async function fetchMemberFinancials(member, env) {
                   const grassrootsDonations = latestTotal.individual_unitemized_contributions || 0;
                   const grassrootsPercent = totalRaised > 0 ? Math.round((grassrootsDonations / totalRaised) * 100) : 0;
 
+                  hasFinancialData = true;
                   return {
                     totalRaised,
                     grassrootsDonations,
@@ -548,8 +625,9 @@ async function fetchMemberFinancials(member, env) {
     }
 
     // Fallback: try the totals by entity endpoint
+    const currentCycle = await getElectionCycle();
     const totalsResponse = await fetch(
-      `https://api.open.fec.gov/v1/totals/by_entity/?api_key=${apiKey}&candidate_id=${candidate.candidate_id}&election_year=${ELECTION_CYCLE}&cycle=${ELECTION_CYCLE}`,
+      `https://api.open.fec.gov/v1/totals/by_entity/?api_key=${apiKey}&candidate_id=${candidate.candidate_id}&election_year=${currentCycle}&cycle=${currentCycle}`,
       {
         headers: {
           'User-Agent': 'TaskForcePurple/1.0 (Political Transparency Platform)'
@@ -587,7 +665,7 @@ async function fetchMemberFinancials(member, env) {
       partyMoney: latestTotal.political_party_committee_contributions || 0,
       committeeId: committee.committee_id,
       committeeName: candidate.name,
-      dataCycle: ELECTION_CYCLE // Generic fallback uses current cycle
+      dataCycle: await getElectionCycle() // Generic fallback uses current cycle
     };
 
   } catch (error) {
@@ -604,8 +682,9 @@ async function fetchPACDetails(committeeId, env) {
     console.log(`📊 Fetching PAC details for committee: ${committeeId}`);
 
     // Fetch Schedule A receipts (itemized contributions) filtered for PACs
+    const currentCycle = await getElectionCycle();
     const response = await fetch(
-      `https://api.open.fec.gov/v1/schedules/schedule_a/?api_key=${apiKey}&committee_id=${committeeId}&contributor_type=committee&per_page=100&sort=-contribution_receipt_amount&two_year_transaction_period=${ELECTION_CYCLE}`,
+      `https://api.open.fec.gov/v1/schedules/schedule_a/?api_key=${apiKey}&committee_id=${committeeId}&contributor_type=committee&per_page=100&sort=-contribution_receipt_amount&two_year_transaction_period=${currentCycle}`,
       {
         headers: {
           'User-Agent': 'TaskForcePurple/1.0 (Political Transparency Platform)'
@@ -623,23 +702,43 @@ async function fetchPACDetails(committeeId, env) {
     const data = await response.json();
     const contributions = data.results || [];
 
-    console.log(`💰 Found ${contributions.length} PAC contributions for ${committeeId}`);
+    console.log(`💰 Found ${contributions.length} total committee contributions for ${committeeId}`);
 
-    // Process and clean the contributions
+    // Process and clean the contributions using FEC line numbers and entity types
     const pacContributions = contributions
-      .filter(contrib => contrib.contributor_name && contrib.contribution_receipt_amount > 0)
+      .filter(contrib => {
+        if (!contrib.contributor_name || contrib.contribution_receipt_amount <= 0) return false;
+
+        // Exclude conduit/earmarked contributions (FEC Line 11AI)
+        if (contrib.line_number === '11AI') return false;
+
+        // Exclude other receipts: interest, dividends, refunds (FEC Line 15)
+        if (contrib.line_number === '15') return false;
+
+        // Exclude transfers between committees (FEC Line 12/16/17/18)
+        if (['12', '16', '17', '18'].includes(contrib.line_number)) return false;
+
+        // Exclude if this has a conduit committee ID (earmarked pass-through)
+        if (contrib.conduit_committee_id) return false;
+
+        // Only include actual PAC contributions (entity_type should be PAC)
+        // But don't hard-require it since some valid PACs might have different entity types
+        return true;
+      })
       .map(contrib => ({
         pacName: contrib.contributor_name,
         amount: contrib.contribution_receipt_amount,
         date: contrib.contribution_receipt_date,
         contributorType: contrib.contributor_type,
-        contributorId: contrib.contributor_id, // NEW: Store for metadata lookup
+        contributorId: contrib.contributor_id,
         employerName: contrib.contributor_employer,
         contributorOccupation: contrib.contributor_occupation,
         contributorState: contrib.contributor_state,
         receiptDescription: contrib.receipt_description
       }))
       .slice(0, 20); // Top 20 PAC contributors
+
+    console.log(`💰 After filtering conduits/processors: ${pacContributions.length} actual PACs`);
 
     // NEW: Enhance with committee metadata for transparency weighting
     console.log(`🔍 Enhancing PAC data with committee metadata...`);
@@ -965,6 +1064,7 @@ async function processMembers(congressMembers, env, testLimit = undefined) {
     try {
       // Get basic financial data only (no PAC details)
       const financials = await fetchMemberFinancials(member, env);
+      const currentCycle = await getElectionCycle();
 
       const basicMember = {
         bioguideId: member.bioguideId,
@@ -981,7 +1081,7 @@ async function processMembers(congressMembers, env, testLimit = undefined) {
         grassrootsPercent: financials?.grassrootsPercent || 0,
         pacMoney: financials?.pacMoney || 0,
         partyMoney: financials?.partyMoney || 0,
-        dataCycle: financials?.dataCycle || ELECTION_CYCLE,
+        dataCycle: financials?.dataCycle || currentCycle,
 
         // Empty PAC details initially (will be filled in Phase 2)
         pacContributions: [],
@@ -1155,6 +1255,51 @@ function getGrassrootsPACTypesSummary(member) {
 }
 
 // API handlers
+async function handleSingleMember(env, corsHeaders, url) {
+  try {
+    const bioguideId = url.pathname.split('/').pop();
+    const membersData = await env.MEMBER_DATA.get('members:all');
+
+    if (!membersData) {
+      return new Response(JSON.stringify({ error: 'No data available' }), {
+        status: 404,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
+    }
+
+    const members = JSON.parse(membersData);
+    const member = members.find(m => m.bioguideId === bioguideId);
+
+    if (!member) {
+      return new Response(JSON.stringify({ error: 'Member not found' }), {
+        status: 404,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
+    }
+
+    // Enhance grassroots data for this member
+    const grassrootsPACTypes = getGrassrootsPACTypesSummary(member);
+    const enhancedMember = {
+      ...member,
+      grassrootsPercent: calculateEnhancedGrassrootsPercent(member),
+      rawFECGrassrootsPercent: member.grassrootsPercent,
+      hasEnhancedData: member.pacContributions && member.pacContributions.length > 0
+        && member.pacContributions.some(pac => pac.committee_type || pac.designation),
+      grassrootsPACTypes: grassrootsPACTypes
+    };
+
+    return new Response(JSON.stringify(enhancedMember), {
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+    });
+
+  } catch (error) {
+    return new Response(JSON.stringify({ error: error.message }), {
+      status: 500,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+    });
+  }
+}
+
 async function handleMembers(env, corsHeaders) {
   try {
     const membersData = await env.MEMBER_DATA.get('members:all');
@@ -1373,6 +1518,7 @@ async function handleFECBatchUpdate(env, corsHeaders, request) {
 
           // Get fresh financial data
           const financials = await fetchMemberFinancials(member, env);
+          const currentCycle = await getElectionCycle();
 
           if (financials && financials.totalRaised > 0) {
             // Update member with new financial data
@@ -1384,7 +1530,7 @@ async function handleFECBatchUpdate(env, corsHeaders, request) {
               pacMoney: financials.pacMoney,
               partyMoney: financials.partyMoney,
               committeeId: financials.committeeId, // NEW: Save committee ID for Phase 2
-              dataCycle: financials.dataCycle || ELECTION_CYCLE,
+              dataCycle: financials.dataCycle || currentCycle,
               tier: calculateTier(financials.grassrootsPercent, financials.totalRaised),
               lastUpdated: new Date().toISOString()
             };
@@ -2016,7 +2162,16 @@ async function updateSingleMember(member, env) {
         member.pacContributions = pacDetails;
         member.pacDetailsStatus = 'complete';
 
-        console.log(`✅ PAC data updated: ${pacDetails.length} contributions`);
+        // Recalculate pacMoney from actual contributions (FEC totals can be wrong)
+        member.pacMoney = pacDetails.reduce((sum, pac) => sum + pac.amount, 0);
+
+        // Recalculate grassroots based on actual PAC total
+        member.grassrootsDonations = member.totalRaised - member.pacMoney;
+        member.grassrootsPercent = member.totalRaised > 0
+          ? (member.grassrootsDonations / member.totalRaised) * 100
+          : 0;
+
+        console.log(`✅ PAC data updated: ${pacDetails.length} contributions, $${member.pacMoney.toLocaleString()} total`);
       }
     }
 
@@ -2695,6 +2850,7 @@ async function updateMemberWithPhase1Data(member, financials, env) {
     // Get existing members data
     const membersData = await env.MEMBER_DATA.get('members:all');
     const members = membersData ? JSON.parse(membersData) : [];
+    const currentCycle = await getElectionCycle();
 
     // Find and update the member
     const memberIndex = members.findIndex(m => m.bioguideId === member.bioguideId);
@@ -2712,7 +2868,7 @@ async function updateMemberWithPhase1Data(member, financials, env) {
         grassrootsPercent: financials?.grassrootsPercent || 0,
         pacMoney: financials?.pacMoney || 0,
         partyMoney: financials?.partyMoney || 0,
-        dataCycle: financials?.dataCycle || ELECTION_CYCLE,
+        dataCycle: financials?.dataCycle || currentCycle,
         pacContributions: [],
         tier: calculateTier(financials?.grassrootsPercent || 0, financials?.totalRaised || 0),
         lastUpdated: new Date().toISOString(),
@@ -2728,7 +2884,7 @@ async function updateMemberWithPhase1Data(member, financials, env) {
         grassrootsPercent: financials?.grassrootsPercent || 0,
         pacMoney: financials?.pacMoney || 0,
         partyMoney: financials?.partyMoney || 0,
-        dataCycle: financials?.dataCycle || ELECTION_CYCLE,
+        dataCycle: financials?.dataCycle || currentCycle,
         tier: calculateTier(financials?.grassrootsPercent || 0, financials?.totalRaised || 0),
         lastUpdated: new Date().toISOString(),
         committeeInfo: financials?.committeeId ? { id: financials.committeeId } : null
@@ -2818,6 +2974,80 @@ async function updateProcessingStatus(env, stats) {
     console.error('Error updating processing status:', error);
   }
 }
+// Handle resetting all PAC data and re-queuing Phase 2
+async function handleResetPACData(env, corsHeaders, request) {
+  try {
+    // Check for authorization
+    const authHeader = request.headers.get('Authorization');
+    const expectedAuth = `Bearer ${env.UPDATE_SECRET || 'taskforce_purple_2025_update'}`;
+
+    if (!authHeader || authHeader !== expectedAuth) {
+      return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+        status: 401,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
+    }
+
+    console.log('🔄 Resetting all PAC data and rebuilding Phase 2 queue...');
+
+    // Get all members
+    const membersData = await env.MEMBER_DATA.get('members:all');
+    if (!membersData) {
+      return new Response(JSON.stringify({ error: 'No member data found' }), {
+        status: 404,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
+    }
+
+    const members = JSON.parse(membersData);
+    const phase2Queue = [];
+    let clearedCount = 0;
+
+    // Clear PAC data from all members and rebuild Phase 2 queue
+    for (const member of members) {
+      if (member.pacContributions && member.pacContributions.length > 0) {
+        member.pacContributions = [];
+        clearedCount++;
+      }
+
+      // Add to Phase 2 queue if they have financial data
+      if (member.totalRaised > 0 && member.committeeId) {
+        phase2Queue.push({
+          bioguideId: member.bioguideId,
+          name: member.name,
+          committeeId: member.committeeId
+        });
+      }
+    }
+
+    // Save updated members (PAC data cleared)
+    await env.MEMBER_DATA.put('members:all', JSON.stringify(members));
+
+    // Rebuild Phase 2 queue
+    await env.MEMBER_DATA.put('processing_queue_phase2', JSON.stringify(phase2Queue));
+
+    console.log(`✅ Reset complete: Cleared ${clearedCount} members, queued ${phase2Queue.length} for Phase 2`);
+
+    return new Response(JSON.stringify({
+      success: true,
+      message: 'PAC data reset complete',
+      membersCleared: clearedCount,
+      phase2QueueSize: phase2Queue.length,
+      nextStep: 'Phase 2 will re-process with corrected conduit filtering'
+    }), {
+      status: 200,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+    });
+
+  } catch (error) {
+    console.error('Error resetting PAC data:', error);
+    return new Response(JSON.stringify({ error: error.message }), {
+      status: 500,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+    });
+  }
+}
+
 // Handle clearing bad FEC candidate mappings
 async function handleClearFECMapping(env, corsHeaders, request) {
   try {

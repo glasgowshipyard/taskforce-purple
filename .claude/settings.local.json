@@ -20,7 +20,10 @@
       "Bash(git commit:*)",
       "Bash(gh issue:*)",
       "Bash(git push:*)",
-      "Bash(/bashes)"
+      "Bash(/bashes)",
+      "Bash(for file in *.md)",
+      "Bash(head:*)",
+      "Bash(done)"
     ],
     "deny": [],
     "ask": []

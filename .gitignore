@@ -84,4 +84,4 @@ temp/
 
 # Claude reference docs (keep internal)
 .claude-reference.md
-GRASSROOTS_CALCULATION_GUIDE.md
+GRASSROOTS_CALCULATION_GUIDE.md.CLAUDE_CONTEXT.md
