@@ -254,8 +254,11 @@ async function fetchMemberFinancials(member, env) {
     const stateAbbr = STATE_ABBREVIATIONS[member.state] || member.state;
 
     // Determine chamber/office early (needed throughout)
+    // Queue members have 'district' (House) or not (Senate), full members have chamber/terms
     const chamberType = member.terms?.item?.[0]?.chamber || member.chamber;
-    const office = chamberType === 'House of Representatives' || chamberType === 'House' ? 'H' : 'S';
+    const office = chamberType === 'House of Representatives' || chamberType === 'House' ? 'H'
+                 : member.district ? 'H'  // If member has district, they're House
+                 : 'S';  // Otherwise Senate
 
     // Check for cached FEC candidate mapping first
     const cacheKey = `fec_mapping_${member.bioguideId}`;
