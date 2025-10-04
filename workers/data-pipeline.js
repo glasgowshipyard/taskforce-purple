@@ -42,6 +42,8 @@ export default {
           return await handleClearFECMapping(env, corsHeaders, request);
         case '/api/reset-pac-data':
           return await handleResetPACData(env, corsHeaders, request);
+        case '/api/refresh-congress-metadata':
+          return await handleRefreshCongressMetadata(env, corsHeaders, request);
         default:
           // Check for individual member lookup pattern: /api/members/{bioguideId}
           if (url.pathname.startsWith('/api/members/')) {
@@ -317,7 +319,14 @@ async function fetchMemberFinancials(member, env) {
 
     // Determine chamber/office early (needed throughout)
     // Queue members have 'district' (House) or not (Senate), full members have chamber/terms
-    const chamberType = member.terms?.item?.[0]?.chamber || member.chamber;
+    const chamberType = (() => {
+      // If member already has chamber field, use it
+      if (member.chamber) return member.chamber;
+      // Otherwise get most recent term from Congress.gov data
+      const terms = member.terms?.item;
+      if (!terms || terms.length === 0) return null;
+      return terms[terms.length - 1].chamber;
+    })();
     const office = chamberType === 'House of Representatives' || chamberType === 'House' ? 'H'
                  : member.district ? 'H'  // If member has district, they're House
                  : 'S';  // Otherwise Senate
@@ -1072,8 +1081,14 @@ async function processMembers(congressMembers, env, testLimit = undefined) {
         party: member.partyName,
         state: member.state,
         district: member.district,
-        chamber: (member.terms?.item?.[0]?.chamber === 'House of Representatives') ? 'House' :
-                 (member.terms?.item?.[0]?.chamber === 'Senate') ? 'Senate' : 'Unknown',
+        chamber: (() => {
+          // Get most recent term (last item in array, since Congress.gov sorts oldest-first)
+          const terms = member.terms?.item;
+          if (!terms || terms.length === 0) return 'Unknown';
+          const currentTerm = terms[terms.length - 1];
+          return currentTerm.chamber === 'House of Representatives' ? 'House' :
+                 currentTerm.chamber === 'Senate' ? 'Senate' : 'Unknown';
+        })(),
 
         // Basic financial data
         totalRaised: financials?.totalRaised || 0,
@@ -3198,6 +3213,119 @@ async function handleRemoveMember(env, corsHeaders, request) {
       error: error.message,
       success: false
     }), {
+      status: 500,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+    });
+  }
+}
+
+// Refresh Congress.gov metadata for all members (chamber, party, state, district)
+async function handleRefreshCongressMetadata(env, corsHeaders, request) {
+  try {
+    // Check for authorization
+    const authHeader = request.headers.get('Authorization');
+    const expectedAuth = `Bearer ${env.UPDATE_SECRET || 'taskforce_purple_2025_update'}`;
+
+    if (!authHeader || authHeader !== expectedAuth) {
+      return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+        status: 401,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
+    }
+
+    console.log('🏛️ Refreshing Congress.gov metadata for all members...');
+
+    const apiKey = env.CONGRESS_API_KEY || 'zVpKDAacmPcazWQxhl5fhodhB9wNUH0urLCLkkV9';
+
+    // Fetch all current members from Congress.gov
+    let allCongressMembers = [];
+    let offset = 0;
+    const limit = 250;
+
+    while (true) {
+      const response = await fetch(
+        `https://api.congress.gov/v3/member/congress/119?currentMember=true&offset=${offset}&limit=${limit}&api_key=${apiKey}`,
+        {
+          headers: {
+            'User-Agent': 'TaskForcePurple/1.0 (Political Transparency Platform)'
+          }
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error(`Congress.gov API error: ${response.status}`);
+      }
+
+      const data = await response.json();
+      allCongressMembers = allCongressMembers.concat(data.members || []);
+
+      if (!data.members || data.members.length < limit) break;
+      offset += limit;
+    }
+
+    console.log(`📥 Fetched ${allCongressMembers.length} members from Congress.gov`);
+
+    // Get existing member data
+    const membersData = await env.MEMBER_DATA.get('members:all');
+    if (!membersData) {
+      return new Response(JSON.stringify({ error: 'No member data found' }), {
+        status: 404,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
+    }
+
+    const members = JSON.parse(membersData);
+    let updatedCount = 0;
+
+    // Update metadata for each member
+    for (const congressMember of allCongressMembers) {
+      const memberIndex = members.findIndex(m => m.bioguideId === congressMember.bioguideId);
+
+      if (memberIndex >= 0) {
+        const member = members[memberIndex];
+
+        // Get most recent term (last item in array)
+        const terms = congressMember.terms?.item;
+        const currentTerm = terms && terms.length > 0 ? terms[terms.length - 1] : null;
+        const newChamber = currentTerm?.chamber === 'House of Representatives' ? 'House' :
+                          currentTerm?.chamber === 'Senate' ? 'Senate' : 'Unknown';
+
+        // Only update if something changed
+        if (member.chamber !== newChamber ||
+            member.party !== congressMember.partyName ||
+            member.state !== congressMember.state ||
+            member.district !== congressMember.district) {
+
+          member.chamber = newChamber;
+          member.party = congressMember.partyName;
+          member.state = congressMember.state;
+          member.district = congressMember.district;
+          updatedCount++;
+
+          console.log(`✅ Updated ${member.name}: chamber=${newChamber}`);
+        }
+      }
+    }
+
+    // Save updated members
+    await env.MEMBER_DATA.put('members:all', JSON.stringify(members));
+
+    console.log(`✅ Refresh complete: Updated ${updatedCount} members`);
+
+    return new Response(JSON.stringify({
+      success: true,
+      message: 'Congress.gov metadata refresh complete',
+      totalMembers: allCongressMembers.length,
+      updatedCount: updatedCount,
+      lastUpdated: new Date().toISOString()
+    }), {
+      status: 200,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+    });
+
+  } catch (error) {
+    console.error('Error refreshing Congress metadata:', error);
+    return new Response(JSON.stringify({ error: error.message }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }
     });
