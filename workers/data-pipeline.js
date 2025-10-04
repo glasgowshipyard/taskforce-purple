@@ -415,46 +415,51 @@ async function fetchMemberFinancials(member, env) {
       console.log(`🏛️ ${office === 'H' ? 'House' : 'Senate'} member ${member.name} missing principal_committees - attempting committee discovery`);
 
         try {
-          // Chamber-aware cycle fallback: House tries 2 cycles, Senate tries 3
-          const cyclesToTry = office === 'H'
-            ? [ELECTION_CYCLE, ELECTION_CYCLE - 2]
-            : [ELECTION_CYCLE, ELECTION_CYCLE - 2, ELECTION_CYCLE - 4];
-
-          let committeesData = null;
-          let usedCycle = null;
-
-          for (const cycle of cyclesToTry) {
-            const committeesResponse = await fetch(
-              `https://api.open.fec.gov/v1/candidates/${candidate.candidate_id}/committees/?api_key=${apiKey}&cycle=${cycle}`,
-              {
-                headers: {
-                  'User-Agent': 'TaskForcePurple/1.0 (Political Transparency Platform)'
-                }
+          // Fetch all committees (without cycle filter to get cycles[] array)
+          const committeesResponse = await fetch(
+            `https://api.open.fec.gov/v1/candidates/${candidate.candidate_id}/committees/?api_key=${apiKey}`,
+            {
+              headers: {
+                'User-Agent': 'TaskForcePurple/1.0 (Political Transparency Platform)'
               }
-            );
-
-            if (committeesResponse.ok) {
-              const data = await committeesResponse.json();
-              if (data.results && data.results.length > 0) {
-                committeesData = data;
-                usedCycle = cycle;
-                if (cycle !== ELECTION_CYCLE) {
-                  console.log(`🔄 Using committee data from cycle ${cycle} for ${member.name}`);
-                }
-                break;
-              }
-            } else {
-              try { await committeesResponse.json(); } catch {}
             }
-          }
+          );
 
-          if (committeesData) {
-            console.log(`🔍 Found ${committeesData.results?.length || 0} committees for ${member.name} (cycle ${usedCycle})`);
+          if (!committeesResponse.ok) {
+            try { await committeesResponse.json(); } catch {}
+            console.log(`❌ Committee discovery failed for ${member.name}`);
+          } else {
+            const committeesData = await committeesResponse.json();
 
-            // Filter for principal campaign committees (designation P or A)
-            const principalCommittees = committeesData.results?.filter(committee =>
-              ['P', 'A'].includes(committee.designation)
-            ) || [];
+            if (committeesData.results && committeesData.results.length > 0) {
+              // Chamber-aware cycle fallback: House tries 2 cycles, Senate tries 3
+              const cyclesToTry = office === 'H'
+                ? [ELECTION_CYCLE, ELECTION_CYCLE - 2]
+                : [ELECTION_CYCLE, ELECTION_CYCLE - 2, ELECTION_CYCLE - 4];
+
+              // Find most recent cycle from our priority list
+              let usedCycle = null;
+              for (const cycle of cyclesToTry) {
+                const hasCommitteeInCycle = committeesData.results.some(c =>
+                  c.cycles && c.cycles.includes(cycle)
+                );
+                if (hasCommitteeInCycle) {
+                  usedCycle = cycle;
+                  if (cycle !== ELECTION_CYCLE) {
+                    console.log(`🔄 Using committee data from cycle ${cycle} for ${member.name}`);
+                  }
+                  break;
+                }
+              }
+
+              if (usedCycle) {
+                console.log(`🔍 Found ${committeesData.results?.length || 0} committees for ${member.name} (cycle ${usedCycle})`);
+
+                // Filter for principal campaign committees (designation P or A) in the target cycle
+                const principalCommittees = committeesData.results?.filter(committee =>
+                  ['P', 'A'].includes(committee.designation) &&
+                  committee.cycles && committee.cycles.includes(usedCycle)
+                ) || [];
 
             if (principalCommittees.length > 0) {
               const primaryCommittee = principalCommittees[0];
@@ -498,9 +503,12 @@ async function fetchMemberFinancials(member, env) {
             } else {
               console.log(`⚠️ No principal committees found for ${member.name} (${office})`);
             }
-          } else {
-            try { await committeesResponse.json(); } catch {}
-            console.log(`❌ Committee discovery failed for ${member.name}`);
+              } else {
+                console.log(`⚠️ No committees found in recent cycles for ${member.name}`);
+              }
+            } else {
+              console.log(`⚠️ No committees found at all for ${member.name}`);
+            }
           }
         } catch (error) {
           console.error(`❌ Error during committee discovery for ${member.name}:`, error);
