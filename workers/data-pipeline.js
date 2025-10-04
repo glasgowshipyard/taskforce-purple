@@ -368,10 +368,38 @@ async function fetchMemberFinancials(member, env) {
 
     // Use proper committee selection with cycle and designation filtering
     if (candidate.principal_committees && candidate.principal_committees.length > 0) {
-      // Get the correct committee using filtered selection with chamber-aware fallback
-      const { committee, usedCycle } = await selectCurrentCommittee(candidate.candidate_id, env, office);
-      const committeeId = committee.committee_id;
-      console.log(`📊 Getting committee totals for ${committeeId} (cycle ${usedCycle})`);
+      // Use the principal_committees we already have (no redundant API call)
+      // Chamber-aware cycle priority: House tries [2024, 2022], Senate tries [2024, 2022, 2020]
+      const cyclesToTry = office === 'H'
+        ? [ELECTION_CYCLE, ELECTION_CYCLE - 2]
+        : [ELECTION_CYCLE, ELECTION_CYCLE - 2, ELECTION_CYCLE - 4];
+
+      // Find committee with most recent cycle from priority list
+      let selectedCommittee = null;
+      let usedCycle = null;
+
+      for (const cycle of cyclesToTry) {
+        // Find P or A committee that has this cycle
+        const committee = candidate.principal_committees.find(c =>
+          (c.designation === 'P' || c.designation === 'A') &&
+          c.cycles && c.cycles.includes(cycle)
+        );
+        if (committee) {
+          selectedCommittee = committee;
+          usedCycle = cycle;
+          if (cycle !== ELECTION_CYCLE) {
+            console.log(`🔄 Using committee from previous cycle ${cycle} for ${member.name}`);
+          }
+          break;
+        }
+      }
+
+      if (!selectedCommittee) {
+        console.warn(`⚠️ No committee found in recent cycles for ${member.name}`);
+        // Fall through to committee discovery
+      } else {
+        const committeeId = selectedCommittee.committee_id;
+        console.log(`📊 Getting committee totals for ${committeeId} (cycle ${usedCycle})`);
 
       const committeeTotalsResponse = await fetch(
         `https://api.open.fec.gov/v1/committee/${committeeId}/totals/?api_key=${apiKey}&cycle=${usedCycle}`,
@@ -407,6 +435,7 @@ async function fetchMemberFinancials(member, env) {
       } else {
         // Consume the response body to prevent deadlock
         try { await committeeTotalsResponse.json(); } catch {}
+      }
       }
     }
 
