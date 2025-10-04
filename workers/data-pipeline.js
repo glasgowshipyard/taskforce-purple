@@ -165,6 +165,27 @@ async function selectCurrentCommittee(candidateId, env, office = null) {
   const apiKey = env.FEC_API_KEY || 'zVpKDAacmPcazWQxhl5fhodhB9wNUH0urLCLkkV9';
 
   try {
+    // Fetch all committees for this candidate (without cycle filter)
+    // We'll filter by cycle in code since FEC returns committees with cycles[] array
+    const response = await fetch(
+      `https://api.open.fec.gov/v1/candidate/${candidateId}/committees/?api_key=${apiKey}`,
+      {
+        headers: {
+          'User-Agent': 'TaskForcePurple/1.0 (Political Transparency Platform)'
+        }
+      }
+    );
+
+    if (!response.ok) {
+      throw new Error(`Committee lookup failed: ${response.status}`);
+    }
+
+    const data = await response.json();
+
+    if (!data.results || data.results.length === 0) {
+      throw new Error(`No committees found for candidate ${candidateId}`);
+    }
+
     // Chamber-aware fallback strategy:
     // House (2-year terms): Try current cycle, then -2 (one cycle back)
     // Senate (6-year terms): Try current cycle, then -2, -4 (two cycles back)
@@ -172,28 +193,14 @@ async function selectCurrentCommittee(candidateId, env, office = null) {
       ? [ELECTION_CYCLE, ELECTION_CYCLE - 2]
       : [ELECTION_CYCLE, ELECTION_CYCLE - 2, ELECTION_CYCLE - 4];
 
-    let data = null;
+    // Find committee with the most recent cycle from our priority list
     let usedCycle = null;
-
     for (const cycle of cyclesToTry) {
-      const response = await fetch(
-        `https://api.open.fec.gov/v1/candidate/${candidateId}/committees/?` +
-        `api_key=${apiKey}&cycle=${cycle}`,
-        {
-          headers: {
-            'User-Agent': 'TaskForcePurple/1.0 (Political Transparency Platform)'
-          }
-        }
+      // Check if any committee has this cycle
+      const hasCommitteeInCycle = data.results.some(c =>
+        c.cycles && c.cycles.includes(cycle)
       );
-
-      if (!response.ok) {
-        console.warn(`⚠️ Committee lookup for cycle ${cycle} failed: ${response.status}`);
-        continue;
-      }
-
-      const responseData = await response.json();
-      if (responseData.results && responseData.results.length > 0) {
-        data = responseData;
+      if (hasCommitteeInCycle) {
         usedCycle = cycle;
         if (cycle !== ELECTION_CYCLE) {
           console.log(`🔄 Using committee data from previous cycle ${cycle} for ${candidateId} (${office || 'unknown chamber'})`);
@@ -202,14 +209,14 @@ async function selectCurrentCommittee(candidateId, env, office = null) {
       }
     }
 
-    if (!data || !data.results || data.results.length === 0) {
+    if (!usedCycle) {
       throw new Error(`No committees found for candidate ${candidateId} in any recent cycle`);
     }
 
-    // Filter by designation only (P = Principal, A = Authorized)
-    // Don't filter by committee_type to avoid excluding Senate (S) or House (H) candidates
+    // Filter by designation (P = Principal, A = Authorized) AND cycle availability
     const campaignCommittees = data.results.filter(c =>
-      c.designation === 'P' || c.designation === 'A'
+      (c.designation === 'P' || c.designation === 'A') &&
+      c.cycles && c.cycles.includes(usedCycle)
     );
 
     if (campaignCommittees.length === 0) {
