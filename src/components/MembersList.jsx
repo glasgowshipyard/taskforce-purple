@@ -477,11 +477,20 @@ export default function MembersList() {
 
                   <div className="mt-4 p-3 bg-blue-50 rounded border border-blue-200">
                     <p className="text-sm text-blue-800">
-                      <strong>Understanding PAC Categories:</strong><br />
-                      • <strong>Financial Services</strong> - Banks, investment firms, securities companies<br />
-                      • <strong>Party Committees</strong> - Official Democratic/Republican campaign committees<br />
+                      <strong>Understanding PAC Types & Designations:</strong><br />
+                      <strong className="text-blue-900 mt-2 block">Common Committee Types:</strong><br />
+                      • <strong>Super PACs (O)</strong> - Independent expenditure groups with unlimited dark money (2.0x penalty)<br />
+                      • <strong>Candidate Committees (P)</strong> - Member's own principal campaign committee (85% discount)<br />
+                      • <strong>Regular PACs</strong> - Corporations, unions, trade associations (1.0x penalty)<br />
+                      <strong className="text-blue-900 mt-2 block">Common Designations:</strong><br />
+                      • <strong>Leadership PACs (D)</strong> - Politician-controlled influence networks (1.5x penalty)<br />
+                      • <strong>Lobbyist PACs (B)</strong> - Corporate lobbying arms (1.5x penalty)<br />
+                      • <strong>Authorized (A/P)</strong> - Approved by candidate (85% discount)<br />
+                      <strong className="text-blue-900 mt-2 block">Industry Categories:</strong><br />
+                      • <strong>Financial Services</strong> - Banks, investment firms, securities<br />
+                      • <strong>Party Committees</strong> - Official Democratic/Republican committees<br />
                       • <strong>Labor Unions</strong> - Worker organizations and union PACs<br />
-                      • <strong>Other PACs</strong> - Issue advocacy groups, trade associations
+                      • <strong>Other PACs</strong> - Issue advocacy, trade associations
                     </p>
                   </div>
                 </div>
