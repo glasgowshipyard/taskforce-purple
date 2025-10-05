@@ -90,13 +90,13 @@ export class TaskForceAPI {
 
   static getTierExplanation(tier) {
     const explanations = {
-      'S': 'Truly people-funded representatives - your voice is likely to be theirs! These members get 90%+ of their funding from small grassroots donations. Extremely rare.',
-      'A': 'Very clean funding with overwhelming grassroots support. Still primarily accountable to constituents like you.',
-      'B': 'Above average grassroots funding. Majority grassroots with some PAC influence visible.',
-      'C': 'Below average. Mixed funding sources with visible corporate influence competing with constituent voices.',
-      'D': 'PAC heavy funding. Corporate funding dominates grassroots. These members rely heavily on special interest money.',
-      'E': 'Captured. Heavily corporate-controlled. These representatives depend overwhelmingly on PAC money and large donations.',
-      'F': 'Owned. Complete corporate capture. These members are essentially funded by special interests, not constituents.',
+      'S': 'Democratic power source. 90%+ grassroots funding with minimal concentrated influence. These members derive power from many small donors rather than wealthy elites or special interests. Extremely rare.',
+      'A': 'Strong funding diffusion. 75-89% grassroots with limited concentrated sources. Power primarily flows from constituents, not corporations or wealthy donors.',
+      'B': 'Above average diffusion. 60-74% grassroots funding. Majority small-donor funded with some visible concentration from large donors or PACs.',
+      'C': 'Below average diffusion. 45-59% grassroots. Mixed power sources with notable concentration from wealthy individuals or institutional interests competing with constituent voices.',
+      'D': 'Concentrated funding. 30-44% grassroots. Power increasingly derived from large donors, PACs, or special interests rather than broad constituent support.',
+      'E': 'Heavily concentrated. 15-29% grassroots. These members depend overwhelmingly on wealthy donors, corporate PACs, or special interest money rather than small-dollar constituents.',
+      'F': 'Complete capture. 0-14% grassroots. Power comes almost entirely from concentrated sources: wealthy elites, corporations, or special interests. Not accountable to everyday constituents.',
       'N/A': 'No recent financial data available. This could mean they\'re not up for re-election or we haven\'t found their committee records yet.'
     };
     return explanations[tier] || 'No explanation available.';
