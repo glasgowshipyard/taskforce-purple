@@ -1009,31 +1009,39 @@ function calculateEnhancedTier(member) {
   return calculateTier(member.grassrootsPercent, member.totalRaised);
 }
 
-// Calculate transparency penalty based on proportion of concerning PAC funding
+// Calculate transparency penalty based on proportion of concerning PAC funding and large donors
 function calculateTransparencyPenalty(member) {
-  if (!member.pacContributions?.length || !member.totalRaised) return 0;
+  if (!member.totalRaised) return 0;
 
-  let totalWeightedPACMoney = 0;
+  let totalWeightedConcerningMoney = 0;
 
-  for (const pac of member.pacContributions) {
-    // Use transparency weight when committee metadata is available, default to 1.0 when missing
-    const weight = (pac.committee_type || pac.designation)
-      ? getPACTransparencyWeight(pac.committee_type, pac.designation)
-      : 1.0; // Neutral weight for PACs without committee metadata
-    const weightedAmount = pac.amount * weight;
+  // Add weighted PAC money (if we have PAC data)
+  if (member.pacContributions?.length) {
+    for (const pac of member.pacContributions) {
+      // Use transparency weight when committee metadata is available, default to 1.0 when missing
+      const weight = (pac.committee_type || pac.designation)
+        ? getPACTransparencyWeight(pac.committee_type, pac.designation)
+        : 1.0; // Neutral weight for PACs without committee metadata
+      const weightedAmount = pac.amount * weight;
 
-    // Only count weighted amounts above baseline (1.0x means neutral)
-    if (weight > 1.0) {
-      totalWeightedPACMoney += weightedAmount;
+      // Only count weighted amounts above baseline (1.0x means neutral)
+      if (weight > 1.0) {
+        totalWeightedConcerningMoney += weightedAmount;
+      }
+      // Candidate committees and good PACs (weight < 1.0) don't contribute to penalty
     }
-    // Candidate committees and good PACs (weight < 1.0) don't contribute to penalty
+  }
+
+  // Add weighted large donor money (0.3x weight for class concentration concern)
+  if (member.largeDonorDonations !== undefined) {
+    totalWeightedConcerningMoney += member.largeDonorDonations * 0.3;
   }
 
   // Calculate what % of their total funding is from weighted concerning sources
-  const concerningPercent = (totalWeightedPACMoney / member.totalRaised) * 100;
+  const concerningPercent = (totalWeightedConcerningMoney / member.totalRaised) * 100;
 
-  // Apply penalty: 1 point per 1% of concerning funding, max 15 points
-  return Math.min(Math.floor(concerningPercent), 15);
+  // Apply penalty: 1 point per 1% of concerning funding, max 30 points (increased from 15 to accommodate large donors)
+  return Math.min(Math.floor(concerningPercent), 30);
 }
 
 // Get adjusted tier thresholds based on transparency penalty
