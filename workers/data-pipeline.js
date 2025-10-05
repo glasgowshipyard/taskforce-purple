@@ -1829,12 +1829,16 @@ async function performTierRecalculation(env) {
       const newTier = calculateEnhancedTier(member);
 
       // Recalculate grassrootsPercent to match tier calculation
-      const newGrassrootsPercent = member.totalRaised > 0
-        ? Math.round((member.grassrootsDonations / member.totalRaised) * 100)
-        : 0;
+      // Use grassrootsDonations if available, otherwise fall back to old calculation
+      let newGrassrootsPercent;
+      if (member.grassrootsDonations !== undefined && member.totalRaised > 0) {
+        newGrassrootsPercent = Math.round((member.grassrootsDonations / member.totalRaised) * 100);
+      } else {
+        newGrassrootsPercent = member.grassrootsPercent || 0;
+      }
 
-      // Update tier if it changed
-      if (oldTier !== newTier) {
+      // Update tier and/or grassrootsPercent if they changed
+      if (oldTier !== newTier || member.grassrootsPercent !== newGrassrootsPercent) {
         members[i] = {
           ...member,
           tier: newTier,
