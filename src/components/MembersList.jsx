@@ -223,8 +223,8 @@ export default function MembersList() {
         {/* Show on desktop, collapsible on mobile */}
         <div className={`${showTierExplanation ? 'block' : 'hidden'} sm:block mt-4`}>
           {/* Interactive Tier Grid */}
-          <div className="grid grid-cols-5 gap-1 sm:gap-4 mb-4 sm:mb-6">
-          {['S', 'A', 'B', 'C', 'D'].map((tier) => (
+          <div className="grid grid-cols-7 gap-1 sm:gap-2 mb-4 sm:mb-6">
+          {['S', 'A', 'B', 'C', 'D', 'E', 'F'].map((tier) => (
             <button
               key={tier}
               onClick={() => setFocusedTier(tier)}
@@ -257,7 +257,7 @@ export default function MembersList() {
             <p className="text-xs sm:text-sm text-gray-700">{TaskForceAPI.getTierExplanation(focusedTier)}</p>
 
           {/* Show PAC explanation for lower tiers */}
-          {(focusedTier === 'C' || focusedTier === 'D') && (
+          {(focusedTier === 'C' || focusedTier === 'D' || focusedTier === 'E' || focusedTier === 'F') && (
             <div className="mt-3 p-3 bg-red-50 rounded-lg border border-red-200">
               <p className="text-sm text-red-800">
                 <strong>What are PACs?</strong> {TaskForceAPI.getPACExplanation()}

@@ -68,7 +68,7 @@ export class TaskForceAPI {
       'C': 'bg-orange-500 text-white',
       'D': 'bg-red-400 text-white',
       'E': 'bg-red-600 text-white',
-      'F': 'bg-red-900 text-white',
+      'F': 'bg-gray-900 text-white',
       'N/A': 'bg-gray-300 text-gray-600'
     };
     return colors[tier] || 'bg-gray-500 text-white';
@@ -76,7 +76,7 @@ export class TaskForceAPI {
 
   static getTierDescription(tier) {
     const descriptions = {
-      'S': 'Unicorns Only (90%+)',
+      'S': 'People-Funded (90%+)',
       'A': 'Very Clean (75-89%)',
       'B': 'Above Average (60-74%)',
       'C': 'Below Average (45-59%)',
