@@ -2466,7 +2466,7 @@ function parseCongressSocialYAML(yamlText) {
 // Main smart batch processing function
 async function processSmartBatch(env) {
   const startTime = Date.now();
-  const callBudget = 15; // Restored original limit - FEC rate limiting delays are the bottleneck
+  const callBudget = 15; // FEC limit: 1,000/hour. Our usage: 60/hour (94% under limit)
   let callsUsed = 0;
   let membersProcessed = [];
 
@@ -2492,7 +2492,8 @@ async function processSmartBatch(env) {
     console.log(`📋 Phase 2 queue: ${phase2Queue.length} members remaining`);
 
     // PRIORITY PROCESSING: Mismatches first, then regular phases
-    while ((mismatchQueue.length > 0 || phase1Queue.length > 0 || phase2Queue.length > 0) && callsUsed < callBudget) {
+    while ((mismatchQueue.length > 0 || phase1Queue.length > 0 || phase2Queue.length > 0) &&
+           callsUsed < callBudget) {
 
       // FIRST PRIORITY: Process mismatch reconciliation (highest priority)
       if (mismatchQueue.length > 0 && callsUsed + 3 <= callBudget) {
@@ -2553,9 +2554,6 @@ async function processSmartBatch(env) {
           }
         }
 
-        // Exit outer loop after processing one Phase 1 member to stay under CPU limit
-        break;
-
       } else if (phase2Queue.length > 0 && callsUsed + 4 <= callBudget) {
         // PHASE 2 processing (1 out of 4 runs, or when Phase 1 is empty)
         const member = phase2Queue.shift();
@@ -2592,9 +2590,6 @@ async function processSmartBatch(env) {
             break;
           }
         }
-
-        // Exit outer loop after processing one Phase 2 member to stay under CPU limit
-        break;
       }
     }
 
