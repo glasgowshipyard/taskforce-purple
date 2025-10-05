@@ -167,7 +167,7 @@ export default function App() {
       <footer className="bg-white border-t mt-12">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
           {/* Methodology Explanation - Collapsible */}
-          <div className="mb-6">
+          <div className="mb-6" id="tier-methodology">
             <button
               onClick={() => setShowMethodology(!showMethodology)}
               className="flex items-center space-x-2 text-sm font-medium text-gray-700 hover:text-gray-900 transition-colors"
@@ -186,7 +186,7 @@ export default function App() {
                       or concentrated sources like wealthy individuals, corporations, or special interests.
                     </p>
                     <p className="text-sm text-gray-700">
-                      <strong>Base tier</strong> uses grassroots % (donations under $200). Then we apply <strong>transparency penalties</strong>
+                      <strong>Base tier</strong> uses <span className="font-semibold text-green-700">grassroots %</span> (donations under $200). Then we apply <strong>transparency penalties</strong>
                       that increase tier thresholds based on funding concentration:
                     </p>
                   </div>
@@ -194,31 +194,35 @@ export default function App() {
                   <div>
                     <h4 className="font-semibold text-gray-800 mb-2">Transparency Penalty Weights</h4>
                     <div className="space-y-1 text-sm text-gray-700">
-                      <div><span className="font-medium text-orange-600">Large Individual Donations (&gt;$200):</span></div>
-                      <div className="ml-4">• <span className="font-medium">0.3x penalty weight</span> - Reflects class concentration concern</div>
+                      <div><span className="font-medium text-green-700">Grassroots Donations (&lt;$200):</span></div>
+                      <div className="ml-4">• <span className="font-medium">No penalty (0x)</span> - Democratic funding from many small donors</div>
+
+                      <div className="mt-2"><span className="font-medium text-orange-600">Large Individual Donations (&gt;$200):</span></div>
+                      <div className="ml-4">• <span className="font-medium">0.3x penalty weight</span> - Class concentration concern from wealthy individuals</div>
 
                       <div className="mt-2"><span className="font-medium text-red-600">PAC Committee Types:</span></div>
                       <div className="ml-4">• <span className="font-medium">Super PACs (Type O):</span> 2.0x penalty - Dark money, independent expenditures</div>
                       <div className="ml-4">• <span className="font-medium">Regular PACs:</span> 1.0x penalty - Standard institutional influence</div>
-                      <div className="ml-4">• <span className="font-medium">Candidate Committees (Type P):</span> 0.15x discount (85% off) - Member's own committee</div>
+                      <div className="ml-4">• <span className="font-medium">Candidate Committees (Type P):</span> 0.15x (85% discount) - Member's own committee</div>
 
                       <div className="mt-2"><span className="font-medium text-red-600">PAC Designations:</span></div>
-                      <div className="ml-4">• <span className="font-medium">Leadership PACs (Designation D):</span> 1.5x penalty - Politician-controlled influence networks</div>
-                      <div className="ml-4">• <span className="font-medium">Lobbyist PACs (Designation B):</span> 1.5x penalty - Corporate lobbying arms</div>
-                      <div className="ml-4">• <span className="font-medium">Authorized (A/P):</span> 0.15x discount (85% off) - Approved by candidate</div>
+                      <div className="ml-4">• <span className="font-medium">Leadership PACs (D):</span> 1.5x penalty - Politician-controlled influence networks</div>
+                      <div className="ml-4">• <span className="font-medium">Lobbyist PACs (B):</span> 1.5x penalty - Corporate lobbying arms</div>
+                      <div className="ml-4">• <span className="font-medium">Authorized (A/P):</span> 0.15x (85% discount) - Approved by candidate</div>
                     </div>
                   </div>
 
                   <div>
                     <h4 className="font-semibold text-gray-800 mb-2">How Penalties Work</h4>
                     <div className="text-sm text-gray-700 space-y-1">
-                      <p>1. Multiply large donor money by 0.3x</p>
-                      <p>2. Multiply PAC money by transparency weight (if &gt; 1.0)</p>
-                      <p>3. Sum all weighted concerning money</p>
-                      <p>4. Divide by total raised to get penalty % (max 30 points)</p>
-                      <p>5. Add penalty to baseline tier thresholds</p>
+                      <p>1. <span className="text-green-700">Grassroots money</span> has no penalty (forms the base tier %)</p>
+                      <p>2. <span className="text-orange-600">Large donor money</span> is multiplied by 0.3x</p>
+                      <p>3. <span className="text-red-600">PAC money</span> is multiplied by transparency weight (if &gt; 1.0)</p>
+                      <p>4. Sum all weighted concerning money</p>
+                      <p>5. Divide by total raised to get penalty % (max 30 points)</p>
+                      <p>6. Add penalty to baseline tier thresholds</p>
                       <p className="mt-2 italic">
-                        Example: A member with 50% large donors needs ~15% higher grassroots funding to reach the same tier as someone with 10% large donors.
+                        Example: A member with 50% <span className="text-orange-600">large donors</span> needs ~15% higher <span className="text-green-700">grassroots</span> to reach the same tier as someone with 10% large donors.
                       </p>
                     </div>
                   </div>

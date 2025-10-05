@@ -386,13 +386,28 @@ export default function MembersList() {
             </h4>
             <div className="text-sm text-blue-800 space-y-2">
               <p>
-                This tier reflects <strong>funding diffusion</strong> - {selectedMember.grassrootsPercent}% grassroots funding adjusted for
-                concentration from large donors ({selectedMember.largeDonorDonations ? `${((selectedMember.largeDonorDonations / selectedMember.totalRaised) * 100).toFixed(1)}%` : '0%'})
-                and PACs ({selectedMember.pacMoney ? `${((selectedMember.pacMoney / selectedMember.totalRaised) * 100).toFixed(1)}%` : '0%'}).
+                This tier reflects <strong>funding diffusion</strong> - <span className="font-semibold text-green-700">{selectedMember.grassrootsPercent}% grassroots</span> funding adjusted for
+                concentration from <span className="font-semibold text-orange-700">large donors ({selectedMember.largeDonorDonations ? `${((selectedMember.largeDonorDonations / selectedMember.totalRaised) * 100).toFixed(1)}%` : '0%'})</span>
+                {' '}and <span className="font-semibold text-red-700">PACs ({selectedMember.pacMoney ? `${((selectedMember.pacMoney / selectedMember.totalRaised) * 100).toFixed(1)}%` : '0%'})</span>.
               </p>
-              <p className="text-xs">
-                See footer "How We Calculate Tiers" for detailed methodology and penalty weights.
-              </p>
+              <div className="flex items-center justify-between mt-2">
+                <a
+                  href="#tier-methodology"
+                  className="text-xs text-blue-600 hover:text-blue-800 underline"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    document.getElementById('tier-methodology')?.scrollIntoView({ behavior: 'smooth' });
+                  }}
+                >
+                  See detailed methodology →
+                </a>
+                <button
+                  onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+                  className="text-xs text-blue-600 hover:text-blue-800 underline"
+                >
+                  ↑ Back to top
+                </button>
+              </div>
             </div>
           </div>
 
