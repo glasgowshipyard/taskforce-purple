@@ -318,11 +318,11 @@ export default function MembersList() {
           )}
 
           {/* Financial breakdown */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
             <div className={`p-4 rounded-lg ${selectedMember.grassrootsPercent <= 15 ? 'bg-red-50' : 'bg-green-50'}`}>
               <div className="flex items-center space-x-2 mb-2">
                 <TrendingUp className={`w-5 h-5 ${selectedMember.grassrootsPercent <= 15 ? 'text-red-600' : 'text-green-600'}`} />
-                <span className={`font-semibold ${selectedMember.grassrootsPercent <= 15 ? 'text-red-800' : 'text-green-800'}`}>Grassroots Funding</span>
+                <span className={`font-semibold text-xs ${selectedMember.grassrootsPercent <= 15 ? 'text-red-800' : 'text-green-800'}`}>Grassroots (&lt;$200)</span>
               </div>
               <div className={`text-2xl font-bold ${selectedMember.grassrootsPercent <= 15 ? 'text-red-600' : 'text-green-600'}`}>
                 {selectedMember.grassrootsPercent}%
@@ -338,24 +338,38 @@ export default function MembersList() {
               )}
             </div>
 
+            <div className="bg-orange-50 p-4 rounded-lg">
+              <div className="flex items-center space-x-2 mb-2">
+                <DollarSign className="w-5 h-5 text-orange-600" />
+                <span className="font-semibold text-xs text-orange-800">Large Donors (&gt;$200)</span>
+              </div>
+              <div className="text-2xl font-bold text-orange-600">
+                {selectedMember.totalRaised > 0 && selectedMember.largeDonorDonations !== undefined
+                  ? `${((selectedMember.largeDonorDonations / selectedMember.totalRaised) * 100).toFixed(1)}%`
+                  : '0%'
+                }
+              </div>
+              <div className="text-sm text-orange-700">{TaskForceAPI.formatCurrency(selectedMember.largeDonorDonations || 0)}</div>
+            </div>
+
             <div className="bg-red-50 p-4 rounded-lg">
               <div className="flex items-center space-x-2 mb-2">
                 <DollarSign className="w-5 h-5 text-red-600" />
-                <span className="font-semibold text-red-800">PAC Money</span>
+                <span className="font-semibold text-xs text-red-800">PAC Money</span>
               </div>
-              <div className="text-2xl font-bold text-red-600">{TaskForceAPI.formatCurrency(selectedMember.pacMoney)}</div>
-              <div className="text-sm text-red-700">
+              <div className="text-2xl font-bold text-red-600">
                 {selectedMember.totalRaised > 0
-                  ? `${((selectedMember.pacMoney / selectedMember.totalRaised) * 100).toFixed(1)}% of total`
-                  : 'No data available'
+                  ? `${((selectedMember.pacMoney / selectedMember.totalRaised) * 100).toFixed(1)}%`
+                  : '0%'
                 }
               </div>
+              <div className="text-sm text-red-700">{TaskForceAPI.formatCurrency(selectedMember.pacMoney)}</div>
             </div>
 
             <div className="bg-purple-50 p-4 rounded-lg">
               <div className="flex items-center space-x-2 mb-2">
                 <Eye className="w-5 h-5 text-purple-600" />
-                <span className="font-semibold text-purple-800">Total Raised</span>
+                <span className="font-semibold text-xs text-purple-800">Total Raised</span>
               </div>
               <div className="text-2xl font-bold text-purple-600">{TaskForceAPI.formatCurrency(selectedMember.totalRaised)}</div>
               <div className="text-sm text-purple-700">2024 Election Cycle</div>
