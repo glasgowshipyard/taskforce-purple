@@ -2165,14 +2165,16 @@ async function updateSingleMember(member, env) {
     console.log(`💰 Phase 1: Updating financial data for ${member.name}...`);
 
     const financialData = await fetchMemberFinancials(member, env);
-    if (financialData) {
-      member.totalRaised = financialData.totalRaised;
-      member.grassrootsPercent = financialData.grassrootsPercent;
-      member.committeeId = financialData.committeeId;
-      member.lastUpdated = new Date().toISOString();
-
-      console.log(`✅ Financial data updated: $${member.totalRaised.toLocaleString()} raised, ${member.grassrootsPercent}% grassroots`);
+    if (!financialData) {
+      throw new Error(`Failed to fetch FEC financial data for ${member.name}. Member may not have an active FEC committee or name matching failed.`);
     }
+
+    member.totalRaised = financialData.totalRaised;
+    member.grassrootsPercent = financialData.grassrootsPercent;
+    member.committeeId = financialData.committeeId;
+    member.lastUpdated = new Date().toISOString();
+
+    console.log(`✅ Financial data updated: $${member.totalRaised.toLocaleString()} raised, ${member.grassrootsPercent}% grassroots`);
 
     // Phase 2: Update PAC details if we have committee info
     if (member.committeeId) {
