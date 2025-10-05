@@ -378,36 +378,32 @@ export default function MembersList() {
 
           {/* Tier Explanation */}
           <div className="mt-4 p-4 bg-blue-50 rounded-lg border border-blue-200">
-            <h4 className="font-semibold text-blue-900 mb-2 flex items-center">
-              <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
-              Understanding {selectedMember.name.split(',')[0]}'s {selectedMember.tier} Tier
-            </h4>
+            <h4 className="font-semibold text-blue-900 mb-2">Why This Tier?</h4>
             <div className="text-sm text-blue-800 space-y-2">
               <p>
-                This tier reflects <strong>funding diffusion</strong> - <span className="font-semibold text-green-700">{selectedMember.grassrootsPercent}% grassroots</span> funding adjusted for
-                concentration from <span className="font-semibold text-orange-700">large donors ({selectedMember.largeDonorDonations ? `${((selectedMember.largeDonorDonations / selectedMember.totalRaised) * 100).toFixed(1)}%` : '0%'})</span>
-                {' '}and <span className="font-semibold text-red-700">PACs ({selectedMember.pacMoney ? `${((selectedMember.pacMoney / selectedMember.totalRaised) * 100).toFixed(1)}%` : '0%'})</span>.
+                Tiers show who's funding each member. <span className="font-semibold text-green-700">Higher tiers</span> = more small donors. <span className="font-semibold text-red-700">Lower tiers</span> = more corporate PACs and wealthy donors.
               </p>
-              <div className="flex items-center justify-between mt-2">
-                <a
-                  href="#tier-methodology"
-                  className="text-xs text-blue-600 hover:text-blue-800 underline"
-                  onClick={(e) => {
-                    e.preventDefault();
-                    document.getElementById('tier-methodology')?.scrollIntoView({ behavior: 'smooth' });
-                  }}
-                >
-                  See detailed methodology →
-                </a>
-                <button
-                  onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
-                  className="text-xs text-blue-600 hover:text-blue-800 underline"
-                >
-                  ↑ Back to top
-                </button>
-              </div>
+              <p className="text-xs mt-2">
+                Calculated from <span className="text-green-700">grassroots %</span> (small donations under $200), with penalties for <span className="text-orange-600">large donors</span> and <span className="text-red-600">PAC money</span>.
+              </p>
+              <a
+                href="#how-tiers-work"
+                className="text-xs text-blue-600 hover:text-blue-800 underline inline-block mt-2"
+                onClick={(e) => {
+                  e.preventDefault();
+                  const footer = document.getElementById('how-tiers-work');
+                  const button = footer?.querySelector('button');
+                  footer?.scrollIntoView({ behavior: 'smooth' });
+                  // Auto-expand if collapsed
+                  setTimeout(() => {
+                    if (button && !button.textContent?.includes('▼')) {
+                      button.click();
+                    }
+                  }, 500);
+                }}
+              >
+                See how tiers are calculated →
+              </a>
             </div>
           </div>
 

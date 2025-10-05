@@ -167,72 +167,73 @@ export default function App() {
       <footer className="bg-white border-t mt-12">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
           {/* Methodology Explanation - Collapsible */}
-          <div className="mb-6" id="tier-methodology">
+          <div className="mb-6" id="how-tiers-work">
             <button
               onClick={() => setShowMethodology(!showMethodology)}
               className="flex items-center space-x-2 text-sm font-medium text-gray-700 hover:text-gray-900 transition-colors"
             >
               <span>{showMethodology ? '▼' : '▶'}</span>
-              <span>How We Calculate Tiers</span>
+              <span>How Tiers Are Calculated</span>
             </button>
 
             {showMethodology && (
               <div className="mt-4 p-4 bg-gray-50 rounded-lg border">
                 <div className="space-y-4">
                   <div>
-                    <h4 className="font-semibold text-gray-800 mb-2">Funding Diffusion Model</h4>
+                    <h4 className="font-semibold text-gray-800 mb-2">The Basic Idea</h4>
                     <p className="text-sm text-gray-700 mb-3">
-                      Tiers reflect <strong>funding diffusion</strong> - whether a member's power comes from many small donors (democratic)
-                      or concentrated sources like wealthy individuals, corporations, or special interests.
+                      Members are ranked based on where their money comes from. Members funded by many <span className="font-semibold text-green-700">small donors</span> get higher tiers.
+                      Members funded by <span className="font-semibold text-orange-700">wealthy individuals</span> or <span className="font-semibold text-red-700">corporate PACs</span> get lower tiers.
                     </p>
                     <p className="text-sm text-gray-700">
-                      <strong>Base tier</strong> uses <span className="font-semibold text-green-700">grassroots %</span> (donations under $200). Then we apply <strong>transparency penalties</strong>
-                      that increase tier thresholds based on funding concentration:
+                      Tiers start with <span className="font-semibold text-green-700">grassroots %</span> (donations under $200), then penalties are applied based on how much comes from concentrated sources:
                     </p>
                   </div>
 
                   <div>
-                    <h4 className="font-semibold text-gray-800 mb-2">Transparency Penalty Weights</h4>
+                    <h4 className="font-semibold text-gray-800 mb-2">Penalty Weights</h4>
                     <div className="space-y-1 text-sm text-gray-700">
-                      <div><span className="font-medium text-green-700">Grassroots Donations (&lt;$200):</span></div>
-                      <div className="ml-4">• <span className="font-medium">No penalty (0x)</span> - Democratic funding from many small donors</div>
+                      <div><span className="font-medium text-green-700">Small donations (under $200):</span></div>
+                      <div className="ml-4">• <span className="font-medium">No penalty</span> - Good! This is grassroots funding</div>
 
-                      <div className="mt-2"><span className="font-medium text-orange-600">Large Individual Donations (&gt;$200):</span></div>
-                      <div className="ml-4">• <span className="font-medium">0.3x penalty weight</span> - Class concentration concern from wealthy individuals</div>
+                      <div className="mt-2"><span className="font-medium text-orange-600">Large donations (over $200):</span></div>
+                      <div className="ml-4">• <span className="font-medium">0.3x penalty</span> - Wealthy individual donors</div>
 
-                      <div className="mt-2"><span className="font-medium text-red-600">PAC Committee Types:</span></div>
-                      <div className="ml-4">• <span className="font-medium">Super PACs (Type O):</span> 2.0x penalty - Dark money, independent expenditures</div>
-                      <div className="ml-4">• <span className="font-medium">Regular PACs:</span> 1.0x penalty - Standard institutional influence</div>
-                      <div className="ml-4">• <span className="font-medium">Candidate Committees (Type P):</span> 0.15x (85% discount) - Member's own committee</div>
-
-                      <div className="mt-2"><span className="font-medium text-red-600">PAC Designations:</span></div>
-                      <div className="ml-4">• <span className="font-medium">Leadership PACs (D):</span> 1.5x penalty - Politician-controlled influence networks</div>
-                      <div className="ml-4">• <span className="font-medium">Lobbyist PACs (B):</span> 1.5x penalty - Corporate lobbying arms</div>
-                      <div className="ml-4">• <span className="font-medium">Authorized (A/P):</span> 0.15x (85% discount) - Approved by candidate</div>
+                      <div className="mt-2"><span className="font-medium text-red-600">PAC money:</span></div>
+                      <div className="ml-4">• <span className="font-medium">Super PACs:</span> 2.0x penalty - Unlimited dark money groups</div>
+                      <div className="ml-4">• <span className="font-medium">Leadership/Lobbyist PACs:</span> 1.5x penalty - Political insiders and corporate lobbyists</div>
+                      <div className="ml-4">• <span className="font-medium">Regular PACs:</span> 1.0x penalty - Standard corporate/union money</div>
+                      <div className="ml-4">• <span className="font-medium">Candidate's own committee:</span> 0.15x (mostly ignored) - Their personal campaign account</div>
                     </div>
                   </div>
 
                   <div>
-                    <h4 className="font-semibold text-gray-800 mb-2">How Penalties Work</h4>
-                    <div className="text-sm text-gray-700 space-y-1">
-                      <p>1. <span className="text-green-700">Grassroots money</span> has no penalty (forms the base tier %)</p>
-                      <p>2. <span className="text-orange-600">Large donor money</span> is multiplied by 0.3x</p>
-                      <p>3. <span className="text-red-600">PAC money</span> is multiplied by transparency weight (if &gt; 1.0)</p>
-                      <p>4. Sum all weighted concerning money</p>
-                      <p>5. Divide by total raised to get penalty % (max 30 points)</p>
-                      <p>6. Add penalty to baseline tier thresholds</p>
-                      <p className="mt-2 italic">
-                        Example: A member with 50% <span className="text-orange-600">large donors</span> needs ~15% higher <span className="text-green-700">grassroots</span> to reach the same tier as someone with 10% large donors.
+                    <h4 className="font-semibold text-gray-800 mb-2">Example</h4>
+                    <div className="text-sm text-gray-700">
+                      <p className="mb-2">
+                        Two members both have 60% <span className="text-green-700">small donor</span> funding:
+                      </p>
+                      <div className="ml-4 space-y-1">
+                        <p><strong>Member A:</strong> 60% grassroots, 40% from their own campaign committee → Gets a <strong>high tier</strong> (committee money mostly ignored)</p>
+                        <p><strong>Member B:</strong> 60% grassroots, 40% from Super PACs and lobbyist PACs → Gets a <strong>lower tier</strong> (penalties applied)</p>
+                      </div>
+                      <p className="mt-3 italic text-xs">
+                        The more money from wealthy donors or corporate PACs, the higher your grassroots % needs to be to reach the same tier.
                       </p>
                     </div>
                   </div>
 
                   <div className="pt-3 border-t border-gray-200">
                     <p className="text-sm text-gray-600">
-                      <strong>Why This Matters:</strong> Tiers aren't just about grassroots %. They measure power diffusion.
-                      A member with 60% grassroots and 40% from wealthy elites faces different accountability pressures than one with
-                      60% grassroots and 40% from their own campaign committee. The penalty system distinguishes democratic funding from concentrated capture.
+                      <strong>Bottom line:</strong> Where the money comes from matters. Small donations from regular people = accountability to voters.
+                      Big money from corporations and wealthy elites = accountability to them instead.
                     </p>
+                    <button
+                      onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+                      className="text-xs text-purple-600 hover:text-purple-800 underline mt-3"
+                    >
+                      ↑ Back to top
+                    </button>
                   </div>
                 </div>
               </div>
