@@ -376,6 +376,34 @@ export default function MembersList() {
             </div>
           </div>
 
+          {/* Tier Calculation Explanation */}
+          <div className="mt-4 p-4 bg-blue-50 rounded-lg border border-blue-200">
+            <h4 className="font-semibold text-blue-900 mb-2 flex items-center">
+              <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              How Tiers Are Calculated
+            </h4>
+            <div className="text-sm text-blue-800 space-y-2">
+              <p>
+                Tiers reflect <strong>funding diffusion</strong> - whether power comes from many small donors (democratic) or concentrated sources (corporate/wealthy capture).
+              </p>
+              <p>
+                <strong>Base tier</strong> uses grassroots % (donations under $200). Then we adjust for:
+              </p>
+              <ul className="list-disc list-inside ml-4 space-y-1">
+                <li><strong>Large donors</strong> (&gt;$200): 0.3x penalty weight (class concentration)</li>
+                <li><strong>Regular PACs</strong>: 1.0x penalty weight (institutional influence)</li>
+                <li><strong>Leadership/Lobbyist PACs</strong>: 1.5x penalty weight (deeper capture)</li>
+                <li><strong>Super PACs</strong>: 2.0x penalty weight (dark money)</li>
+              </ul>
+              <p className="mt-2">
+                Higher penalties mean you need <em>more</em> grassroots funding to reach the same tier.
+                A member with 50% large donors needs ~15% higher grassroots to match someone with 10% large donors.
+              </p>
+            </div>
+          </div>
+
           {/* Advanced PAC Breakdown Section */}
           {selectedMember.pacContributions && selectedMember.pacContributions.length > 0 && (
             <div className="mt-6">
