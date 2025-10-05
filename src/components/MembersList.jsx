@@ -372,7 +372,7 @@ export default function MembersList() {
                 <span className="font-semibold text-xs text-purple-800">Total Raised</span>
               </div>
               <div className="text-2xl font-bold text-purple-600">{TaskForceAPI.formatCurrency(selectedMember.totalRaised)}</div>
-              <div className="text-sm text-purple-700">2024 Election Cycle</div>
+              <div className="text-sm text-purple-700">{selectedMember.dataCycle || 2024} Election Cycle</div>
             </div>
           </div>
 
