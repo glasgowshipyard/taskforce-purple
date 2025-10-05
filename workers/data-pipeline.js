@@ -2188,11 +2188,9 @@ async function updateSingleMember(member, env) {
         // Recalculate pacMoney from actual contributions (FEC totals can be wrong)
         member.pacMoney = pacDetails.reduce((sum, pac) => sum + pac.amount, 0);
 
-        // Recalculate grassroots based on actual PAC total
-        member.grassrootsDonations = member.totalRaised - member.pacMoney;
-        member.grassrootsPercent = member.totalRaised > 0
-          ? (member.grassrootsDonations / member.totalRaised) * 100
-          : 0;
+        // Keep original grassrootsDonations from Phase 1 (FEC individual_unitemized_contributions)
+        // Don't recalculate - totalRaised includes PACs, large individual donations, party money, etc.
+        // Only individual_unitemized_contributions (<$200) count as true grassroots
 
         console.log(`✅ PAC data updated: ${pacDetails.length} contributions, $${member.pacMoney.toLocaleString()} total`);
       }
