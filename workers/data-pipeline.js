@@ -1828,11 +1828,17 @@ async function performTierRecalculation(env) {
       const oldTier = member.tier;
       const newTier = calculateEnhancedTier(member);
 
+      // Recalculate grassrootsPercent to match tier calculation
+      const newGrassrootsPercent = member.totalRaised > 0
+        ? Math.round((member.grassrootsDonations / member.totalRaised) * 100)
+        : 0;
+
       // Update tier if it changed
       if (oldTier !== newTier) {
         members[i] = {
           ...member,
           tier: newTier,
+          grassrootsPercent: newGrassrootsPercent,
           lastTierRecalculated: new Date().toISOString()
         };
         recalculated++;
