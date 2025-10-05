@@ -275,7 +275,7 @@ export default function MembersList() {
         <div className="bg-white rounded-lg shadow-lg p-6" id="member-profile">
           <div className="flex items-start justify-between mb-6">
             <div className="flex items-center space-x-4">
-              <div className={`w-16 h-16 rounded-full flex items-center justify-center text-2xl font-bold ${TaskForceAPI.getTierColor(selectedMember.tier)}`}>
+              <div className={`w-16 h-16 flex-shrink-0 rounded-full flex items-center justify-center text-2xl font-bold ${TaskForceAPI.getTierColor(selectedMember.tier)}`}>
                 {selectedMember.tier}
               </div>
               <div>
