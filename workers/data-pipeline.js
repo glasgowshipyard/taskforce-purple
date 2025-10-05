@@ -2209,7 +2209,12 @@ async function updateSingleMember(member, env) {
     // Recalculate tier with enhanced algorithm
     member.tier = calculateEnhancedTier(member);
 
-    console.log(`🎯 Final tier: ${member.tier}`);
+    // Recalculate grassrootsPercent to match tier calculation
+    if (member.totalRaised > 0) {
+      member.grassrootsPercent = Math.round((member.grassrootsDonations / member.totalRaised) * 100);
+    }
+
+    console.log(`🎯 Final tier: ${member.tier} (${member.grassrootsPercent}% grassroots)`);
 
     return member;
 
