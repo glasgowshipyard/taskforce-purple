@@ -66,7 +66,9 @@ export class TaskForceAPI {
       'A': 'bg-blue-500 text-white',
       'B': 'bg-yellow-500 text-black',
       'C': 'bg-orange-500 text-white',
-      'D': 'bg-red-500 text-white',
+      'D': 'bg-red-400 text-white',
+      'E': 'bg-red-600 text-white',
+      'F': 'bg-red-900 text-white',
       'N/A': 'bg-gray-300 text-gray-600'
     };
     return colors[tier] || 'bg-gray-500 text-white';
@@ -74,11 +76,13 @@ export class TaskForceAPI {
 
   static getTierDescription(tier) {
     const descriptions = {
-      'S': 'Clean - Grassroots (85%+)',
-      'A': 'Mostly Clean (70-84%)',
-      'B': 'Mixed Funding (50-69%)',
-      'C': 'PAC Heavy (30-49%)',
-      'D': 'Captured (0-29%)',
+      'S': 'Unicorns Only (90%+)',
+      'A': 'Very Clean (75-89%)',
+      'B': 'Above Average (60-74%)',
+      'C': 'Below Average (45-59%)',
+      'D': 'PAC Heavy (30-44%)',
+      'E': 'Captured (15-29%)',
+      'F': 'Owned (0-14%)',
       'N/A': 'No Financial Data Available'
     };
     return descriptions[tier] || 'Unknown';
@@ -86,11 +90,13 @@ export class TaskForceAPI {
 
   static getTierExplanation(tier) {
     const explanations = {
-      'S': 'Truly people-funded representatives - your voice is likely to be theirs! These members get 85%+ of their funding from small grassroots donations.',
-      'A': 'Mostly grassroots funded with some larger donations. Still primarily accountable to constituents like you.',
-      'B': 'Mixed funding sources. Some independence from special interests, but also some dependency on larger donors.',
-      'C': 'PAC heavy funding. These members rely significantly on Political Action Committees, which bundle corporate and special interest money. Your voice may compete with big donors.',
-      'D': 'Corporate captured. These representatives depend heavily on PAC money and large donations, creating dependency on big donors vs. constituents like you.',
+      'S': 'Truly people-funded representatives - your voice is likely to be theirs! These members get 90%+ of their funding from small grassroots donations. Extremely rare.',
+      'A': 'Very clean funding with overwhelming grassroots support. Still primarily accountable to constituents like you.',
+      'B': 'Above average grassroots funding. Majority grassroots with some PAC influence visible.',
+      'C': 'Below average. Mixed funding sources with visible corporate influence competing with constituent voices.',
+      'D': 'PAC heavy funding. Corporate funding dominates grassroots. These members rely heavily on special interest money.',
+      'E': 'Captured. Heavily corporate-controlled. These representatives depend overwhelmingly on PAC money and large donations.',
+      'F': 'Owned. Complete corporate capture. These members are essentially funded by special interests, not constituents.',
       'N/A': 'No recent financial data available. This could mean they\'re not up for re-election or we haven\'t found their committee records yet.'
     };
     return explanations[tier] || 'No explanation available.';

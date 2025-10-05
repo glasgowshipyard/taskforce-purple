@@ -129,7 +129,7 @@ export default function MembersList() {
   // Regular sorted members for normal pages
   const sortedMembers = useMemo(() => {
     const sorted = [...filteredMembers].sort((a, b) => {
-      const tierOrder = { 'S': 6, 'A': 5, 'B': 4, 'C': 3, 'D': 2, 'N/A': 1 };
+      const tierOrder = { 'S': 8, 'A': 7, 'B': 6, 'C': 5, 'D': 4, 'E': 3, 'F': 2, 'N/A': 1 };
       if (tierOrder[a.tier] !== tierOrder[b.tier]) {
         return tierOrder[b.tier] - tierOrder[a.tier];
       }

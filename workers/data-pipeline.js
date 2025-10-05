@@ -963,11 +963,13 @@ function calculateTier(grassrootsPercent, totalRaised) {
   // No financial data = no tier assignment
   if (totalRaised === 0) return 'N/A';
 
-  if (grassrootsPercent >= 85) return 'S';
-  if (grassrootsPercent >= 70) return 'A';
-  if (grassrootsPercent >= 50) return 'B';
-  if (grassrootsPercent >= 30) return 'C';
-  return 'D';
+  if (grassrootsPercent >= 90) return 'S';
+  if (grassrootsPercent >= 75) return 'A';
+  if (grassrootsPercent >= 60) return 'B';
+  if (grassrootsPercent >= 45) return 'C';
+  if (grassrootsPercent >= 30) return 'D';
+  if (grassrootsPercent >= 15) return 'E';
+  return 'F';
 }
 
 // NEW: Calculate enhanced tier using transparency penalty system
@@ -992,7 +994,9 @@ function calculateEnhancedTier(member) {
     if (actualGrassrootsPercent >= adjustedThresholds.A) return 'A';
     if (actualGrassrootsPercent >= adjustedThresholds.B) return 'B';
     if (actualGrassrootsPercent >= adjustedThresholds.C) return 'C';
-    return 'D';
+    if (actualGrassrootsPercent >= adjustedThresholds.D) return 'D';
+    if (actualGrassrootsPercent >= adjustedThresholds.E) return 'E';
+    return 'F';
   }
 
   // Fallback to standard calculation when enhanced data not available
@@ -1029,10 +1033,12 @@ function calculateTransparencyPenalty(member) {
 // Get adjusted tier thresholds based on transparency penalty
 function getAdjustedThresholds(penaltyPoints) {
   return {
-    S: 85 + penaltyPoints,  // Need higher grassroots % if you have concerning PACs
-    A: 70 + penaltyPoints,
-    B: 50 + penaltyPoints,
-    C: 30 + penaltyPoints
+    S: 90 + penaltyPoints,  // Need higher grassroots % if you have concerning PACs
+    A: 75 + penaltyPoints,
+    B: 60 + penaltyPoints,
+    C: 45 + penaltyPoints,
+    D: 30 + penaltyPoints,
+    E: 15 + penaltyPoints
   };
 }
 
