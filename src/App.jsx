@@ -180,32 +180,54 @@ export default function App() {
               <div className="mt-4 p-4 bg-gray-50 rounded-lg border">
                 <div className="space-y-4">
                   <div>
-                    <h4 className="font-semibold text-gray-800 mb-2">Enhanced Grassroots Calculation</h4>
+                    <h4 className="font-semibold text-gray-800 mb-2">Funding Diffusion Model</h4>
+                    <p className="text-sm text-gray-700 mb-3">
+                      Tiers reflect <strong>funding diffusion</strong> - whether a member's power comes from many small donors (democratic)
+                      or concentrated sources like wealthy individuals, corporations, or special interests.
+                    </p>
+                    <p className="text-sm text-gray-700">
+                      <strong>Base tier</strong> uses grassroots % (donations under $200). Then we apply <strong>transparency penalties</strong>
+                      that increase tier thresholds based on funding concentration:
+                    </p>
+                  </div>
+
+                  <div>
+                    <h4 className="font-semibold text-gray-800 mb-2">Transparency Penalty Weights</h4>
                     <div className="space-y-1 text-sm text-gray-700">
-                      <div><span className="font-medium text-green-600">Considered Grassroots-Friendly:</span></div>
-                      <div className="ml-4">• <span className="font-medium">Candidate Committees (Type P):</span> Representative's own fundraising - heavily discounted in PAC calculation</div>
-                      <div className="ml-4">• <span className="font-medium">Personal/Candidate PACs (Designation P):</span> Personal political committees - 85% discount</div>
-                      <div className="ml-4">• <span className="font-medium">Authorized Committees (Designation A):</span> Authorized by candidate - 85% discount</div>
-                      <div className="mt-2"><span className="font-medium text-red-600">Considered Corporate/Special Interest:</span></div>
-                      <div className="ml-4">• <span className="font-medium">Super PACs (Type O):</span> 2.0x penalty multiplier</div>
-                      <div className="ml-4">• <span className="font-medium">Leadership PACs (Designation D):</span> 1.5x penalty</div>
-                      <div className="ml-4">• <span className="font-medium">Lobbyist PACs (Designation B):</span> 1.5x penalty</div>
+                      <div><span className="font-medium text-orange-600">Large Individual Donations (&gt;$200):</span></div>
+                      <div className="ml-4">• <span className="font-medium">0.3x penalty weight</span> - Reflects class concentration concern</div>
+
+                      <div className="mt-2"><span className="font-medium text-red-600">PAC Committee Types:</span></div>
+                      <div className="ml-4">• <span className="font-medium">Super PACs (Type O):</span> 2.0x penalty - Dark money, independent expenditures</div>
+                      <div className="ml-4">• <span className="font-medium">Regular PACs:</span> 1.0x penalty - Standard institutional influence</div>
+                      <div className="ml-4">• <span className="font-medium">Candidate Committees (Type P):</span> 0.15x discount (85% off) - Member's own committee</div>
+
+                      <div className="mt-2"><span className="font-medium text-red-600">PAC Designations:</span></div>
+                      <div className="ml-4">• <span className="font-medium">Leadership PACs (Designation D):</span> 1.5x penalty - Politician-controlled influence networks</div>
+                      <div className="ml-4">• <span className="font-medium">Lobbyist PACs (Designation B):</span> 1.5x penalty - Corporate lobbying arms</div>
+                      <div className="ml-4">• <span className="font-medium">Authorized (A/P):</span> 0.15x discount (85% off) - Approved by candidate</div>
                     </div>
                   </div>
 
                   <div>
-                    <h4 className="font-semibold text-gray-800 mb-2">FEC Classification Guide</h4>
-                    <div className="text-sm text-gray-700">
-                      <div><strong>Committee Types:</strong> O=Super PAC, P=Candidate, Q=Qualified PAC</div>
-                      <div><strong>Designations:</strong> A=Authorized, D=Leadership, B=Lobbyist, P=Principal</div>
+                    <h4 className="font-semibold text-gray-800 mb-2">How Penalties Work</h4>
+                    <div className="text-sm text-gray-700 space-y-1">
+                      <p>1. Multiply large donor money by 0.3x</p>
+                      <p>2. Multiply PAC money by transparency weight (if &gt; 1.0)</p>
+                      <p>3. Sum all weighted concerning money</p>
+                      <p>4. Divide by total raised to get penalty % (max 30 points)</p>
+                      <p>5. Add penalty to baseline tier thresholds</p>
+                      <p className="mt-2 italic">
+                        Example: A member with 50% large donors needs ~15% higher grassroots funding to reach the same tier as someone with 10% large donors.
+                      </p>
                     </div>
                   </div>
 
                   <div className="pt-3 border-t border-gray-200">
                     <p className="text-sm text-gray-600">
-                      <strong>Why This Matters:</strong> Raw FEC data treats all PAC money equally, but a candidate's own committee is fundamentally different from corporate Super PACs.
-                      Our enhanced calculation recognizes that funding from a representative's own authorized committees represents direct constituent support,
-                      while Super PACs and Leadership PACs often bundle corporate and special interest money. This gives you a clearer picture of who's truly grassroots-funded vs. corporate-captured.
+                      <strong>Why This Matters:</strong> Tiers aren't just about grassroots %. They measure power diffusion.
+                      A member with 60% grassroots and 40% from wealthy elites faces different accountability pressures than one with
+                      60% grassroots and 40% from their own campaign committee. The penalty system distinguishes democratic funding from concentrated capture.
                     </p>
                   </div>
                 </div>

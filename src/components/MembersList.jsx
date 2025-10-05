@@ -376,30 +376,22 @@ export default function MembersList() {
             </div>
           </div>
 
-          {/* Tier Calculation Explanation */}
+          {/* Tier Explanation */}
           <div className="mt-4 p-4 bg-blue-50 rounded-lg border border-blue-200">
             <h4 className="font-semibold text-blue-900 mb-2 flex items-center">
               <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
-              How Tiers Are Calculated
+              Understanding {selectedMember.name.split(',')[0]}'s {selectedMember.tier} Tier
             </h4>
             <div className="text-sm text-blue-800 space-y-2">
               <p>
-                Tiers reflect <strong>funding diffusion</strong> - whether power comes from many small donors (democratic) or concentrated sources (corporate/wealthy capture).
+                This tier reflects <strong>funding diffusion</strong> - {selectedMember.grassrootsPercent}% grassroots funding adjusted for
+                concentration from large donors ({selectedMember.largeDonorDonations ? `${((selectedMember.largeDonorDonations / selectedMember.totalRaised) * 100).toFixed(1)}%` : '0%'})
+                and PACs ({selectedMember.pacMoney ? `${((selectedMember.pacMoney / selectedMember.totalRaised) * 100).toFixed(1)}%` : '0%'}).
               </p>
-              <p>
-                <strong>Base tier</strong> uses grassroots % (donations under $200). Then we adjust for:
-              </p>
-              <ul className="list-disc list-inside ml-4 space-y-1">
-                <li><strong>Large donors</strong> (&gt;$200): 0.3x penalty weight (class concentration)</li>
-                <li><strong>Regular PACs</strong>: 1.0x penalty weight (institutional influence)</li>
-                <li><strong>Leadership/Lobbyist PACs</strong>: 1.5x penalty weight (deeper capture)</li>
-                <li><strong>Super PACs</strong>: 2.0x penalty weight (dark money)</li>
-              </ul>
-              <p className="mt-2">
-                Higher penalties mean you need <em>more</em> grassroots funding to reach the same tier.
-                A member with 50% large donors needs ~15% higher grassroots to match someone with 10% large donors.
+              <p className="text-xs">
+                See footer "How We Calculate Tiers" for detailed methodology and penalty weights.
               </p>
             </div>
           </div>
@@ -477,20 +469,16 @@ export default function MembersList() {
 
                   <div className="mt-4 p-3 bg-blue-50 rounded border border-blue-200">
                     <p className="text-sm text-blue-800">
-                      <strong>Understanding PAC Types & Designations:</strong><br />
-                      <strong className="text-blue-900 mt-2 block">Common Committee Types:</strong><br />
-                      • <strong>Super PACs (O)</strong> - Independent expenditure groups with unlimited dark money (2.0x penalty)<br />
-                      • <strong>Candidate Committees (P)</strong> - Member's own principal campaign committee (85% discount)<br />
-                      • <strong>Regular PACs</strong> - Corporations, unions, trade associations (1.0x penalty)<br />
-                      <strong className="text-blue-900 mt-2 block">Common Designations:</strong><br />
-                      • <strong>Leadership PACs (D)</strong> - Politician-controlled influence networks (1.5x penalty)<br />
-                      • <strong>Lobbyist PACs (B)</strong> - Corporate lobbying arms (1.5x penalty)<br />
-                      • <strong>Authorized (A/P)</strong> - Approved by candidate (85% discount)<br />
-                      <strong className="text-blue-900 mt-2 block">Industry Categories:</strong><br />
-                      • <strong>Financial Services</strong> - Banks, investment firms, securities<br />
-                      • <strong>Party Committees</strong> - Official Democratic/Republican committees<br />
-                      • <strong>Labor Unions</strong> - Worker organizations and union PACs<br />
-                      • <strong>Other PACs</strong> - Issue advocacy, trade associations
+                      <strong>Reading FEC Committee Codes:</strong><br />
+                      <strong className="text-blue-900 mt-1 block">Types:</strong>
+                      <span className="font-mono">O</span>=Super PAC (2.0x penalty),
+                      <span className="font-mono">P</span>=Candidate Committee (85% discount),
+                      Regular PACs (1.0x penalty)<br />
+                      <strong className="text-blue-900 mt-1 block">Designations:</strong>
+                      <span className="font-mono">D</span>=Leadership PAC (1.5x penalty),
+                      <span className="font-mono">B</span>=Lobbyist PAC (1.5x penalty),
+                      <span className="font-mono">A/P</span>=Authorized (85% discount)<br />
+                      <strong className="text-blue-900 mt-1 block">Industry labels</strong> (Financial Services, Labor, etc.) are for display only - penalties use FEC codes.
                     </p>
                   </div>
                 </div>
