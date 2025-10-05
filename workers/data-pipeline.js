@@ -485,12 +485,14 @@ async function fetchMemberFinancials(member, env) {
 
           const totalRaised = latestTotal.receipts || 0;
           const grassrootsDonations = latestTotal.individual_unitemized_contributions || 0;
+          const largeDonorDonations = latestTotal.individual_itemized_contributions || 0;
           const grassrootsPercent = totalRaised > 0 ? Math.round((grassrootsDonations / totalRaised) * 100) : 0;
 
           hasFinancialData = true;
           return {
             totalRaised,
             grassrootsDonations,
+            largeDonorDonations,
             grassrootsPercent,
             pacMoney: latestTotal.other_political_committee_contributions || 0,
             partyMoney: latestTotal.political_party_committee_contributions || 0,
@@ -598,12 +600,14 @@ async function fetchMemberFinancials(member, env) {
 
                   const totalRaised = latestTotal.receipts || 0;
                   const grassrootsDonations = latestTotal.individual_unitemized_contributions || 0;
+                  const largeDonorDonations = latestTotal.individual_itemized_contributions || 0;
                   const grassrootsPercent = totalRaised > 0 ? Math.round((grassrootsDonations / totalRaised) * 100) : 0;
 
                   hasFinancialData = true;
                   return {
                     totalRaised,
                     grassrootsDonations,
+                    largeDonorDonations,
                     grassrootsPercent,
                     pacMoney: latestTotal.other_political_committee_contributions || 0,
                     partyMoney: latestTotal.political_party_committee_contributions || 0,
@@ -981,9 +985,11 @@ function calculateEnhancedTier(member) {
     && member.pacContributions.some(pac => pac.committee_type || pac.designation);
 
   if (hasEnhancedData) {
-    // Use enhanced calculation with transparency penalties
-    const actualPACTotal = member.pacContributions.reduce((sum, pac) => sum + pac.amount, 0);
-    const actualGrassrootsPercent = ((member.totalRaised - actualPACTotal) / member.totalRaised) * 100;
+    // Use stored grassrootsDonations (FEC individual_unitemized_contributions <$200)
+    // Don't calculate from totalRaised - pacMoney as that ignores large individual donations
+    const actualGrassrootsPercent = member.totalRaised > 0
+      ? (member.grassrootsDonations / member.totalRaised) * 100
+      : 0;
 
     // Apply transparency penalty based on concerning PAC relationships
     const transparencyPenalty = calculateTransparencyPenalty(member);
@@ -2170,7 +2176,11 @@ async function updateSingleMember(member, env) {
     }
 
     member.totalRaised = financialData.totalRaised;
+    member.grassrootsDonations = financialData.grassrootsDonations;
+    member.largeDonorDonations = financialData.largeDonorDonations;
     member.grassrootsPercent = financialData.grassrootsPercent;
+    member.pacMoney = financialData.pacMoney;
+    member.partyMoney = financialData.partyMoney;
     member.committeeId = financialData.committeeId;
     member.lastUpdated = new Date().toISOString();
 
