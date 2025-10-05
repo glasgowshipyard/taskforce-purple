@@ -2467,6 +2467,7 @@ function parseCongressSocialYAML(yamlText) {
 async function processSmartBatch(env) {
   const startTime = Date.now();
   const callBudget = 15; // FEC limit: 1,000/hour. Our usage: 60/hour (94% under limit)
+  const maxMembersPerRun = 1; // CRITICAL: Cloudflare has ~50 subrequest limit. 1 member = ~10-15 subrequests
   let callsUsed = 0;
   let membersProcessed = [];
 
@@ -2493,7 +2494,7 @@ async function processSmartBatch(env) {
 
     // PRIORITY PROCESSING: Mismatches first, then regular phases
     while ((mismatchQueue.length > 0 || phase1Queue.length > 0 || phase2Queue.length > 0) &&
-           callsUsed < callBudget) {
+           callsUsed < callBudget && membersProcessed.length < maxMembersPerRun) {
 
       // FIRST PRIORITY: Process mismatch reconciliation (highest priority)
       if (mismatchQueue.length > 0 && callsUsed + 3 <= callBudget) {
