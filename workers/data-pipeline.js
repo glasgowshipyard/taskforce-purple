@@ -1245,15 +1245,9 @@ async function updateCongressionalData(env, testLimit = undefined) {
 function calculateEnhancedGrassrootsPercent(member) {
   if (!member.totalRaised || member.totalRaised === 0) return member.grassrootsPercent || 0;
 
-  // Check if we have enhanced PAC data with actual committee metadata
-  const hasEnhancedData = member.pacContributions && member.pacContributions.length > 0
-    && member.pacContributions.some(pac => pac.committee_type || pac.designation);
-
-  if (hasEnhancedData) {
-    // Use enhanced calculation with actual PAC totals
-    const actualPACTotal = member.pacContributions.reduce((sum, pac) => sum + pac.amount, 0);
-    const actualGrassrootsPercent = Math.round(((member.totalRaised - actualPACTotal) / member.totalRaised) * 100);
-    return Math.max(0, actualGrassrootsPercent); // Ensure never negative
+  // If we have grassrootsDonations field (individual_unitemized_contributions <$200), use it
+  if (member.grassrootsDonations !== undefined) {
+    return Math.round((member.grassrootsDonations / member.totalRaised) * 100);
   }
 
   // Fallback to stored FEC grassroots percentage
@@ -1824,6 +1818,10 @@ async function performTierRecalculation(env) {
         continue;
       }
 
+      if (member.bioguideId === 'T000468') {
+        console.log(`Processing Dina Titus: grassrootsDonations=${member.grassrootsDonations}, totalRaised=${member.totalRaised}, currentPercent=${member.grassrootsPercent}`);
+      }
+
       // Calculate new tier using enhanced logic
       const oldTier = member.tier;
       const newTier = calculateEnhancedTier(member);
@@ -1839,6 +1837,9 @@ async function performTierRecalculation(env) {
 
       // Update tier and/or grassrootsPercent if they changed
       if (oldTier !== newTier || member.grassrootsPercent !== newGrassrootsPercent) {
+        if (member.bioguideId === 'T000468') {
+          console.log(`Updating Dina Titus: tier ${oldTier}->${newTier}, grassroots% ${member.grassrootsPercent}->${newGrassrootsPercent}`);
+        }
         members[i] = {
           ...member,
           tier: newTier,
