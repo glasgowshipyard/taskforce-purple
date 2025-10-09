@@ -44,6 +44,17 @@ export default {
           return await handleResetPACData(env, corsHeaders, request);
         case '/api/refresh-congress-metadata':
           return await handleRefreshCongressMetadata(env, corsHeaders, request);
+        case '/api/debug-kv':
+          const queueData = await env.MEMBER_DATA.get('priority_missing_queue');
+          const allKeys = await env.MEMBER_DATA.list();
+          return new Response(JSON.stringify({
+            queueExists: !!queueData,
+            queueLength: queueData ? JSON.parse(queueData).length : 0,
+            allKeysCount: allKeys.keys.length,
+            priorityKeys: allKeys.keys.filter(k => k.name.includes('priority'))
+          }), {
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          });
         default:
           // Check for individual member lookup pattern: /api/members/{bioguideId}
           if (url.pathname.startsWith('/api/members/')) {
