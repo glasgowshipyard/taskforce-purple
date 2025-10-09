@@ -14,7 +14,10 @@
       "Bash(curl:*)",
       "Bash(wrangler deployments view:*)",
       "Bash(wrangler kv namespace:*)",
-      "Bash(git commit:*)"
+      "Bash(git commit:*)",
+      "Bash(wrangler kv key put:*)",
+      "Bash(wrangler kv:*)",
+      "Read(//Users/zielinski/**)"
     ],
     "deny": [],
     "ask": []
