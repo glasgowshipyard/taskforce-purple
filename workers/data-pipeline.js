@@ -70,6 +70,25 @@ export default {
 
   // Smart batch processing - rate-limited progressive updates
   async scheduled(event, env, ctx) {
+    // Check for priority queue (missing largeDonorDonations) first
+    const priorityQueue = await env.MEMBER_DATA.get('priority_missing_queue');
+    console.log(`🔍 Priority queue check: ${priorityQueue ? 'FOUND' : 'NOT FOUND'}`);
+
+    if (priorityQueue) {
+      console.log('🔄 Processing priority queue (missing largeDonorDonations)...');
+      try {
+        const result = await processPriorityQueue(env);
+        console.log(`✅ Priority batch: ${result.processed} members, ${result.remaining} remaining`);
+        if (result.remaining === 0) {
+          console.log('🎉 Priority queue complete! Resuming normal batch processing.');
+        }
+        return;
+      } catch (error) {
+        console.error('❌ Priority batch failed:', error);
+      }
+    }
+
+    // Normal batch processing
     console.log('🔄 Starting smart batch processing...');
     try {
       const result = await processSmartBatch(env);
@@ -3367,4 +3386,65 @@ async function handleRefreshCongressMetadata(env, corsHeaders, request) {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }
     });
   }
+}
+
+// Process priority queue for members missing largeDonorDonations
+async function processPriorityQueue(env) {
+  const queueData = await env.MEMBER_DATA.get('priority_missing_queue');
+  if (!queueData) {
+    return { processed: 0, remaining: 0 };
+  }
+
+  const queue = JSON.parse(queueData);
+
+  // Process 2 members (14 FEC calls - within limits)
+  const batch = queue.splice(0, 2);
+  let processed = 0;
+
+  // Get all members from storage
+  const allMembersData = await env.MEMBER_DATA.get('members:all');
+  if (!allMembersData) {
+    console.error('No members data found in storage');
+    return { processed: 0, remaining: queue.length };
+  }
+
+  const members = JSON.parse(allMembersData);
+
+  for (const bioguideId of batch) {
+    try {
+      console.log(`  Updating @${bioguideId}...`);
+
+      // Find member by bioguide ID
+      const member = members.find(m => m.bioguideId === bioguideId);
+      if (!member) {
+        console.error(`  Member ${bioguideId} not found in storage`);
+        continue;
+      }
+
+      // Update member data (Phase 1 + Phase 2)
+      await updateSingleMember(member, env);
+
+      // Update in members array
+      const index = members.findIndex(m => m.bioguideId === bioguideId);
+      if (index !== -1) {
+        members[index] = member;
+      }
+
+      processed++;
+    } catch (error) {
+      console.error(`  Failed @${bioguideId}:`, error.message);
+    }
+  }
+
+  // Save updated members back to storage
+  await env.MEMBER_DATA.put('members:all', JSON.stringify(members));
+
+  // Save updated queue or delete if empty
+  if (queue.length === 0) {
+    await env.MEMBER_DATA.delete('priority_missing_queue');
+  } else {
+    await env.MEMBER_DATA.put('priority_missing_queue', JSON.stringify(queue));
+  }
+
+  return { processed, remaining: queue.length };
 }
