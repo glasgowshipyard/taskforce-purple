@@ -17,7 +17,9 @@
       "Bash(git commit:*)",
       "Bash(wrangler kv key put:*)",
       "Bash(wrangler kv:*)",
-      "Read(//Users/zielinski/**)"
+      "Read(//Users/zielinski/**)",
+      "Read(//private/tmp/**)",
+      "Bash(cat:*)"
     ],
     "deny": [],
     "ask": []
