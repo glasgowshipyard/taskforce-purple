@@ -1006,8 +1006,26 @@ function calculateTier(grassrootsPercent, totalRaised) {
   return 'F';
 }
 
+// Compute adaptive itemization threshold based on percentile distribution
+// Returns the 70th percentile of large donor concentrations across all members
+function computeAdaptiveThreshold(members, percentile = 0.7) {
+  const largeDonorPercents = members
+    .filter(m => m.totalRaised > 0 && m.largeDonorDonations !== undefined && m.largeDonorDonations !== null)
+    .map(m => (m.largeDonorDonations / m.totalRaised) * 100)
+    .filter(v => typeof v === "number" && !isNaN(v))
+    .sort((a, b) => a - b);
+
+  if (largeDonorPercents.length === 0) return 30; // fallback to fixed threshold
+
+  const index = Math.floor(largeDonorPercents.length * percentile);
+  const threshold = largeDonorPercents[Math.min(index, largeDonorPercents.length - 1)];
+
+  // Clamp to avoid extreme results (25-40% range)
+  return Math.min(Math.max(threshold, 25), 40);
+}
+
 // NEW: Calculate enhanced tier using transparency penalty system
-function calculateEnhancedTier(member) {
+function calculateEnhancedTier(member, allMembers = []) {
   if (!member.totalRaised || member.totalRaised === 0) return 'N/A';
 
   // Check if we have enhanced PAC data with actual committee metadata
@@ -1027,9 +1045,14 @@ function calculateEnhancedTier(member) {
     // Start with combined individual funding
     let individualFundingPercent = grassrootsPercent + itemizedPercent;
 
-    // Apply tiered itemization concentration penalty (only if >30% threshold)
-    if (itemizedPercent > 30) {
-      const excess = itemizedPercent - 30;
+    // Compute adaptive threshold from member distribution (70th percentile)
+    const adaptiveThreshold = allMembers.length > 0
+      ? computeAdaptiveThreshold(allMembers)
+      : 30; // fallback to fixed threshold if no member data
+
+    // Apply tiered itemization concentration penalty (only if > adaptive threshold)
+    if (itemizedPercent > adaptiveThreshold) {
+      const excess = itemizedPercent - adaptiveThreshold;
       let itemizationPenalty = 0;
 
       if (excess <= 5) {
@@ -1252,7 +1275,7 @@ async function processMembers(congressMembers, env, testLimit = undefined) {
             currentMembers[memberIndex].pacDetailsStatus = 'complete';
             currentMembers[memberIndex].lastUpdated = new Date().toISOString();
             // NEW: Recalculate tier with enhanced transparency weighting
-            currentMembers[memberIndex].tier = calculateEnhancedTier(currentMembers[memberIndex]);
+            currentMembers[memberIndex].tier = calculateEnhancedTier(currentMembers[memberIndex], currentMembers);
 
             await env.MEMBER_DATA.put('members:all', JSON.stringify(currentMembers));
             console.log(`✅ PAC details updated for ${basicMember.name}: ${pacDetails.length} contributions`);
@@ -1678,7 +1701,7 @@ async function handleFECBatchUpdate(env, corsHeaders, request) {
                 lastUpdated: new Date().toISOString()
               };
               // NEW: Recalculate tier with enhanced transparency weighting
-              allMembers[member.originalIndex].tier = calculateEnhancedTier(allMembers[member.originalIndex]);
+              allMembers[member.originalIndex].tier = calculateEnhancedTier(allMembers[member.originalIndex], allMembers);
               updated++;
               console.log(`✅ Updated PAC details for ${member.name}: ${pacDetails.length} contributions`);
             }
@@ -1795,7 +1818,7 @@ async function handleTestMember(env, corsHeaders, request) {
       pacContributions: enhancedPACDetails,
       pacDetailsStatus: 'complete',
       lastUpdated: new Date().toISOString(),
-      tier: calculateEnhancedTier({ ...members[memberIndex], pacContributions: enhancedPACDetails })
+      tier: calculateEnhancedTier({ ...members[memberIndex], pacContributions: enhancedPACDetails }, members)
     };
 
     // Save updated data
@@ -1885,7 +1908,7 @@ async function performTierRecalculation(env) {
 
       // Calculate new tier using enhanced logic
       const oldTier = member.tier;
-      const newTier = calculateEnhancedTier(member);
+      const newTier = calculateEnhancedTier(member, members);
 
       // Recalculate grassrootsPercent to match tier calculation
       // Use grassrootsDonations if available, otherwise fall back to old calculation
@@ -2048,7 +2071,7 @@ async function handleProcessCandidate(env, corsHeaders, request) {
         await fetchPACDetails(targetMember, env);
 
         // Step 3: Calculate enhanced tier
-        const newTier = calculateEnhancedTier(targetMember);
+        const newTier = calculateEnhancedTier(targetMember, members);
         targetMember.tier = newTier;
         targetMember.lastProcessed = new Date().toISOString();
         targetMember.processingStatus = 'complete';
@@ -2239,6 +2262,17 @@ async function handleIndividualMemberUpdate(env, corsHeaders, request) {
 // Function to update a single member through the full pipeline
 async function updateSingleMember(member, env) {
   try {
+    // Get all members for adaptive threshold calculation
+    let allMembers = [];
+    try {
+      const allMembersData = await env.MEMBER_DATA.get('members:all');
+      if (allMembersData) {
+        allMembers = JSON.parse(allMembersData);
+      }
+    } catch (err) {
+      console.warn('Could not fetch all members for adaptive threshold:', err.message);
+    }
+
     // Phase 1: Update financial data
     console.log(`💰 Phase 1: Updating financial data for ${member.name}...`);
 
@@ -2279,7 +2313,7 @@ async function updateSingleMember(member, env) {
     }
 
     // Recalculate tier with enhanced algorithm
-    member.tier = calculateEnhancedTier(member);
+    member.tier = calculateEnhancedTier(member, allMembers);
 
     // Recalculate grassrootsPercent to match tier calculation
     if (member.totalRaised > 0) {
@@ -3043,7 +3077,7 @@ async function enhanceMemberWithPACData(member, env) {
       targetMember.pacContributions = pacContributions;
 
       // Recalculate tier with enhanced data
-      targetMember.tier = calculateEnhancedTier(targetMember);
+      targetMember.tier = calculateEnhancedTier(targetMember, members);
       targetMember.lastUpdated = new Date().toISOString();
 
       // Save updated data
