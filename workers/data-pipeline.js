@@ -1015,23 +1015,48 @@ function calculateEnhancedTier(member) {
     && member.pacContributions.some(pac => pac.committee_type || pac.designation);
 
   if (hasEnhancedData) {
-    // Use stored grassrootsDonations (FEC individual_unitemized_contributions <$200)
-    // Don't calculate from totalRaised - pacMoney as that ignores large individual donations
-    const actualGrassrootsPercent = member.totalRaised > 0
+    // Calculate base individual funding percentage (grassroots + itemized)
+    const grassrootsPercent = member.totalRaised > 0
       ? (member.grassrootsDonations / member.totalRaised) * 100
       : 0;
 
-    // Apply transparency penalty based on concerning PAC relationships
+    const itemizedPercent = (member.largeDonorDonations !== undefined && member.totalRaised > 0)
+      ? (member.largeDonorDonations / member.totalRaised) * 100
+      : 0;
+
+    // Start with combined individual funding
+    let individualFundingPercent = grassrootsPercent + itemizedPercent;
+
+    // Apply tiered itemization concentration penalty (only if >30% threshold)
+    if (itemizedPercent > 30) {
+      const excess = itemizedPercent - 30;
+      let itemizationPenalty = 0;
+
+      if (excess <= 5) {
+        // 30-35%: 0.1x penalty
+        itemizationPenalty = excess * 0.1;
+      } else if (excess <= 10) {
+        // 36-40%: 0.1x on first 5%, 0.2x on next portion
+        itemizationPenalty = (5 * 0.1) + ((excess - 5) * 0.2);
+      } else {
+        // 41%+: 0.1x on first 5%, 0.2x on next 5%, 0.3x on remainder
+        itemizationPenalty = (5 * 0.1) + (5 * 0.2) + ((excess - 10) * 0.3);
+      }
+
+      individualFundingPercent -= itemizationPenalty;
+    }
+
+    // Apply PAC transparency penalty to thresholds
     const transparencyPenalty = calculateTransparencyPenalty(member);
     const adjustedThresholds = getAdjustedThresholds(transparencyPenalty);
 
-    // Use stricter thresholds if they have concerning PAC relationships
-    if (actualGrassrootsPercent >= adjustedThresholds.S) return 'S';
-    if (actualGrassrootsPercent >= adjustedThresholds.A) return 'A';
-    if (actualGrassrootsPercent >= adjustedThresholds.B) return 'B';
-    if (actualGrassrootsPercent >= adjustedThresholds.C) return 'C';
-    if (actualGrassrootsPercent >= adjustedThresholds.D) return 'D';
-    if (actualGrassrootsPercent >= adjustedThresholds.E) return 'E';
+    // Assign tier based on individual funding % vs adjusted thresholds
+    if (individualFundingPercent >= adjustedThresholds.S) return 'S';
+    if (individualFundingPercent >= adjustedThresholds.A) return 'A';
+    if (individualFundingPercent >= adjustedThresholds.B) return 'B';
+    if (individualFundingPercent >= adjustedThresholds.C) return 'C';
+    if (individualFundingPercent >= adjustedThresholds.D) return 'D';
+    if (individualFundingPercent >= adjustedThresholds.E) return 'E';
     return 'F';
   }
 
@@ -1062,10 +1087,8 @@ function calculateTransparencyPenalty(member) {
     }
   }
 
-  // Add weighted large donor money (0.3x weight for class concentration concern)
-  if (member.largeDonorDonations !== undefined) {
-    totalWeightedConcerningMoney += member.largeDonorDonations * 0.3;
-  }
+  // Large donor concentration is now handled in tier calculation via itemization penalty
+  // No need to penalize here - itemized donations are part of individual support
 
   // Calculate what % of their total funding is from weighted concerning sources
   const concerningPercent = (totalWeightedConcerningMoney / member.totalRaised) * 100;
