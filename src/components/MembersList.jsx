@@ -381,10 +381,10 @@ export default function MembersList() {
             <h4 className="font-semibold text-blue-900 mb-2">Why This Tier?</h4>
             <div className="text-sm text-blue-800 space-y-2">
               <p>
-                Tiers show who's funding each member. <span className="font-semibold text-green-700">Higher tiers</span> = more small donors. <span className="font-semibold text-red-700">Lower tiers</span> = more corporate PACs and wealthy donors.
+                Tiers distinguish <span className="font-semibold text-green-700">individual support</span> (grassroots + itemized donations) from <span className="font-semibold text-red-700">institutional capture</span> (PAC money).
               </p>
               <p className="text-xs mt-2">
-                Calculated from <span className="text-green-700">grassroots %</span> (small donations under $200), with penalties for <span className="text-orange-600">large donors</span> and <span className="text-red-600">PAC money</span>.
+                Based on <span className="text-green-700">individual funding %</span> (grassroots &lt;$200 + itemized &gt;$200), with concentration penalties for extreme itemized ratios and PAC transparency weights.
               </p>
               <a
                 href="#how-tiers-work"

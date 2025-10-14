@@ -77,12 +77,12 @@ export class TaskForceAPI {
   static getTierDescription(tier) {
     const descriptions = {
       'S': 'People-Funded (90%+)',
-      'A': 'Very Clean (75-89%)',
+      'A': 'Broadly Supported (75-89%)',
       'B': 'Above Average (60-74%)',
-      'C': 'Below Average (45-59%)',
-      'D': 'PAC Heavy (30-44%)',
-      'E': 'Captured (15-29%)',
-      'F': 'Owned (0-14%)',
+      'C': 'Mixed Funding (45-59%)',
+      'D': 'Concentrated (30-44%)',
+      'E': 'Institution-Heavy (15-29%)',
+      'F': 'Captured (0-14%)',
       'N/A': 'No Financial Data Available'
     };
     return descriptions[tier] || 'Unknown';
@@ -90,20 +90,20 @@ export class TaskForceAPI {
 
   static getTierExplanation(tier) {
     const explanations = {
-      'S': 'Democratic power source. 90%+ grassroots funding with minimal concentrated influence. These members derive power from many small donors rather than wealthy elites or special interests. Extremely rare.',
-      'A': 'Strong funding diffusion. 75-89% grassroots with limited concentrated sources. Power primarily flows from constituents, not corporations or wealthy donors.',
-      'B': 'Above average diffusion. 60-74% grassroots funding. Majority small-donor funded with some visible concentration from large donors or PACs.',
-      'C': 'Below average diffusion. 45-59% grassroots. Mixed power sources with notable concentration from wealthy individuals or institutional interests competing with constituent voices.',
-      'D': 'Concentrated funding. 30-44% grassroots. Power increasingly derived from large donors, PACs, or special interests rather than broad constituent support.',
-      'E': 'Heavily concentrated. 15-29% grassroots. These members depend overwhelmingly on wealthy donors, corporate PACs, or special interest money rather than small-dollar constituents.',
-      'F': 'Complete capture. 0-14% grassroots. Power comes almost entirely from concentrated sources: wealthy elites, corporations, or special interests. Not accountable to everyday constituents.',
+      'S': 'Democratic power source. 90%+ individual funding (grassroots + itemized) with minimal PAC influence. Power derives from many individual donors, not institutional special interests. Extremely rare.',
+      'A': 'Strong individual support. 75-89% funded by individual donors with limited institutional capture. Power flows from constituents, not corporate PACs or special interests.',
+      'B': 'Above average. 60-74% individual funding. Majority people-funded with some institutional influence from PACs or extreme concentration of large donations.',
+      'C': 'Mixed sources. 45-59% individual funding. Power split between individual supporters and institutional interests (PACs) or shows concerning concentration patterns.',
+      'D': 'Institutional influence. 30-44% individual funding. Power increasingly derived from PACs, special interests, or extreme concentration rather than broad individual support.',
+      'E': 'Heavy institutional capture. 15-29% individual funding. Heavily dependent on PACs, corporate money, or extreme donation concentration rather than individual constituents.',
+      'F': 'Complete capture. 0-14% individual funding. Power comes almost entirely from PACs, special interests, or extreme concentration. Not accountable to individual constituents.',
       'N/A': 'No recent financial data available. This could mean they\'re not up for re-election or we haven\'t found their committee records yet.'
     };
     return explanations[tier] || 'No explanation available.';
   }
 
   static getPACExplanation() {
-    return "Political Action Committees (PACs) bundle donations from corporations, special interests, and wealthy individuals. While legal, heavy PAC funding can create dependency on big donors rather than everyday constituents like you. Grassroots donations under $200 represent individual citizens directly supporting their representatives.";
+    return "Political Action Committees (PACs) bundle donations from corporations, special interests, and institutional sources. Heavy PAC funding represents institutional capture rather than individual constituent support. Individual funding (both grassroots <$200 and itemized >$200) represents direct support from people, while PAC money represents organized institutional interests.";
   }
 
   // Industry categorization for PAC contributors

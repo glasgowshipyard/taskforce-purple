@@ -182,24 +182,25 @@ export default function App() {
                   <div>
                     <h4 className="font-semibold text-gray-800 mb-2">The Basic Idea</h4>
                     <p className="text-sm text-gray-700 mb-3">
-                      Members are ranked based on where their money comes from. Members funded by many <span className="font-semibold text-green-700">small donors</span> get higher tiers.
-                      Members funded by <span className="font-semibold text-orange-700">wealthy individuals</span> or <span className="font-semibold text-red-700">corporate PACs</span> get lower tiers.
+                      Tiers distinguish <span className="font-semibold text-green-700">individual support</span> (grassroots + itemized donations) from <span className="font-semibold text-red-700">institutional capture</span> (PAC money).
                     </p>
                     <p className="text-sm text-gray-700">
-                      Tiers start with <span className="font-semibold text-green-700">grassroots %</span> (donations under $200), then penalties are applied based on how much comes from concentrated sources:
+                      Tiers start with <span className="font-semibold text-green-700">individual funding %</span> (all donations from people, regardless of size), then concentration penalties are applied:
                     </p>
                   </div>
 
                   <div>
-                    <h4 className="font-semibold text-gray-800 mb-2">Penalty Weights</h4>
+                    <h4 className="font-semibold text-gray-800 mb-2">Individual Funding Model</h4>
                     <div className="space-y-1 text-sm text-gray-700">
-                      <div><span className="font-medium text-green-700">Small donations (under $200):</span></div>
-                      <div className="ml-4">• <span className="font-medium">No penalty</span> - Good! This is grassroots funding</div>
+                      <div><span className="font-medium text-green-700">Grassroots donations (under $200):</span></div>
+                      <div className="ml-4">• <span className="font-medium">Full credit</span> - Small-dollar donations from ordinary people</div>
 
-                      <div className="mt-2"><span className="font-medium text-orange-600">Large donations (over $200):</span></div>
-                      <div className="ml-4">• <span className="font-medium">0.3x penalty</span> - Wealthy individual donors</div>
+                      <div className="mt-2"><span className="font-medium text-blue-600">Itemized donations (over $200):</span></div>
+                      <div className="ml-4">• <span className="font-medium">Full credit by default</span> - $201 from a teacher or $250 from a nurse is still grassroots-adjacent</div>
+                      <div className="ml-4">• <span className="font-medium">Concentration penalty</span> - Only penalized if ratio is extreme (above 70th percentile, currently ~40%)</div>
+                      <div className="ml-4 text-xs text-gray-600">⚠️ FEC's $200 threshold is a reporting requirement, not a wealth indicator</div>
 
-                      <div className="mt-2"><span className="font-medium text-red-600">PAC money:</span></div>
+                      <div className="mt-2"><span className="font-medium text-red-600">PAC money (institutions):</span></div>
                       <div className="ml-4">• <span className="font-medium">Super PACs:</span> 2.0x penalty - Unlimited dark money groups</div>
                       <div className="ml-4">• <span className="font-medium">Leadership/Lobbyist PACs:</span> 1.5x penalty - Political insiders and corporate lobbyists</div>
                       <div className="ml-4">• <span className="font-medium">Regular PACs:</span> 1.0x penalty - Standard corporate/union money</div>
@@ -211,22 +212,22 @@ export default function App() {
                     <h4 className="font-semibold text-gray-800 mb-2">Example</h4>
                     <div className="text-sm text-gray-700">
                       <p className="mb-2">
-                        Two members both have 60% <span className="text-green-700">small donor</span> funding:
+                        Two members both have <span className="text-blue-700">95% individual support</span> (grassroots + itemized):
                       </p>
                       <div className="ml-4 space-y-1">
-                        <p><strong>Member A:</strong> 60% grassroots, 40% from their own campaign committee → Gets a <strong>high tier</strong> (committee money mostly ignored)</p>
-                        <p><strong>Member B:</strong> 60% grassroots, 40% from Super PACs and lobbyist PACs → Gets a <strong>lower tier</strong> (penalties applied)</p>
+                        <p><strong>Member A:</strong> 69% grassroots, 28% itemized, 0.4% PAC → <strong>S tier</strong> (28% itemized is below the 40% threshold)</p>
+                        <p><strong>Member B:</strong> 7% grassroots, 49% itemized, 4% PAC → <strong>C tier</strong> (49% itemized triggers concentration penalty)</p>
                       </div>
                       <p className="mt-3 italic text-xs">
-                        The more money from wealthy donors or corporate PACs, the higher your grassroots % needs to be to reach the same tier.
+                        Individual support is good, but <strong>how</strong> that support is distributed matters. Broad grassroots base beats concentrated large donations.
                       </p>
                     </div>
                   </div>
 
                   <div className="pt-3 border-t border-gray-200">
                     <p className="text-sm text-gray-600">
-                      <strong>Bottom line:</strong> Where the money comes from matters. Small donations from regular people = accountability to voters.
-                      Big money from corporations and wealthy elites = accountability to them instead.
+                      <strong>Bottom line:</strong> Where the money comes from matters. Many small donations = accountability to voters.
+                      PAC money from corporations = accountability to special interests instead.
                     </p>
                     <button
                       onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}

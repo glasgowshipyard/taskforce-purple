@@ -6,17 +6,17 @@ Tiers reflect **funding diffusion** - whether a member's power comes from:
 - **Democratic**: Many small donors with distributed influence
 - **Concentrated**: Wealthy individuals, corporations, or special interests
 
-The tier system penalizes funding concentration to identify who serves voters vs who serves money.
+The tier system distinguishes between **individual support** (grassroots + itemized) and **institutional capture** (PAC money).
 
 ---
 
 ## Tier Formula
 
-**Base Tier** = Grassroots % (donations <$200)
-**Adjusted Tier** = Base tier thresholds + Transparency Penalty
+**Individual Funding %** = Grassroots % + Itemized % - Concentration Penalty
+**Adjusted Tier** = Individual Funding % vs (Base Thresholds + PAC Penalty)
 
 ### Base Thresholds
-- S: 90%+ grassroots
+- S: 90%+ individual funding
 - A: 75-89%
 - B: 60-74%
 - C: 45-59%
@@ -26,14 +26,38 @@ The tier system penalizes funding concentration to identify who serves voters vs
 
 ---
 
-## Transparency Penalty System
+## Individual Funding Model
 
-Members with concerning funding sources need *higher* grassroots % to reach the same tier.
+### Grassroots Donations (<$200)
+**Weight**: 1.0x (full credit)
+**Rationale**: Small-dollar donations from ordinary people
 
-### Large Individual Donations (>$200)
-**Weight**: 0.3x
-**Rationale**: Class concentration - wealthy donor access and influence
-**Not counted**: Only donations >$200 are penalized
+### Itemized Donations (>$200)
+**Base Weight**: 1.0x (full credit)
+**Rationale**: FEC $200 threshold is a *reporting requirement*, not a wealth indicator
+- $201 donation from a teacher is not "elite capture"
+- $250 from a nurse is still grassroots-adjacent
+- Only extreme *concentration* of itemized donations signals concern
+
+### Concentration Penalty (Adaptive)
+
+Itemized donations only penalized if they represent **unusual concentration** relative to political finance norms.
+
+**Adaptive Threshold**: 70th percentile of itemized % across all members (currently ~40%, clamped 25-40%)
+- Recalculated each cycle from actual distribution
+- Grounded in empirical data, not arbitrary cutoffs
+- Power-law distribution in political finance requires percentile-based approach
+
+**Tiered Penalty Structure** (only if itemized % > adaptive threshold):
+- **Excess 0-5%** (e.g., 40-45%): 0.1x penalty per percentage point
+- **Excess 5-10%** (e.g., 45-50%): 0.2x penalty per percentage point
+- **Excess 10%+** (e.g., 50%+): 0.3x penalty per percentage point
+
+**Example**: If adaptive threshold is 40% and member has 53% itemized:
+- First 5% excess: 5 × 0.1 = 0.5 penalty points
+- Next 5% excess: 5 × 0.2 = 1.0 penalty points
+- Remaining 3%: 3 × 0.3 = 0.9 penalty points
+- **Total concentration penalty**: 2.4 percentage points
 
 ### PAC Contributions
 
@@ -57,61 +81,151 @@ Members with concerning funding sources need *higher* grassroots % to reach the 
 
 ---
 
-## Penalty Calculation
+## Complete Calculation Flow
 
 ```javascript
-// Step 1: Calculate weighted concerning money
-let weightedConcerning = 0;
+// Step 1: Calculate individual funding base
+grassrootsPercent = (grassrootsDonations / totalRaised) * 100;
+itemizedPercent = (largeDonorDonations / totalRaised) * 100;
+individualFundingPercent = grassrootsPercent + itemizedPercent;
 
-// Large donors
-if (largeDonorDonations exists) {
-  weightedConcerning += largeDonorDonations * 0.3;
+// Step 2: Compute adaptive threshold (70th percentile of all members)
+allItemizedPercents = allMembers
+  .filter(m => m.totalRaised > 0 && m.largeDonorDonations !== null)
+  .map(m => (m.largeDonorDonations / m.totalRaised) * 100)
+  .sort((a, b) => a - b);
+
+index = Math.floor(allItemizedPercents.length * 0.7);
+adaptiveThreshold = allItemizedPercents[index];
+adaptiveThreshold = Math.min(Math.max(adaptiveThreshold, 25), 40); // Clamp 25-40%
+
+// Step 3: Apply itemization concentration penalty
+if (itemizedPercent > adaptiveThreshold) {
+  excess = itemizedPercent - adaptiveThreshold;
+
+  if (excess <= 5) {
+    itemizationPenalty = excess * 0.1;
+  } else if (excess <= 10) {
+    itemizationPenalty = (5 * 0.1) + ((excess - 5) * 0.2);
+  } else {
+    itemizationPenalty = (5 * 0.1) + (5 * 0.2) + ((excess - 10) * 0.3);
+  }
+
+  individualFundingPercent -= itemizationPenalty;
 }
 
-// PACs (only weights > 1.0 count as concerning)
+// Step 4: Calculate PAC transparency penalty
+let weightedConcerningPACs = 0;
 for (each PAC contribution) {
   weight = getPACWeight(type, designation);
   if (weight > 1.0) {
-    weightedConcerning += amount * weight;
+    weightedConcerningPACs += amount * weight;
   }
 }
+pacPenaltyPercent = (weightedConcerningPACs / totalRaised) * 100;
+pacPenaltyPoints = Math.min(Math.floor(pacPenaltyPercent), 30); // Max 30
 
-// Step 2: Calculate penalty points
-penaltyPercent = (weightedConcerning / totalRaised) * 100;
-penaltyPoints = Math.min(Math.floor(penaltyPercent), 30); // Max 30
+// Step 5: Adjust thresholds with PAC penalty
+S_threshold = 90 + pacPenaltyPoints
+A_threshold = 75 + pacPenaltyPoints
+B_threshold = 60 + pacPenaltyPoints
+C_threshold = 45 + pacPenaltyPoints
+D_threshold = 30 + pacPenaltyPoints
+E_threshold = 15 + pacPenaltyPoints
 
-// Step 3: Adjust thresholds
-S_threshold = 90 + penaltyPoints
-A_threshold = 75 + penaltyPoints
-B_threshold = 60 + penaltyPoints
-C_threshold = 45 + penaltyPoints
-D_threshold = 30 + penaltyPoints
-E_threshold = 15 + penaltyPoints
+// Step 6: Assign tier
+if (individualFundingPercent >= S_threshold) tier = 'S';
+else if (individualFundingPercent >= A_threshold) tier = 'A';
+else if (individualFundingPercent >= B_threshold) tier = 'B';
+else if (individualFundingPercent >= C_threshold) tier = 'C';
+else if (individualFundingPercent >= D_threshold) tier = 'D';
+else if (individualFundingPercent >= E_threshold) tier = 'E';
+else tier = 'F';
 ```
 
 ---
 
-## Example: Dina Titus
+## Examples
+
+### Example 1: AOC (High Individual, Minimal PAC)
+
+**Funding Breakdown**:
+- Total: $4,300,000
+- Grassroots (<$200): $2,967,000 (69%)
+- Itemized (>$200): $1,204,000 (28%)
+- PACs: $17,200 (0.4%)
+
+**Calculation** (with 40% adaptive threshold):
+1. Individual funding base: 69% + 28% = 97%
+2. Itemized concentration: 28% < 40% → No penalty
+3. PAC penalty: Minimal, ~0 points
+4. S threshold: 90 + 0 = 90%
+5. 97% >= 90% → **S tier**
+
+**Interpretation**: Model grassroots politician. High individual support (97%), minimal institutional money. Itemized donations below concentration threshold = full credit.
+
+---
+
+### Example 2: Bernie Sanders (Balanced Individual)
+
+**Funding Breakdown**:
+- Total: $10,000,000
+- Grassroots (<$200): $4,700,000 (47%)
+- Itemized (>$200): $4,100,000 (41%)
+- PACs: $100,000 (1%)
+
+**Calculation** (with 40% adaptive threshold):
+1. Individual funding base: 47% + 41% = 88%
+2. Itemized concentration: 41% > 40% → 1% excess
+3. Concentration penalty: 1 × 0.1 = 0.1 points
+4. Adjusted individual funding: 88% - 0.1% = 87.9%
+5. PAC penalty: Minimal, ~0 points
+6. A threshold: 75 + 0 = 75%
+7. 87.9% >= 75% → **A tier**
+
+**Interpretation**: Strong grassroots base with balanced itemized support. Slight concentration penalty (1% over threshold) barely affects tier. Overwhelmingly individual-funded.
+
+---
+
+### Example 3: Elizabeth Warren (Above Threshold)
+
+**Funding Breakdown**:
+- Total: $8,500,000
+- Grassroots (<$200): $4,335,000 (51%)
+- Itemized (>$200): $3,825,000 (45%)
+- PACs: $42,500 (0.5%)
+
+**Calculation** (with 40% adaptive threshold):
+1. Individual funding base: 51% + 45% = 96%
+2. Itemized concentration: 45% > 40% → 5% excess
+3. Concentration penalty: 5 × 0.1 = 0.5 points
+4. Adjusted individual funding: 96% - 0.5% = 95.5%
+5. PAC penalty: Minimal, ~0 points
+6. S threshold: 90 + 0 = 90%
+7. 95.5% >= 90% → **S tier**
+
+**Interpretation**: Strong individual funding base (96%). Modest concentration penalty (5% over threshold) doesn't affect S tier status. Minimal PAC reliance.
+
+---
+
+### Example 4: Dina Titus (Low Individual, Low PAC)
 
 **Funding Breakdown**:
 - Total: $2,436,549
 - Grassroots (<$200): $167,477 (7%)
-- Large donors (>$200): $1,201,611 (49%)
+- Itemized (>$200): $1,201,611 (49%)
 - PACs: $100,000 (4%)
 
-**Penalty Calculation**:
-1. Large donor penalty: $1,201,611 × 0.3 = $360,483
-2. PAC penalty (avg 1.5x weight): $100,000 × 1.5 = $150,000
-3. Total weighted: $510,483
-4. Penalty %: ($510,483 / $2,436,549) × 100 = 21%
-5. Penalty points: 21
+**Calculation** (with 40% adaptive threshold):
+1. Individual funding base: 7% + 49% = 56%
+2. Itemized concentration: 49% > 40% → 9% excess
+3. Concentration penalty: (5 × 0.1) + (4 × 0.2) = 0.5 + 0.8 = 1.3 points
+4. Adjusted individual funding: 56% - 1.3% = 54.7%
+5. PAC penalty: Minimal, ~1 point
+6. C threshold: 45 + 1 = 46%
+7. 54.7% >= 46% → **C tier**
 
-**Tier Assignment**:
-- E tier threshold: 15 + 21 = **36% grassroots required**
-- Actual grassroots: 7%
-- 7% < 36% → **F tier**
-
-**Interpretation**: Wine-track Democrat profile. Low grassroots, high large donor concentration, minimal PAC reliance. Still F tier due to class concentration, but different from corporate PAC capture.
+**Interpretation**: "Wine-track Democrat" profile. Low grassroots (7%) but majority individual-funded (56%). Concentration penalty reduces final score. Minimal PAC reliance. Not elite capture, but not broad-based movement either.
 
 ---
 
@@ -164,8 +278,24 @@ Include in member details:
 
 ## Important Notes
 
-1. **Never use hardcoded PAC name patterns** - always use FEC metadata (`committee_type`, `designation`)
-2. **Phase 2 recalculates pacMoney** - FEC totals endpoint can be wrong, trust Schedule A itemized data
-3. **Large donors are not neutral** - 0.3x penalty reflects class concentration even without PACs
-4. **Candidate committees get discounts** - personal campaign apparatus is less concerning than external PACs
-5. **Super PACs are maximally penalized** - dark money independent expenditures = 2.0x base weight
+1. **Individual funding vs institutional funding** - The tier system now distinguishes between:
+   - **Individual support** (grassroots + itemized): Full credit unless concentration is extreme
+   - **Institutional capture** (PAC money): Penalizes thresholds based on transparency weights
+
+2. **Adaptive thresholds are empirical** - 70th percentile recalculates each cycle from actual member data:
+   - Grounded in real-world campaign finance distributions
+   - Automatically adjusts for political environment changes
+   - Currently ~40%, clamped to 25-40% range to prevent extreme swings
+
+3. **Itemized donations are not "wealthy donors"** - FEC $200 threshold is a reporting requirement:
+   - $201 from a teacher, $250 from a nurse = still grassroots-adjacent
+   - Only *concentration* above 70th percentile triggers penalties
+   - Tiered penalty structure (0.1x/0.2x/0.3x) prevents cliff effects
+
+4. **PAC penalties unchanged** - Still use FEC metadata for transparency weights:
+   - Never use hardcoded PAC name patterns
+   - Always use `committee_type` and `designation` codes
+   - Super PACs (type `O`) = 2.0x, Leadership PACs (designation `D`) = 1.5x
+   - Candidate committees (designation `P`/`A`) = 0.15x discount
+
+5. **Phase 2 recalculates pacMoney** - FEC totals endpoint can be wrong, trust Schedule A itemized data
