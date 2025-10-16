@@ -40,6 +40,7 @@ const bipartisanIssues = [
 export default function App() {
   const [activeTab, setActiveTab] = useState('leaderboard');
   const [showMethodology, setShowMethodology] = useState(false);
+  const [showNerdExplanation, setShowNerdExplanation] = useState(false);
 
   const renderLeaderboard = () => <MembersList />;
 
@@ -209,14 +210,17 @@ export default function App() {
                   </div>
 
                   <div>
-                    <h4 className="font-semibold text-gray-800 mb-2">Example</h4>
-                    <div className="text-sm text-gray-700">
-                      <p className="mb-2">
-                        Two members both have <span className="text-blue-700">95% individual support</span> (grassroots + itemized):
-                      </p>
-                      <div className="ml-4 space-y-1">
-                        <p><strong>Member A:</strong> 69% grassroots, 28% itemized, 0.4% PAC → <strong>S tier</strong> (28% itemized is below the 40% threshold)</p>
-                        <p><strong>Member B:</strong> 7% grassroots, 49% itemized, 4% PAC → <strong>C tier</strong> (49% itemized triggers concentration penalty)</p>
+                    <h4 className="font-semibold text-gray-800 mb-2">Examples</h4>
+                    <div className="text-sm text-gray-700 space-y-3">
+                      <div>
+                        <p className="font-medium mb-1">AOC (S tier):</p>
+                        <p className="ml-4 text-xs">69% grassroots + 28% itemized = 97% individual funding</p>
+                        <p className="ml-4 text-xs">28% itemized is below 40% threshold → no penalty → S tier</p>
+                      </div>
+                      <div>
+                        <p className="font-medium mb-1">Dina Titus (C tier):</p>
+                        <p className="ml-4 text-xs">7% grassroots + 49% itemized = 56% individual funding</p>
+                        <p className="ml-4 text-xs">49% itemized is 9% over threshold → 1.3% penalty → 54.7% → C tier</p>
                       </div>
                       <p className="mt-3 italic text-xs">
                         Individual support is good, but <strong>how</strong> that support is distributed matters. Broad grassroots base beats concentrated large donations.
@@ -225,17 +229,84 @@ export default function App() {
                   </div>
 
                   <div className="pt-3 border-t border-gray-200">
-                    <p className="text-sm text-gray-600">
-                      <strong>Bottom line:</strong> Where the money comes from matters. Many small donations = accountability to voters.
-                      PAC money from corporations = accountability to special interests instead.
-                    </p>
+                    <div className="flex items-center justify-between">
+                      <p className="text-sm text-gray-600">
+                        <strong>Bottom line:</strong> Where the money comes from matters. Many small donations = accountability to voters.
+                        PAC money from corporations = accountability to special interests instead.
+                      </p>
+                      <button
+                        onClick={() => setShowNerdExplanation(!showNerdExplanation)}
+                        className="text-xs text-purple-600 hover:text-purple-800 underline font-mono whitespace-nowrap ml-4"
+                      >
+                        {showNerdExplanation ? 'Hide' : 'Show'} Statistical Details
+                      </button>
+                    </div>
                     <button
                       onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
                       className="text-xs text-purple-600 hover:text-purple-800 underline mt-3"
                     >
-                      ↑ Back to top
+                      Back to top
                     </button>
                   </div>
+
+                  {/* Nerdy Statistical Explanation - Taleb Style */}
+                  {showNerdExplanation && (
+                    <div className="mt-4 p-6 bg-gray-900 text-gray-100 rounded-lg border border-gray-700 font-mono text-sm">
+                      <h4 className="font-bold text-green-400 mb-4">Power-Law Distribution & Adaptive Thresholds</h4>
+
+                      <div className="space-y-4">
+                        <div>
+                          <p className="text-gray-300 mb-2"><span className="text-yellow-400 font-bold">Problem:</span> Political finance follows power-law distributions, not Gaussians.</p>
+                          <p className="text-gray-400 text-xs ml-4">Fixed thresholds (e.g., "$200+ = wealthy") are naive and fragile</p>
+                          <p className="text-gray-400 text-xs ml-4">FEC's $200 threshold is a <span className="text-red-400">reporting requirement</span>, not a wealth indicator</p>
+                          <p className="text-gray-400 text-xs ml-4">$201 from a teacher is not elite capture</p>
+                        </div>
+
+                        <div>
+                          <p className="text-gray-300 mb-2"><span className="text-green-400 font-bold">Solution:</span> Empirical percentile-based thresholds + fat-tail robustness</p>
+                          <p className="text-gray-400 text-xs ml-4"><span className="text-blue-300">70th percentile</span> of itemized donation ratios across all 435 members</p>
+                          <p className="text-gray-400 text-xs ml-4">Currently: ~40% (clamped to 25-40% for stability)</p>
+                          <p className="text-gray-400 text-xs ml-4">Recalculated each cycle from actual distribution</p>
+                          <p className="text-gray-400 text-xs ml-4">Only penalize <span className="text-red-300">extreme concentration</span> beyond empirical norms</p>
+                        </div>
+
+                        <div>
+                          <p className="text-gray-300 mb-2"><span className="text-purple-400 font-bold">Tiered Penalty Structure:</span> Non-linear concentration penalties</p>
+                          <p className="text-gray-400 text-xs ml-4">0-5% over threshold: 0.1x penalty (noise tolerance)</p>
+                          <p className="text-gray-400 text-xs ml-4">5-10% over: 0.2x penalty (moderate signal)</p>
+                          <p className="text-gray-400 text-xs ml-4">10%+ over: 0.3x penalty (strong signal of concentration)</p>
+                          <p className="text-gray-400 text-xs ml-4 mt-2">Example: 53% itemized (13% over 40% threshold)</p>
+                          <p className="text-gray-400 text-xs ml-6">= (5 × 0.1) + (5 × 0.2) + (3 × 0.3) = 2.4% penalty</p>
+                        </div>
+
+                        <div>
+                          <p className="text-gray-300 mb-2"><span className="text-cyan-400 font-bold">PAC Transparency Weights:</span> Institutional vs. individual funding</p>
+                          <p className="text-gray-400 text-xs ml-4">Super PACs (type O): 2.0x (dark money, unlimited)</p>
+                          <p className="text-gray-400 text-xs ml-4">Leadership/Lobbyist PACs (designation D/B): 1.5x (insider networks)</p>
+                          <p className="text-gray-400 text-xs ml-4">Regular PACs: 1.0x (standard corporate/union money)</p>
+                          <p className="text-gray-400 text-xs ml-4">Candidate committees (P/A designation): 0.15x (campaign apparatus, mostly ignored)</p>
+                          <p className="text-gray-400 text-xs ml-4 mt-2 text-yellow-300">Weights multiply: Super PAC + Lobbyist = 2.0 × 1.5 = 3.0x</p>
+                        </div>
+
+                        <div className="border-t border-gray-700 pt-4">
+                          <p className="text-gray-300 mb-2"><span className="text-orange-400 font-bold">Anti-fragility:</span> Why this approach is robust</p>
+                          <p className="text-gray-400 text-xs ml-4">Percentile-based: Adapts to changing political finance landscape</p>
+                          <p className="text-gray-400 text-xs ml-4">Fat-tail aware: Tolerates noise in 0-70th percentile range</p>
+                          <p className="text-gray-400 text-xs ml-4">Non-linear penalties: Smooth transitions, no cliff effects</p>
+                          <p className="text-gray-400 text-xs ml-4">FEC metadata: Uses official committee types, not brittle name patterns</p>
+                          <p className="text-gray-400 text-xs ml-4">Clamped bounds: 25-40% prevents extreme swings from outliers</p>
+                        </div>
+
+                        <div className="bg-gray-800 p-3 rounded border border-gray-600 mt-4">
+                          <p className="text-xs text-gray-300 italic">
+                            "The empirical trumps the theoretical. Observe the distribution, don't assume it.
+                            Let the data tell you where the threshold should be, not some bureaucrat's $200 rule."
+                          </p>
+                          <p className="text-xs text-gray-500 mt-2">— Inspired by Taleb's <span className="font-semibold">Statistical Consequences of Fat Tails</span></p>
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
             )}
