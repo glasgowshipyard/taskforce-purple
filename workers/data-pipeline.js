@@ -1025,8 +1025,11 @@ function computeAdaptiveThreshold(members, percentile = 0.7) {
 }
 
 // NEW: Calculate enhanced tier using transparency penalty system
+// Returns object with { tier, individualFundingPercent } for display
 function calculateEnhancedTier(member, allMembers = []) {
-  if (!member.totalRaised || member.totalRaised === 0) return 'N/A';
+  if (!member.totalRaised || member.totalRaised === 0) {
+    return { tier: 'N/A', individualFundingPercent: 0 };
+  }
 
   // Check if we have enhanced PAC data with actual committee metadata
   const hasEnhancedData = member.pacContributions && member.pacContributions.length > 0
@@ -1074,17 +1077,27 @@ function calculateEnhancedTier(member, allMembers = []) {
     const adjustedThresholds = getAdjustedThresholds(transparencyPenalty);
 
     // Assign tier based on individual funding % vs adjusted thresholds
-    if (individualFundingPercent >= adjustedThresholds.S) return 'S';
-    if (individualFundingPercent >= adjustedThresholds.A) return 'A';
-    if (individualFundingPercent >= adjustedThresholds.B) return 'B';
-    if (individualFundingPercent >= adjustedThresholds.C) return 'C';
-    if (individualFundingPercent >= adjustedThresholds.D) return 'D';
-    if (individualFundingPercent >= adjustedThresholds.E) return 'E';
-    return 'F';
+    let tier;
+    if (individualFundingPercent >= adjustedThresholds.S) tier = 'S';
+    else if (individualFundingPercent >= adjustedThresholds.A) tier = 'A';
+    else if (individualFundingPercent >= adjustedThresholds.B) tier = 'B';
+    else if (individualFundingPercent >= adjustedThresholds.C) tier = 'C';
+    else if (individualFundingPercent >= adjustedThresholds.D) tier = 'D';
+    else if (individualFundingPercent >= adjustedThresholds.E) tier = 'E';
+    else tier = 'F';
+
+    return {
+      tier,
+      individualFundingPercent: Math.round(individualFundingPercent)
+    };
   }
 
   // Fallback to standard calculation when enhanced data not available
-  return calculateTier(member.grassrootsPercent, member.totalRaised);
+  const fallbackTier = calculateTier(member.grassrootsPercent, member.totalRaised);
+  return {
+    tier: fallbackTier,
+    individualFundingPercent: Math.round(member.grassrootsPercent)
+  };
 }
 
 // Calculate transparency penalty based on proportion of concerning PAC funding and large donors
@@ -1275,7 +1288,9 @@ async function processMembers(congressMembers, env, testLimit = undefined) {
             currentMembers[memberIndex].pacDetailsStatus = 'complete';
             currentMembers[memberIndex].lastUpdated = new Date().toISOString();
             // NEW: Recalculate tier with enhanced transparency weighting
-            currentMembers[memberIndex].tier = calculateEnhancedTier(currentMembers[memberIndex], currentMembers);
+            const { tier, individualFundingPercent } = calculateEnhancedTier(currentMembers[memberIndex], currentMembers);
+            currentMembers[memberIndex].tier = tier;
+            currentMembers[memberIndex].individualFundingPercent = individualFundingPercent;
 
             await env.MEMBER_DATA.put('members:all', JSON.stringify(currentMembers));
             console.log(`✅ PAC details updated for ${basicMember.name}: ${pacDetails.length} contributions`);
@@ -1701,7 +1716,9 @@ async function handleFECBatchUpdate(env, corsHeaders, request) {
                 lastUpdated: new Date().toISOString()
               };
               // NEW: Recalculate tier with enhanced transparency weighting
-              allMembers[member.originalIndex].tier = calculateEnhancedTier(allMembers[member.originalIndex], allMembers);
+              const { tier, individualFundingPercent } = calculateEnhancedTier(allMembers[member.originalIndex], allMembers);
+              allMembers[member.originalIndex].tier = tier;
+              allMembers[member.originalIndex].individualFundingPercent = individualFundingPercent;
               updated++;
               console.log(`✅ Updated PAC details for ${member.name}: ${pacDetails.length} contributions`);
             }
@@ -1813,12 +1830,18 @@ async function handleTestMember(env, corsHeaders, request) {
 
     // Update member with enhanced data
     const memberIndex = members.findIndex(m => m.bioguideId === bioguideId);
+
+    // Calculate tier and individual funding percent with new PAC data
+    const memberWithPACs = { ...members[memberIndex], pacContributions: enhancedPACDetails };
+    const { tier, individualFundingPercent } = calculateEnhancedTier(memberWithPACs, members);
+
     members[memberIndex] = {
       ...members[memberIndex],
       pacContributions: enhancedPACDetails,
       pacDetailsStatus: 'complete',
       lastUpdated: new Date().toISOString(),
-      tier: calculateEnhancedTier({ ...members[memberIndex], pacContributions: enhancedPACDetails }, members)
+      tier,
+      individualFundingPercent
     };
 
     // Save updated data
@@ -1908,7 +1931,8 @@ async function performTierRecalculation(env) {
 
       // Calculate new tier using enhanced logic
       const oldTier = member.tier;
-      const newTier = calculateEnhancedTier(member, members);
+      const { tier: newTier, individualFundingPercent } = calculateEnhancedTier(member, members);
+      member.individualFundingPercent = individualFundingPercent;
 
       // Recalculate grassrootsPercent to match tier calculation
       // Use grassrootsDonations if available, otherwise fall back to old calculation
@@ -2071,8 +2095,9 @@ async function handleProcessCandidate(env, corsHeaders, request) {
         await fetchPACDetails(targetMember, env);
 
         // Step 3: Calculate enhanced tier
-        const newTier = calculateEnhancedTier(targetMember, members);
+        const { tier: newTier, individualFundingPercent } = calculateEnhancedTier(targetMember, members);
         targetMember.tier = newTier;
+        targetMember.individualFundingPercent = individualFundingPercent;
         targetMember.lastProcessed = new Date().toISOString();
         targetMember.processingStatus = 'complete';
 
@@ -2313,7 +2338,9 @@ async function updateSingleMember(member, env) {
     }
 
     // Recalculate tier with enhanced algorithm
-    member.tier = calculateEnhancedTier(member, allMembers);
+    const { tier, individualFundingPercent } = calculateEnhancedTier(member, allMembers);
+    member.tier = tier;
+    member.individualFundingPercent = individualFundingPercent;
 
     // Recalculate grassrootsPercent to match tier calculation
     if (member.totalRaised > 0) {
@@ -3077,7 +3104,9 @@ async function enhanceMemberWithPACData(member, env) {
       targetMember.pacContributions = pacContributions;
 
       // Recalculate tier with enhanced data
-      targetMember.tier = calculateEnhancedTier(targetMember, members);
+      const { tier, individualFundingPercent } = calculateEnhancedTier(targetMember, members);
+      targetMember.tier = tier;
+      targetMember.individualFundingPercent = individualFundingPercent;
       targetMember.lastUpdated = new Date().toISOString();
 
       // Save updated data

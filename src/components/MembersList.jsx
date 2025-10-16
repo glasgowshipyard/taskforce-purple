@@ -14,6 +14,7 @@ export default function MembersList() {
   const [focusedTier, setFocusedTier] = useState('S'); // Default to S tier
   const [showPACDetails, setShowPACDetails] = useState(false);
   const [showTierExplanation, setShowTierExplanation] = useState(false);
+  const [showNerdExplanation, setShowNerdExplanation] = useState(false);
 
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
@@ -317,6 +318,24 @@ export default function MembersList() {
             </div>
           )}
 
+          {/* Individual Funding Score - Prominent Display */}
+          {selectedMember.totalRaised > 0 && selectedMember.individualFundingPercent && (
+            <div className="mb-6 p-6 bg-gradient-to-r from-green-50 to-blue-50 rounded-lg border-2 border-green-200">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-gray-600 mb-1">Individual Funding Score</p>
+                  <p className="text-5xl font-bold text-green-600">{selectedMember.individualFundingPercent}%</p>
+                  <p className="text-sm text-gray-600 mt-2">
+                    People power from <span className="font-semibold">{selectedMember.grassrootsPercent}% grassroots</span> + <span className="font-semibold">{selectedMember.totalRaised > 0 && selectedMember.largeDonorDonations !== undefined ? ((selectedMember.largeDonorDonations / selectedMember.totalRaised) * 100).toFixed(0) : 0}% itemized</span> donations
+                  </p>
+                </div>
+                <div className={`w-24 h-24 rounded-full flex items-center justify-center text-3xl font-bold ${TaskForceAPI.getTierColor(selectedMember.tier)}`}>
+                  {selectedMember.tier}
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Financial breakdown */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
             <div className={`p-4 rounded-lg ${selectedMember.grassrootsPercent <= 15 ? 'bg-red-50' : 'bg-green-50'}`}>
@@ -334,6 +353,9 @@ export default function MembersList() {
               {selectedMember.hasEnhancedData && selectedMember.grassrootsPACTypes && (
                 <div className={`text-xs mt-1 ${selectedMember.grassrootsPercent <= 15 ? 'text-red-600' : 'text-green-600'}`}>
                   *includes {selectedMember.grassrootsPACTypes.join(', ')}
+                  <div className="text-[10px] mt-0.5 opacity-75">
+                    (Candidate's own campaign committees get 85% discount—mostly grassroots, not institutional)
+                  </div>
                 </div>
               )}
             </div>
@@ -386,26 +408,93 @@ export default function MembersList() {
               <p className="text-xs mt-2">
                 Based on <span className="text-green-700">individual funding %</span> (grassroots &lt;$200 + itemized &gt;$200), with concentration penalties for extreme itemized ratios and PAC transparency weights.
               </p>
-              <a
-                href="#how-tiers-work"
-                className="text-xs text-blue-600 hover:text-blue-800 underline inline-block mt-2"
-                onClick={(e) => {
-                  e.preventDefault();
-                  const footer = document.getElementById('how-tiers-work');
-                  const button = footer?.querySelector('button');
-                  footer?.scrollIntoView({ behavior: 'smooth' });
-                  // Auto-expand if collapsed
-                  setTimeout(() => {
-                    if (button && !button.textContent?.includes('▼')) {
-                      button.click();
-                    }
-                  }, 500);
-                }}
-              >
-                See how tiers are calculated →
-              </a>
+              <div className="flex items-center justify-between mt-3">
+                <a
+                  href="#how-tiers-work"
+                  className="text-xs text-blue-600 hover:text-blue-800 underline"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    const footer = document.getElementById('how-tiers-work');
+                    const button = footer?.querySelector('button');
+                    footer?.scrollIntoView({ behavior: 'smooth' });
+                    // Auto-expand if collapsed
+                    setTimeout(() => {
+                      if (button && !button.textContent?.includes('▼')) {
+                        button.click();
+                      }
+                    }, 500);
+                  }}
+                >
+                  See how tiers are calculated →
+                </a>
+                <button
+                  onClick={() => setShowNerdExplanation(!showNerdExplanation)}
+                  className="text-xs text-purple-600 hover:text-purple-800 underline font-mono"
+                >
+                  {showNerdExplanation ? '▼ Hide' : '▶'} Statistical Details (for nerds)
+                </button>
+              </div>
             </div>
           </div>
+
+          {/* Nerdy Statistical Explanation - Taleb Style */}
+          {showNerdExplanation && (
+            <div className="mt-4 p-6 bg-gray-900 text-gray-100 rounded-lg border border-gray-700 font-mono text-sm">
+              <h4 className="font-bold text-green-400 mb-4">📊 Power-Law Distribution & Adaptive Thresholds</h4>
+
+              <div className="space-y-4">
+                <div>
+                  <p className="text-gray-300 mb-2"><span className="text-yellow-400 font-bold">Problem:</span> Political finance follows power-law distributions, not Gaussians.</p>
+                  <p className="text-gray-400 text-xs ml-4">→ Fixed thresholds (e.g., "$200+ = wealthy") are naive and fragile</p>
+                  <p className="text-gray-400 text-xs ml-4">→ FEC's $200 threshold is a <span className="text-red-400">reporting requirement</span>, not a wealth indicator</p>
+                  <p className="text-gray-400 text-xs ml-4">→ $201 from a teacher ≠ elite capture</p>
+                </div>
+
+                <div>
+                  <p className="text-gray-300 mb-2"><span className="text-green-400 font-bold">Solution:</span> Empirical percentile-based thresholds + fat-tail robustness</p>
+                  <p className="text-gray-400 text-xs ml-4">→ <span className="text-blue-300">70th percentile</span> of itemized donation ratios across all 435 members</p>
+                  <p className="text-gray-400 text-xs ml-4">→ Currently: ~40% (clamped to 25-40% for stability)</p>
+                  <p className="text-gray-400 text-xs ml-4">→ Recalculated each cycle from actual distribution</p>
+                  <p className="text-gray-400 text-xs ml-4">→ Only penalize <span className="text-red-300">extreme concentration</span> beyond empirical norms</p>
+                </div>
+
+                <div>
+                  <p className="text-gray-300 mb-2"><span className="text-purple-400 font-bold">Tiered Penalty Structure:</span> Non-linear concentration penalties</p>
+                  <p className="text-gray-400 text-xs ml-4">→ 0-5% over threshold: 0.1x penalty (noise tolerance)</p>
+                  <p className="text-gray-400 text-xs ml-4">→ 5-10% over: 0.2x penalty (moderate signal)</p>
+                  <p className="text-gray-400 text-xs ml-4">→ 10%+ over: 0.3x penalty (strong signal of concentration)</p>
+                  <p className="text-gray-400 text-xs ml-4 mt-2">Example: 53% itemized (13% over 40% threshold)</p>
+                  <p className="text-gray-400 text-xs ml-6">= (5 × 0.1) + (5 × 0.2) + (3 × 0.3) = 2.4% penalty</p>
+                </div>
+
+                <div>
+                  <p className="text-gray-300 mb-2"><span className="text-cyan-400 font-bold">PAC Transparency Weights:</span> Institutional vs. individual funding</p>
+                  <p className="text-gray-400 text-xs ml-4">→ Super PACs (type O): 2.0x (dark money, unlimited)</p>
+                  <p className="text-gray-400 text-xs ml-4">→ Leadership/Lobbyist PACs (designation D/B): 1.5x (insider networks)</p>
+                  <p className="text-gray-400 text-xs ml-4">→ Regular PACs: 1.0x (standard corporate/union money)</p>
+                  <p className="text-gray-400 text-xs ml-4">→ Candidate committees (P/A designation): 0.15x (campaign apparatus, mostly ignored)</p>
+                  <p className="text-gray-400 text-xs ml-4 mt-2 text-yellow-300">⚠️ Weights multiply: Super PAC + Lobbyist = 2.0 × 1.5 = 3.0x</p>
+                </div>
+
+                <div className="border-t border-gray-700 pt-4">
+                  <p className="text-gray-300 mb-2"><span className="text-orange-400 font-bold">Anti-fragility:</span> Why this approach is robust</p>
+                  <p className="text-gray-400 text-xs ml-4">✓ Percentile-based: Adapts to changing political finance landscape</p>
+                  <p className="text-gray-400 text-xs ml-4">✓ Fat-tail aware: Tolerates noise in 0-70th percentile range</p>
+                  <p className="text-gray-400 text-xs ml-4">✓ Non-linear penalties: Smooth transitions, no cliff effects</p>
+                  <p className="text-gray-400 text-xs ml-4">✓ FEC metadata: Uses official committee types, not brittle name patterns</p>
+                  <p className="text-gray-400 text-xs ml-4">✓ Clamped bounds: 25-40% prevents extreme swings from outliers</p>
+                </div>
+
+                <div className="bg-gray-800 p-3 rounded border border-gray-600 mt-4">
+                  <p className="text-xs text-gray-300 italic">
+                    "The empirical trumps the theoretical. Observe the distribution, don't assume it.
+                    Let the data tell you where the threshold should be, not some bureaucrat's $200 rule."
+                  </p>
+                  <p className="text-xs text-gray-500 mt-2">— Inspired by Taleb's <span className="font-semibold">Statistical Consequences of Fat Tails</span></p>
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Advanced PAC Breakdown Section */}
           {selectedMember.pacContributions && selectedMember.pacContributions.length > 0 && (
@@ -594,10 +683,7 @@ export default function MembersList() {
                 ) : (
                   <div>
                     <div className="text-base sm:text-lg font-bold text-green-600">
-                      {member.grassrootsPercent}%
-                      {member.hasEnhancedData && member.grassrootsPACTypes && (
-                        <span className="text-xs font-normal text-green-600">*</span>
-                      )}
+                      {member.individualFundingPercent || member.grassrootsPercent}%
                     </div>
                     <div className="text-[10px] sm:text-sm text-gray-500">Grassroots</div>
                   </div>

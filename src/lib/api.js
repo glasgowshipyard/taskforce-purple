@@ -76,13 +76,13 @@ export class TaskForceAPI {
 
   static getTierDescription(tier) {
     const descriptions = {
-      'S': 'People-Funded (90%+)',
+      'S': 'People Power (90%+)',
       'A': 'Broadly Supported (75-89%)',
-      'B': 'Above Average (60-74%)',
-      'C': 'Mixed Funding (45-59%)',
-      'D': 'Concentrated (30-44%)',
-      'E': 'Institution-Heavy (15-29%)',
-      'F': 'Captured (0-14%)',
+      'B': 'Mostly Individual (60-74%)',
+      'C': 'Mixed Sources (45-59%)',
+      'D': 'Institution-Influenced (30-44%)',
+      'E': 'PAC-Dependent (15-29%)',
+      'F': 'Corporate-Funded (0-14%)',
       'N/A': 'No Financial Data Available'
     };
     return descriptions[tier] || 'Unknown';
@@ -90,13 +90,13 @@ export class TaskForceAPI {
 
   static getTierExplanation(tier) {
     const explanations = {
-      'S': 'Democratic power source. 90%+ individual funding (grassroots + itemized) with minimal PAC influence. Power derives from many individual donors, not institutional special interests. Extremely rare.',
-      'A': 'Strong individual support. 75-89% funded by individual donors with limited institutional capture. Power flows from constituents, not corporate PACs or special interests.',
-      'B': 'Above average. 60-74% individual funding. Majority people-funded with some institutional influence from PACs or extreme concentration of large donations.',
-      'C': 'Mixed sources. 45-59% individual funding. Power split between individual supporters and institutional interests (PACs) or shows concerning concentration patterns.',
-      'D': 'Institutional influence. 30-44% individual funding. Power increasingly derived from PACs, special interests, or extreme concentration rather than broad individual support.',
-      'E': 'Heavy institutional capture. 15-29% individual funding. Heavily dependent on PACs, corporate money, or extreme donation concentration rather than individual constituents.',
-      'F': 'Complete capture. 0-14% individual funding. Power comes almost entirely from PACs, special interests, or extreme concentration. Not accountable to individual constituents.',
+      'S': 'Funded almost entirely by regular people. Gets 90%+ of money directly from individuals (small donations under $200 plus larger personal donations). Minimal corporate PAC influence. Answers to voters, not special interests.',
+      'A': 'Mostly people-powered. Gets 75-89% from individual donations. Some corporate PAC money, but still primarily accountable to individual supporters rather than institutions.',
+      'B': 'Majority individual funding (60-74%). Mix of grassroots donations and larger personal contributions, with modest corporate PAC influence. More accountable to people than special interests.',
+      'C': 'Split funding (45-59% from individuals). Power divided between individual supporters and corporate PACs. Moderate special interest influence competing with voter accountability.',
+      'D': 'Institution-influenced (30-44% individual). Relies more on corporate PACs and special interests than on individual constituents. Accountability tilts toward big donors and institutions.',
+      'E': 'PAC-dependent (15-29% individual). Heavily reliant on corporate PACs and special interest money. Limited individual constituent support. Answers primarily to institutional funders.',
+      'F': 'Corporate-funded (0-14% individual). Almost entirely funded by corporate PACs and special interests. Minimal support from individual constituents. Accountable to corporations, not voters.',
       'N/A': 'No recent financial data available. This could mean they\'re not up for re-election or we haven\'t found their committee records yet.'
     };
     return explanations[tier] || 'No explanation available.';
