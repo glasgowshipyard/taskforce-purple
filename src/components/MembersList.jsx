@@ -395,6 +395,34 @@ export default function MembersList() {
             </div>
           </div>
 
+          {/* Funding Breakdown Explanation */}
+          {selectedMember.totalRaised > 0 && (
+            <div className="mt-4 p-4 bg-gray-50 rounded-lg border border-gray-300">
+              <h4 className="font-semibold text-gray-900 mb-3">How Your Representative's Score is Calculated</h4>
+              <div className="space-y-2 text-sm text-gray-700">
+                <div className="flex items-start space-x-2">
+                  <span className="font-semibold text-green-700 min-w-[120px]">Grassroots:</span>
+                  <span>All donations under $200{selectedMember.grassrootsPACTypes && selectedMember.grassrootsPACTypes.length > 0 && ` + ${selectedMember.grassrootsPACTypes.join(', ')} (85% discount applied)`}</span>
+                </div>
+                <div className="flex items-start space-x-2">
+                  <span className="font-semibold text-orange-700 min-w-[120px]">Large Donors:</span>
+                  <span>Individual donations over $200 (itemized contributions)</span>
+                </div>
+                <div className="flex items-start space-x-2">
+                  <span className="font-semibold text-red-700 min-w-[120px]">PAC Money:</span>
+                  <span>Corporate, union, and special interest PAC contributions (weighted by transparency: Super PACs 2.0x, Leadership/Lobbyist PACs 1.5x)</span>
+                </div>
+                {selectedMember.individualFundingPercent && (
+                  <div className="mt-3 pt-3 border-t border-gray-300">
+                    <p className="text-xs text-gray-600">
+                      <span className="font-semibold">Individual Funding Score ({selectedMember.individualFundingPercent}%):</span> Grassroots + Large Donors, with penalties applied for extreme concentration of itemized donations or concerning PAC funding patterns.
+                    </p>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
           {/* Tier Explanation */}
           <div className="mt-4 p-4 bg-blue-50 rounded-lg border border-blue-200">
             <h4 className="font-semibold text-blue-900 mb-2">Why This Tier?</h4>

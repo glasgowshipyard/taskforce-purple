@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { BarChart3, GitCompare, Users } from 'lucide-react';
 import MembersList from './components/MembersList.jsx';
+import { TaskForceAPI } from './lib/api.js';
 
 // Bipartisan issues data for the overlap tracker
 
@@ -41,6 +42,22 @@ export default function App() {
   const [activeTab, setActiveTab] = useState('leaderboard');
   const [showMethodology, setShowMethodology] = useState(false);
   const [showNerdExplanation, setShowNerdExplanation] = useState(false);
+  const [adaptiveThresholds, setAdaptiveThresholds] = useState(null);
+
+  // Fetch adaptive thresholds for tier explanation
+  useEffect(() => {
+    const fetchThresholds = async () => {
+      try {
+        const data = await TaskForceAPI.fetchMembers();
+        if (data.adaptiveThresholds) {
+          setAdaptiveThresholds(data.adaptiveThresholds);
+        }
+      } catch (error) {
+        console.warn('Failed to fetch adaptive thresholds:', error);
+      }
+    };
+    fetchThresholds();
+  }, []);
 
   const renderLeaderboard = () => <MembersList />;
 
@@ -198,7 +215,7 @@ export default function App() {
 
                       <div className="mt-2"><span className="font-medium text-blue-600">Itemized donations (over $200):</span></div>
                       <div className="ml-4">• <span className="font-medium">Full credit by default</span> - $201 from a teacher or $250 from a nurse is still grassroots-adjacent</div>
-                      <div className="ml-4">• <span className="font-medium">Concentration penalty</span> - Only penalized if ratio is extreme (above 70th percentile, currently ~40%)</div>
+                      <div className="ml-4">• <span className="font-medium">Concentration penalty</span> - Only penalized if ratio is extreme (above 70th percentile{adaptiveThresholds ? `, currently ${adaptiveThresholds.houseThreshold}% for House, ${adaptiveThresholds.senateThreshold}% for Senate` : ', currently ~40%'})</div>
                       <div className="ml-4 text-xs text-gray-600">⚠️ FEC's $200 threshold is a reporting requirement, not a wealth indicator</div>
 
                       <div className="mt-2"><span className="font-medium text-red-600">PAC money (institutions):</span></div>
@@ -213,14 +230,19 @@ export default function App() {
                     <h4 className="font-semibold text-gray-800 mb-2">Examples</h4>
                     <div className="text-sm text-gray-700 space-y-3">
                       <div>
-                        <p className="font-medium mb-1">AOC (S tier):</p>
+                        <p className="font-medium mb-1">AOC (S tier, House):</p>
                         <p className="ml-4 text-xs">69% grassroots + 28% itemized = 97% individual funding</p>
-                        <p className="ml-4 text-xs">28% itemized is below 40% threshold → no penalty → S tier</p>
+                        <p className="ml-4 text-xs">28% itemized is below {adaptiveThresholds?.houseThreshold || '~40'}% threshold → no penalty → S tier</p>
                       </div>
                       <div>
-                        <p className="font-medium mb-1">Dina Titus (C tier):</p>
+                        <p className="font-medium mb-1">Dina Titus (C tier, House):</p>
                         <p className="ml-4 text-xs">7% grassroots + 49% itemized = 56% individual funding</p>
-                        <p className="ml-4 text-xs">49% itemized is 9% over threshold → 1.3% penalty → 54.7% → C tier</p>
+                        {adaptiveThresholds?.houseThreshold && (
+                          <p className="ml-4 text-xs">49% itemized is {(49 - adaptiveThresholds.houseThreshold).toFixed(1)}% over {adaptiveThresholds.houseThreshold}% threshold → ~{((5 * 0.1) + (Math.min(49 - adaptiveThresholds.houseThreshold - 5, 5) * 0.2) + (Math.max(49 - adaptiveThresholds.houseThreshold - 10, 0) * 0.3)).toFixed(1)}% penalty → ~{(56 - ((5 * 0.1) + (Math.min(49 - adaptiveThresholds.houseThreshold - 5, 5) * 0.2) + (Math.max(49 - adaptiveThresholds.houseThreshold - 10, 0) * 0.3))).toFixed(1)}% → C tier</p>
+                        )}
+                        {!adaptiveThresholds && (
+                          <p className="ml-4 text-xs">49% itemized is 9% over threshold → 1.3% penalty → 54.7% → C tier</p>
+                        )}
                       </div>
                       <p className="mt-3 italic text-xs">
                         Individual support is good, but <strong>how</strong> that support is distributed matters. Broad grassroots base beats concentrated large donations.
@@ -264,9 +286,17 @@ export default function App() {
 
                         <div>
                           <p className="text-gray-300 mb-2"><span className="text-green-400 font-bold">Solution:</span> Empirical percentile-based thresholds + fat-tail robustness</p>
-                          <p className="text-gray-400 text-xs ml-4"><span className="text-blue-300">70th percentile</span> of itemized donation ratios across all 435 members</p>
-                          <p className="text-gray-400 text-xs ml-4">Currently: ~40% (clamped to 25-40% for stability)</p>
-                          <p className="text-gray-400 text-xs ml-4">Recalculated each cycle from actual distribution</p>
+                          <p className="text-gray-400 text-xs ml-4"><span className="text-blue-300">70th percentile</span> of itemized donation ratios per chamber</p>
+                          {adaptiveThresholds && (
+                            <>
+                              <p className="text-gray-400 text-xs ml-4">Currently: House = {adaptiveThresholds.houseThreshold}%, Senate = {adaptiveThresholds.senateThreshold}%</p>
+                              <p className="text-gray-400 text-xs ml-4 text-gray-500">(Clamped to 20-50% range for stability, recalculated quarterly)</p>
+                            </>
+                          )}
+                          {!adaptiveThresholds && (
+                            <p className="text-gray-400 text-xs ml-4">Currently: ~40% (clamped to 20-50% for stability)</p>
+                          )}
+                          <p className="text-gray-400 text-xs ml-4">Recalculated quarterly from actual distribution</p>
                           <p className="text-gray-400 text-xs ml-4">Only penalize <span className="text-red-300">extreme concentration</span> beyond empirical norms</p>
                         </div>
 
@@ -294,7 +324,8 @@ export default function App() {
                           <p className="text-gray-400 text-xs ml-4">Fat-tail aware: Tolerates noise in 0-70th percentile range</p>
                           <p className="text-gray-400 text-xs ml-4">Non-linear penalties: Smooth transitions, no cliff effects</p>
                           <p className="text-gray-400 text-xs ml-4">FEC metadata: Uses official committee types, not brittle name patterns</p>
-                          <p className="text-gray-400 text-xs ml-4">Clamped bounds: 25-40% prevents extreme swings from outliers</p>
+                          <p className="text-gray-400 text-xs ml-4">Clamped bounds: 20-50% prevents extreme swings from outliers</p>
+                          <p className="text-gray-400 text-xs ml-4">Per-chamber calculation: Senate and House have different fundraising patterns</p>
                         </div>
 
                         <div className="bg-gray-800 p-3 rounded border border-gray-600 mt-4">

@@ -1007,9 +1007,15 @@ function calculateTier(grassrootsPercent, totalRaised) {
 }
 
 // Compute adaptive itemization threshold based on percentile distribution
-// Returns the 70th percentile of large donor concentrations across all members
-function computeAdaptiveThreshold(members, percentile = 0.7) {
-  const largeDonorPercents = members
+// Returns the 70th percentile of large donor concentrations for a specific chamber
+// Per-chamber calculation accounts for different fundraising patterns (Senate vs House)
+function computeAdaptiveThreshold(members, chamber, percentile = 0.7) {
+  // Filter members by chamber for per-chamber threshold calculation
+  const chamberMembers = chamber
+    ? members.filter(m => m.chamber === chamber)
+    : members;
+
+  const largeDonorPercents = chamberMembers
     .filter(m => m.totalRaised > 0 && m.largeDonorDonations !== undefined && m.largeDonorDonations !== null)
     .map(m => (m.largeDonorDonations / m.totalRaised) * 100)
     .filter(v => typeof v === "number" && !isNaN(v))
@@ -1020,8 +1026,52 @@ function computeAdaptiveThreshold(members, percentile = 0.7) {
   const index = Math.floor(largeDonorPercents.length * percentile);
   const threshold = largeDonorPercents[Math.min(index, largeDonorPercents.length - 1)];
 
-  // Clamp to avoid extreme results (25-40% range)
-  return Math.min(Math.max(threshold, 25), 40);
+  // Clamp to avoid volatility while allowing adaptive range (20-50% bounds)
+  // Protects against data anomalies while keeping penalty growth nonlinear but bounded
+  return Math.min(Math.max(threshold, 20), 50);
+}
+
+// Get or refresh cached adaptive thresholds with quarterly recalculation
+// Returns { houseThreshold, senateThreshold, lastCalculated } for API responses
+async function getAdaptiveThresholds(env, members) {
+  const cacheKey = 'adaptive_thresholds';
+  const cacheMaxAge = 90 * 24 * 60 * 60 * 1000; // 90 days in milliseconds
+
+  try {
+    // Try to get cached thresholds
+    const cachedData = await env.MEMBER_DATA.get(cacheKey);
+
+    if (cachedData) {
+      const cache = JSON.parse(cachedData);
+      const cacheAge = Date.now() - new Date(cache.lastCalculated).getTime();
+
+      // If cache is fresh (< 90 days), return it
+      if (cacheAge < cacheMaxAge) {
+        return cache;
+      }
+    }
+  } catch (error) {
+    console.warn('Failed to read threshold cache:', error);
+  }
+
+  // Cache is stale or missing - recalculate both chambers
+  const houseThreshold = computeAdaptiveThreshold(members, 'House');
+  const senateThreshold = computeAdaptiveThreshold(members, 'Senate');
+
+  const newCache = {
+    houseThreshold: Math.round(houseThreshold * 10) / 10, // Round to 1 decimal
+    senateThreshold: Math.round(senateThreshold * 10) / 10,
+    lastCalculated: new Date().toISOString()
+  };
+
+  try {
+    await env.MEMBER_DATA.put(cacheKey, JSON.stringify(newCache));
+    console.log(`✅ Cached adaptive thresholds: House=${newCache.houseThreshold}%, Senate=${newCache.senateThreshold}%`);
+  } catch (error) {
+    console.warn('Failed to write threshold cache:', error);
+  }
+
+  return newCache;
 }
 
 // NEW: Calculate enhanced tier using transparency penalty system
@@ -1048,9 +1098,10 @@ function calculateEnhancedTier(member, allMembers = []) {
     // Start with combined individual funding
     let individualFundingPercent = grassrootsPercent + itemizedPercent;
 
-    // Compute adaptive threshold from member distribution (70th percentile)
+    // Compute per-chamber adaptive threshold from member distribution (70th percentile)
+    // Senate and House have different fundraising patterns, so calculate separately
     const adaptiveThreshold = allMembers.length > 0
-      ? computeAdaptiveThreshold(allMembers)
+      ? computeAdaptiveThreshold(allMembers, member.chamber)
       : 30; // fallback to fixed threshold if no member data
 
     // Apply tiered itemization concentration penalty (only if > adaptive threshold)
@@ -1449,10 +1500,14 @@ async function handleMembers(env, corsHeaders) {
       };
     });
 
+    // Get adaptive thresholds (cached quarterly) for tier explanations
+    const adaptiveThresholds = await getAdaptiveThresholds(env, members);
+
     return new Response(JSON.stringify({
       members: enhancedMembers,
       lastUpdated,
-      total: enhancedMembers.length
+      total: enhancedMembers.length,
+      adaptiveThresholds // Include current thresholds for UI display
     }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }
     });
