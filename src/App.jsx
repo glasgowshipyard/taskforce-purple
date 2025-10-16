@@ -215,8 +215,11 @@ export default function App() {
 
                       <div className="mt-2"><span className="font-medium text-blue-600">Itemized donations (over $200):</span></div>
                       <div className="ml-4">• <span className="font-medium">Full credit by default</span> - $201 from a teacher or $250 from a nurse is still grassroots-adjacent</div>
-                      <div className="ml-4">• <span className="font-medium">Concentration penalty</span> - Only penalized if ratio is extreme (above 70th percentile{adaptiveThresholds ? `, currently ${adaptiveThresholds.houseThreshold}% for House, ${adaptiveThresholds.senateThreshold}% for Senate` : ', currently ~40%'})</div>
+                      <div className="ml-4">• <span className="font-medium">Concentration penalty</span> - Only penalized if ratio is extreme (above 70th percentile{adaptiveThresholds ? `, currently ~${Math.round((adaptiveThresholds.houseThreshold + adaptiveThresholds.senateThreshold) / 2)}%` : ', currently ~50%'})</div>
                       <div className="ml-4 text-xs text-gray-600">⚠️ FEC's $200 threshold is a reporting requirement, not a wealth indicator</div>
+                      <div className="ml-4 text-xs text-gray-600 mt-1">
+                        💡 <strong>Why cap at 60%?</strong> With 400+ members, the empirical 70th percentile is reliable. But we clamp between 20-60% to prevent runaway penalties if patterns shift dramatically between election cycles. This keeps the system stable while trusting the data.
+                      </div>
 
                       <div className="mt-2"><span className="font-medium text-red-600">PAC money (institutions):</span></div>
                       <div className="ml-4">• <span className="font-medium">Super PACs:</span> 2.0x penalty - Unlimited dark money groups</div>
@@ -286,18 +289,21 @@ export default function App() {
 
                         <div>
                           <p className="text-gray-300 mb-2"><span className="text-green-400 font-bold">Solution:</span> Empirical percentile-based thresholds + fat-tail robustness</p>
-                          <p className="text-gray-400 text-xs ml-4"><span className="text-blue-300">70th percentile</span> of itemized donation ratios per chamber</p>
+                          <p className="text-gray-400 text-xs ml-4"><span className="text-blue-300">70th percentile</span> of itemized donation ratios calculated per chamber</p>
                           {adaptiveThresholds && (
                             <>
-                              <p className="text-gray-400 text-xs ml-4">Currently: House = {adaptiveThresholds.houseThreshold}%, Senate = {adaptiveThresholds.senateThreshold}%</p>
-                              <p className="text-gray-400 text-xs ml-4 text-gray-500">(Clamped to 20-50% range for stability, recalculated quarterly)</p>
+                              <p className="text-gray-400 text-xs ml-4">Currently: ~{Math.round((adaptiveThresholds.houseThreshold + adaptiveThresholds.senateThreshold) / 2)}% (House={adaptiveThresholds.houseThreshold}%, Senate={adaptiveThresholds.senateThreshold}%)</p>
+                              <p className="text-gray-400 text-xs ml-4 text-gray-500">(Recalculated quarterly from actual data)</p>
                             </>
                           )}
                           {!adaptiveThresholds && (
-                            <p className="text-gray-400 text-xs ml-4">Currently: ~40% (clamped to 20-50% for stability)</p>
+                            <p className="text-gray-400 text-xs ml-4">Currently: ~50%</p>
                           )}
-                          <p className="text-gray-400 text-xs ml-4">Recalculated quarterly from actual distribution</p>
-                          <p className="text-gray-400 text-xs ml-4">Only penalize <span className="text-red-300">extreme concentration</span> beyond empirical norms</p>
+                          <p className="text-gray-400 text-xs ml-4 mt-2"><span className="text-orange-300">Why clamp to 20-60%?</span></p>
+                          <p className="text-gray-400 text-xs ml-6">Lower bound (20%): Prevents under-penalization if sample has anomalously low itemization</p>
+                          <p className="text-gray-400 text-xs ml-6">Upper bound (60%): Prevents runaway penalties from outliers or election cycle volatility</p>
+                          <p className="text-gray-400 text-xs ml-6">With 400+ members, empirical 70th percentile is statistically sound, but clamp ensures cross-cycle stability</p>
+                          <p className="text-gray-400 text-xs ml-4 mt-2">Only penalize <span className="text-red-300">extreme concentration</span> beyond empirical norms</p>
                         </div>
 
                         <div>
@@ -324,8 +330,8 @@ export default function App() {
                           <p className="text-gray-400 text-xs ml-4">Fat-tail aware: Tolerates noise in 0-70th percentile range</p>
                           <p className="text-gray-400 text-xs ml-4">Non-linear penalties: Smooth transitions, no cliff effects</p>
                           <p className="text-gray-400 text-xs ml-4">FEC metadata: Uses official committee types, not brittle name patterns</p>
-                          <p className="text-gray-400 text-xs ml-4">Clamped bounds: 20-50% prevents extreme swings from outliers</p>
-                          <p className="text-gray-400 text-xs ml-4">Per-chamber calculation: Senate and House have different fundraising patterns</p>
+                          <p className="text-gray-400 text-xs ml-4">Clamped bounds: 20-60% stops runaway penalties while trusting empirical data</p>
+                          <p className="text-gray-400 text-xs ml-4">Per-chamber calculation: Senate and House analyzed separately for accuracy</p>
                         </div>
 
                         <div className="bg-gray-800 p-3 rounded border border-gray-600 mt-4">

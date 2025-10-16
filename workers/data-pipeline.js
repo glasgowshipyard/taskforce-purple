@@ -1026,9 +1026,12 @@ function computeAdaptiveThreshold(members, chamber, percentile = 0.7) {
   const index = Math.floor(largeDonorPercents.length * percentile);
   const threshold = largeDonorPercents[Math.min(index, largeDonorPercents.length - 1)];
 
-  // Clamp to avoid volatility while allowing adaptive range (20-50% bounds)
-  // Protects against data anomalies while keeping penalty growth nonlinear but bounded
-  return Math.min(Math.max(threshold, 20), 50);
+  // Clamp to avoid volatility while allowing adaptive range (20-60% bounds)
+  // Lower bound (20%): Prevents under-penalization if sample has unusually low itemization
+  // Upper bound (60%): Prevents runaway penalties from outliers or data anomalies
+  // With 400+ members, empirical threshold is reliable, but clamp ensures stability
+  // across election cycles as fundraising patterns shift
+  return Math.min(Math.max(threshold, 20), 60);
 }
 
 // Get or refresh cached adaptive thresholds with quarterly recalculation
