@@ -13,7 +13,7 @@
  * No fancy math. Just raw data.
  */
 
-const PAGES_PER_RUN = 10; // Conservative to avoid timeouts
+const PAGES_PER_RUN = 5; // 5 pages × 2.5s = 12.5s + overhead, fits in 30s wall-clock limit
 
 export default {
   async fetch(request, env) {
