@@ -1,0 +1,12 @@
+name = "taskforce-purple-itemized-prototype"
+main = "itemized-prototype.js"
+compatibility_date = "2024-01-01"
+
+# KV binding to main member data namespace
+[[kv_namespaces]]
+binding = "MEMBER_DATA"
+id = "8318226115e2423ab5d141adfa5419f9"
+
+# Environment variables
+[vars]
+# FEC_API_KEY will be set as secret via wrangler secret put
