@@ -7,8 +7,13 @@
  * - Distribution of donation amounts
  * - Real data to prove concentration differences
  *
+ * Handles Cloudflare's 50 subrequest limit by processing in chunks.
+ * Run /analyze multiple times to resume and complete all members.
+ *
  * No fancy math. Just raw data.
  */
+
+const PAGES_PER_RUN = 40; // Under 50 subrequest limit (need buffer for committee lookup)
 
 export default {
   async fetch(request, env) {
@@ -18,11 +23,47 @@ export default {
       return analyzeMembers(env);
     }
 
-    return new Response('Itemized Analysis Prototype\n\nEndpoints:\n  /analyze - Fetch and analyze Sanders + Pelosi', {
+    if (url.pathname === '/status') {
+      return getStatus(env);
+    }
+
+    return new Response('Itemized Analysis Prototype\n\nEndpoints:\n  /analyze - Process next chunk for Sanders + Pelosi\n  /status - Check progress', {
       headers: { 'Content-Type': 'text/plain' }
     });
   }
 };
+
+async function getStatus(env) {
+  const members = [
+    { name: 'Bernie Sanders', bioguideId: 'S000033' },
+    { name: 'Nancy Pelosi', bioguideId: 'P000197' }
+  ];
+
+  const status = {};
+
+  for (const member of members) {
+    const progressKey = `itemized_progress:${member.bioguideId}`;
+    const progressData = await env.MEMBER_DATA.get(progressKey);
+
+    if (progressData) {
+      const progress = JSON.parse(progressData);
+      status[member.bioguideId] = {
+        name: member.name,
+        status: progress.complete ? 'complete' : 'in_progress',
+        ...progress
+      };
+    } else {
+      status[member.bioguideId] = {
+        name: member.name,
+        status: 'not_started'
+      };
+    }
+  }
+
+  return new Response(JSON.stringify(status, null, 2), {
+    headers: { 'Content-Type': 'application/json' }
+  });
+}
 
 async function analyzeMembers(env) {
   const startTime = Date.now();
@@ -34,8 +75,9 @@ async function analyzeMembers(env) {
     executionLog.push(`${new Date().toISOString()} - ${msg}`);
   };
 
-  log('🚀 Starting itemized analysis prototype');
+  log('🚀 Starting itemized analysis chunk');
   log(`⏰ Start time: ${new Date().toISOString()}`);
+  log(`📦 Pages per run: ${PAGES_PER_RUN} (50 subrequest limit)`);
 
   // Hardcoded for prototype
   const members = [
@@ -43,114 +85,163 @@ async function analyzeMembers(env) {
     { name: 'Nancy Pelosi', bioguideId: 'P000197' }
   ];
 
+  let totalPagesProcessed = 0;
+
   for (const member of members) {
     log(`\n📊 Processing ${member.name} (${member.bioguideId})`);
     const memberStartTime = Date.now();
 
     try {
-      const analysis = await fetchItemizedTransactions(member.bioguideId, env);
+      const result = await fetchItemizedTransactionsChunk(member.bioguideId, env, log);
       const processingTime = Date.now() - memberStartTime;
 
       results[member.bioguideId] = {
         name: member.name,
         success: true,
-        ...analysis,
+        ...result,
         processingTimeMs: processingTime,
-        processingTimeMinutes: Math.round(processingTime / 1000 / 60 * 10) / 10
+        processingTimeSeconds: Math.round(processingTime / 1000)
       };
 
-      log(`✅ ${member.name} complete in ${processingTime}ms (${Math.round(processingTime/1000)}s)`);
-      log(`   📊 Final stats: ${analysis.transactionCount} transactions, ${analysis.apiCallCount} API calls`);
+      totalPagesProcessed += result.pagesProcessedThisRun || 0;
+
+      if (result.complete) {
+        log(`✅ ${member.name} COMPLETE: ${result.totalTransactions} transactions, ${result.analysis?.uniqueDonors || 'N/A'} unique donors`);
+      } else {
+        log(`⏸️ ${member.name} in progress: ${result.currentPage}/${result.totalPages} pages (${Math.round(result.currentPage/result.totalPages*100)}%)`);
+      }
+
     } catch (error) {
       const processingTime = Date.now() - memberStartTime;
       console.error(`❌ ${member.name} failed:`, error);
       log(`❌ ${member.name} failed after ${processingTime}ms: ${error.message}`);
-      log(`   Stack: ${error.stack}`);
 
       results[member.bioguideId] = {
         name: member.name,
         success: false,
         error: error.message,
-        errorStack: error.stack,
         processingTimeMs: processingTime
       };
+    }
+
+    // Check if we're approaching subrequest limit
+    if (totalPagesProcessed >= PAGES_PER_RUN - 5) {
+      log(`\n⚠️ Approaching subrequest limit (${totalPagesProcessed} pages processed), stopping this run`);
+      break;
     }
   }
 
   const totalTime = Date.now() - startTime;
-  log(`\n🏁 Total processing time: ${totalTime}ms (${Math.round(totalTime/1000)}s, ${Math.round(totalTime/1000/60*10)/10} minutes)`);
+  log(`\n🏁 Chunk complete: ${totalTime}ms (${Math.round(totalTime/1000)}s)`);
+  log(`📄 Pages processed this run: ${totalPagesProcessed}`);
 
-  // Summary
-  const successCount = Object.values(results).filter(r => r.success).length;
-  log(`\n📈 Summary: ${successCount}/${members.length} members processed successfully`);
-
-  for (const [bioguideId, result] of Object.entries(results)) {
-    if (result.success) {
-      log(`   ✅ ${result.name}: ${result.transactionCount} txns, ${result.analysis?.uniqueDonors || 'N/A'} unique donors`);
-    } else {
-      log(`   ❌ ${result.name}: ${result.error}`);
-    }
-  }
+  // Check overall status
+  const allComplete = await checkAllComplete(env, members);
 
   return new Response(JSON.stringify({
-    success: successCount === members.length,
+    allComplete,
     results,
     summary: {
       totalProcessingTimeMs: totalTime,
       totalProcessingTimeSeconds: Math.round(totalTime / 1000),
-      totalProcessingTimeMinutes: Math.round(totalTime / 1000 / 60 * 10) / 10,
-      membersProcessed: successCount,
-      membersTotal: members.length
+      pagesProcessedThisRun: totalPagesProcessed,
+      allMembersComplete: allComplete
     },
     executionLog,
-    timestamp: new Date().toISOString()
+    timestamp: new Date().toISOString(),
+    nextAction: allComplete ? '✅ All members complete!' : '▶️ Run /analyze again to continue'
   }, null, 2), {
     headers: { 'Content-Type': 'application/json' }
   });
 }
 
-async function fetchItemizedTransactions(bioguideId, env) {
+async function checkAllComplete(env, members) {
+  for (const member of members) {
+    const progressKey = `itemized_progress:${member.bioguideId}`;
+    const progressData = await env.MEMBER_DATA.get(progressKey);
+
+    if (!progressData) return false;
+
+    const progress = JSON.parse(progressData);
+    if (!progress.complete) return false;
+  }
+  return true;
+}
+
+async function fetchItemizedTransactionsChunk(bioguideId, env, log) {
   const apiKey = env.FEC_API_KEY || 'zVpKDAacmPcazWQxhl5fhodhB9wNUH0urLCLkkV9';
+  const progressKey = `itemized_progress:${bioguideId}`;
 
-  // Map bioguide ID to searchable info
-  const memberInfo = {
-    'S000033': { name: 'Sanders', office: 'S', state: 'VT' },
-    'P000197': { name: 'Pelosi', office: 'H', state: 'CA' }
-  };
+  // Check for existing progress
+  const existingProgressData = await env.MEMBER_DATA.get(progressKey);
+  let progress;
 
-  const info = memberInfo[bioguideId];
-  if (!info) {
-    throw new Error(`Unknown bioguide ID: ${bioguideId}`);
+  if (existingProgressData) {
+    progress = JSON.parse(existingProgressData);
+    log(`  📂 Resuming from page ${progress.currentPage}/${progress.totalPages}`);
+
+    if (progress.complete) {
+      log(`  ✅ Already complete`);
+      return {
+        complete: true,
+        totalTransactions: progress.transactions.length,
+        analysis: progress.analysis,
+        pagesProcessedThisRun: 0
+      };
+    }
+  } else {
+    // Starting fresh - need to get committee ID
+    const memberInfo = {
+      'S000033': { name: 'Sanders', office: 'S', state: 'VT' },
+      'P000197': { name: 'Pelosi', office: 'H', state: 'CA' }
+    };
+
+    const info = memberInfo[bioguideId];
+    if (!info) {
+      throw new Error(`Unknown bioguide ID: ${bioguideId}`);
+    }
+
+    log(`  🔍 Searching FEC for ${info.name} (${info.office}-${info.state})...`);
+    const committeeId = await searchCommitteeId(info.name, info.office, info.state, apiKey);
+
+    if (!committeeId) {
+      throw new Error(`No committee found for ${info.name}`);
+    }
+
+    log(`  💼 Committee ID: ${committeeId}`);
+
+    const currentYear = new Date().getFullYear();
+    const cycle = currentYear % 2 === 0 ? currentYear : currentYear + 1;
+    log(`  📅 Election cycle: ${cycle}`);
+
+    progress = {
+      bioguideId,
+      committeeId,
+      cycle,
+      currentPage: 1,
+      totalPages: null,
+      transactions: [],
+      startedAt: new Date().toISOString(),
+      complete: false
+    };
   }
 
-  // First, search for their committee ID using FEC search API
-  console.log(`  🔍 Searching FEC for ${info.name} (${info.office}-${info.state})...`);
-  const committeeId = await searchCommitteeId(info.name, info.office, info.state, apiKey);
+  const committeeId = progress.committeeId;
+  const cycle = progress.cycle;
 
-  if (!committeeId) {
-    throw new Error(`No committee found for ${info.name}`);
-  }
-
-  console.log(`  💼 Committee ID: ${committeeId}`);
-
-  // Get current election cycle
-  const currentYear = new Date().getFullYear();
-  const cycle = currentYear % 2 === 0 ? currentYear : currentYear + 1;
-  console.log(`  📅 Election cycle: ${cycle}`);
-
-  // Fetch all itemized individual contributions (Schedule A)
-  let allTransactions = [];
-  let page = 1;
-  let totalPages = 1;
-  let apiCallCount = 0;
+  // Fetch transactions in chunks
   const perPage = 100; // Max allowed by FEC API
+  const startPage = progress.currentPage;
+  const maxPagesToFetch = PAGES_PER_RUN;
 
-  console.log(`  📥 Fetching Schedule A transactions (itemized individual contributions)...`);
+  log(`  📥 Fetching Schedule A transactions (chunk of ${maxPagesToFetch} pages)...`);
 
-  const fetchStartTimeTotal = Date.now();
+  const fetchStartTime = Date.now();
+  let pagesProcessed = 0;
+  let page = startPage;
 
-  while (page <= totalPages) {
-    const fetchStartTime = Date.now();
+  while (pagesProcessed < maxPagesToFetch) {
+    const pageStartTime = Date.now();
 
     const response = await fetch(
       `https://api.open.fec.gov/v1/schedules/schedule_a/?` +
@@ -168,86 +259,94 @@ async function fetchItemizedTransactions(bioguideId, env) {
       }
     );
 
-    apiCallCount++;
-    const fetchTime = Date.now() - fetchStartTime;
-
-    console.log(`  📄 Page ${page}/${totalPages || '?'}: HTTP ${response.status} (${fetchTime}ms)`);
+    const fetchTime = Date.now() - pageStartTime;
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.error(`  ❌ FEC API error: ${errorText}`);
-      throw new Error(`FEC API returned ${response.status} on page ${page}: ${errorText.substring(0, 200)}`);
+      log(`  ❌ FEC API error on page ${page}: ${errorText.substring(0, 200)}`);
+      throw new Error(`FEC API returned ${response.status} on page ${page}`);
     }
 
     const data = await response.json();
 
     // Update total pages from pagination
     if (data.pagination) {
-      totalPages = data.pagination.pages || 1;
-      console.log(`  📊 Pagination: page ${page}/${totalPages}, ${data.pagination.count} total transactions`);
+      progress.totalPages = data.pagination.pages || 1;
+      if (page === startPage) {
+        log(`  📊 Total pages: ${progress.totalPages}, ${data.pagination.count} total transactions`);
+      }
     }
 
     const transactions = data.results || [];
-    allTransactions.push(...transactions);
+    progress.transactions.push(...transactions);
 
-    console.log(`  ➕ Added ${transactions.length} transactions (total so far: ${allTransactions.length})`);
+    log(`  📄 Page ${page}/${progress.totalPages || '?'}: ${transactions.length} transactions (${fetchTime}ms)`);
 
-    // Progress indicator every 25 pages
-    if (page % 25 === 0) {
-      const elapsedSeconds = Math.round((Date.now() - fetchStartTimeTotal) / 1000);
-      const avgTimePerPage = elapsedSeconds / page;
-      const pagesRemaining = totalPages - page;
-      const estimatedSecondsRemaining = Math.round(avgTimePerPage * pagesRemaining);
-      console.log(`  ⏳ Progress: ${Math.round(page/totalPages*100)}% complete, ~${estimatedSecondsRemaining}s remaining`);
-    }
-
+    pagesProcessed++;
     page++;
 
-    // Rate limit safety: small delay between requests
-    if (page <= totalPages) {
-      await sleep(100); // 100ms delay = max 600 req/min = well under 1000/hr standard limit
+    // Check if we've reached the end
+    if (progress.totalPages && page > progress.totalPages) {
+      log(`  ✅ Reached end of pages`);
+      break;
     }
+
+    // Rate limit safety: small delay between requests
+    await sleep(100); // 100ms delay
   }
 
-  const totalFetchTime = Date.now() - fetchStartTimeTotal;
-  console.log(`  ✅ Fetched ${allTransactions.length} total transactions in ${apiCallCount} API calls (${Math.round(totalFetchTime/1000)}s total)`);
+  const totalFetchTime = Date.now() - fetchStartTime;
+  log(`  ⏱️ Fetched ${pagesProcessed} pages in ${Math.round(totalFetchTime/1000)}s`);
 
-  // Analyze the data
-  const analysis = analyzeTransactions(allTransactions);
+  // Update progress
+  progress.currentPage = page;
+  progress.lastUpdated = new Date().toISOString();
 
-  // Store raw data in KV for inspection
-  const kvKey = `itemized:${bioguideId}`;
-  console.log(`  💾 Storing raw data in KV: ${kvKey}`);
+  // Check if complete
+  const isComplete = progress.totalPages && page > progress.totalPages;
 
-  const kvData = {
-    bioguideId,
-    cycle,
-    transactions: allTransactions,
-    analysis,
-    fetchedAt: new Date().toISOString(),
-    apiCallCount
-  };
+  if (isComplete) {
+    progress.complete = true;
+    progress.completedAt = new Date().toISOString();
 
-  const kvDataString = JSON.stringify(kvData);
-  const kvDataSizeBytes = kvDataString.length;
-  const kvDataSizeMB = Math.round(kvDataSizeBytes / 1024 / 1024 * 100) / 100;
+    // Analyze all transactions
+    log(`  📊 Analyzing ${progress.transactions.length} transactions...`);
+    const analysis = analyzeTransactions(progress.transactions);
+    progress.analysis = analysis;
 
-  console.log(`  💾 Serialized data size: ${kvDataSizeBytes} bytes (${kvDataSizeMB} MB)`);
+    log(`  ✅ Analysis complete: ${analysis.uniqueDonors} unique donors, avg $${analysis.avgDonation}`);
 
-  const kvStartTime = Date.now();
-  await env.MEMBER_DATA.put(kvKey, kvDataString);
-  const kvTime = Date.now() - kvStartTime;
+    // Store final complete data
+    const kvKey = `itemized:${bioguideId}`;
+    const kvData = {
+      bioguideId,
+      committeeId,
+      cycle,
+      transactions: progress.transactions,
+      analysis,
+      fetchedAt: progress.startedAt,
+      completedAt: progress.completedAt
+    };
 
-  console.log(`  💾 Stored in KV successfully (${kvTime}ms)`);
+    const kvDataString = JSON.stringify(kvData);
+    const kvDataSizeMB = Math.round(kvDataString.length / 1024 / 1024 * 100) / 100;
+    log(`  💾 Storing complete data (${kvDataSizeMB} MB)...`);
+
+    await env.MEMBER_DATA.put(kvKey, kvDataString);
+    log(`  💾 Stored complete data in KV: ${kvKey}`);
+  }
+
+  // Save progress
+  await env.MEMBER_DATA.put(progressKey, JSON.stringify(progress));
+  log(`  💾 Saved progress: page ${progress.currentPage}/${progress.totalPages}`);
 
   return {
-    committeeId,
-    cycle,
-    transactionCount: allTransactions.length,
-    apiCallCount,
-    dataSizeBytes: kvDataSizeBytes,
-    dataSizeMB: kvDataSizeMB,
-    analysis
+    complete: isComplete,
+    currentPage: progress.currentPage,
+    totalPages: progress.totalPages,
+    totalTransactions: progress.transactions.length,
+    pagesProcessedThisRun: pagesProcessed,
+    analysis: progress.analysis || null
   };
 }
 
