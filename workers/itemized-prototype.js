@@ -27,9 +27,15 @@ export default {
 async function analyzeMembers(env) {
   const startTime = Date.now();
   const results = {};
+  const executionLog = [];
 
-  console.log('🚀 Starting itemized analysis prototype');
-  console.log(`⏰ Start time: ${new Date().toISOString()}`);
+  const log = (msg) => {
+    console.log(msg);
+    executionLog.push(`${new Date().toISOString()} - ${msg}`);
+  };
+
+  log('🚀 Starting itemized analysis prototype');
+  log(`⏰ Start time: ${new Date().toISOString()}`);
 
   // Hardcoded for prototype
   const members = [
@@ -38,34 +44,65 @@ async function analyzeMembers(env) {
   ];
 
   for (const member of members) {
-    console.log(`\n📊 Processing ${member.name} (${member.bioguideId})`);
+    log(`\n📊 Processing ${member.name} (${member.bioguideId})`);
     const memberStartTime = Date.now();
 
     try {
       const analysis = await fetchItemizedTransactions(member.bioguideId, env);
+      const processingTime = Date.now() - memberStartTime;
+
       results[member.bioguideId] = {
         name: member.name,
+        success: true,
         ...analysis,
-        processingTimeMs: Date.now() - memberStartTime
+        processingTimeMs: processingTime,
+        processingTimeMinutes: Math.round(processingTime / 1000 / 60 * 10) / 10
       };
 
-      console.log(`✅ ${member.name} complete in ${Date.now() - memberStartTime}ms`);
+      log(`✅ ${member.name} complete in ${processingTime}ms (${Math.round(processingTime/1000)}s)`);
+      log(`   📊 Final stats: ${analysis.transactionCount} transactions, ${analysis.apiCallCount} API calls`);
     } catch (error) {
-      console.error(`❌ ${member.name} failed:`, error.message);
+      const processingTime = Date.now() - memberStartTime;
+      console.error(`❌ ${member.name} failed:`, error);
+      log(`❌ ${member.name} failed after ${processingTime}ms: ${error.message}`);
+      log(`   Stack: ${error.stack}`);
+
       results[member.bioguideId] = {
         name: member.name,
+        success: false,
         error: error.message,
-        processingTimeMs: Date.now() - memberStartTime
+        errorStack: error.stack,
+        processingTimeMs: processingTime
       };
     }
   }
 
   const totalTime = Date.now() - startTime;
-  console.log(`\n🏁 Total processing time: ${totalTime}ms`);
+  log(`\n🏁 Total processing time: ${totalTime}ms (${Math.round(totalTime/1000)}s, ${Math.round(totalTime/1000/60*10)/10} minutes)`);
+
+  // Summary
+  const successCount = Object.values(results).filter(r => r.success).length;
+  log(`\n📈 Summary: ${successCount}/${members.length} members processed successfully`);
+
+  for (const [bioguideId, result] of Object.entries(results)) {
+    if (result.success) {
+      log(`   ✅ ${result.name}: ${result.transactionCount} txns, ${result.analysis?.uniqueDonors || 'N/A'} unique donors`);
+    } else {
+      log(`   ❌ ${result.name}: ${result.error}`);
+    }
+  }
 
   return new Response(JSON.stringify({
+    success: successCount === members.length,
     results,
-    totalProcessingTimeMs: totalTime,
+    summary: {
+      totalProcessingTimeMs: totalTime,
+      totalProcessingTimeSeconds: Math.round(totalTime / 1000),
+      totalProcessingTimeMinutes: Math.round(totalTime / 1000 / 60 * 10) / 10,
+      membersProcessed: successCount,
+      membersTotal: members.length
+    },
+    executionLog,
     timestamp: new Date().toISOString()
   }, null, 2), {
     headers: { 'Content-Type': 'application/json' }
@@ -110,6 +147,8 @@ async function fetchItemizedTransactions(bioguideId, env) {
 
   console.log(`  📥 Fetching Schedule A transactions (itemized individual contributions)...`);
 
+  const fetchStartTimeTotal = Date.now();
+
   while (page <= totalPages) {
     const fetchStartTime = Date.now();
 
@@ -132,12 +171,12 @@ async function fetchItemizedTransactions(bioguideId, env) {
     apiCallCount++;
     const fetchTime = Date.now() - fetchStartTime;
 
-    console.log(`  📄 Page ${page}: HTTP ${response.status} (${fetchTime}ms)`);
+    console.log(`  📄 Page ${page}/${totalPages || '?'}: HTTP ${response.status} (${fetchTime}ms)`);
 
     if (!response.ok) {
       const errorText = await response.text();
       console.error(`  ❌ FEC API error: ${errorText}`);
-      throw new Error(`FEC API returned ${response.status}: ${errorText.substring(0, 200)}`);
+      throw new Error(`FEC API returned ${response.status} on page ${page}: ${errorText.substring(0, 200)}`);
     }
 
     const data = await response.json();
@@ -153,6 +192,15 @@ async function fetchItemizedTransactions(bioguideId, env) {
 
     console.log(`  ➕ Added ${transactions.length} transactions (total so far: ${allTransactions.length})`);
 
+    // Progress indicator every 25 pages
+    if (page % 25 === 0) {
+      const elapsedSeconds = Math.round((Date.now() - fetchStartTimeTotal) / 1000);
+      const avgTimePerPage = elapsedSeconds / page;
+      const pagesRemaining = totalPages - page;
+      const estimatedSecondsRemaining = Math.round(avgTimePerPage * pagesRemaining);
+      console.log(`  ⏳ Progress: ${Math.round(page/totalPages*100)}% complete, ~${estimatedSecondsRemaining}s remaining`);
+    }
+
     page++;
 
     // Rate limit safety: small delay between requests
@@ -161,7 +209,8 @@ async function fetchItemizedTransactions(bioguideId, env) {
     }
   }
 
-  console.log(`  ✅ Fetched ${allTransactions.length} total transactions in ${apiCallCount} API calls`);
+  const totalFetchTime = Date.now() - fetchStartTimeTotal;
+  console.log(`  ✅ Fetched ${allTransactions.length} total transactions in ${apiCallCount} API calls (${Math.round(totalFetchTime/1000)}s total)`);
 
   // Analyze the data
   const analysis = analyzeTransactions(allTransactions);
@@ -170,22 +219,34 @@ async function fetchItemizedTransactions(bioguideId, env) {
   const kvKey = `itemized:${bioguideId}`;
   console.log(`  💾 Storing raw data in KV: ${kvKey}`);
 
-  await env.MEMBER_DATA.put(kvKey, JSON.stringify({
+  const kvData = {
     bioguideId,
     cycle,
     transactions: allTransactions,
     analysis,
     fetchedAt: new Date().toISOString(),
     apiCallCount
-  }));
+  };
 
-  console.log(`  💾 Stored ${JSON.stringify({ bioguideId, cycle, transactions: allTransactions, analysis }).length} bytes`);
+  const kvDataString = JSON.stringify(kvData);
+  const kvDataSizeBytes = kvDataString.length;
+  const kvDataSizeMB = Math.round(kvDataSizeBytes / 1024 / 1024 * 100) / 100;
+
+  console.log(`  💾 Serialized data size: ${kvDataSizeBytes} bytes (${kvDataSizeMB} MB)`);
+
+  const kvStartTime = Date.now();
+  await env.MEMBER_DATA.put(kvKey, kvDataString);
+  const kvTime = Date.now() - kvStartTime;
+
+  console.log(`  💾 Stored in KV successfully (${kvTime}ms)`);
 
   return {
     committeeId,
     cycle,
     transactionCount: allTransactions.length,
     apiCallCount,
+    dataSizeBytes: kvDataSizeBytes,
+    dataSizeMB: kvDataSizeMB,
     analysis
   };
 }
