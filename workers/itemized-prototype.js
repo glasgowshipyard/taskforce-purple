@@ -27,9 +27,26 @@ export default {
       return getStatus(env);
     }
 
-    return new Response('Itemized Analysis Prototype\n\nEndpoints:\n  /analyze - Process next chunk for Sanders + Pelosi\n  /status - Check progress', {
+    return new Response('Itemized Analysis Prototype\n\nEndpoints:\n  /analyze - Process next chunk for Sanders + Pelosi\n  /status - Check progress\n\nCron: Running every 2 minutes automatically', {
       headers: { 'Content-Type': 'text/plain' }
     });
+  },
+
+  async scheduled(event, env, ctx) {
+    // Cron trigger - process next chunk automatically
+    console.log('🕐 Cron trigger fired:', new Date().toISOString());
+
+    try {
+      const result = await analyzeMembers(env);
+      const data = await result.json();
+
+      console.log('✅ Cron processing complete');
+      console.log(`   Bernie: ${data.results?.S000033?.currentPage || 'N/A'}/${data.results?.S000033?.totalPages || 'N/A'} pages`);
+      console.log(`   Pelosi: ${data.results?.P000197?.currentPage || 'N/A'}/${data.results?.P000197?.totalPages || 'N/A'} pages`);
+      console.log(`   All complete: ${data.allComplete}`);
+    } catch (error) {
+      console.error('❌ Cron processing failed:', error.message);
+    }
   }
 };
 
