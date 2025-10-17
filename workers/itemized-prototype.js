@@ -13,7 +13,7 @@
  * No fancy math. Just raw data.
  */
 
-const PAGES_PER_RUN = 40; // Under 50 subrequest limit (need buffer for committee lookup)
+const PAGES_PER_RUN = 10; // Conservative to avoid timeouts
 
 export default {
   async fetch(request, env) {
