@@ -67,8 +67,8 @@ async function getStatus(env) {
 
     if (progressData) {
       const progress = JSON.parse(progressData);
-      // Don't include full transaction arrays in status
-      const { transactionBuffer, ...statusInfo } = progress;
+      // Don't include transaction data (old: transactions array, new: transactionBuffer)
+      const { transactions, transactionBuffer, ...statusInfo } = progress;
       status[member.bioguideId] = {
         name: member.name,
         status: progress.complete ? 'complete' : 'in_progress',
