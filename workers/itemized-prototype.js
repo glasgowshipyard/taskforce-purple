@@ -7,13 +7,16 @@
  * - Distribution of donation amounts
  * - Real data to prove concentration differences
  *
- * Handles Cloudflare's 50 subrequest limit by processing in chunks.
- * Run /analyze multiple times to resume and complete all members.
+ * Handles Cloudflare's 50 subrequest limit AND 25 MB KV value limit:
+ * - Processes 5 FEC API pages per run (subrequest limit)
+ * - Stores transactions in chunked KV keys (1000 transactions each)
+ * - Metadata-only progress tracking
  *
  * No fancy math. Just raw data.
  */
 
 const PAGES_PER_RUN = 5; // 5 pages × 2.5s = 12.5s + overhead, fits in 30s wall-clock limit
+const TRANSACTIONS_PER_CHUNK = 1000; // ~1.5 MB per chunk, well under 25 MB KV limit
 
 export default {
   async fetch(request, env) {
@@ -64,10 +67,12 @@ async function getStatus(env) {
 
     if (progressData) {
       const progress = JSON.parse(progressData);
+      // Don't include full transaction arrays in status
+      const { transactionBuffer, ...statusInfo } = progress;
       status[member.bioguideId] = {
         name: member.name,
         status: progress.complete ? 'complete' : 'in_progress',
-        ...progress
+        ...statusInfo
       };
     } else {
       status[member.bioguideId] = {
@@ -201,7 +206,8 @@ async function fetchItemizedTransactionsChunk(bioguideId, env, log) {
       log(`  ✅ Already complete`);
       return {
         complete: true,
-        totalTransactions: progress.transactions.length,
+        totalTransactions: progress.totalTransactions,
+        totalChunks: progress.totalChunks,
         analysis: progress.analysis,
         pagesProcessedThisRun: 0
       };
@@ -237,7 +243,9 @@ async function fetchItemizedTransactionsChunk(bioguideId, env, log) {
       cycle,
       currentPage: 1,
       totalPages: null,
-      transactions: [],
+      totalTransactions: 0,
+      totalChunks: 0,
+      transactionBuffer: [], // Temporary buffer for current chunk
       startedAt: new Date().toISOString(),
       complete: false
     };
@@ -256,6 +264,11 @@ async function fetchItemizedTransactionsChunk(bioguideId, env, log) {
   const fetchStartTime = Date.now();
   let pagesProcessed = 0;
   let page = startPage;
+
+  // Initialize transaction buffer if not present
+  if (!progress.transactionBuffer) {
+    progress.transactionBuffer = [];
+  }
 
   while (pagesProcessed < maxPagesToFetch) {
     const pageStartTime = Date.now();
@@ -295,9 +308,22 @@ async function fetchItemizedTransactionsChunk(bioguideId, env, log) {
     }
 
     const transactions = data.results || [];
-    progress.transactions.push(...transactions);
+    progress.transactionBuffer.push(...transactions);
+    progress.totalTransactions += transactions.length;
 
     log(`  📄 Page ${page}/${progress.totalPages || '?'}: ${transactions.length} transactions (${fetchTime}ms)`);
+
+    // Store chunk when buffer reaches limit
+    if (progress.transactionBuffer.length >= TRANSACTIONS_PER_CHUNK) {
+      const chunkNumber = progress.totalChunks;
+      const chunkKey = `transactions:${bioguideId}:chunk_${String(chunkNumber).padStart(3, '0')}`;
+
+      await env.MEMBER_DATA.put(chunkKey, JSON.stringify(progress.transactionBuffer));
+      log(`  💾 Stored chunk ${chunkNumber}: ${progress.transactionBuffer.length} transactions`);
+
+      progress.totalChunks++;
+      progress.transactionBuffer = []; // Clear buffer
+    }
 
     pagesProcessed++;
     page++;
@@ -326,42 +352,68 @@ async function fetchItemizedTransactionsChunk(bioguideId, env, log) {
     progress.complete = true;
     progress.completedAt = new Date().toISOString();
 
-    // Analyze all transactions
-    log(`  📊 Analyzing ${progress.transactions.length} transactions...`);
-    const analysis = analyzeTransactions(progress.transactions);
+    // Store final chunk if buffer has remaining transactions
+    if (progress.transactionBuffer.length > 0) {
+      const chunkNumber = progress.totalChunks;
+      const chunkKey = `transactions:${bioguideId}:chunk_${String(chunkNumber).padStart(3, '0')}`;
+
+      await env.MEMBER_DATA.put(chunkKey, JSON.stringify(progress.transactionBuffer));
+      log(`  💾 Stored final chunk ${chunkNumber}: ${progress.transactionBuffer.length} transactions`);
+
+      progress.totalChunks++;
+    }
+
+    log(`  🔄 Loading all ${progress.totalChunks} chunks for analysis...`);
+
+    // Load all chunks and analyze
+    const allTransactions = [];
+    for (let i = 0; i < progress.totalChunks; i++) {
+      const chunkKey = `transactions:${bioguideId}:chunk_${String(i).padStart(3, '0')}`;
+      const chunkData = await env.MEMBER_DATA.get(chunkKey);
+      if (chunkData) {
+        const chunkTransactions = JSON.parse(chunkData);
+        allTransactions.push(...chunkTransactions);
+      }
+    }
+
+    log(`  📊 Analyzing ${allTransactions.length} transactions...`);
+    const analysis = analyzeTransactions(allTransactions);
     progress.analysis = analysis;
 
     log(`  ✅ Analysis complete: ${analysis.uniqueDonors} unique donors, avg $${analysis.avgDonation}`);
 
-    // Store final complete data
-    const kvKey = `itemized:${bioguideId}`;
-    const kvData = {
+    // Store analysis results separately
+    const analysisKey = `itemized_analysis:${bioguideId}`;
+    const analysisData = {
       bioguideId,
       committeeId,
       cycle,
-      transactions: progress.transactions,
+      totalTransactions: allTransactions.length,
+      totalChunks: progress.totalChunks,
       analysis,
       fetchedAt: progress.startedAt,
       completedAt: progress.completedAt
     };
 
-    const kvDataString = JSON.stringify(kvData);
-    const kvDataSizeMB = Math.round(kvDataString.length / 1024 / 1024 * 100) / 100;
-    log(`  💾 Storing complete data (${kvDataSizeMB} MB)...`);
+    await env.MEMBER_DATA.put(analysisKey, JSON.stringify(analysisData));
+    log(`  💾 Stored analysis results: ${analysisKey}`);
 
-    await env.MEMBER_DATA.put(kvKey, kvDataString);
-    log(`  💾 Stored complete data in KV: ${kvKey}`);
+    // Clear transaction buffer from progress
+    progress.transactionBuffer = [];
   }
 
-  // Save progress
-  await env.MEMBER_DATA.put(progressKey, JSON.stringify(progress));
+  // Save progress (without transaction buffer to keep size small)
+  const progressToSave = { ...progress };
+  delete progressToSave.transactionBuffer;
+  await env.MEMBER_DATA.put(progressKey, JSON.stringify(progressToSave));
   log(`  💾 Saved progress: page ${progress.currentPage}/${progress.totalPages}`);
 
   return {
     complete: isComplete,
     currentPage: progress.currentPage,
     totalPages: progress.totalPages,
-    totalTransactions: progress.transactions.length,
+    totalTransactions: progress.totalTransactions,
+    totalChunks: progress.totalChunks,
     pagesProcessedThisRun: pagesProcessed,
     analysis: progress.analysis || null
   };
