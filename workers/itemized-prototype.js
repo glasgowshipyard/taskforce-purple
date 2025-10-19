@@ -202,6 +202,10 @@ async function fetchItemizedTransactionsChunk(bioguideId, env, log) {
     progress = JSON.parse(existingProgressData);
     log(`  📂 Resuming from page ${progress.currentPage}/${progress.totalPages}`);
 
+    // Initialize fields that may not exist in old progress data
+    if (progress.totalTransactions === undefined) progress.totalTransactions = 0;
+    if (progress.totalChunks === undefined) progress.totalChunks = 0;
+
     if (progress.complete) {
       log(`  ✅ Already complete`);
       return {
