@@ -317,18 +317,6 @@ async function fetchItemizedTransactionsChunk(bioguideId, env, log) {
 
     log(`  📄 Page ${page}/${progress.totalPages || '?'}: ${transactions.length} transactions (${fetchTime}ms)`);
 
-    // Store chunk when buffer reaches limit
-    if (progress.transactionBuffer.length >= TRANSACTIONS_PER_CHUNK) {
-      const chunkNumber = progress.totalChunks;
-      const chunkKey = `transactions:${bioguideId}:chunk_${String(chunkNumber).padStart(3, '0')}`;
-
-      await env.MEMBER_DATA.put(chunkKey, JSON.stringify(progress.transactionBuffer));
-      log(`  💾 Stored chunk ${chunkNumber}: ${progress.transactionBuffer.length} transactions`);
-
-      progress.totalChunks++;
-      progress.transactionBuffer = []; // Clear buffer
-    }
-
     pagesProcessed++;
     page++;
 
@@ -345,6 +333,19 @@ async function fetchItemizedTransactionsChunk(bioguideId, env, log) {
   const totalFetchTime = Date.now() - fetchStartTime;
   log(`  ⏱️ Fetched ${pagesProcessed} pages in ${Math.round(totalFetchTime/1000)}s`);
 
+  // Save current buffer as a chunk (even if under 1000 transactions)
+  // This ensures we don't lose data between runs
+  if (progress.transactionBuffer.length > 0) {
+    const chunkNumber = progress.totalChunks;
+    const chunkKey = `transactions:${bioguideId}:chunk_${String(chunkNumber).padStart(3, '0')}`;
+
+    await env.MEMBER_DATA.put(chunkKey, JSON.stringify(progress.transactionBuffer));
+    log(`  💾 Stored chunk ${chunkNumber}: ${progress.transactionBuffer.length} transactions`);
+
+    progress.totalChunks++;
+    progress.transactionBuffer = []; // Clear buffer
+  }
+
   // Update progress
   progress.currentPage = page;
   progress.lastUpdated = new Date().toISOString();
@@ -355,17 +356,6 @@ async function fetchItemizedTransactionsChunk(bioguideId, env, log) {
   if (isComplete) {
     progress.complete = true;
     progress.completedAt = new Date().toISOString();
-
-    // Store final chunk if buffer has remaining transactions
-    if (progress.transactionBuffer.length > 0) {
-      const chunkNumber = progress.totalChunks;
-      const chunkKey = `transactions:${bioguideId}:chunk_${String(chunkNumber).padStart(3, '0')}`;
-
-      await env.MEMBER_DATA.put(chunkKey, JSON.stringify(progress.transactionBuffer));
-      log(`  💾 Stored final chunk ${chunkNumber}: ${progress.transactionBuffer.length} transactions`);
-
-      progress.totalChunks++;
-    }
 
     log(`  🔄 Loading all ${progress.totalChunks} chunks for analysis...`);
 
