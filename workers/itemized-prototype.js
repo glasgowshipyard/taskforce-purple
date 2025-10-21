@@ -146,9 +146,9 @@ async function analyzeMembers(env) {
       };
     }
 
-    // Check if we're approaching subrequest limit
-    if (totalPagesProcessed >= PAGES_PER_RUN - 5) {
-      log(`\n⚠️ Approaching subrequest limit (${totalPagesProcessed} pages processed), stopping this run`);
+    // Check if we're at subrequest limit (don't start next member if we just did a full run)
+    if (totalPagesProcessed >= PAGES_PER_RUN) {
+      log(`\n⚠️ Reached page limit (${totalPagesProcessed} pages processed), stopping this run`);
       break;
     }
   }
