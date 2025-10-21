@@ -44,8 +44,8 @@ export default {
       const data = await result.json();
 
       console.log('✅ Cron processing complete');
-      console.log(`   Bernie: ${data.results?.S000033?.currentPage || 'N/A'}/${data.results?.S000033?.totalPages || 'N/A'} pages`);
-      console.log(`   Pelosi: ${data.results?.P000197?.currentPage || 'N/A'}/${data.results?.P000197?.totalPages || 'N/A'} pages`);
+      console.log(`   Bernie: ${data.results?.S000033?.totalTransactions || 'N/A'} transactions`);
+      console.log(`   Pelosi: ${data.results?.P000197?.totalTransactions || 'N/A'} transactions`);
       console.log(`   All complete: ${data.allComplete}`);
     } catch (error) {
       console.error('❌ Cron processing failed:', error.message);
@@ -130,7 +130,7 @@ async function analyzeMembers(env) {
       if (result.complete) {
         log(`✅ ${member.name} COMPLETE: ${result.totalTransactions} transactions, ${result.analysis?.uniqueDonors || 'N/A'} unique donors`);
       } else {
-        log(`⏸️ ${member.name} in progress: ${result.currentPage}/${result.totalPages} pages (${Math.round(result.currentPage/result.totalPages*100)}%)`);
+        log(`⏸️ ${member.name} in progress: ${result.totalTransactions} transactions collected, ${result.runsCompleted} runs completed`);
       }
 
     } catch (error) {
@@ -200,11 +200,14 @@ async function fetchItemizedTransactionsChunk(bioguideId, env, log) {
 
   if (existingProgressData) {
     progress = JSON.parse(existingProgressData);
-    log(`  📂 Resuming from page ${progress.currentPage}/${progress.totalPages}`);
+    log(`  📂 Resuming: ${progress.totalTransactions} transactions collected so far`);
 
     // Initialize fields that may not exist in old progress data
     if (progress.totalTransactions === undefined) progress.totalTransactions = 0;
     if (progress.totalChunks === undefined) progress.totalChunks = 0;
+    if (progress.runsCompleted === undefined) progress.runsCompleted = 0;
+    if (progress.lastIndex === undefined) progress.lastIndex = null;
+    if (progress.lastContributionReceiptDate === undefined) progress.lastContributionReceiptDate = null;
 
     if (progress.complete) {
       log(`  ✅ Already complete`);
@@ -245,10 +248,11 @@ async function fetchItemizedTransactionsChunk(bioguideId, env, log) {
       bioguideId,
       committeeId,
       cycle,
-      currentPage: 1,
-      totalPages: null,
       totalTransactions: 0,
       totalChunks: 0,
+      runsCompleted: 0,
+      lastIndex: null, // Cursor for pagination
+      lastContributionReceiptDate: null, // Cursor for pagination
       transactionBuffer: [], // Temporary buffer for current chunk
       startedAt: new Date().toISOString(),
       complete: false
@@ -258,16 +262,14 @@ async function fetchItemizedTransactionsChunk(bioguideId, env, log) {
   const committeeId = progress.committeeId;
   const cycle = progress.cycle;
 
-  // Fetch transactions in chunks
+  // Fetch transactions using cursor-based pagination
   const perPage = 100; // Max allowed by FEC API
-  const startPage = progress.currentPage;
   const maxPagesToFetch = PAGES_PER_RUN;
 
-  log(`  📥 Fetching Schedule A transactions (chunk of ${maxPagesToFetch} pages)...`);
+  log(`  📥 Fetching Schedule A transactions (up to ${maxPagesToFetch} API calls)...`);
 
   const fetchStartTime = Date.now();
   let pagesProcessed = 0;
-  let page = startPage;
 
   // Initialize transaction buffer if not present
   if (!progress.transactionBuffer) {
@@ -277,61 +279,67 @@ async function fetchItemizedTransactionsChunk(bioguideId, env, log) {
   while (pagesProcessed < maxPagesToFetch) {
     const pageStartTime = Date.now();
 
-    const response = await fetch(
-      `https://api.open.fec.gov/v1/schedules/schedule_a/?` +
+    // Build URL with cursor-based pagination
+    let url = `https://api.open.fec.gov/v1/schedules/schedule_a/?` +
       `api_key=${apiKey}` +
       `&committee_id=${committeeId}` +
-      `&contributor_type=individual` + // Only individual donors, not committees
+      `&contributor_type=individual` +
       `&per_page=${perPage}` +
-      `&page=${page}` +
-      `&two_year_transaction_period=${cycle}` +
-      `&sort=-contribution_receipt_date`, // Newest first
-      {
-        headers: {
-          'User-Agent': 'TaskForcePurple/1.0 (Political Transparency Platform)'
-        }
+      `&two_year_transaction_period=${cycle}`;
+
+    // Add cursor parameters if we have them (for continuation)
+    if (progress.lastIndex && progress.lastContributionReceiptDate) {
+      url += `&last_index=${progress.lastIndex}` +
+             `&last_contribution_receipt_date=${encodeURIComponent(progress.lastContributionReceiptDate)}`;
+    }
+
+    const response = await fetch(url, {
+      headers: {
+        'User-Agent': 'TaskForcePurple/1.0 (Political Transparency Platform)'
       }
-    );
+    });
 
     const fetchTime = Date.now() - pageStartTime;
 
     if (!response.ok) {
       const errorText = await response.text();
-      log(`  ❌ FEC API error on page ${page}: ${errorText.substring(0, 200)}`);
-      throw new Error(`FEC API returned ${response.status} on page ${page}`);
+      log(`  ❌ FEC API error: ${errorText.substring(0, 200)}`);
+      throw new Error(`FEC API returned ${response.status}`);
     }
 
     const data = await response.json();
 
-    // Update total pages from pagination
-    if (data.pagination) {
-      progress.totalPages = data.pagination.pages || 1;
-      if (page === startPage) {
-        log(`  📊 Total pages: ${progress.totalPages}, ${data.pagination.count} total transactions`);
-      }
+    const transactions = data.results || [];
+
+    // Check if we've reached the end (no more results)
+    if (transactions.length === 0) {
+      log(`  ✅ No more transactions (API returned empty results)`);
+      break;
     }
 
-    const transactions = data.results || [];
     progress.transactionBuffer.push(...transactions);
     progress.totalTransactions += transactions.length;
 
-    log(`  📄 Page ${page}/${progress.totalPages || '?'}: ${transactions.length} transactions (${fetchTime}ms)`);
+    // Update cursor for next page
+    if (data.pagination && data.pagination.last_indexes) {
+      progress.lastIndex = data.pagination.last_indexes.last_index;
+      progress.lastContributionReceiptDate = data.pagination.last_indexes.last_contribution_receipt_date;
+    }
+
+    // Log progress
+    const totalCount = data.pagination?.count || '?';
+    const percentComplete = data.pagination?.count ?
+      Math.round((progress.totalTransactions / data.pagination.count) * 100) : '?';
+    log(`  📄 Fetched ${transactions.length} transactions (${fetchTime}ms) - Total: ${progress.totalTransactions}/${totalCount} (${percentComplete}%)`);
 
     pagesProcessed++;
-    page++;
-
-    // Check if we've reached the end
-    if (progress.totalPages && page > progress.totalPages) {
-      log(`  ✅ Reached end of pages`);
-      break;
-    }
 
     // Rate limit safety: small delay between requests
     await sleep(100); // 100ms delay
   }
 
   const totalFetchTime = Date.now() - fetchStartTime;
-  log(`  ⏱️ Fetched ${pagesProcessed} pages in ${Math.round(totalFetchTime/1000)}s`);
+  log(`  ⏱️ Fetched ${pagesProcessed} API calls in ${Math.round(totalFetchTime/1000)}s`);
 
   // Save current buffer as a chunk (even if under 1000 transactions)
   // This ensures we don't lose data between runs
@@ -347,11 +355,12 @@ async function fetchItemizedTransactionsChunk(bioguideId, env, log) {
   }
 
   // Update progress
-  progress.currentPage = page;
+  progress.runsCompleted++;
   progress.lastUpdated = new Date().toISOString();
 
-  // Check if complete
-  const isComplete = progress.totalPages && page > progress.totalPages;
+  // Check if complete - we're done if the last fetch returned no results
+  // The loop breaks when transactions.length === 0, and pagesProcessed would be < maxPagesToFetch
+  const isComplete = pagesProcessed < maxPagesToFetch;
 
   if (isComplete) {
     progress.complete = true;
@@ -400,12 +409,11 @@ async function fetchItemizedTransactionsChunk(bioguideId, env, log) {
   const progressToSave = { ...progress };
   delete progressToSave.transactionBuffer;
   await env.MEMBER_DATA.put(progressKey, JSON.stringify(progressToSave));
-  log(`  💾 Saved progress: page ${progress.currentPage}/${progress.totalPages}`);
+  log(`  💾 Saved progress: ${progress.totalTransactions} transactions collected`);
 
   return {
     complete: isComplete,
-    currentPage: progress.currentPage,
-    totalPages: progress.totalPages,
+    runsCompleted: progress.runsCompleted,
     totalTransactions: progress.totalTransactions,
     totalChunks: progress.totalChunks,
     pagesProcessedThisRun: pagesProcessed,
