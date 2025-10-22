@@ -476,16 +476,20 @@ function analyzeTransactions(transactions) {
     };
   }
 
-  // Deduplicate donors by name (simple normalization)
-  const donorNames = new Set();
+  // Deduplicate donors by composite key: name + state + zip
+  // This handles name variations (JOHN SMITH vs Smith, John) and same names in different locations
+  const donorKeys = new Set();
   const amounts = [];
   let totalAmount = 0;
 
   for (const tx of transactions) {
     if (tx.contributor_name && tx.contribution_receipt_amount > 0) {
-      // Normalize name: uppercase, trim whitespace
+      // Composite key: normalized name + state + zip for unique identification
       const normalizedName = tx.contributor_name.toUpperCase().trim();
-      donorNames.add(normalizedName);
+      const state = tx.contributor_state || '';
+      const zip = tx.contributor_zip || '';
+      const compositeKey = `${normalizedName}|${state}|${zip}`;
+      donorKeys.add(compositeKey);
 
       const amount = tx.contribution_receipt_amount;
       amounts.push(amount);
@@ -496,18 +500,21 @@ function analyzeTransactions(transactions) {
   // Sort amounts for median calculation
   amounts.sort((a, b) => a - b);
 
-  const uniqueDonors = donorNames.size;
+  const uniqueDonors = donorKeys.size;
   const avgDonation = totalAmount / amounts.length;
   const medianDonation = amounts[Math.floor(amounts.length / 2)];
   const minDonation = amounts[0] || 0;
   const maxDonation = amounts[amounts.length - 1] || 0;
 
-  // Find top donors by summing all donations per person
+  // Find top donors by summing all donations per person (using composite key)
   const donorTotals = {};
   for (const tx of transactions) {
     if (tx.contributor_name && tx.contribution_receipt_amount > 0) {
       const normalizedName = tx.contributor_name.toUpperCase().trim();
-      donorTotals[normalizedName] = (donorTotals[normalizedName] || 0) + tx.contribution_receipt_amount;
+      const state = tx.contributor_state || '';
+      const zip = tx.contributor_zip || '';
+      const compositeKey = `${normalizedName}|${state}|${zip}`;
+      donorTotals[compositeKey] = (donorTotals[compositeKey] || 0) + tx.contribution_receipt_amount;
     }
   }
 
@@ -515,7 +522,11 @@ function analyzeTransactions(transactions) {
   const topDonors = Object.entries(donorTotals)
     .sort((a, b) => b[1] - a[1])
     .slice(0, 10)
-    .map(([name, amount]) => ({ name, amount }));
+    .map(([compositeKey, amount]) => {
+      // Extract just the name part from composite key for display
+      const displayName = compositeKey.split('|')[0];
+      return { name: displayName, amount };
+    });
 
   const top10Total = topDonors.reduce((sum, d) => sum + d.amount, 0);
   const top10Percent = (top10Total / totalAmount) * 100;
