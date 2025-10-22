@@ -1341,6 +1341,9 @@ async function processMembers(congressMembers, env, testLimit = undefined) {
             currentMembers[memberIndex].pacContributions = pacDetails;
             currentMembers[memberIndex].pacDetailsStatus = 'complete';
             currentMembers[memberIndex].lastUpdated = new Date().toISOString();
+            // BUGFIX: Always refresh dataCycle to prevent stale 1970 values (Issue #15)
+            const currentCycle = await getElectionCycle();
+            currentMembers[memberIndex].dataCycle = currentCycle;
             // NEW: Recalculate tier with enhanced transparency weighting
             const { tier, individualFundingPercent } = calculateEnhancedTier(currentMembers[memberIndex], currentMembers);
             currentMembers[memberIndex].tier = tier;
@@ -2372,6 +2375,8 @@ async function updateSingleMember(member, env) {
     member.partyMoney = financialData.partyMoney;
     member.committeeId = financialData.committeeId;
     member.lastUpdated = new Date().toISOString();
+    // BUGFIX: Always refresh dataCycle to prevent stale 1970 values (Issue #15)
+    member.dataCycle = financialData.dataCycle || await getElectionCycle();
 
     console.log(`✅ Financial data updated: $${member.totalRaised.toLocaleString()} raised, ${member.grassrootsPercent}% grassroots`);
 
@@ -3166,6 +3171,8 @@ async function enhanceMemberWithPACData(member, env) {
       targetMember.tier = tier;
       targetMember.individualFundingPercent = individualFundingPercent;
       targetMember.lastUpdated = new Date().toISOString();
+      // BUGFIX: Always refresh dataCycle to prevent stale 1970 values (Issue #15)
+      targetMember.dataCycle = targetMember.dataCycle || await getElectionCycle();
 
       // Save updated data
       members[memberIndex] = targetMember;

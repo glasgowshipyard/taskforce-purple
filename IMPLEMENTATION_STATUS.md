@@ -110,7 +110,23 @@
 - **Status**: NOT ADDRESSED - different feature entirely
 - **Reason**: Focused on FEC data pipeline, not bipartisan voting integration
 
-## Critical Issues to Investigate
+## New Prototype: Itemized Donor Concentration Analysis ✅ COMPLETE
+
+**Status**: Successfully completed for Bernie Sanders and Nancy Pelosi (2025-10-21)
+**Worker**: `taskforce-purple-itemized-prototype`
+**Purpose**: Validate hypothesis that aggregate itemized percentages mask donor concentration
+
+**Results Confirmed:**
+- Bernie Sanders: 8,408 unique donors, 2.9% top-10 concentration
+- Nancy Pelosi: 1,476 unique donors, 8.9% top-10 concentration
+- **Finding**: Pelosi's donor base is 3× more concentrated despite similar aggregate percentages
+
+**Architectural Achievement:**
+- Successfully stored 17,566 + 11,484 transactions in KV (39 GB total data, chunked storage)
+- Implemented cursor-based pagination without hitting timeouts
+- Automatic cron processing (2-minute intervals) working reliably
+
+See `.CLAUDE_CONTEXT.md` § "Itemized Donor Concentration Analysis" for full technical details.
 
 ## Next Steps
 
@@ -154,5 +170,5 @@
 The system architecture requires **sequential completion**: Phase 1 must finish ALL 538 members before Phase 2 can start. With 503 members still needing financial data and processing 1 member per batch run, **Phase 2 will never execute** under current conditions.
 
 ---
-*Last updated: 2025-09-30*
+*Last updated: 2025-10-21*
 *This document should be updated whenever significant changes are made to the data pipeline.*

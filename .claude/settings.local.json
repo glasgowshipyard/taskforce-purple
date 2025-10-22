@@ -28,7 +28,20 @@
       "Bash(ps:*)",
       "Bash(timeout 90 curl -s \"https://taskforce-purple-itemized-prototype.dev-a4b.workers.dev/analyze\")",
       "Bash(tee:*)",
-      "Bash(time curl:*)"
+      "Bash(time curl:*)",
+      "Bash(for i in 000 001 010 020 035)",
+      "Bash(do echo:*)",
+      "Bash(done)",
+      "Bash(for chunk in 000 005 010 015 020 025 030 035)",
+      "Bash(do wrangler kv key get \"transactions:S000033:chunk_$chunk\" --namespace-id=8318226115e2423ab5d141adfa5419f9 --remote)",
+      "Bash(for:*)",
+      "Bash(do wrangler kv key delete \"transactions:S000033:chunk_$i\" --namespace-id=8318226115e2423ab5d141adfa5419f9 --remote)",
+      "Bash(timeout 60 curl -s \"https://taskforce-purple-itemized-prototype.dev-a4b.workers.dev/analyze\")",
+      "Bash(echo:*)",
+      "Read(//tmp/**)",
+      "Bash(gh issue view:*)",
+      "Bash(gh issue comment:*)",
+      "Bash(wrangler tail:*)"
     ],
     "deny": [],
     "ask": []
