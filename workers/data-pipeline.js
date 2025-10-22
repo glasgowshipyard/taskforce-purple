@@ -1986,10 +1986,6 @@ async function performTierRecalculation(env) {
         continue;
       }
 
-      if (member.bioguideId === 'T000468') {
-        console.log(`Processing Dina Titus: grassrootsDonations=${member.grassrootsDonations}, totalRaised=${member.totalRaised}, currentPercent=${member.grassrootsPercent}`);
-      }
-
       // Calculate new tier using enhanced logic
       const oldTier = member.tier;
       const { tier: newTier, individualFundingPercent } = calculateEnhancedTier(member, members);
@@ -2006,18 +2002,29 @@ async function performTierRecalculation(env) {
 
       // Update tier and/or grassrootsPercent if they changed
       if (oldTier !== newTier || member.grassrootsPercent !== newGrassrootsPercent) {
-        if (member.bioguideId === 'T000468') {
-          console.log(`Updating Dina Titus: tier ${oldTier}->${newTier}, grassroots% ${member.grassrootsPercent}->${newGrassrootsPercent}`);
-        }
+        // BUGFIX: Refresh dataCycle to fix stale 1970 values (Issue #15)
+        const currentCycle = member.dataCycle === 1970 || !member.dataCycle ? await getElectionCycle() : member.dataCycle;
         members[i] = {
           ...member,
           tier: newTier,
           grassrootsPercent: newGrassrootsPercent,
+          dataCycle: currentCycle,
           lastTierRecalculated: new Date().toISOString()
         };
         recalculated++;
       } else {
-        unchanged++;
+        // BUGFIX: Always refresh dataCycle even if tier/grassroots unchanged (Issue #15)
+        if (member.dataCycle === 1970 || !member.dataCycle) {
+          const currentCycle = await getElectionCycle();
+          members[i] = {
+            ...member,
+            dataCycle: currentCycle,
+            lastTierRecalculated: new Date().toISOString()
+          };
+          recalculated++;
+        } else {
+          unchanged++;
+        }
       }
 
     } catch (error) {
