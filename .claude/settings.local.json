@@ -42,7 +42,19 @@
       "Bash(gh issue view:*)",
       "Bash(gh issue comment:*)",
       "Bash(wrangler tail:*)",
-      "Bash(gh issue close 15 --comment \"$(cat <<''EOF''\n## ✅ FIXED AND VERIFIED (2025-10-22)\n\n### Root Cause\nMembers with `dataCycle: 1970` were stored when initial financial fetches failed. The member update logic never refreshed this field, so stale values persisted forever.\n\n### Solution Implemented\n1. **Added dataCycle refresh to 3 update locations** (commit a580ff8)\n   - PAC details updates (line 1344-1346)\n   - Financial data updates (line 2379)\n   - Enhanced PAC updates (line 3175)\n\n2. **Integrated into recalculate-tiers endpoint** (commit 8e0be91)\n   - One-call cleanup for all 537 members\n   - Removes need to reprocess individual members\n\n### Verification\n**Before**: AOC and Josh Hawley showing `dataCycle: 1970`\n**After**: 447/537 members (83%) now showing `dataCycle: 2024`\n\nRemaining 77 members with `$0 raised` are correctly skipped (no financial data to recalculate).\n\n### Usage\nTo fix all remaining members:\n```bash\ncurl -X POST \"https://taskforce-purple-api.dev-a4b.workers.dev/api/recalculate-tiers\" \\\n  -H \"Authorization: Bearer taskforce_purple_2025_update\"\n```\n\n**Status**: ✅ RESOLVED\nEOF\n)\")"
+      "Bash(gh issue close 15 --comment \"$(cat <<''EOF''\n## ✅ FIXED AND VERIFIED (2025-10-22)\n\n### Root Cause\nMembers with `dataCycle: 1970` were stored when initial financial fetches failed. The member update logic never refreshed this field, so stale values persisted forever.\n\n### Solution Implemented\n1. **Added dataCycle refresh to 3 update locations** (commit a580ff8)\n   - PAC details updates (line 1344-1346)\n   - Financial data updates (line 2379)\n   - Enhanced PAC updates (line 3175)\n\n2. **Integrated into recalculate-tiers endpoint** (commit 8e0be91)\n   - One-call cleanup for all 537 members\n   - Removes need to reprocess individual members\n\n### Verification\n**Before**: AOC and Josh Hawley showing `dataCycle: 1970`\n**After**: 447/537 members (83%) now showing `dataCycle: 2024`\n\nRemaining 77 members with `$0 raised` are correctly skipped (no financial data to recalculate).\n\n### Usage\nTo fix all remaining members:\n```bash\ncurl -X POST \"https://taskforce-purple-api.dev-a4b.workers.dev/api/recalculate-tiers\" \\\n  -H \"Authorization: Bearer taskforce_purple_2025_update\"\n```\n\n**Status**: ✅ RESOLVED\nEOF\n)\")",
+      "WebFetch(domain:www.fec.gov)",
+      "WebSearch",
+      "WebFetch(domain:projects.propublica.org)",
+      "WebFetch(domain:www.opensecrets.org)",
+      "WebFetch(domain:github.com)",
+      "WebFetch(domain:developers.cloudflare.com)",
+      "Bash(YESUE)",
+      "Bash(MA)",
+      "Bash(01740\", total: 5000 },\n  { key: \"SUSAN)",
+      "Bash(M)",
+      "Bash(DORKINGS)",
+      "Bash(NY)"
     ],
     "deny": [],
     "ask": []
