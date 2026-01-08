@@ -7,9 +7,9 @@ compatibility_date = "2024-01-01"
 binding = "MEMBER_DATA"
 id = "8318226115e2423ab5d141adfa5419f9"
 
-# Cron trigger - run every 2 minutes
-[triggers]
-crons = ["*/2 * * * *"]
+# Cron trigger - DISABLED (using free-tier worker instead)
+# [triggers]
+# crons = ["*/2 * * * *"]
 
 # Environment variables
 [vars]
