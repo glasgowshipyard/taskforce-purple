@@ -543,7 +543,9 @@ function analyzeTransactions(transactions) {
   let totalAmount = 0;
 
   for (const tx of transactions) {
-    if (tx.contribution_receipt_amount > 0) {
+    // Exclude memo entries (memoed_subtotal=true) - these are sub-itemizations
+    // already counted in parent transactions
+    if (tx.contribution_receipt_amount > 0 && tx.memoed_subtotal !== true) {
       // Use separate first/last name fields (more consistent than contributor_name)
       const firstName = (tx.contributor_first_name || '').toUpperCase().trim();
       const lastName = (tx.contributor_last_name || '').toUpperCase().trim();
@@ -572,7 +574,8 @@ function analyzeTransactions(transactions) {
   // Find top donors by summing all donations per person (using composite key)
   const donorTotals = {};
   for (const tx of transactions) {
-    if (tx.contribution_receipt_amount > 0) {
+    // Exclude memo entries (same filter as above)
+    if (tx.contribution_receipt_amount > 0 && tx.memoed_subtotal !== true) {
       const firstName = (tx.contributor_first_name || '').toUpperCase().trim();
       const lastName = (tx.contributor_last_name || '').toUpperCase().trim();
       const state = (tx.contributor_state || '').toUpperCase().trim();
