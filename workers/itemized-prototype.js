@@ -270,6 +270,7 @@ async function fetchItemizedTransactionsChunk(bioguideId, env, log) {
 
   const fetchStartTime = Date.now();
   let pagesProcessed = 0;
+  let reachedEnd = false; // Track if we got empty results (true end of data)
 
   // Initialize transaction buffer if not present
   if (!progress.transactionBuffer) {
@@ -314,6 +315,7 @@ async function fetchItemizedTransactionsChunk(bioguideId, env, log) {
     // Check if we've reached the end (no more results)
     if (transactions.length === 0) {
       log(`  ✅ No more transactions (API returned empty results)`);
+      reachedEnd = true;
       break;
     }
 
@@ -326,11 +328,16 @@ async function fetchItemizedTransactionsChunk(bioguideId, env, log) {
       progress.lastContributionReceiptDate = data.pagination.last_indexes.last_contribution_receipt_date;
     }
 
-    // Log progress
+    // Log progress with FEC's expected total count
     const totalCount = data.pagination?.count || '?';
     const percentComplete = data.pagination?.count ?
       Math.round((progress.totalTransactions / data.pagination.count) * 100) : '?';
     log(`  📄 Fetched ${transactions.length} transactions (${fetchTime}ms) - Total: ${progress.totalTransactions}/${totalCount} (${percentComplete}%)`);
+
+    // Store FEC's total count for validation later
+    if (data.pagination?.count && !progress.fecTotalCount) {
+      progress.fecTotalCount = data.pagination.count;
+    }
 
     pagesProcessed++;
 
@@ -358,13 +365,23 @@ async function fetchItemizedTransactionsChunk(bioguideId, env, log) {
   progress.runsCompleted++;
   progress.lastUpdated = new Date().toISOString();
 
-  // Check if complete - we're done if the last fetch returned no results
-  // The loop breaks when transactions.length === 0, and pagesProcessed would be < maxPagesToFetch
-  const isComplete = pagesProcessed < maxPagesToFetch;
+  // Check if complete - we're done ONLY if we got empty results from FEC API
+  // This prevents false completion from timeouts, errors, or other early breaks
+  const isComplete = reachedEnd;
 
   if (isComplete) {
     progress.complete = true;
     progress.completedAt = new Date().toISOString();
+
+    // Validate: Did we collect all the transactions FEC said exist?
+    if (progress.fecTotalCount && progress.totalTransactions !== progress.fecTotalCount) {
+      log(`  ⚠️ WARNING: Transaction count mismatch!`);
+      log(`     FEC reported: ${progress.fecTotalCount} transactions`);
+      log(`     We collected: ${progress.totalTransactions} transactions`);
+      log(`     Missing: ${progress.fecTotalCount - progress.totalTransactions} transactions`);
+    } else if (progress.fecTotalCount) {
+      log(`  ✅ Transaction count validated: ${progress.totalTransactions} matches FEC total`);
+    }
 
     log(`  🔄 Loading all ${progress.totalChunks} chunks for analysis...`);
 
@@ -384,6 +401,48 @@ async function fetchItemizedTransactionsChunk(bioguideId, env, log) {
     progress.analysis = analysis;
 
     log(`  ✅ Analysis complete: ${analysis.uniqueDonors} unique donors, avg $${analysis.avgDonation}`);
+
+    // CRITICAL: Reconcile our summed totalAmount against FEC's reported total
+    log(`  🔍 Fetching FEC financial totals for reconciliation...`);
+    try {
+      const fecTotalsUrl = `https://api.open.fec.gov/v1/committee/${committeeId}/totals/?api_key=${apiKey}&cycle=${cycle}`;
+      const fecTotalsResponse = await fetch(fecTotalsUrl, {
+        headers: { 'User-Agent': 'TaskForcePurple/1.0 (Political Transparency Platform)' }
+      });
+
+      if (fecTotalsResponse.ok) {
+        const fecTotalsData = await fecTotalsResponse.json();
+        const fecTotal = fecTotalsData.results?.[0];
+
+        if (fecTotal) {
+          const fecItemizedTotal = fecTotal.individual_itemized_contributions || 0;
+          const ourCalculatedTotal = analysis.totalAmount;
+          const difference = Math.abs(fecItemizedTotal - ourCalculatedTotal);
+          const percentDiff = fecItemizedTotal > 0 ? (difference / fecItemizedTotal) * 100 : 0;
+
+          log(`  📊 FEC Reconciliation:`);
+          log(`     FEC reported itemized total: $${fecItemizedTotal.toLocaleString()}`);
+          log(`     Our calculated total:        $${ourCalculatedTotal.toLocaleString()}`);
+          log(`     Difference:                  $${difference.toLocaleString()} (${percentDiff.toFixed(2)}%)`);
+
+          if (percentDiff > 1) {
+            log(`  ⚠️ WARNING: Totals differ by more than 1%! Check for missing or duplicate transactions.`);
+          } else {
+            log(`  ✅ Totals match within 1% tolerance`);
+          }
+
+          // Store reconciliation data
+          analysis.fecReconciliation = {
+            fecItemizedTotal,
+            ourCalculatedTotal,
+            difference,
+            percentDiff
+          };
+        }
+      }
+    } catch (err) {
+      log(`  ⚠️ Could not fetch FEC totals for reconciliation: ${err.message}`);
+    }
 
     // Store analysis results separately
     const analysisKey = `itemized_analysis:${bioguideId}`;
@@ -476,19 +535,23 @@ function analyzeTransactions(transactions) {
     };
   }
 
-  // Deduplicate donors by composite key: name + state + zip
-  // This handles name variations (JOHN SMITH vs Smith, John) and same names in different locations
+  // Deduplicate donors by composite key: first_name + last_name + state + zip
+  // Using separate name fields handles variations better than contributor_name field
+  // (which can be "SMITH, JOHN" or "JOHN SMITH" inconsistently)
   const donorKeys = new Set();
   const amounts = [];
   let totalAmount = 0;
 
   for (const tx of transactions) {
-    if (tx.contributor_name && tx.contribution_receipt_amount > 0) {
-      // Composite key: normalized name + state + zip for unique identification
-      const normalizedName = tx.contributor_name.toUpperCase().trim();
-      const state = tx.contributor_state || '';
-      const zip = tx.contributor_zip || '';
-      const compositeKey = `${normalizedName}|${state}|${zip}`;
+    if (tx.contribution_receipt_amount > 0) {
+      // Use separate first/last name fields (more consistent than contributor_name)
+      const firstName = (tx.contributor_first_name || '').toUpperCase().trim();
+      const lastName = (tx.contributor_last_name || '').toUpperCase().trim();
+      const state = (tx.contributor_state || '').toUpperCase().trim();
+      const zip = (tx.contributor_zip || '').trim();
+
+      // Composite key: first|last|state|zip for unique identification
+      const compositeKey = `${firstName}|${lastName}|${state}|${zip}`;
       donorKeys.add(compositeKey);
 
       const amount = tx.contribution_receipt_amount;
@@ -509,11 +572,12 @@ function analyzeTransactions(transactions) {
   // Find top donors by summing all donations per person (using composite key)
   const donorTotals = {};
   for (const tx of transactions) {
-    if (tx.contributor_name && tx.contribution_receipt_amount > 0) {
-      const normalizedName = tx.contributor_name.toUpperCase().trim();
-      const state = tx.contributor_state || '';
-      const zip = tx.contributor_zip || '';
-      const compositeKey = `${normalizedName}|${state}|${zip}`;
+    if (tx.contribution_receipt_amount > 0) {
+      const firstName = (tx.contributor_first_name || '').toUpperCase().trim();
+      const lastName = (tx.contributor_last_name || '').toUpperCase().trim();
+      const state = (tx.contributor_state || '').toUpperCase().trim();
+      const zip = (tx.contributor_zip || '').trim();
+      const compositeKey = `${firstName}|${lastName}|${state}|${zip}`;
       donorTotals[compositeKey] = (donorTotals[compositeKey] || 0) + tx.contribution_receipt_amount;
     }
   }
@@ -523,8 +587,9 @@ function analyzeTransactions(transactions) {
     .sort((a, b) => b[1] - a[1])
     .slice(0, 10)
     .map(([compositeKey, amount]) => {
-      // Extract just the name part from composite key for display
-      const displayName = compositeKey.split('|')[0];
+      // Extract name parts from composite key for display
+      const parts = compositeKey.split('|');
+      const displayName = `${parts[0]} ${parts[1]}`.trim(); // firstName lastName
       return { name: displayName, amount };
     });
 

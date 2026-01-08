@@ -1,5 +1,32 @@
 # Task Force Purple - Implementation Status
 
+## CRITICAL UPDATE (2026-01-07): Itemized Analysis Bugs Fixed & Re-Collection in Progress
+
+### What Happened
+Discovered critical bugs in itemized donor concentration analysis that caused 50%+ data loss:
+- **Pagination bug**: Worker stopped early and marked itself "complete"
+- **Bernie**: Only collected 17,566 of 37,612 transactions (47%)
+- **Pelosi**: Only collected 11,484 of ~23K transactions (est. 50%)
+- **Impact**: ALL previous concentration metrics were WRONG
+
+### What Was Fixed (2026-01-07)
+1. ✅ Pagination completion logic now tracks `reachedEnd` instead of `pagesProcessed < maxPagesToFetch`
+2. ✅ Deduplication now uses `first_name|last_name|state|zip` instead of inconsistent `contributor_name`
+3. ✅ Added transaction count validation (collected vs FEC reported)
+4. ✅ Added financial reconciliation (summed amounts vs `individual_itemized_contributions`)
+5. ✅ Improved progress logging to show "X/Y (Z%)"
+
+### Re-Collection Status (In Progress)
+- Bernie Sanders: Collecting all 37,612 transactions (ETA: ~45 min from 4:20 PM)
+- Nancy Pelosi: Queued to auto-start after Bernie
+- All old corrupted data deleted from KV storage
+- Cron running every 2 minutes with fixed code
+
+### Files Modified
+- `workers/itemized-prototype.js` - Pagination, deduplication, reconciliation fixes
+
+---
+
 ## Current Implementation State (as of 2025-09-30)
 
 ### Enhanced Transparency Algorithm ✅ WORKING
