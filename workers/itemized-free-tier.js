@@ -28,7 +28,11 @@ export default {
       return getStatus(env);
     }
 
-    return new Response('Free-Tier Itemized Analysis\n\nEndpoints:\n  /analyze - Process next chunk for Sanders + Pelosi\n  /status - Check progress\n\nCron: Running every 2 minutes automatically', {
+    if (url.pathname === '/init-queue') {
+      return initializeQueue(env);
+    }
+
+    return new Response('Free-Tier Itemized Analysis\n\nEndpoints:\n  /analyze - Process next member from queue\n  /status - Check progress\n  /init-queue - Initialize processing queue (admin only)\n\nCron: Running every 2 minutes automatically', {
       headers: { 'Content-Type': 'text/plain' }
     });
   },
@@ -42,9 +46,10 @@ export default {
       const data = await result.json();
 
       console.log('✅ Cron processing complete');
-      console.log(`   Bernie: ${data.results?.S000033?.totalTransactions || 'N/A'} transactions`);
-      console.log(`   Pelosi: ${data.results?.P000197?.totalTransactions || 'N/A'} transactions`);
-      console.log(`   All complete: ${data.allComplete}`);
+      if (data.summary) {
+        console.log(`   Queue: ${data.summary.queueLength} members remaining`);
+        console.log(`   All complete: ${data.allComplete}`);
+      }
     } catch (error) {
       console.error('❌ Cron processing failed:', error.message);
     }
@@ -52,48 +57,51 @@ export default {
 };
 
 async function getStatus(env) {
-  const members = [
-    { name: 'Bernie Sanders', bioguideId: 'S000033' },
-    { name: 'Nancy Pelosi', bioguideId: 'P000197' }
-  ];
+  // Get queue info
+  const queue = await getItemizedQueue(env);
+  const currentMember = queue.length > 0 ? queue[0] : null;
 
-  const status = {};
+  // Count completed members by checking for analysis keys
+  const allKeys = await env.MEMBER_DATA.list({ prefix: 'itemized_analysis:' });
+  const completedCount = allKeys.keys.length;
 
-  for (const member of members) {
-    const progressKey = `itemized_progress:${member.bioguideId}`;
-    const analysisKey = `itemized_analysis:${member.bioguideId}`;
-
+  // Get current member's progress if any
+  let currentProgress = null;
+  if (currentMember) {
+    const progressKey = `itemized_progress:${currentMember}`;
     const progressData = await env.MEMBER_DATA.get(progressKey);
-    const analysisData = await env.MEMBER_DATA.get(analysisKey);
-
-    if (analysisData) {
-      // Complete - show final analysis
-      const analysis = JSON.parse(analysisData);
-      status[member.bioguideId] = {
-        name: member.name,
-        status: 'complete',
-        ...analysis
-      };
-    } else if (progressData) {
-      // In progress
+    if (progressData) {
       const progress = JSON.parse(progressData);
-      const { donorTotals, allAmounts, ...statusInfo } = progress; // Exclude large objects
-      status[member.bioguideId] = {
-        name: member.name,
+      currentProgress = {
+        bioguideId: currentMember,
         status: 'in_progress',
-        ...statusInfo,
+        totalTransactions: progress.totalTransactions || 0,
         donorCount: Object.keys(progress.donorTotals || {}).length,
-        amountCount: (progress.allAmounts || []).length
-      };
-    } else {
-      status[member.bioguideId] = {
-        name: member.name,
-        status: 'not_started'
+        runsCompleted: progress.runsCompleted || 0,
+        lastUpdated: progress.lastUpdated
       };
     }
   }
 
-  return new Response(JSON.stringify(status, null, 2), {
+  const totalMembers = queue.length + completedCount;
+  const completionPercent = totalMembers > 0 ? ((completedCount / totalMembers) * 100).toFixed(1) : '0.0';
+
+  return new Response(JSON.stringify({
+    queue: {
+      length: queue.length,
+      nextMember: currentMember,
+      estimatedWritesRemaining: queue.length * 60,
+      estimatedDaysToComplete: (queue.length * 60 / 720).toFixed(1)
+    },
+    progress: {
+      completedMembers: completedCount,
+      remainingMembers: queue.length,
+      totalMembers,
+      completionPercent: `${completionPercent}%`
+    },
+    currentMember: currentProgress,
+    timestamp: new Date().toISOString()
+  }, null, 2), {
     headers: { 'Content-Type': 'application/json' }
   });
 }
@@ -112,90 +120,160 @@ async function analyzeMembers(env) {
   log(`⏰ Start time: ${new Date().toISOString()}`);
   log(`📦 Pages per run: ${PAGES_PER_RUN} (50 subrequest limit)`);
 
-  // Hardcoded for prototype
-  const members = [
-    { name: 'Bernie Sanders', bioguideId: 'S000033' },
-    { name: 'Nancy Pelosi', bioguideId: 'P000197' }
-  ];
+  // Get queue of members to process
+  const queue = await getItemizedQueue(env);
 
-  let totalPagesProcessed = 0;
+  if (queue.length === 0) {
+    log('✅ Queue is empty - all members complete or queue not initialized');
+    return new Response(JSON.stringify({
+      allComplete: true,
+      results: {},
+      summary: {
+        totalProcessingTimeMs: 0,
+        queueLength: 0,
+        message: 'Queue empty - use /status to view completed members'
+      },
+      executionLog,
+      timestamp: new Date().toISOString()
+    }, null, 2), {
+      headers: { 'Content-Type': 'application/json' }
+    });
+  }
 
-  for (const member of members) {
-    log(`\n📊 Processing ${member.name} (${member.bioguideId})`);
-    const memberStartTime = Date.now();
+  log(`📋 Queue size: ${queue.length} members remaining`);
 
-    try {
-      const result = await fetchAndAggregateChunk(member.bioguideId, env, log);
-      const processingTime = Date.now() - memberStartTime;
+  // Process ONE member per run to stay under write limits
+  const bioguideId = queue[0];
+  log(`\n📊 Processing member: ${bioguideId}`);
+  const memberStartTime = Date.now();
 
-      results[member.bioguideId] = {
-        name: member.name,
-        success: true,
-        ...result,
-        processingTimeMs: processingTime,
-        processingTimeSeconds: Math.round(processingTime / 1000)
-      };
+  try {
+    const result = await fetchAndAggregateChunk(bioguideId, env, log);
+    const processingTime = Date.now() - memberStartTime;
 
-      totalPagesProcessed += result.pagesProcessedThisRun || 0;
+    results[bioguideId] = {
+      bioguideId,
+      success: true,
+      ...result,
+      processingTimeMs: processingTime,
+      processingTimeSeconds: Math.round(processingTime / 1000)
+    };
 
-      if (result.complete) {
-        log(`✅ ${member.name} COMPLETE: ${result.totalTransactions} transactions, ${result.uniqueDonors || 'N/A'} unique donors`);
-      } else {
-        log(`⏸️ ${member.name} in progress: ${result.totalTransactions} transactions aggregated, ${result.runsCompleted} runs completed`);
-      }
+    if (result.complete) {
+      log(`✅ ${bioguideId} COMPLETE: ${result.totalTransactions} transactions, ${result.uniqueDonors || 'N/A'} unique donors`);
 
-    } catch (error) {
-      const processingTime = Date.now() - memberStartTime;
-      console.error(`❌ ${member.name} failed:`, error);
-      log(`❌ ${member.name} failed after ${processingTime}ms: ${error.message}`);
-
-      results[member.bioguideId] = {
-        name: member.name,
-        success: false,
-        error: error.message,
-        processingTimeMs: processingTime
-      };
+      // Remove from queue
+      queue.shift();
+      await env.MEMBER_DATA.put('itemized_collection_queue', JSON.stringify(queue));
+      log(`🗑️ Removed ${bioguideId} from queue. ${queue.length} remaining.`);
+    } else {
+      log(`⏸️ ${bioguideId} in progress: ${result.totalTransactions} transactions aggregated, ${result.runsCompleted} runs completed`);
     }
 
-    // Check if we're at subrequest limit
-    if (totalPagesProcessed >= PAGES_PER_RUN) {
-      log(`\n⚠️ Reached page limit (${totalPagesProcessed} pages processed), stopping this run`);
-      break;
-    }
+  } catch (error) {
+    const processingTime = Date.now() - memberStartTime;
+    console.error(`❌ ${bioguideId} failed:`, error);
+    log(`❌ ${bioguideId} failed after ${processingTime}ms: ${error.message}`);
+
+    results[bioguideId] = {
+      bioguideId,
+      success: false,
+      error: error.message,
+      processingTimeMs: processingTime
+    };
+
+    // Don't remove from queue on failure - will retry next run
   }
 
   const totalTime = Date.now() - startTime;
-  log(`\n🏁 Chunk complete: ${totalTime}ms (${Math.round(totalTime/1000)}s)`);
-  log(`📄 Pages processed this run: ${totalPagesProcessed}`);
-
-  // Check overall status
-  const allComplete = await checkAllComplete(env, members);
+  log(`\n🏁 Run complete: ${totalTime}ms (${Math.round(totalTime/1000)}s)`);
+  log(`📋 Queue status: ${queue.length} members remaining`);
 
   return new Response(JSON.stringify({
-    allComplete,
+    allComplete: queue.length === 0,
     results,
     summary: {
       totalProcessingTimeMs: totalTime,
       totalProcessingTimeSeconds: Math.round(totalTime / 1000),
-      pagesProcessedThisRun: totalPagesProcessed,
-      allMembersComplete: allComplete
+      queueLength: queue.length,
+      processingRate: `${queue.length} members × 60 writes/member ≈ ${queue.length * 60} total writes remaining`
     },
     executionLog,
     timestamp: new Date().toISOString(),
-    nextAction: allComplete ? '✅ All members complete!' : '▶️ Run /analyze again to continue'
+    nextAction: queue.length === 0 ? '✅ All members complete!' : `▶️ Next: ${queue[0]} (${queue.length} in queue)`
   }, null, 2), {
     headers: { 'Content-Type': 'application/json' }
   });
 }
 
-async function checkAllComplete(env, members) {
-  for (const member of members) {
-    const analysisKey = `itemized_analysis:${member.bioguideId}`;
-    const analysisData = await env.MEMBER_DATA.get(analysisKey);
-
-    if (!analysisData) return false;
+// Get queue of members to process for itemized analysis
+async function getItemizedQueue(env) {
+  try {
+    const queueData = await env.MEMBER_DATA.get('itemized_collection_queue');
+    return queueData ? JSON.parse(queueData) : [];
+  } catch (error) {
+    console.error('Error getting itemized queue:', error);
+    return [];
   }
-  return true;
+}
+
+// Initialize processing queue with all member bioguide IDs
+async function initializeQueue(env) {
+  console.log('🔄 Initializing itemized collection queue...');
+
+  try {
+    // Get all members from main data pipeline storage
+    const membersData = await env.MEMBER_DATA.get('members:all');
+    if (!membersData) {
+      return new Response(JSON.stringify({
+        error: 'No member data found. Run data-pipeline worker first to populate members:all'
+      }), {
+        status: 404,
+        headers: { 'Content-Type': 'application/json' }
+      });
+    }
+
+    const members = JSON.parse(membersData);
+    console.log(`📊 Found ${members.length} total members`);
+
+    // Check for existing completed analyses to avoid reprocessing
+    const analysisKeys = await env.MEMBER_DATA.list({ prefix: 'itemized_analysis:' });
+    const completedBioguideIds = new Set(
+      analysisKeys.keys.map(k => k.name.replace('itemized_analysis:', ''))
+    );
+    console.log(`✅ Found ${completedBioguideIds.size} already completed`);
+
+    // Build queue: all bioguide IDs that haven't completed yet
+    const queue = members
+      .map(m => m.bioguideId)
+      .filter(id => !completedBioguideIds.has(id));
+
+    console.log(`📋 Queue initialized with ${queue.length} members to process`);
+
+    // Save queue to KV
+    await env.MEMBER_DATA.put('itemized_collection_queue', JSON.stringify(queue));
+
+    return new Response(JSON.stringify({
+      success: true,
+      totalMembers: members.length,
+      alreadyCompleted: completedBioguideIds.size,
+      queueLength: queue.length,
+      estimatedWrites: queue.length * 60,
+      estimatedDays: (queue.length * 60 / 720).toFixed(1),
+      message: `Queue initialized with ${queue.length} members. Will complete in ~${(queue.length * 60 / 720).toFixed(1)} days at 720 writes/day.`
+    }, null, 2), {
+      headers: { 'Content-Type': 'application/json' }
+    });
+
+  } catch (error) {
+    console.error('Error initializing queue:', error);
+    return new Response(JSON.stringify({
+      error: error.message
+    }), {
+      status: 500,
+      headers: { 'Content-Type': 'application/json' }
+    });
+  }
 }
 
 async function fetchAndAggregateChunk(bioguideId, env, log) {
@@ -233,21 +311,29 @@ async function fetchAndAggregateChunk(bioguideId, env, log) {
     log(`  👥 Current unique donors: ${Object.keys(progress.donorTotals).length}`);
   } else {
     // Starting fresh - need to get committee ID
-    const memberInfo = {
-      'S000033': { name: 'Sanders', office: 'S', state: 'VT' },
-      'P000197': { name: 'Pelosi', office: 'H', state: 'CA' }
-    };
+    // Look up member info from main data store
+    const membersData = await env.MEMBER_DATA.get('members:all');
+    if (!membersData) {
+      throw new Error('No member data found. Initialize queue first.');
+    }
 
-    const info = memberInfo[bioguideId];
-    if (!info) {
+    const members = JSON.parse(membersData);
+    const memberRecord = members.find(m => m.bioguideId === bioguideId);
+
+    if (!memberRecord) {
       throw new Error(`Unknown bioguide ID: ${bioguideId}`);
     }
 
-    log(`  🔍 Searching FEC for ${info.name} (${info.office}-${info.state})...`);
-    const committeeId = await searchCommitteeId(info.name, info.office, info.state, apiKey);
+    // Extract name and chamber from member record
+    const lastName = memberRecord.name.split(',')[0].trim(); // "Heinrich, Martin" → "Heinrich"
+    const office = memberRecord.chamber === 'Senate' ? 'S' : 'H';
+    const stateCode = getStateCode(memberRecord.state);
+
+    log(`  🔍 Searching FEC for ${lastName} (${office}-${stateCode})...`);
+    const committeeId = await searchCommitteeId(lastName, office, stateCode, apiKey);
 
     if (!committeeId) {
-      throw new Error(`No committee found for ${info.name}`);
+      throw new Error(`No committee found for ${lastName}`);
     }
 
     log(`  💼 Committee ID: ${committeeId}`);
@@ -563,4 +649,28 @@ async function searchCommitteeId(name, office, state, apiKey) {
 
 function sleep(ms) {
   return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+// Convert full state name to two-letter code for FEC API
+function getStateCode(stateName) {
+  const stateMap = {
+    'Alabama': 'AL', 'Alaska': 'AK', 'Arizona': 'AZ', 'Arkansas': 'AR',
+    'California': 'CA', 'Colorado': 'CO', 'Connecticut': 'CT', 'Delaware': 'DE',
+    'Florida': 'FL', 'Georgia': 'GA', 'Hawaii': 'HI', 'Idaho': 'ID',
+    'Illinois': 'IL', 'Indiana': 'IN', 'Iowa': 'IA', 'Kansas': 'KS',
+    'Kentucky': 'KY', 'Louisiana': 'LA', 'Maine': 'ME', 'Maryland': 'MD',
+    'Massachusetts': 'MA', 'Michigan': 'MI', 'Minnesota': 'MN', 'Mississippi': 'MS',
+    'Missouri': 'MO', 'Montana': 'MT', 'Nebraska': 'NE', 'Nevada': 'NV',
+    'New Hampshire': 'NH', 'New Jersey': 'NJ', 'New Mexico': 'NM', 'New York': 'NY',
+    'North Carolina': 'NC', 'North Dakota': 'ND', 'Ohio': 'OH', 'Oklahoma': 'OK',
+    'Oregon': 'OR', 'Pennsylvania': 'PA', 'Rhode Island': 'RI', 'South Carolina': 'SC',
+    'South Dakota': 'SD', 'Tennessee': 'TN', 'Texas': 'TX', 'Utah': 'UT',
+    'Vermont': 'VT', 'Virginia': 'VA', 'Washington': 'WA', 'West Virginia': 'WV',
+    'Wisconsin': 'WI', 'Wyoming': 'WY',
+    // Territories
+    'District of Columbia': 'DC', 'Puerto Rico': 'PR', 'Guam': 'GU',
+    'Virgin Islands': 'VI', 'American Samoa': 'AS', 'Northern Mariana Islands': 'MP'
+  };
+
+  return stateMap[stateName] || stateName; // Return code or original if not found
 }
