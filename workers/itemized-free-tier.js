@@ -222,8 +222,15 @@ async function fetchAndAggregateChunk(bioguideId, env, log) {
 
   if (existingProgressData) {
     progress = JSON.parse(existingProgressData);
-    log(`  📂 Resuming: ${progress.totalTransactions} transactions aggregated so far`);
-    log(`  👥 Current unique donors: ${Object.keys(progress.donorTotals || {}).length}`);
+
+    // Initialize fields that may not exist in old progress data
+    if (!progress.donorTotals) progress.donorTotals = {};
+    if (!progress.allAmounts) progress.allAmounts = [];
+    if (progress.totalAmount === undefined || progress.totalAmount === null) progress.totalAmount = 0;
+    if (!progress.runsCompleted) progress.runsCompleted = 0;
+
+    log(`  📂 Resuming: ${progress.totalTransactions || 0} transactions aggregated so far`);
+    log(`  👥 Current unique donors: ${Object.keys(progress.donorTotals).length}`);
   } else {
     // Starting fresh - need to get committee ID
     const memberInfo = {
