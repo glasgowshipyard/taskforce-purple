@@ -54,7 +54,14 @@
       "Bash(01740\", total: 5000 },\n  { key: \"SUSAN)",
       "Bash(M)",
       "Bash(DORKINGS)",
-      "Bash(NY)"
+      "Bash(NY)",
+      "Bash(awk:*)",
+      "Bash(__NEW_LINE__ API_KEY=\"zVpKDAacmPcazWQxhl5fhodhB9wNUH0urLCLkkV9\" COMMITTEE_ID=\"C00411330\")",
+      "Bash(__NEW_LINE__ API_KEY=\"zVpKDAacmPcazWQxhl5fhodhB9wNUH0urLCLkkV9\")",
+      "Bash(COMMITTEE_ID=\"C00411330\")",
+      "Bash(__NEW_LINE__ curl -s \"https://api.open.fec.gov/v1/committee/$COMMITTEE_ID/totals/?api_key=$API_KEY&cycle=2026\")",
+      "Bash(__NEW_LINE__ echo \"Raw 2024 response:\")",
+      "Bash(__NEW_LINE__ curl -s \"https://api.open.fec.gov/v1/schedules/schedule_a/?api_key=zVpKDAacmPcazWQxhl5fhodhB9wNUH0urLCLkkV9&committee_id=C00411330&two_year_transaction_period=2024&contributor_type=individual&per_page=100&page=1&sort=-contribution_receipt_date\")"
     ],
     "deny": [],
     "ask": []
