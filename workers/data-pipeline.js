@@ -1136,26 +1136,26 @@ async function calculateEnhancedTier(member, allMembers = [], env = null) {
         basePenalty = (5 * 0.1) + (5 * 0.2) + ((excess - 10) * 0.3);
       }
 
-      // Adjust penalty by HHI concentration (if we have the data)
+      // Adjust penalty by Gini coefficient (if we have the data)
       let concentrationMultiplier = 1.0; // Default: no adjustment
 
-      if (concentration && concentration.hhi !== undefined) {
-        const hhi = concentration.hhi;
+      if (concentration && concentration.gini !== undefined) {
+        const gini = concentration.gini;
 
-        // HHI-based concentration adjustment:
-        // Very distributed (HHI < 0.0001): 0.25× penalty - reward broad donor base
-        // Distributed (HHI 0.0001-0.00015): 0.5× penalty
-        // Normal (HHI 0.00015-0.0003): 1.0× penalty - no adjustment
-        // Concentrated (HHI 0.0003-0.0005): 1.5× penalty
-        // Very concentrated (HHI > 0.0005): 2.0× penalty - punish donor concentration
+        // Gini-based concentration adjustment (standard inequality measure):
+        // Low inequality (Gini < 0.4): 0.25× penalty - reward equal donor distribution
+        // Moderate-low (Gini 0.4-0.5): 0.5× penalty
+        // Moderate (Gini 0.5-0.6): 1.0× penalty - no adjustment
+        // Moderate-high (Gini 0.6-0.7): 1.5× penalty
+        // High inequality (Gini > 0.7): 2.0× penalty - punish donor concentration
 
-        if (hhi < 0.0001) concentrationMultiplier = 0.25;
-        else if (hhi < 0.00015) concentrationMultiplier = 0.5;
-        else if (hhi < 0.0003) concentrationMultiplier = 1.0;
-        else if (hhi < 0.0005) concentrationMultiplier = 1.5;
+        if (gini < 0.4) concentrationMultiplier = 0.25;
+        else if (gini < 0.5) concentrationMultiplier = 0.5;
+        else if (gini < 0.6) concentrationMultiplier = 1.0;
+        else if (gini < 0.7) concentrationMultiplier = 1.5;
         else concentrationMultiplier = 2.0;
 
-        console.log(`${member.bioguideId} HHI adjustment: ${hhi.toFixed(6)} → ${concentrationMultiplier}× multiplier`);
+        console.log(`${member.bioguideId} Gini adjustment: ${gini.toFixed(4)} → ${concentrationMultiplier}× multiplier`);
       }
 
       const itemizationPenalty = basePenalty * concentrationMultiplier;

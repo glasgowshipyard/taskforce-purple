@@ -460,6 +460,17 @@ function calculateMetricsFromAggregates(progress, log) {
     hhi += share * share;
   }
 
+  // Calculate Gini coefficient (standard inequality measure)
+  // Gini = 0 (perfect equality) to 1.0 (one donor has everything)
+  // Formula: Gini = (2 * Σ(i * x_i)) / (N * Σx_i) - (N + 1) / N
+  const N = sortedDonors.length;
+  const sortedAmounts = sortedDonors.map(d => d.amount);
+  let sumOfWeightedAmounts = 0;
+  for (let i = 0; i < N; i++) {
+    sumOfWeightedAmounts += (i + 1) * sortedAmounts[i];
+  }
+  const gini = (2 * sumOfWeightedAmounts) / (N * progress.totalAmount) - (N + 1) / N;
+
   const analysis = {
     bioguideId: progress.bioguideId,
     committeeId: progress.committeeId,
@@ -473,6 +484,7 @@ function calculateMetricsFromAggregates(progress, log) {
     maxDonation: allAmounts[allAmounts.length - 1] || 0,
     top10Concentration: top10Total / progress.totalAmount,
     hhi: hhi,
+    gini: gini,
     topDonors: top10.map(d => ({
       name: `${d.firstName} ${d.lastName}`.trim(),
       state: d.state,
@@ -488,7 +500,8 @@ function calculateMetricsFromAggregates(progress, log) {
   log(`     Avg donation: $${analysis.avgDonation.toFixed(2)}`);
   log(`     Median donation: $${analysis.medianDonation}`);
   log(`     Top-10 concentration: ${(analysis.top10Concentration * 100).toFixed(2)}%`);
-  log(`     HHI: ${hhi.toFixed(6)} (${hhi < 0.0001 ? 'very distributed' : hhi < 0.0003 ? 'normal' : 'concentrated'})`);
+  log(`     Gini coefficient: ${gini.toFixed(4)} (${gini < 0.4 ? 'low inequality' : gini < 0.6 ? 'moderate inequality' : 'high inequality'})`);
+  log(`     HHI: ${hhi.toFixed(6)}`);
 
   return analysis;
 }
