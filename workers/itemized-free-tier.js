@@ -451,6 +451,15 @@ function calculateMetricsFromAggregates(progress, log) {
     ? (allAmounts[mid - 1] + allAmounts[mid]) / 2
     : allAmounts[mid];
 
+  // Calculate Herfindahl-Hirschman Index (HHI)
+  // Sum of squared market shares - measures concentration
+  // HHI = 0 (perfect equality) to 1.0 (one donor has everything)
+  let hhi = 0;
+  for (const donor of sortedDonors) {
+    const share = donor.amount / progress.totalAmount;
+    hhi += share * share;
+  }
+
   const analysis = {
     bioguideId: progress.bioguideId,
     committeeId: progress.committeeId,
@@ -463,6 +472,7 @@ function calculateMetricsFromAggregates(progress, log) {
     minDonation: allAmounts[0] || 0,
     maxDonation: allAmounts[allAmounts.length - 1] || 0,
     top10Concentration: top10Total / progress.totalAmount,
+    hhi: hhi,
     topDonors: top10.map(d => ({
       name: `${d.firstName} ${d.lastName}`.trim(),
       state: d.state,
@@ -478,6 +488,7 @@ function calculateMetricsFromAggregates(progress, log) {
   log(`     Avg donation: $${analysis.avgDonation.toFixed(2)}`);
   log(`     Median donation: $${analysis.medianDonation}`);
   log(`     Top-10 concentration: ${(analysis.top10Concentration * 100).toFixed(2)}%`);
+  log(`     HHI: ${hhi.toFixed(6)} (${hhi < 0.0001 ? 'very distributed' : hhi < 0.0003 ? 'normal' : 'concentrated'})`);
 
   return analysis;
 }

@@ -1079,7 +1079,7 @@ async function getAdaptiveThresholds(env, members) {
 
 // NEW: Calculate enhanced tier using transparency penalty system
 // Returns object with { tier, individualFundingPercent } for display
-function calculateEnhancedTier(member, allMembers = []) {
+async function calculateEnhancedTier(member, allMembers = [], env = null) {
   if (!member.totalRaised || member.totalRaised === 0) {
     return { tier: 'N/A', individualFundingPercent: 0 };
   }
@@ -1107,22 +1107,58 @@ function calculateEnhancedTier(member, allMembers = []) {
       ? computeAdaptiveThreshold(allMembers, member.chamber)
       : 30; // fallback to fixed threshold if no member data
 
+    // Load donor concentration data if available
+    let concentration = null;
+    if (env && member.bioguideId) {
+      try {
+        const concentrationData = await env.MEMBER_DATA.get(`itemized_analysis:${member.bioguideId}`);
+        if (concentrationData) {
+          concentration = JSON.parse(concentrationData);
+        }
+      } catch (error) {
+        console.log(`Note: No concentration data for ${member.bioguideId}`);
+      }
+    }
+
     // Apply tiered itemization concentration penalty (only if > adaptive threshold)
     if (itemizedPercent > adaptiveThreshold) {
       const excess = itemizedPercent - adaptiveThreshold;
-      let itemizationPenalty = 0;
+      let basePenalty = 0;
 
       if (excess <= 5) {
-        // 30-35%: 0.1x penalty
-        itemizationPenalty = excess * 0.1;
+        // 0-5% over threshold: 0.1x penalty per point
+        basePenalty = excess * 0.1;
       } else if (excess <= 10) {
-        // 36-40%: 0.1x on first 5%, 0.2x on next portion
-        itemizationPenalty = (5 * 0.1) + ((excess - 5) * 0.2);
+        // 5-10% over: 0.1x on first 5%, 0.2x on next portion
+        basePenalty = (5 * 0.1) + ((excess - 5) * 0.2);
       } else {
-        // 41%+: 0.1x on first 5%, 0.2x on next 5%, 0.3x on remainder
-        itemizationPenalty = (5 * 0.1) + (5 * 0.2) + ((excess - 10) * 0.3);
+        // 10%+ over: 0.1x on first 5%, 0.2x on next 5%, 0.3x on remainder
+        basePenalty = (5 * 0.1) + (5 * 0.2) + ((excess - 10) * 0.3);
       }
 
+      // Adjust penalty by HHI concentration (if we have the data)
+      let concentrationMultiplier = 1.0; // Default: no adjustment
+
+      if (concentration && concentration.hhi !== undefined) {
+        const hhi = concentration.hhi;
+
+        // HHI-based concentration adjustment:
+        // Very distributed (HHI < 0.0001): 0.25× penalty - reward broad donor base
+        // Distributed (HHI 0.0001-0.00015): 0.5× penalty
+        // Normal (HHI 0.00015-0.0003): 1.0× penalty - no adjustment
+        // Concentrated (HHI 0.0003-0.0005): 1.5× penalty
+        // Very concentrated (HHI > 0.0005): 2.0× penalty - punish donor concentration
+
+        if (hhi < 0.0001) concentrationMultiplier = 0.25;
+        else if (hhi < 0.00015) concentrationMultiplier = 0.5;
+        else if (hhi < 0.0003) concentrationMultiplier = 1.0;
+        else if (hhi < 0.0005) concentrationMultiplier = 1.5;
+        else concentrationMultiplier = 2.0;
+
+        console.log(`${member.bioguideId} HHI adjustment: ${hhi.toFixed(6)} → ${concentrationMultiplier}× multiplier`);
+      }
+
+      const itemizationPenalty = basePenalty * concentrationMultiplier;
       individualFundingPercent -= itemizationPenalty;
     }
 
@@ -1345,7 +1381,7 @@ async function processMembers(congressMembers, env, testLimit = undefined) {
             const currentCycle = await getElectionCycle();
             currentMembers[memberIndex].dataCycle = currentCycle;
             // NEW: Recalculate tier with enhanced transparency weighting
-            const { tier, individualFundingPercent } = calculateEnhancedTier(currentMembers[memberIndex], currentMembers);
+            const { tier, individualFundingPercent } = await calculateEnhancedTier(currentMembers[memberIndex], currentMembers, env);
             currentMembers[memberIndex].tier = tier;
             currentMembers[memberIndex].individualFundingPercent = individualFundingPercent;
 
@@ -1777,7 +1813,7 @@ async function handleFECBatchUpdate(env, corsHeaders, request) {
                 lastUpdated: new Date().toISOString()
               };
               // NEW: Recalculate tier with enhanced transparency weighting
-              const { tier, individualFundingPercent } = calculateEnhancedTier(allMembers[member.originalIndex], allMembers);
+              const { tier, individualFundingPercent } = await calculateEnhancedTier(allMembers[member.originalIndex], allMembers, env);
               allMembers[member.originalIndex].tier = tier;
               allMembers[member.originalIndex].individualFundingPercent = individualFundingPercent;
               updated++;
@@ -1894,7 +1930,7 @@ async function handleTestMember(env, corsHeaders, request) {
 
     // Calculate tier and individual funding percent with new PAC data
     const memberWithPACs = { ...members[memberIndex], pacContributions: enhancedPACDetails };
-    const { tier, individualFundingPercent } = calculateEnhancedTier(memberWithPACs, members);
+    const { tier, individualFundingPercent } = await calculateEnhancedTier(memberWithPACs, members, env);
 
     members[memberIndex] = {
       ...members[memberIndex],
@@ -1988,7 +2024,7 @@ async function performTierRecalculation(env) {
 
       // Calculate new tier using enhanced logic
       const oldTier = member.tier;
-      const { tier: newTier, individualFundingPercent } = calculateEnhancedTier(member, members);
+      const { tier: newTier, individualFundingPercent } = await calculateEnhancedTier(member, members, env);
       member.individualFundingPercent = individualFundingPercent;
 
       // Recalculate grassrootsPercent to match tier calculation
@@ -2163,7 +2199,7 @@ async function handleProcessCandidate(env, corsHeaders, request) {
         await fetchPACDetails(targetMember, env);
 
         // Step 3: Calculate enhanced tier
-        const { tier: newTier, individualFundingPercent } = calculateEnhancedTier(targetMember, members);
+        const { tier: newTier, individualFundingPercent } = await calculateEnhancedTier(targetMember, members, env);
         targetMember.tier = newTier;
         targetMember.individualFundingPercent = individualFundingPercent;
         targetMember.lastProcessed = new Date().toISOString();
@@ -2408,7 +2444,7 @@ async function updateSingleMember(member, env) {
     }
 
     // Recalculate tier with enhanced algorithm
-    const { tier, individualFundingPercent } = calculateEnhancedTier(member, allMembers);
+    const { tier, individualFundingPercent } = await calculateEnhancedTier(member, allMembers, env);
     member.tier = tier;
     member.individualFundingPercent = individualFundingPercent;
 
@@ -3174,7 +3210,7 @@ async function enhanceMemberWithPACData(member, env) {
       targetMember.pacContributions = pacContributions;
 
       // Recalculate tier with enhanced data
-      const { tier, individualFundingPercent } = calculateEnhancedTier(targetMember, members);
+      const { tier, individualFundingPercent } = await calculateEnhancedTier(targetMember, members, env);
       targetMember.tier = tier;
       targetMember.individualFundingPercent = individualFundingPercent;
       targetMember.lastUpdated = new Date().toISOString();
