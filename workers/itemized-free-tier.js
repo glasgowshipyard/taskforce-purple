@@ -365,27 +365,36 @@ async function fetchAndAggregateChunk(bioguideId, env, log) {
       });
     }
 
-    // Batch write transactions to D1
+    // Batch write transactions to D1 (respecting SQLite 999 parameter limit)
     if (d1Inserts.length > 0 && env.DONOR_DB) {
       try {
-        const placeholders = d1Inserts.map(() => '(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)').join(',');
-        const values = d1Inserts.flatMap(tx => [
-          tx.bioguide_id, tx.committee_id, tx.cycle,
-          tx.contributor_first_name, tx.contributor_last_name,
-          tx.contributor_state, tx.contributor_zip,
-          tx.contributor_employer, tx.contributor_occupation,
-          tx.amount, tx.contribution_receipt_date
-        ]);
+        // SQLite limit: 999 parameters. With 11 columns, max 90 rows per batch (11 × 90 = 990)
+        const BATCH_SIZE = 90;
+        const batches = [];
+        for (let i = 0; i < d1Inserts.length; i += BATCH_SIZE) {
+          batches.push(d1Inserts.slice(i, i + BATCH_SIZE));
+        }
 
-        await env.DONOR_DB.prepare(
-          `INSERT INTO itemized_transactions
-           (bioguide_id, committee_id, cycle, contributor_first_name, contributor_last_name,
-            contributor_state, contributor_zip, contributor_employer, contributor_occupation,
-            amount, contribution_receipt_date)
-           VALUES ${placeholders}`
-        ).bind(...values).run();
+        for (const batch of batches) {
+          const placeholders = batch.map(() => '(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)').join(',');
+          const values = batch.flatMap(tx => [
+            tx.bioguide_id, tx.committee_id, tx.cycle,
+            tx.contributor_first_name, tx.contributor_last_name,
+            tx.contributor_state, tx.contributor_zip,
+            tx.contributor_employer, tx.contributor_occupation,
+            tx.amount, tx.contribution_receipt_date
+          ]);
 
-        log(`  💾 Wrote ${d1Inserts.length} transactions to D1`);
+          await env.DONOR_DB.prepare(
+            `INSERT INTO itemized_transactions
+             (bioguide_id, committee_id, cycle, contributor_first_name, contributor_last_name,
+              contributor_state, contributor_zip, contributor_employer, contributor_occupation,
+              amount, contribution_receipt_date)
+             VALUES ${placeholders}`
+          ).bind(...values).run();
+        }
+
+        log(`  💾 Wrote ${d1Inserts.length} transactions to D1 (${batches.length} batches)`);
       } catch (error) {
         log(`  ⚠️ D1 write failed: ${error.message}`);
       }
