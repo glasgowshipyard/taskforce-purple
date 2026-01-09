@@ -325,7 +325,8 @@ async function fetchAndAggregateChunk(bioguideId, env, log) {
       log(`  📊 FEC reports ${progress.fecTotalCount} total transactions`);
     }
 
-    // **KEY CHANGE: Update aggregates in-memory instead of buffering transactions**
+    // **KEY CHANGE: Update aggregates in-memory AND write to D1**
+    const d1Inserts = [];
     for (const tx of transactions) {
       // Skip memo entries (double-counting prevention)
       if (tx.memoed_subtotal === true) continue;
@@ -347,6 +348,47 @@ async function fetchAndAggregateChunk(bioguideId, env, log) {
       // Running totals
       progress.totalTransactions++;
       progress.totalAmount += tx.contribution_receipt_amount;
+
+      // Prepare D1 insert for raw transaction
+      d1Inserts.push({
+        bioguide_id: bioguideId,
+        committee_id: committeeId,
+        cycle: cycle,
+        contributor_first_name: tx.contributor_first_name || null,
+        contributor_last_name: tx.contributor_last_name || null,
+        contributor_state: tx.contributor_state || null,
+        contributor_zip: tx.contributor_zip || null,
+        contributor_employer: tx.contributor_employer || null,
+        contributor_occupation: tx.contributor_occupation || null,
+        amount: tx.contribution_receipt_amount,
+        contribution_receipt_date: tx.contribution_receipt_date || null
+      });
+    }
+
+    // Batch write transactions to D1
+    if (d1Inserts.length > 0 && env.DONOR_DB) {
+      try {
+        const placeholders = d1Inserts.map(() => '(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)').join(',');
+        const values = d1Inserts.flatMap(tx => [
+          tx.bioguide_id, tx.committee_id, tx.cycle,
+          tx.contributor_first_name, tx.contributor_last_name,
+          tx.contributor_state, tx.contributor_zip,
+          tx.contributor_employer, tx.contributor_occupation,
+          tx.amount, tx.contribution_receipt_date
+        ]);
+
+        await env.DONOR_DB.prepare(
+          `INSERT INTO itemized_transactions
+           (bioguide_id, committee_id, cycle, contributor_first_name, contributor_last_name,
+            contributor_state, contributor_zip, contributor_employer, contributor_occupation,
+            amount, contribution_receipt_date)
+           VALUES ${placeholders}`
+        ).bind(...values).run();
+
+        log(`  💾 Wrote ${d1Inserts.length} transactions to D1`);
+      } catch (error) {
+        log(`  ⚠️ D1 write failed: ${error.message}`);
+      }
     }
 
     // Update pagination cursor
@@ -393,7 +435,56 @@ async function fetchAndAggregateChunk(bioguideId, env, log) {
     // Reconcile with FEC totals
     await reconcileWithFEC(committeeId, cycle, analysis, apiKey, log);
 
-    // Store final analysis (2 KB)
+    // Write donor aggregates to D1 (for analytical queries)
+    if (env.DONOR_DB) {
+      try {
+        log(`  💾 Writing ${Object.keys(progress.donorTotals).length} donor aggregates to D1...`);
+        const donorAggregates = Object.entries(progress.donorTotals).map(([key, amount]) => {
+          const [firstName, lastName, state, zip] = key.split('|');
+          return { key, firstName, lastName, state, zip, amount };
+        });
+
+        // Batch insert donor aggregates
+        const chunks = [];
+        for (let i = 0; i < donorAggregates.length; i += 100) {
+          chunks.push(donorAggregates.slice(i, i + 100));
+        }
+
+        for (const chunk of chunks) {
+          const placeholders = chunk.map(() => '(?, ?, ?, ?, ?, ?, ?, ?, 1)').join(',');
+          const values = chunk.flatMap(d => [
+            bioguideId, cycle, d.key, d.firstName, d.lastName, d.state, d.zip, d.amount
+          ]);
+
+          await env.DONOR_DB.prepare(
+            `INSERT OR REPLACE INTO donor_aggregates
+             (bioguide_id, cycle, donor_key, first_name, last_name, state, zip, total_amount, transaction_count)
+             VALUES ${placeholders}`
+          ).bind(...values).run();
+        }
+
+        // Update collection metadata
+        await env.DONOR_DB.prepare(
+          `INSERT OR REPLACE INTO collection_metadata
+           (bioguide_id, committee_id, cycle, status, total_transactions, unique_donors, total_amount,
+            fec_reported_total, fec_transaction_count, reconciliation_diff_percent, started_at, completed_at)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+        ).bind(
+          bioguideId, committeeId, cycle, 'complete',
+          analysis.totalTransactions, analysis.uniqueDonors, analysis.totalAmount,
+          analysis.fecReconciliation?.fecItemizedTotal || null,
+          progress.fecTotalCount || null,
+          analysis.fecReconciliation?.percentDiff || null,
+          progress.startedAt, new Date().toISOString()
+        ).run();
+
+        log(`  ✅ D1 writes complete`);
+      } catch (error) {
+        log(`  ⚠️ D1 aggregate write failed: ${error.message}`);
+      }
+    }
+
+    // Store final analysis in KV (2 KB, fast lookups)
     await env.MEMBER_DATA.put(analysisKey, JSON.stringify(analysis));
 
     // **KEY CHANGE: Delete progress to save storage (cleanup temp data)**
