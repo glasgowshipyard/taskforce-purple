@@ -60,8 +60,8 @@ async function getStatus(env) {
   const status = {};
 
   for (const member of members) {
-    const progressKey = `itemized_progress:${member.bioguideId}`;
-    const analysisKey = `itemized_analysis:${member.bioguideId}`;
+    const progressKey = `itemized_progress_v2:${member.bioguideId}`;
+    const analysisKey = `itemized_analysis_v2:${member.bioguideId}`;
 
     const progressData = await env.MEMBER_DATA.get(progressKey);
     const analysisData = await env.MEMBER_DATA.get(analysisKey);
@@ -190,7 +190,7 @@ async function analyzeMembers(env) {
 
 async function checkAllComplete(env, members) {
   for (const member of members) {
-    const analysisKey = `itemized_analysis:${member.bioguideId}`;
+    const analysisKey = `itemized_analysis_v2:${member.bioguideId}`;
     const analysisData = await env.MEMBER_DATA.get(analysisKey);
 
     if (!analysisData) return false;
@@ -200,8 +200,8 @@ async function checkAllComplete(env, members) {
 
 async function fetchAndAggregateChunk(bioguideId, env, log) {
   const apiKey = env.FEC_API_KEY || 'zVpKDAacmPcazWQxhl5fhodhB9wNUH0urLCLkkV9';
-  const progressKey = `itemized_progress:${bioguideId}`;
-  const analysisKey = `itemized_analysis:${bioguideId}`;
+  const progressKey = `itemized_progress_v2:${bioguideId}`;
+  const analysisKey = `itemized_analysis_v2:${bioguideId}`;
 
   // Check if already complete
   const existingAnalysis = await env.MEMBER_DATA.get(analysisKey);
@@ -368,30 +368,32 @@ async function fetchAndAggregateChunk(bioguideId, env, log) {
     // Batch write transactions to D1 (respecting SQLite 999 parameter limit)
     if (d1Inserts.length > 0 && env.DONOR_DB) {
       try {
-        // SQLite limit: 999 parameters. With 11 columns, max 90 rows per batch (11 × 90 = 990)
-        const BATCH_SIZE = 90;
+        // D1 appears to have a lower limit than SQLite's 999 - use 10 rows per batch (11 × 10 = 110)
+        const BATCH_SIZE = 10;
         const batches = [];
         for (let i = 0; i < d1Inserts.length; i += BATCH_SIZE) {
           batches.push(d1Inserts.slice(i, i + BATCH_SIZE));
         }
 
+        // Use D1 batch API with individual statements instead of multi-row VALUES
         for (const batch of batches) {
-          const placeholders = batch.map(() => '(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)').join(',');
-          const values = batch.flatMap(tx => [
-            tx.bioguide_id, tx.committee_id, tx.cycle,
-            tx.contributor_first_name, tx.contributor_last_name,
-            tx.contributor_state, tx.contributor_zip,
-            tx.contributor_employer, tx.contributor_occupation,
-            tx.amount, tx.contribution_receipt_date
-          ]);
+          const statements = batch.map(tx =>
+            env.DONOR_DB.prepare(
+              `INSERT INTO itemized_transactions
+               (bioguide_id, committee_id, cycle, contributor_first_name, contributor_last_name,
+                contributor_state, contributor_zip, contributor_employer, contributor_occupation,
+                amount, contribution_receipt_date)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+            ).bind(
+              tx.bioguide_id, tx.committee_id, tx.cycle,
+              tx.contributor_first_name, tx.contributor_last_name,
+              tx.contributor_state, tx.contributor_zip,
+              tx.contributor_employer, tx.contributor_occupation,
+              tx.amount, tx.contribution_receipt_date
+            )
+          );
 
-          await env.DONOR_DB.prepare(
-            `INSERT INTO itemized_transactions
-             (bioguide_id, committee_id, cycle, contributor_first_name, contributor_last_name,
-              contributor_state, contributor_zip, contributor_employer, contributor_occupation,
-              amount, contribution_receipt_date)
-             VALUES ${placeholders}`
-          ).bind(...values).run();
+          await env.DONOR_DB.batch(statements);
         }
 
         log(`  💾 Wrote ${d1Inserts.length} transactions to D1 (${batches.length} batches)`);
