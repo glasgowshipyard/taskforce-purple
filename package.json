@@ -8,7 +8,11 @@
     "build": "vite build",
     "preview": "vite preview",
     "lint": "eslint . --ext js,jsx --report-unused-disable-directives --max-warnings 0",
-    "update-data": "node scripts/update-data.js"
+    "update-data": "node scripts/update-data.js",
+    "typecheck": "tsc --noEmit",
+    "test": "echo \"No tests configured\" && exit 0",
+    "format": "prettier --write \"**/*.{js,jsx,ts,tsx,json,css,md}\"",
+    "prepare": "husky"
   },
   "dependencies": {
     "react": "^18.2.0",
@@ -37,5 +41,14 @@
     "government-data"
   ],
   "author": "Task Force Purple",
-  "license": "MIT"
+  "license": "MIT",
+  "lint-staged": {
+    "*.{js,jsx,ts,tsx}": [
+      "eslint --fix",
+      "prettier --write"
+    ],
+    "*.{json,css,md}": [
+      "prettier --write"
+    ]
+  }
 }

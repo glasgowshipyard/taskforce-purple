@@ -1136,26 +1136,26 @@ async function calculateEnhancedTier(member, allMembers = [], env = null) {
         basePenalty = (5 * 0.1) + (5 * 0.2) + ((excess - 10) * 0.3);
       }
 
-      // Adjust penalty by Gini coefficient (if we have the data)
+      // Adjust penalty by Nakamoto Coefficient (coordination risk)
       let concentrationMultiplier = 1.0; // Default: no adjustment
 
-      if (concentration && concentration.gini !== undefined) {
-        const gini = concentration.gini;
+      if (concentration && concentration.nakamotoCoefficient !== undefined) {
+        const nakamoto = concentration.nakamotoCoefficient;
 
-        // Gini-based concentration adjustment (standard inequality measure):
-        // Low inequality (Gini < 0.4): 0.25× penalty - reward equal donor distribution
-        // Moderate-low (Gini 0.4-0.5): 0.5× penalty
-        // Moderate (Gini 0.5-0.6): 1.0× penalty - no adjustment
-        // Moderate-high (Gini 0.6-0.7): 1.5× penalty
-        // High inequality (Gini > 0.7): 2.0× penalty - punish donor concentration
+        // Nakamoto-based concentration adjustment (coordination feasibility):
+        // > 10,000: Impossible to coordinate → 0.25× penalty (reward)
+        // 1,000-10,000: Very difficult to organize → 0.5× penalty
+        // 100-1,000: Moderate risk - requires organization → 1.0× penalty (neutral)
+        // 10-100: High risk - small group can coordinate → 1.5× penalty
+        // < 10: Extreme risk - boardroom conspiracy → 2.0× penalty (max)
 
-        if (gini < 0.4) concentrationMultiplier = 0.25;
-        else if (gini < 0.5) concentrationMultiplier = 0.5;
-        else if (gini < 0.6) concentrationMultiplier = 1.0;
-        else if (gini < 0.7) concentrationMultiplier = 1.5;
+        if (nakamoto > 10000) concentrationMultiplier = 0.25;
+        else if (nakamoto > 1000) concentrationMultiplier = 0.5;
+        else if (nakamoto > 100) concentrationMultiplier = 1.0;
+        else if (nakamoto > 10) concentrationMultiplier = 1.5;
         else concentrationMultiplier = 2.0;
 
-        console.log(`${member.bioguideId} Gini adjustment: ${gini.toFixed(4)} → ${concentrationMultiplier}× multiplier`);
+        console.log(`${member.bioguideId} Nakamoto adjustment: ${nakamoto} donors → ${concentrationMultiplier}× multiplier`);
       }
 
       const itemizationPenalty = basePenalty * concentrationMultiplier;

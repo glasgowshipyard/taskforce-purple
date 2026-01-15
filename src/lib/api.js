@@ -92,11 +92,11 @@ export class TaskForceAPI {
     const explanations = {
       'S': 'Democratic power source. 90%+ individual funding (grassroots + itemized) with minimal PAC influence. Power derives from many individual donors, not institutional special interests. Extremely rare.',
       'A': 'Strong individual support. 75-89% funded by individual donors with limited institutional capture. Power flows from constituents, not corporate PACs or special interests.',
-      'B': 'Above average. 60-74% individual funding. Majority people-funded with some institutional influence from PACs or extreme concentration of large donations.',
-      'C': 'Below average diffusion. 45-59% individual funding. Mixed power sources with notable concentration from wealthy individuals or institutional interests competing with constituent voices.',
-      'D': 'PAC heavy. 30-44% individual funding. Power increasingly derived from PACs, special interests, or extreme concentration rather than broad individual support.',
+      'B': 'Above average. 60-74% individual funding. Majority people-funded with some institutional influence from PACs or vulnerable to coordinated donor pressure.',
+      'C': 'Below average diffusion. 45-59% individual funding. Mixed power sources with institutional interests or organized donor groups competing with constituent voices.',
+      'D': 'PAC heavy. 30-44% individual funding. Power increasingly derived from PACs, special interests, or small groups of coordinated large donors rather than broad individual support.',
       'E': 'Captured. 15-29% individual funding. These members depend overwhelmingly on PACs, corporate money, or special interest funding rather than individual constituents.',
-      'F': 'Owned. 0-14% individual funding. Power comes almost entirely from PACs, special interests, or extreme concentration. Not accountable to everyday constituents.',
+      'F': 'Owned. 0-14% individual funding. Power comes almost entirely from PACs, special interests, or easily coordinated donor groups. Not accountable to everyday constituents.',
       'N/A': 'No recent financial data available. This could mean they\'re not up for re-election or we haven\'t found their committee records yet.'
     };
     return explanations[tier] || 'No explanation available.';

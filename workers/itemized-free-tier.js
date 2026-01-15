@@ -553,25 +553,32 @@ function calculateMetricsFromAggregates(progress, log) {
     ? (allAmounts[mid - 1] + allAmounts[mid]) / 2
     : allAmounts[mid];
 
-  // Calculate Herfindahl-Hirschman Index (HHI)
-  // Sum of squared market shares - measures concentration
-  // HHI = 0 (perfect equality) to 1.0 (one donor has everything)
-  let hhi = 0;
-  for (const donor of sortedDonors) {
-    const share = donor.amount / progress.totalAmount;
-    hhi += share * share;
-  }
+  // Calculate total from donor aggregates (not transaction total)
+  const totalDonorAmount = sortedDonors.reduce((sum, d) => sum + d.amount, 0);
 
-  // Calculate Gini coefficient (standard inequality measure)
-  // Gini = 0 (perfect equality) to 1.0 (one donor has everything)
-  // Formula: Gini = (2 * Σ(i * x_i)) / (N * Σx_i) - (N + 1) / N
-  const N = sortedDonors.length;
-  const sortedAmounts = sortedDonors.map(d => d.amount);
-  let sumOfWeightedAmounts = 0;
-  for (let i = 0; i < N; i++) {
-    sumOfWeightedAmounts += (i + 1) * sortedAmounts[i];
+  // OLIGARCHIC CAPTURE METRICS
+  // Replace Gini/HHI with metrics that measure leverage and coordination risk
+
+  // 1. Whale Weight (Top 1% Concentration Ratio)
+  // Measures: Raw power of elite donor class
+  // Interpretation: % of funding controlled by richest 1% of donors
+  const top1PercentCount = Math.max(1, Math.ceil(sortedDonors.length * 0.01));
+  const top1PercentDonors = sortedDonors.slice(0, top1PercentCount);
+  const whaleWeight = top1PercentDonors.reduce((sum, d) => sum + d.amount, 0) / totalDonorAmount;
+
+  // 2. Nakamoto Coefficient (50% Coordination Threshold)
+  // Measures: Number of donors needed to coordinate to threaten 50% of funding
+  // Interpretation: Lower = easier to organize coercion (small group can coordinate vs impossible)
+  let nakamotoRunningTotal = 0;
+  let nakamotoCoefficient = 0;
+  const halfTotal = totalDonorAmount * 0.5;
+  for (const donor of sortedDonors) {
+    nakamotoRunningTotal += donor.amount;
+    nakamotoCoefficient++;
+    if (nakamotoRunningTotal >= halfTotal) {
+      break;
+    }
   }
-  const gini = (2 * sumOfWeightedAmounts) / (N * progress.totalAmount) - (N + 1) / N;
 
   const analysis = {
     bioguideId: progress.bioguideId,
@@ -585,8 +592,8 @@ function calculateMetricsFromAggregates(progress, log) {
     minDonation: allAmounts[0] || 0,
     maxDonation: allAmounts[allAmounts.length - 1] || 0,
     top10Concentration: top10Total / progress.totalAmount,
-    hhi: hhi,
-    gini: gini,
+    whaleWeight: whaleWeight,
+    nakamotoCoefficient: nakamotoCoefficient,
     topDonors: top10.map(d => ({
       name: `${d.firstName} ${d.lastName}`.trim(),
       state: d.state,
@@ -602,8 +609,8 @@ function calculateMetricsFromAggregates(progress, log) {
   log(`     Avg donation: $${analysis.avgDonation.toFixed(2)}`);
   log(`     Median donation: $${analysis.medianDonation}`);
   log(`     Top-10 concentration: ${(analysis.top10Concentration * 100).toFixed(2)}%`);
-  log(`     Gini coefficient: ${gini.toFixed(4)} (${gini < 0.4 ? 'low inequality' : gini < 0.6 ? 'moderate inequality' : 'high inequality'})`);
-  log(`     HHI: ${hhi.toFixed(6)}`);
+  log(`     Whale Weight (top 1%): ${(analysis.whaleWeight * 100).toFixed(2)}%`);
+  log(`     Nakamoto Coefficient: ${analysis.nakamotoCoefficient} donors (${analysis.nakamotoCoefficient < 100 ? 'HIGH CAPTURE RISK' : analysis.nakamotoCoefficient < 1000 ? 'moderate risk' : 'low risk'})`);
 
   return analysis;
 }

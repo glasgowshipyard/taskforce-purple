@@ -203,7 +203,7 @@ export default function App() {
                       Tiers distinguish <span className="font-semibold text-green-700">individual support</span> (grassroots + itemized donations) from <span className="font-semibold text-red-700">institutional capture</span> (PAC money).
                     </p>
                     <p className="text-sm text-gray-700">
-                      Tiers start with <span className="font-semibold text-green-700">individual funding %</span> (all donations from people, regardless of size), then concentration penalties are applied:
+                      Tiers start with <span className="font-semibold text-green-700">individual funding %</span> (all donations from people, regardless of size), then coordination risk penalties are applied:
                     </p>
                   </div>
 
@@ -215,7 +215,7 @@ export default function App() {
 
                       <div className="mt-2"><span className="font-medium text-blue-600">Itemized donations (over $200):</span></div>
                       <div className="ml-4">• <span className="font-medium">Full credit by default</span> - $201 from a teacher or $250 from a nurse is still grassroots-adjacent</div>
-                      <div className="ml-4">• <span className="font-medium">Concentration penalty</span> - Only penalized if ratio is extreme (above 70th percentile{adaptiveThresholds ? `, currently ~${Math.round((adaptiveThresholds.houseThreshold + adaptiveThresholds.senateThreshold) / 2)}%` : ', currently ~50%'})</div>
+                      <div className="ml-4">• <span className="font-medium">Coordination risk penalty</span> - Only penalized if few donors can organize to control funding (above 70th percentile{adaptiveThresholds ? `, currently ~${Math.round((adaptiveThresholds.houseThreshold + adaptiveThresholds.senateThreshold) / 2)}%` : ', currently ~50%'})</div>
                       <div className="ml-4 text-xs text-gray-600">⚠️ FEC's $200 threshold is a reporting requirement, not a wealth indicator</div>
                       <div className="ml-4 text-xs text-gray-600 mt-1">
                         💡 <strong>Why cap at 60%?</strong> With 400+ members, the empirical 70th percentile is reliable. But we clamp between 20-60% to prevent runaway penalties if patterns shift dramatically between election cycles. This keeps the system stable while trusting the data.
@@ -248,7 +248,7 @@ export default function App() {
                         )}
                       </div>
                       <p className="mt-3 italic text-xs">
-                        Individual support is good, but <strong>how</strong> that support is distributed matters. Broad grassroots base beats concentrated large donations.
+                        Individual support is good, but <strong>donor coordination risk</strong> matters. Many donors = impossible to organize. Few donors = easier to coordinate pressure.
                       </p>
                     </div>
                   </div>
@@ -303,16 +303,20 @@ export default function App() {
                           <p className="text-gray-400 text-xs ml-6">Lower bound (20%): Prevents under-penalization if sample has anomalously low itemization</p>
                           <p className="text-gray-400 text-xs ml-6">Upper bound (60%): Prevents runaway penalties from outliers or election cycle volatility</p>
                           <p className="text-gray-400 text-xs ml-6">With 400+ members, empirical 70th percentile is statistically sound, but clamp ensures cross-cycle stability</p>
-                          <p className="text-gray-400 text-xs ml-4 mt-2">Only penalize <span className="text-red-300">extreme concentration</span> beyond empirical norms</p>
+                          <p className="text-gray-400 text-xs ml-4 mt-2">Only penalize when <span className="text-red-300">coordination risk</span> exceeds empirical norms</p>
                         </div>
 
                         <div>
-                          <p className="text-gray-300 mb-2"><span className="text-purple-400 font-bold">Tiered Penalty Structure:</span> Non-linear concentration penalties</p>
-                          <p className="text-gray-400 text-xs ml-4">0-5% over threshold: 0.1x penalty (noise tolerance)</p>
-                          <p className="text-gray-400 text-xs ml-4">5-10% over: 0.2x penalty (moderate signal)</p>
-                          <p className="text-gray-400 text-xs ml-4">10%+ over: 0.3x penalty (strong signal of concentration)</p>
-                          <p className="text-gray-400 text-xs ml-4 mt-2">Example: 53% itemized (13% over 40% threshold)</p>
-                          <p className="text-gray-400 text-xs ml-6">= (5 × 0.1) + (5 × 0.2) + (3 × 0.3) = 2.4% penalty</p>
+                          <p className="text-gray-300 mb-2"><span className="text-purple-400 font-bold">Tiered Penalty Structure:</span> Donor coordination risk adjustment</p>
+                          <p className="text-gray-400 text-xs ml-4">Base penalty calculated from excess itemization (0-5%: 0.1x, 5-10%: 0.2x, 10%+: 0.3x)</p>
+                          <p className="text-gray-400 text-xs ml-4 mt-2">Then adjusted by <span className="text-cyan-300">Nakamoto Coefficient</span> (# donors needed to control 50% of funding):</p>
+                          <p className="text-gray-400 text-xs ml-4">• &gt;10,000 donors: 0.25× multiplier (impossible to coordinate)</p>
+                          <p className="text-gray-400 text-xs ml-4">• 1,000-10,000: 0.5× (very difficult to organize)</p>
+                          <p className="text-gray-400 text-xs ml-4">• 100-1,000: 1.0× (moderate coordination risk)</p>
+                          <p className="text-gray-400 text-xs ml-4">• 10-100: 1.5× (small group can coordinate)</p>
+                          <p className="text-gray-400 text-xs ml-4">• &lt;10: 2.0× (single meeting can organize)</p>
+                          <p className="text-gray-400 text-xs ml-4 mt-2">Example: Member with 1,500+ donors needed → 0.5× multiplier (low risk, reward)</p>
+                          <p className="text-gray-400 text-xs ml-4">Example: Member with ~100 donors needed → 1.0× multiplier (moderate risk, neutral)</p>
                         </div>
 
                         <div>

@@ -415,7 +415,7 @@ export default function MembersList() {
                 {selectedMember.individualFundingPercent && (
                   <div className="mt-3 pt-3 border-t border-gray-300">
                     <p className="text-xs text-gray-600">
-                      <span className="font-semibold">Individual Funding Score ({selectedMember.individualFundingPercent}%):</span> Grassroots + Large Donors, with penalties applied for extreme concentration of itemized donations or concerning PAC funding patterns.
+                      <span className="font-semibold">Individual Funding Score ({selectedMember.individualFundingPercent}%):</span> Grassroots + Large Donors, with penalties applied when few donors can coordinate to control funding (coordination risk) or concerning PAC funding patterns.
                     </p>
                   </div>
                 )}
@@ -431,7 +431,7 @@ export default function MembersList() {
                 Tiers distinguish <span className="font-semibold text-green-700">individual support</span> (grassroots + itemized donations) from <span className="font-semibold text-red-700">institutional capture</span> (PAC money).
               </p>
               <p className="text-xs mt-2">
-                Based on <span className="text-green-700">individual funding %</span> (grassroots &lt;$200 + itemized &gt;$200), with concentration penalties for extreme itemized ratios and PAC transparency weights.
+                Based on <span className="text-green-700">individual funding %</span> (grassroots &lt;$200 + itemized &gt;$200), with penalties for donor coordination risk (when few donors can organize to control funding) and PAC transparency weights.
               </p>
               <a
                 href="#how-tiers-work"
