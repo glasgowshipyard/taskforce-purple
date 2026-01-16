@@ -7,11 +7,13 @@
 ## Free Tier Storage Constraint (Added 2026-01-08)
 
 **PROBLEM:** Current chunked KV storage approach requires:
+
 - 535 members × ~29 MB avg = **15.5 GB** total
 - Exceeds Cloudflare free tier limits (1 GB KV, 5 GB D1)
 - Original "275 MB estimate" was 26× too low
 
 **SOLUTION:** Stream-and-Aggregate Architecture
+
 - Store **aggregates during collection**, not raw transactions
 - Per-member progress: ~1 MB (donor totals map + amounts array)
 - During collection: 535 × 1 MB = 535 MB ✅ (under 1 GB KV)
@@ -27,12 +29,14 @@ This document details the itemized donor concentration analysis system that meas
 ## The Problem We're Solving
 
 **The Misleading Aggregate Paradox:**
+
 - Bernie Sanders: 41.4% itemized contributions
 - Nancy Pelosi: 41.2% itemized contributions
 
 On the surface, they look identical. But aggregate percentages hide the underlying distribution:
 
 **Actual Transaction-Level Analysis (2026 Cycle):**
+
 - **Bernie Sanders**: 13,102 unique donors, 2.2% top-10 concentration
 - **Nancy Pelosi**: 2,597 unique donors, 7.7% top-10 concentration
 
@@ -57,6 +61,7 @@ Concentration Metrics
 ```
 
 **Storage Reality:**
+
 - Bernie: 76 chunks × 500 KB = 38 MB
 - Pelosi: 40 chunks × 500 KB = 20 MB
 - 535 members: **~15.5 GB** ❌ Exceeds 1 GB KV free tier
@@ -82,6 +87,7 @@ Store Analysis (2 KB), Delete Progress
 ```
 
 **Storage During Collection:**
+
 ```javascript
 // itemized_progress:S000033 (~1 MB per member)
 {
@@ -99,6 +105,7 @@ Store Analysis (2 KB), Delete Progress
 ```
 
 **Storage After Completion:**
+
 ```javascript
 // itemized_analysis:S000033 (~2 KB)
 {
@@ -114,6 +121,7 @@ Store Analysis (2 KB), Delete Progress
 ```
 
 **Free Tier Compliance:**
+
 - During collection: 535 × 1 MB = **535 MB** ✅
 - After cleanup: 535 × 2 KB = **1 MB** ✅
 - Two cycles: **2 MB** ✅
@@ -161,18 +169,37 @@ Store Analysis (2 KB), Delete Progress
 4. **Top-10 Concentration** - Percentage of total funds from top 10 donors
 5. **Top-10 Donors List** - Names and amounts of largest contributors
 
-### Planned Enhancements
+### Current Metrics (✅ IMPLEMENTED 2026-01-15)
 
-- **Gini Coefficient** (0-1 scale inequality measure)
-- **Herfindahl-Hirschman Index** (market concentration metric)
-- **Lorenz Curve** data for visualization
-- **Donor decile analysis** (what % from bottom 50%, top 10%, etc.)
+**Oligarchic Capture Protocol** - Replaced Gini/HHI with direct coordination risk measurement:
+
+1. **Whale Weight (Top 1% Concentration)** - What % of power do elite donors have?
+2. **Nakamoto Coefficient** - How many donors need to coordinate to control 50% of funding?
+3. **Grassroots Shield** - Independence from large donors (already existed)
+
+**Dynamic Trust Anchor System** (✅ DEPLOYED 2026-01-15):
+
+- Sliding itemization threshold based on Nakamoto Density (% of donors needed for 50%)
+- <50 donors: 10% limit (dinner party coordination)
+- <5% Nakamoto: 25% limit (elite capture risk)
+- 5-10% Nakamoto: 40% limit (standard)
+- ≥10% Nakamoto: 50% limit (movement - coordination impossible)
+- Quadratic penalty: P = E²/20 for exceeding trust anchor
+
+### ❌ DEPRECATED (Removed 2026-01-15)
+
+- **Gini Coefficient** - Measures distribution shape, not coordination feasibility
+- **Herfindahl-Hirschman Index** - Market concentration metric, wrong for political capture
+- **Lorenz Curve** - Visual representation of inequality, not leverage
+
+**Why removed:** These metrics measure abstract inequality, not "can donors coordinate to coerce the politician?" See `.CLAUDE_CONTEXT.md` for detailed analysis.
 
 ## Critical Bugs Fixed (2026-01-07)
 
 ### Bug #1: Pagination Completion Logic
 
 **Problem:**
+
 ```javascript
 // BROKEN - stopped early and marked complete
 const isComplete = pagesProcessed < maxPagesToFetch;
@@ -181,6 +208,7 @@ const isComplete = pagesProcessed < maxPagesToFetch;
 Worker checked if it processed fewer pages than the limit, which meant ANY early break (including reaching the end) marked it complete. This caused collection to stop at ~47% for Bernie.
 
 **Fix:**
+
 ```javascript
 // FIXED - tracks actual end of data
 let reachedEnd = false;
@@ -196,6 +224,7 @@ const isComplete = reachedEnd;
 ### Bug #2: Deduplication Using Inconsistent Field
 
 **Problem:**
+
 ```javascript
 // BROKEN - name format variations counted as different donors
 const normalizedName = tx.contributor_name.toUpperCase().trim();
@@ -203,6 +232,7 @@ const normalizedName = tx.contributor_name.toUpperCase().trim();
 ```
 
 **Fix:**
+
 ```javascript
 // FIXED - use separate, consistently formatted fields
 const firstName = (tx.contributor_first_name || '').toUpperCase().trim();
@@ -216,6 +246,7 @@ const lastName = (tx.contributor_last_name || '').toUpperCase().trim();
 **Problem:** No reconciliation checks to detect collection failures
 
 **Fix:** Added two validation layers:
+
 1. Transaction count: `collected === fecTotalCount`
 2. Financial reconciliation: `sum(amounts) ~= individual_itemized_contributions`
 
@@ -226,6 +257,7 @@ const lastName = (tx.contributor_last_name || '').toUpperCase().trim();
 **Problem:** Including transactions with `memoed_subtotal === true` double-counts funds
 
 **Fix:**
+
 ```javascript
 // Exclude memo entries from totals
 if (tx.contribution_receipt_amount > 0 && tx.memoed_subtotal !== true) {
@@ -243,17 +275,18 @@ if (tx.contribution_receipt_amount > 0 && tx.memoed_subtotal !== true) {
 **Cycle:** 2026
 **Collection Period:** 2026-01-07 to 2026-01-08
 
-| Metric | Value |
-|--------|-------|
-| Total Transactions | 37,612 |
-| Unique Donors | 13,102 |
-| Total Amount | $3,695,847.30 |
-| Average Donation | $98.26 |
-| Median Donation | $27 |
-| Top-10 Concentration | 2.2% |
-| **Reconciliation** | ✅ **Perfect** (0.00000000000008% diff) |
+| Metric               | Value                                   |
+| -------------------- | --------------------------------------- |
+| Total Transactions   | 37,612                                  |
+| Unique Donors        | 13,102                                  |
+| Total Amount         | $3,695,847.30                           |
+| Average Donation     | $98.26                                  |
+| Median Donation      | $27                                     |
+| Top-10 Concentration | 2.2%                                    |
+| **Reconciliation**   | ✅ **Perfect** (0.00000000000008% diff) |
 
 **Key Findings:**
+
 - Very broad donor base (13K+ unique donors)
 - Low average donation ($98) indicates grassroots funding
 - Very low median ($27) shows massive small-donor participation
@@ -267,17 +300,18 @@ if (tx.contribution_receipt_amount > 0 && tx.memoed_subtotal !== true) {
 **Cycle:** 2026
 **Collection Period:** 2026-01-08
 
-| Metric | Value |
-|--------|-------|
-| Total Transactions | 19,659 |
-| Unique Donors | 2,597 |
-| Total Amount | $887,305.67 |
-| Average Donation | $45.13 |
-| Median Donation | $25 |
-| Top-10 Concentration | 7.7% |
-| **Reconciliation** | ⚠️ **Mismatch** (27% over FEC reported) |
+| Metric               | Value                                   |
+| -------------------- | --------------------------------------- |
+| Total Transactions   | 19,659                                  |
+| Unique Donors        | 2,597                                   |
+| Total Amount         | $887,305.67                             |
+| Average Donation     | $45.13                                  |
+| Median Donation      | $25                                     |
+| Top-10 Concentration | 7.7%                                    |
+| **Reconciliation**   | ⚠️ **Mismatch** (27% over FEC reported) |
 
 **Key Findings:**
+
 - Smaller donor base (2,597 unique donors)
 - Lower median donation ($25) than Bernie
 - Higher concentration (7.7% from top 10 = 3.5× Bernie's)
@@ -298,36 +332,62 @@ Pelosi's mismatch is NOT a data quality issue or fraud. It reflects:
 
 ## Comparison: Bernie vs Pelosi
 
-| Metric | Bernie Sanders | Nancy Pelosi | Ratio |
-|--------|---------------|--------------|-------|
-| Unique Donors | 13,102 | 2,597 | **5.0×** |
-| Avg Donation | $98.26 | $45.13 | 2.2× |
-| Median Donation | $27 | $25 | 1.1× |
-| Top-10 Concentration | 2.2% | 7.7% | **0.3×** (Bernie less concentrated) |
-| Transactions | 37,612 | 19,659 | 1.9× |
-| Total Raised (itemized) | $3,695,847 | $887,306 | 4.2× |
+| Metric                  | Bernie Sanders | Nancy Pelosi | Ratio                               |
+| ----------------------- | -------------- | ------------ | ----------------------------------- |
+| Unique Donors           | 13,102         | 2,597        | **5.0×**                            |
+| Avg Donation            | $98.26         | $45.13       | 2.2×                                |
+| Median Donation         | $27            | $25          | 1.1×                                |
+| Top-10 Concentration    | 2.2%           | 7.7%         | **0.3×** (Bernie less concentrated) |
+| Transactions            | 37,612         | 19,659       | 1.9×                                |
+| Total Raised (itemized) | $3,695,847     | $887,306     | 4.2×                                |
 
 **Key Insights:**
+
 - Bernie has **5× more unique donors** despite similar aggregate itemized percentages
 - Bernie's donor base is **3.5× less concentrated** (2.2% vs 7.7% top-10)
 - Both have similar median donations (~$25-27) showing small-dollar participation
 - Bernie's higher average ($98 vs $45) driven by larger donor base, not big donors
 - Aggregate percentages (41.4% vs 41.2%) completely hide these structural differences
 
+## Oligarchic Capture Analysis (2026-01-15 Update)
+
+Using the new Nakamoto-based coordination risk metrics:
+
+| Metric                   | Bernie Sanders    | Nancy Pelosi    | Analysis                                            |
+| ------------------------ | ----------------- | --------------- | --------------------------------------------------- |
+| **Whale Weight**         | 14.38%            | 23.98%          | Pelosi's top 1% has 1.67× more power                |
+| **Nakamoto Coefficient** | 1,534 donors      | 109 donors      | **14× difference in coordination feasibility**      |
+| **Nakamoto Percentage**  | 12.3%             | 4.4%            | Bernie = movement, Pelosi = elite capture           |
+| **Trust Anchor**         | 50%               | 25%             | Bernie gets lenient limit, Pelosi gets strict limit |
+| **Itemized %**           | 41%               | 41%             | Identical on surface                                |
+| **Excess over Anchor**   | 0%                | 16%             | Only Pelosi exceeds her limit                       |
+| **Penalty Applied**      | 0%                | 12.8%           | Quadratic penalty for elite capture                 |
+| **Expected Tier Impact** | S-tier maintained | Drops to A-tier | Coordination risk properly reflected                |
+
+**The 14× Coordination Gap:**
+
+- **Bernie**: Would need 1,534 donors (12.3% of base) to coordinate to threaten 50% funding → **Impossible**
+- **Pelosi**: Only needs 109 donors (4.4% of base) to coordinate → **Single gala feasible**
+
+This is what Gini coefficient (13% difference: 0.622 vs 0.702) completely failed to capture.
+
 ## Technical Considerations
 
 ### Rate Limits & Performance
 
 **FEC API:**
+
 - Limit: 1,000 requests/hour (16.67/min)
 - Our usage: 2.5 calls/min (15% of limit) ✅
 
 **Cloudflare Worker:**
+
 - Execution time: ~9-10s per run (30s limit) ✅
 - Subrequests: 5-7 per run (50 limit) ✅
 - Runs every 2 minutes via cron
 
 **Storage:**
+
 - Bernie: 76 chunks = ~38 MB in KV
 - Pelosi: 40 chunks = ~20 MB in KV
 - Well under 25 MB per-key limit (using chunking)
@@ -363,20 +423,24 @@ Pelosi's mismatch is NOT a data quality issue or fraud. It reflects:
 
 ## Future Enhancements
 
-### Phase 1: Better Metrics (Next)
-- [ ] Implement Gini coefficient calculation
-- [ ] Add Herfindahl-Hirschman Index (HHI)
-- [ ] Generate Lorenz curve data points
-- [ ] Calculate donor decile breakdowns
-- [ ] Define concentration penalty formula for tier rankings
+### Phase 1: Better Metrics ✅ COMPLETE (2026-01-15)
+
+- [x] ~~Implement Gini coefficient~~ Rejected - wrong metric
+- [x] ~~Add HHI~~ Rejected - wrong metric
+- [x] **Implemented Whale Weight** (top 1% concentration)
+- [x] **Implemented Nakamoto Coefficient** (coordination threshold)
+- [x] **Implemented Dynamic Trust Anchor** (sliding penalty based on coordination risk)
+- [x] **Deployed quadratic penalty system**
 
 ### Phase 2: Scale to Production
+
 - [ ] Expand beyond prototype (Bernie + Pelosi) to all members
 - [ ] Migrate from chunked KV to D1 database
 - [ ] Build admin dashboard for monitoring collection status
 - [ ] Add frontend visualization of concentration metrics
 
 ### Phase 3: Advanced Analysis
+
 - [ ] Geographic distribution heatmaps
 - [ ] Temporal donation patterns (election cycle timing)
 - [ ] ActBlue vs direct contribution analysis
@@ -384,6 +448,7 @@ Pelosi's mismatch is NOT a data quality issue or fraud. It reflects:
 - [ ] Cross-member comparison tools
 
 ### Phase 4: Integration
+
 - [ ] Integrate concentration metrics into main tier rankings
 - [ ] Add "Donor Concentration Score" to member profiles
 - [ ] Build public-facing comparison tools
@@ -392,27 +457,32 @@ Pelosi's mismatch is NOT a data quality issue or fraud. It reflects:
 ## Files & Documentation
 
 **Core Implementation:**
+
 - `workers/itemized-prototype.js` - Main worker (collection + analysis)
 - `workers/wrangler-itemized.toml` - Worker configuration
 
 **Documentation:**
+
 - `CRITICAL_BUG_FIX_2026-01-07.md` - Detailed technical writeup of bugs
 - `IMPLEMENTATION_STATUS.md` - Overall project status
 - `.CLAUDE_CONTEXT.md` - Session history and context
 - `API_STRUCTURES.md` - FEC API field documentation
 
 **Related Issues:**
+
 - GitHub Issue #20 - Original concentration analysis specification
 
 ## References
 
 ### FEC Documentation
+
 - [Individual contributions](https://www.fec.gov/help-candidates-and-committees/filing-reports/individual-contributions/)
 - [Joint fundraising transfers](https://www.fec.gov/help-candidates-and-committees/filing-reports/joint-fundraising-transfers/)
 - [Recording receipts](https://www.fec.gov/help-candidates-and-committees/keeping-records/recording-receipts/)
 - [Validation errors explained](https://www.fec.gov/help-candidates-and-committees/filing-reports/validation-errors-explained/)
 
 ### Committee Pages
+
 - [Bernie Sanders - C00411330](https://www.fec.gov/data/committee/C00411330/)
 - [Nancy Pelosi - C00213512](https://www.fec.gov/data/committee/C00213512/)
 - [Nancy Pelosi Victory Fund - C00492421](https://www.fec.gov/data/committee/C00492421/)

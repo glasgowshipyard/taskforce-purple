@@ -15,11 +15,30 @@ Task Force Purple exposes how politicians from both parties often serve the same
 
 ## Tier System
 
-- **S Tier (85%+ grassroots)**: Clean, people-funded representatives
-- **A Tier (70-84%)**: Mostly grassroots funding
-- **B Tier (50-69%)**: Mixed funding sources
-- **C Tier (30-49%)**: PAC/lobbyist heavy
-- **D Tier (0-29%)**: Corporate captured
+Rankings based on **individual funding %** (grassroots + itemized donations from people), with **coordination risk penalties** applied:
+
+- **S Tier (85%+)**: Clean, people-funded representatives
+- **A Tier (70-84%)**: Mostly grassroots with low coordination risk
+- **B Tier (60-74%)**: Majority individual funded
+- **C Tier (45-59%)**: Mixed sources, moderate coordination risk
+- **D Tier (30-44%)**: PAC heavy or high donor coordination risk
+- **E/F Tier (<30%)**: Corporate captured
+
+### Dynamic Trust Anchor System
+
+Not all itemized donations are equal. The system applies a **sliding threshold** based on donor coordination risk:
+
+- **Movement-scale** (≥10% Nakamoto): 50% itemization limit - too many donors to coordinate
+- **Standard** (5-10% Nakamoto): 40% limit - requires organization to coordinate
+- **Elite capture** (<5% Nakamoto): 25% limit - donors fit in a country club
+- **Dinner party** (<50 total donors): 10% limit - coordination trivial
+
+**Quadratic penalty** (P = E²/20) applies for exceeding your specific limit, punishing structural capture harder than minor slips.
+
+**Example**: Two members with 41% itemized funding:
+
+- **12% Nakamoto** (1,500+ donors needed for 50%): Gets 50% limit → No penalty → S-tier
+- **4% Nakamoto** (100 donors for 50%): Gets 25% limit → 16% excess → 12.8% penalty → A-tier
 
 ## Tech Stack
 
@@ -47,11 +66,13 @@ npm run dev
 ## Data Sources
 
 ### Government APIs (All Free)
+
 - **Congress.gov API**: Current members, voting records
 - **OpenFEC API**: Campaign finance data, contribution records
 - **Rate Limits**: 5,000 requests/hour (Congress), no official limits (FEC)
 
 ### Data Pipeline
+
 1. **Daily**: Fetch current member list from Congress.gov
 2. **Weekly**: Pull latest FEC financial data for all committees
 3. **Processing**: Calculate grassroots percentage from contributions <$200
@@ -64,6 +85,7 @@ Visit **https://taskforcepurple.pages.dev** to see the platform in action with r
 ## Development
 
 ### Project Structure
+
 ```
 /src
   /components     # React components
@@ -74,6 +96,7 @@ Visit **https://taskforcepurple.pages.dev** to see the platform in action with r
 ```
 
 ### Key Files
+
 - `taskforce-purple.tsx`: Main React demo component
 - `taskforce-purple.md`: Complete technical specification
 - `/workers/data-pipeline.js`: Scheduled data fetching
