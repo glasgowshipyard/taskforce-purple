@@ -819,7 +819,7 @@ async function fetchMemberFinancials(member, env) {
       grassrootsPercent,
       pacMoney: latestTotal.other_political_committee_contributions || 0,
       partyMoney: latestTotal.political_party_committee_contributions || 0,
-      committeeId: committee.committee_id, // eslint-disable-line no-undef
+      committeeId: latestTotal.committee_id || null, // Fallback path: use committee_id from totals response if available
       committeeName: candidate.name,
       dataCycle: await getElectionCycle(), // Generic fallback uses current cycle
     };
