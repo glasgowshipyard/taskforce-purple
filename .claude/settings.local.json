@@ -66,7 +66,9 @@
       "Bash(wrangler d1 execute:*)",
       "Bash(ls:*)",
       "Bash(npm run build:*)",
-      "Bash(wrangler pages deploy:*)"
+      "Bash(wrangler pages deploy:*)",
+      "Bash(find:*)",
+      "Bash(wrangler kv namespace list:*)"
     ],
     "deny": [],
     "ask": []

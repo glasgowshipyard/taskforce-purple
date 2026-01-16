@@ -47,14 +47,17 @@ export default {
         case '/api/debug-kv':
           const queueData = await env.MEMBER_DATA.get('priority_missing_queue');
           const allKeys = await env.MEMBER_DATA.list();
-          return new Response(JSON.stringify({
-            queueExists: !!queueData,
-            queueLength: queueData ? JSON.parse(queueData).length : 0,
-            allKeysCount: allKeys.keys.length,
-            priorityKeys: allKeys.keys.filter(k => k.name.includes('priority'))
-          }), {
-            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-          });
+          return new Response(
+            JSON.stringify({
+              queueExists: !!queueData,
+              queueLength: queueData ? JSON.parse(queueData).length : 0,
+              allKeysCount: allKeys.keys.length,
+              priorityKeys: allKeys.keys.filter(k => k.name.includes('priority')),
+            }),
+            {
+              headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+            }
+          );
         default:
           // Check for individual member lookup pattern: /api/members/{bioguideId}
           if (url.pathname.startsWith('/api/members/')) {
@@ -74,7 +77,7 @@ export default {
       console.error('Worker error:', error);
       return new Response(JSON.stringify({ error: error.message }), {
         status: 500,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
   },
@@ -89,7 +92,9 @@ export default {
       console.log('🔄 Processing priority queue (missing largeDonorDonations)...');
       try {
         const result = await processPriorityQueue(env);
-        console.log(`✅ Priority batch: ${result.processed} members, ${result.remaining} remaining`);
+        console.log(
+          `✅ Priority batch: ${result.processed} members, ${result.remaining} remaining`
+        );
         if (result.remaining === 0) {
           console.log('🎉 Priority queue complete! Resuming normal batch processing.');
         }
@@ -103,11 +108,13 @@ export default {
     console.log('🔄 Starting smart batch processing...');
     try {
       const result = await processSmartBatch(env);
-      console.log(`✅ Smart batch completed: ${result.callsUsed}/15 API calls, ${result.membersProcessed} members`);
+      console.log(
+        `✅ Smart batch completed: ${result.callsUsed}/15 API calls, ${result.membersProcessed} members`
+      );
     } catch (error) {
       console.error('❌ Smart batch processing failed:', error);
     }
-  }
+  },
 };
 
 // Get current year from reliable external NTP/time sources (Cloudflare Workers Date is broken)
@@ -117,30 +124,30 @@ async function getCurrentYear() {
     {
       name: 'time.gov (NIST)',
       url: 'https://time.gov/currenttime',
-      parse: (data) => new Date(data.datetime).getFullYear()
+      parse: data => new Date(data.datetime).getFullYear(),
     },
     {
       name: 'worldtimeapi.org',
       url: 'https://worldtimeapi.org/api/timezone/America/New_York',
-      parse: (data) => new Date(data.datetime).getFullYear()
+      parse: data => new Date(data.datetime).getFullYear(),
     },
     {
       name: 'timeapi.io',
       url: 'https://timeapi.io/api/Time/current/zone?timeZone=America/New_York',
-      parse: (data) => new Date(data.dateTime).getFullYear()
+      parse: data => new Date(data.dateTime).getFullYear(),
     },
     {
       name: 'worldclockapi.com',
       url: 'http://worldclockapi.com/api/json/est/now',
-      parse: (data) => new Date(data.currentDateTime).getFullYear()
-    }
+      parse: data => new Date(data.currentDateTime).getFullYear(),
+    },
   ];
 
   // Try each source in order
   for (const source of timeSources) {
     try {
       const response = await fetch(source.url, {
-        signal: AbortSignal.timeout(2000) // 2 second timeout per source
+        signal: AbortSignal.timeout(2000), // 2 second timeout per source
       });
       if (response.ok) {
         const data = await response.json();
@@ -167,12 +174,12 @@ async function getElectionCycle() {
 
 // Fetch current Congress members from Congress.gov API (with pagination)
 async function fetchCongressMembers(env) {
-  const apiKey = env.CONGRESS_API_KEY || 'zVpKDAacmPcazWQxhl5fhodhB9wNUH0urLCLkkV9';  // Temporary fallback
+  const apiKey = env.CONGRESS_API_KEY || 'zVpKDAacmPcazWQxhl5fhodhB9wNUH0urLCLkkV9'; // Temporary fallback
 
   console.log('📊 Fetching current 119th Congress members...');
 
   let allMembers = [];
-  let offset = 0;
+  const offset = 0;
   const limit = 250;
 
   // First, get total count to determine pagination strategy
@@ -180,8 +187,8 @@ async function fetchCongressMembers(env) {
     `https://api.congress.gov/v3/member/congress/119?currentMember=true&offset=0&limit=1&api_key=${apiKey}`,
     {
       headers: {
-        'User-Agent': 'TaskForcePurple/1.0 (Political Transparency Platform)'
-      }
+        'User-Agent': 'TaskForcePurple/1.0 (Political Transparency Platform)',
+      },
     }
   );
 
@@ -199,14 +206,16 @@ async function fetchCongressMembers(env) {
   for (let page = totalPages - 1; page >= 0; page--) {
     const currentOffset = page * limit;
 
-    console.log(`📥 Fetching page ${page + 1}/${totalPages} (offset ${currentOffset}) - ${page === totalPages - 1 ? 'ESTABLISHED' : page === 0 ? 'NEWEST' : 'MID-TENURE'} members`);
+    console.log(
+      `📥 Fetching page ${page + 1}/${totalPages} (offset ${currentOffset}) - ${page === totalPages - 1 ? 'ESTABLISHED' : page === 0 ? 'NEWEST' : 'MID-TENURE'} members`
+    );
 
     const response = await fetch(
       `https://api.congress.gov/v3/member/congress/119?currentMember=true&offset=${currentOffset}&limit=${limit}&api_key=${apiKey}`,
       {
         headers: {
-          'User-Agent': 'TaskForcePurple/1.0 (Political Transparency Platform)'
-        }
+          'User-Agent': 'TaskForcePurple/1.0 (Political Transparency Platform)',
+        },
       }
     );
 
@@ -232,16 +241,56 @@ async function fetchCongressMembers(env) {
 
 // State name to abbreviation mapping
 const STATE_ABBREVIATIONS = {
-  'Alabama': 'AL', 'Alaska': 'AK', 'Arizona': 'AZ', 'Arkansas': 'AR', 'California': 'CA',
-  'Colorado': 'CO', 'Connecticut': 'CT', 'Delaware': 'DE', 'Florida': 'FL', 'Georgia': 'GA',
-  'Hawaii': 'HI', 'Idaho': 'ID', 'Illinois': 'IL', 'Indiana': 'IN', 'Iowa': 'IA',
-  'Kansas': 'KS', 'Kentucky': 'KY', 'Louisiana': 'LA', 'Maine': 'ME', 'Maryland': 'MD',
-  'Massachusetts': 'MA', 'Michigan': 'MI', 'Minnesota': 'MN', 'Mississippi': 'MS', 'Missouri': 'MO',
-  'Montana': 'MT', 'Nebraska': 'NE', 'Nevada': 'NV', 'New Hampshire': 'NH', 'New Jersey': 'NJ',
-  'New Mexico': 'NM', 'New York': 'NY', 'North Carolina': 'NC', 'North Dakota': 'ND', 'Ohio': 'OH',
-  'Oklahoma': 'OK', 'Oregon': 'OR', 'Pennsylvania': 'PA', 'Rhode Island': 'RI', 'South Carolina': 'SC',
-  'South Dakota': 'SD', 'Tennessee': 'TN', 'Texas': 'TX', 'Utah': 'UT', 'Vermont': 'VT',
-  'Virginia': 'VA', 'Washington': 'WA', 'West Virginia': 'WV', 'Wisconsin': 'WI', 'Wyoming': 'WY'
+  Alabama: 'AL',
+  Alaska: 'AK',
+  Arizona: 'AZ',
+  Arkansas: 'AR',
+  California: 'CA',
+  Colorado: 'CO',
+  Connecticut: 'CT',
+  Delaware: 'DE',
+  Florida: 'FL',
+  Georgia: 'GA',
+  Hawaii: 'HI',
+  Idaho: 'ID',
+  Illinois: 'IL',
+  Indiana: 'IN',
+  Iowa: 'IA',
+  Kansas: 'KS',
+  Kentucky: 'KY',
+  Louisiana: 'LA',
+  Maine: 'ME',
+  Maryland: 'MD',
+  Massachusetts: 'MA',
+  Michigan: 'MI',
+  Minnesota: 'MN',
+  Mississippi: 'MS',
+  Missouri: 'MO',
+  Montana: 'MT',
+  Nebraska: 'NE',
+  Nevada: 'NV',
+  'New Hampshire': 'NH',
+  'New Jersey': 'NJ',
+  'New Mexico': 'NM',
+  'New York': 'NY',
+  'North Carolina': 'NC',
+  'North Dakota': 'ND',
+  Ohio: 'OH',
+  Oklahoma: 'OK',
+  Oregon: 'OR',
+  Pennsylvania: 'PA',
+  'Rhode Island': 'RI',
+  'South Carolina': 'SC',
+  'South Dakota': 'SD',
+  Tennessee: 'TN',
+  Texas: 'TX',
+  Utah: 'UT',
+  Vermont: 'VT',
+  Virginia: 'VA',
+  Washington: 'WA',
+  'West Virginia': 'WV',
+  Wisconsin: 'WI',
+  Wyoming: 'WY',
 };
 
 // Select current committee using proper cycle and designation filtering
@@ -256,8 +305,8 @@ async function selectCurrentCommittee(candidateId, env, office = null) {
       `https://api.open.fec.gov/v1/candidate/${candidateId}/committees/?api_key=${apiKey}`,
       {
         headers: {
-          'User-Agent': 'TaskForcePurple/1.0 (Political Transparency Platform)'
-        }
+          'User-Agent': 'TaskForcePurple/1.0 (Political Transparency Platform)',
+        },
       }
     );
 
@@ -275,22 +324,23 @@ async function selectCurrentCommittee(candidateId, env, office = null) {
     // House (2-year terms): Try current cycle, then -2 (one cycle back)
     // Senate (6-year terms): Try current cycle, then -2, -4, -6, -8 (four cycles back = 10 years)
     const runtimeCycle = await getElectionCycle();
-    const cyclesToTry = office === 'H'
-      ? [runtimeCycle, runtimeCycle - 2]
-      : [runtimeCycle, runtimeCycle - 2, runtimeCycle - 4, runtimeCycle - 6, runtimeCycle - 8];
+    const cyclesToTry =
+      office === 'H'
+        ? [runtimeCycle, runtimeCycle - 2]
+        : [runtimeCycle, runtimeCycle - 2, runtimeCycle - 4, runtimeCycle - 6, runtimeCycle - 8];
 
     // Find committee with the most recent cycle from our priority list
     let usedCycle = null;
     for (const cycle of cyclesToTry) {
       // Check if any committee has this cycle
-      const hasCommitteeInCycle = data.results.some(c =>
-        c.cycles && c.cycles.includes(cycle)
-      );
+      const hasCommitteeInCycle = data.results.some(c => c.cycles && c.cycles.includes(cycle));
       if (hasCommitteeInCycle) {
         usedCycle = cycle;
         const currentCycle = await getElectionCycle();
         if (cycle !== currentCycle) {
-          console.log(`🔄 Using committee data from previous cycle ${cycle} for ${candidateId} (${office || 'unknown chamber'})`);
+          console.log(
+            `🔄 Using committee data from previous cycle ${cycle} for ${candidateId} (${office || 'unknown chamber'})`
+          );
         }
         break;
       }
@@ -301,33 +351,38 @@ async function selectCurrentCommittee(candidateId, env, office = null) {
     }
 
     // Filter by designation (P = Principal, A = Authorized) AND cycle availability
-    const campaignCommittees = data.results.filter(c =>
-      (c.designation === 'P' || c.designation === 'A') &&
-      c.cycles && c.cycles.includes(usedCycle)
+    const campaignCommittees = data.results.filter(
+      c =>
+        (c.designation === 'P' || c.designation === 'A') && c.cycles && c.cycles.includes(usedCycle)
     );
 
     if (campaignCommittees.length === 0) {
       // Fallback: use most recent committee
       console.log(`⚠️ No P/A committees found for ${candidateId}, using most recent committee`);
-      return data.results.sort((a, b) =>
-        new Date(b.last_file_date || '1900-01-01') - new Date(a.last_file_date || '1900-01-01')
+      return data.results.sort(
+        (a, b) =>
+          new Date(b.last_file_date || '1900-01-01') - new Date(a.last_file_date || '1900-01-01')
       )[0];
     }
 
     // Prefer Principal (P), fallback to most recent Authorized (A)
     const principal = campaignCommittees.find(c => c.designation === 'P');
     if (principal) {
-      console.log(`✅ Selected Principal committee: ${principal.name} (${principal.committee_id}) - cycle ${usedCycle}`);
+      console.log(
+        `✅ Selected Principal committee: ${principal.name} (${principal.committee_id}) - cycle ${usedCycle}`
+      );
       return { committee: principal, usedCycle };
     }
 
-    const mostRecentAuthorized = campaignCommittees.sort((a, b) =>
-      new Date(b.last_file_date || '1900-01-01') - new Date(a.last_file_date || '1900-01-01')
+    const mostRecentAuthorized = campaignCommittees.sort(
+      (a, b) =>
+        new Date(b.last_file_date || '1900-01-01') - new Date(a.last_file_date || '1900-01-01')
     )[0];
 
-    console.log(`✅ Selected Authorized committee: ${mostRecentAuthorized.name} (${mostRecentAuthorized.committee_id}) - cycle ${usedCycle}`);
+    console.log(
+      `✅ Selected Authorized committee: ${mostRecentAuthorized.name} (${mostRecentAuthorized.committee_id}) - cycle ${usedCycle}`
+    );
     return { committee: mostRecentAuthorized, usedCycle };
-
   } catch (error) {
     console.error(`❌ Committee selection failed for ${candidateId}:`, error.message);
     throw error;
@@ -336,7 +391,7 @@ async function selectCurrentCommittee(candidateId, env, office = null) {
 
 // Fetch financial data from OpenFEC API using correct endpoints
 async function fetchMemberFinancials(member, env) {
-  const apiKey = env.FEC_API_KEY || 'zVpKDAacmPcazWQxhl5fhodhB9wNUH0urLCLkkV9';  // Temporary fallback
+  const apiKey = env.FEC_API_KEY || 'zVpKDAacmPcazWQxhl5fhodhB9wNUH0urLCLkkV9'; // Temporary fallback
 
   try {
     console.log(`🔍 Looking up financial data for: ${member.name} (${member.state})`);
@@ -351,15 +406,22 @@ async function fetchMemberFinancials(member, env) {
     // Queue members have 'district' (House) or not (Senate), full members have chamber/terms
     const chamberType = (() => {
       // If member already has chamber field, use it
-      if (member.chamber) return member.chamber;
+      if (member.chamber) {
+        return member.chamber;
+      }
       // Otherwise get most recent term from Congress.gov data
       const terms = member.terms?.item;
-      if (!terms || terms.length === 0) return null;
+      if (!terms || terms.length === 0) {
+        return null;
+      }
       return terms[terms.length - 1].chamber;
     })();
-    const office = chamberType === 'House of Representatives' || chamberType === 'House' ? 'H'
-                 : member.district ? 'H'  // If member has district, they're House
-                 : 'S';  // Otherwise Senate
+    const office =
+      chamberType === 'House of Representatives' || chamberType === 'House'
+        ? 'H'
+        : member.district
+          ? 'H' // If member has district, they're House
+          : 'S'; // Otherwise Senate
 
     // Check for cached FEC candidate mapping first
     const cacheKey = `fec_mapping_${member.bioguideId}`;
@@ -373,7 +435,7 @@ async function fetchMemberFinancials(member, env) {
       candidate = {
         candidate_id: mapping.candidate_id,
         name: mapping.candidate_name,
-        principal_committees: mapping.principal_committees
+        principal_committees: mapping.principal_committees,
       };
     } else {
       // First time lookup - search for the candidate by name with validation
@@ -381,14 +443,16 @@ async function fetchMemberFinancials(member, env) {
         `https://api.open.fec.gov/v1/candidates/search/?api_key=${apiKey}&q=${encodeURIComponent(member.name.split(',')[0])}&office=${office}&state=${stateAbbr}`,
         {
           headers: {
-            'User-Agent': 'TaskForcePurple/1.0 (Political Transparency Platform)'
-          }
+            'User-Agent': 'TaskForcePurple/1.0 (Political Transparency Platform)',
+          },
         }
       );
 
       if (!searchResponse.ok) {
         console.warn(`FEC search API error for ${member.name}: ${searchResponse.status}`);
-        try { await searchResponse.json(); } catch {}
+        try {
+          await searchResponse.json();
+        } catch {}
         return null;
       }
 
@@ -410,13 +474,17 @@ async function fetchMemberFinancials(member, env) {
 
       // FALLBACK: If office_sought is undefined, use committee ID pattern matching
       if (!candidate) {
-        console.log(`🔄 Primary matching failed, trying committee ID pattern fallback for ${member.name}`);
+        console.log(
+          `🔄 Primary matching failed, trying committee ID pattern fallback for ${member.name}`
+        );
 
         candidate = searchData.results.find(c => {
           const candidateState = c.state?.toUpperCase();
           const expectedState = stateAbbr?.toUpperCase();
 
-          if (candidateState !== expectedState) return false;
+          if (candidateState !== expectedState) {
+            return false;
+          }
 
           // Check if candidate has committees that match expected chamber
           if (c.principal_committees && c.principal_committees.length > 0) {
@@ -439,11 +507,15 @@ async function fetchMemberFinancials(member, env) {
       }
 
       if (!candidate) {
-        console.warn(`❌ No matching FEC candidate for ${member.name} (${stateAbbr}-${office}). Found candidates: ${searchData.results.map(c => `${c.name} (${c.state}-${c.office_sought})`).join(', ')}`);
+        console.warn(
+          `❌ No matching FEC candidate for ${member.name} (${stateAbbr}-${office}). Found candidates: ${searchData.results.map(c => `${c.name} (${c.state}-${c.office_sought})`).join(', ')}`
+        );
         return null;
       }
 
-      console.log(`✅ Found validated FEC candidate: ${candidate.name} (ID: ${candidate.candidate_id}) for ${member.name} (${stateAbbr}-${office})`);
+      console.log(
+        `✅ Found validated FEC candidate: ${candidate.name} (ID: ${candidate.candidate_id}) for ${member.name} (${stateAbbr}-${office})`
+      );
 
       // Cache the validated mapping for future use
       const mappingToCache = {
@@ -453,7 +525,7 @@ async function fetchMemberFinancials(member, env) {
         verified_date: new Date().toISOString(),
         verification_method: 'auto_validated',
         member_state: stateAbbr,
-        member_office: office
+        member_office: office,
       };
 
       await env.MEMBER_DATA.put(cacheKey, JSON.stringify(mappingToCache));
@@ -468,9 +540,10 @@ async function fetchMemberFinancials(member, env) {
       // Use the principal_committees we already have (no redundant API call)
       // Chamber-aware cycle priority: House tries [2024, 2022], Senate tries [2024, 2022, 2020, 2018, 2016]
       const runtimeCycle = await getElectionCycle();
-      const cyclesToTry = office === 'H'
-        ? [runtimeCycle, runtimeCycle - 2]
-        : [runtimeCycle, runtimeCycle - 2, runtimeCycle - 4, runtimeCycle - 6, runtimeCycle - 8];
+      const cyclesToTry =
+        office === 'H'
+          ? [runtimeCycle, runtimeCycle - 2]
+          : [runtimeCycle, runtimeCycle - 2, runtimeCycle - 4, runtimeCycle - 6, runtimeCycle - 8];
 
       // Find committee with most recent cycle from priority list
       let selectedCommittee = null;
@@ -478,9 +551,9 @@ async function fetchMemberFinancials(member, env) {
 
       for (const cycle of cyclesToTry) {
         // Find P or A committee that has this cycle
-        const committee = candidate.principal_committees.find(c =>
-          (c.designation === 'P' || c.designation === 'A') &&
-          c.cycles && c.cycles.includes(cycle)
+        const committee = candidate.principal_committees.find(
+          c =>
+            (c.designation === 'P' || c.designation === 'A') && c.cycles && c.cycles.includes(cycle)
         );
         if (committee) {
           selectedCommittee = committee;
@@ -497,44 +570,49 @@ async function fetchMemberFinancials(member, env) {
         const committeeId = selectedCommittee.committee_id;
         console.log(`📊 Getting committee totals for ${committeeId} (cycle ${usedCycle})`);
 
-      const committeeTotalsResponse = await fetch(
-        `https://api.open.fec.gov/v1/committee/${committeeId}/totals/?api_key=${apiKey}&cycle=${usedCycle}`,
-        {
-          headers: {
-            'User-Agent': 'TaskForcePurple/1.0 (Political Transparency Platform)'
+        const committeeTotalsResponse = await fetch(
+          `https://api.open.fec.gov/v1/committee/${committeeId}/totals/?api_key=${apiKey}&cycle=${usedCycle}`,
+          {
+            headers: {
+              'User-Agent': 'TaskForcePurple/1.0 (Political Transparency Platform)',
+            },
           }
+        );
+
+        if (committeeTotalsResponse.ok) {
+          const committeeTotalsData = await committeeTotalsResponse.json();
+          const latestTotal = committeeTotalsData.results?.[0];
+
+          if (latestTotal) {
+            console.log(
+              `💰 Found committee financial data for ${member.name}: $${latestTotal.receipts || 0}`
+            );
+
+            const totalRaised = latestTotal.receipts || 0;
+            const grassrootsDonations = latestTotal.individual_unitemized_contributions || 0;
+            const largeDonorDonations = latestTotal.individual_itemized_contributions || 0;
+            const grassrootsPercent =
+              totalRaised > 0 ? Math.round((grassrootsDonations / totalRaised) * 100) : 0;
+
+            hasFinancialData = true;
+            return {
+              totalRaised,
+              grassrootsDonations,
+              largeDonorDonations,
+              grassrootsPercent,
+              pacMoney: latestTotal.other_political_committee_contributions || 0,
+              partyMoney: latestTotal.political_party_committee_contributions || 0,
+              committeeId: committeeId,
+              committeeName: candidate.name,
+              dataCycle: usedCycle, // Track which cycle the data is from
+            };
+          }
+        } else {
+          // Consume the response body to prevent deadlock
+          try {
+            await committeeTotalsResponse.json();
+          } catch {}
         }
-      );
-
-      if (committeeTotalsResponse.ok) {
-        const committeeTotalsData = await committeeTotalsResponse.json();
-        const latestTotal = committeeTotalsData.results?.[0];
-
-        if (latestTotal) {
-          console.log(`💰 Found committee financial data for ${member.name}: $${latestTotal.receipts || 0}`);
-
-          const totalRaised = latestTotal.receipts || 0;
-          const grassrootsDonations = latestTotal.individual_unitemized_contributions || 0;
-          const largeDonorDonations = latestTotal.individual_itemized_contributions || 0;
-          const grassrootsPercent = totalRaised > 0 ? Math.round((grassrootsDonations / totalRaised) * 100) : 0;
-
-          hasFinancialData = true;
-          return {
-            totalRaised,
-            grassrootsDonations,
-            largeDonorDonations,
-            grassrootsPercent,
-            pacMoney: latestTotal.other_political_committee_contributions || 0,
-            partyMoney: latestTotal.political_party_committee_contributions || 0,
-            committeeId: committeeId,
-            committeeName: candidate.name,
-            dataCycle: usedCycle // Track which cycle the data is from
-          };
-        }
-      } else {
-        // Consume the response body to prevent deadlock
-        try { await committeeTotalsResponse.json(); } catch {}
-      }
       }
     }
 
@@ -543,128 +621,160 @@ async function fetchMemberFinancials(member, env) {
     if (!hasFinancialData) {
       console.log(`🔍 Attempting committee discovery for ${member.name}...`);
       try {
-          // Fetch all committees (without cycle filter to get cycles[] array)
-          const committeesResponse = await fetch(
-            `https://api.open.fec.gov/v1/candidate/${candidate.candidate_id}/committees/?api_key=${apiKey}`,
-            {
-              headers: {
-                'User-Agent': 'TaskForcePurple/1.0 (Political Transparency Platform)'
+        // Fetch all committees (without cycle filter to get cycles[] array)
+        const committeesResponse = await fetch(
+          `https://api.open.fec.gov/v1/candidate/${candidate.candidate_id}/committees/?api_key=${apiKey}`,
+          {
+            headers: {
+              'User-Agent': 'TaskForcePurple/1.0 (Political Transparency Platform)',
+            },
+          }
+        );
+
+        if (!committeesResponse.ok) {
+          try {
+            await committeesResponse.json();
+          } catch {}
+          console.log(`❌ Committee discovery failed for ${member.name}`);
+        } else {
+          const committeesData = await committeesResponse.json();
+
+          if (committeesData.results && committeesData.results.length > 0) {
+            console.log(
+              `🔎 Found ${committeesData.results.length} total committees for ${member.name}`
+            );
+
+            // Log all available cycles for debugging
+            const allCycles = [
+              ...new Set(committeesData.results.flatMap(c => c.cycles || [])),
+            ].sort((a, b) => b - a);
+            console.log(`📅 Available committee cycles: ${allCycles.join(', ')}`);
+
+            // Chamber-aware cycle fallback: House tries 2 cycles, Senate tries 5 cycles (10 years)
+            // Get cycle from external time source (Cloudflare Date is unreliable)
+            const runtimeCycle = await getElectionCycle();
+            console.log(`🔍 DEBUG: office='${office}', runtime=${runtimeCycle}`);
+            const cyclesToTry =
+              office === 'H'
+                ? [runtimeCycle, runtimeCycle - 2]
+                : [
+                    runtimeCycle,
+                    runtimeCycle - 2,
+                    runtimeCycle - 4,
+                    runtimeCycle - 6,
+                    runtimeCycle - 8,
+                  ];
+
+            // Find most recent cycle from our priority list
+            let usedCycle = null;
+            console.log(
+              `🔍 Checking cycles for ${office === 'H' ? 'House' : 'Senate'}: ${cyclesToTry.join(', ')}`
+            );
+            for (const cycle of cyclesToTry) {
+              const committeesInCycle = committeesData.results.filter(
+                c => c.cycles && c.cycles.includes(cycle)
+              );
+              console.log(`  Cycle ${cycle}: ${committeesInCycle.length} committees found`);
+              if (committeesInCycle.length > 0) {
+                usedCycle = cycle;
+                const currentCycle = await getElectionCycle();
+                if (cycle !== currentCycle) {
+                  console.log(`🔄 Using committee data from cycle ${cycle} for ${member.name}`);
+                }
+                break;
               }
             }
-          );
 
-          if (!committeesResponse.ok) {
-            try { await committeesResponse.json(); } catch {}
-            console.log(`❌ Committee discovery failed for ${member.name}`);
-          } else {
-            const committeesData = await committeesResponse.json();
-
-            if (committeesData.results && committeesData.results.length > 0) {
-              console.log(`🔎 Found ${committeesData.results.length} total committees for ${member.name}`);
-
-              // Log all available cycles for debugging
-              const allCycles = [...new Set(committeesData.results.flatMap(c => c.cycles || []))].sort((a,b) => b-a);
-              console.log(`📅 Available committee cycles: ${allCycles.join(', ')}`);
-
-              // Chamber-aware cycle fallback: House tries 2 cycles, Senate tries 5 cycles (10 years)
-              // Get cycle from external time source (Cloudflare Date is unreliable)
-              const runtimeCycle = await getElectionCycle();
-              console.log(`🔍 DEBUG: office='${office}', runtime=${runtimeCycle}`);
-              const cyclesToTry = office === 'H'
-                ? [runtimeCycle, runtimeCycle - 2]
-                : [runtimeCycle, runtimeCycle - 2, runtimeCycle - 4, runtimeCycle - 6, runtimeCycle - 8];
-
-              // Find most recent cycle from our priority list
-              let usedCycle = null;
-              console.log(`🔍 Checking cycles for ${office === 'H' ? 'House' : 'Senate'}: ${cyclesToTry.join(', ')}`);
-              for (const cycle of cyclesToTry) {
-                const committeesInCycle = committeesData.results.filter(c =>
-                  c.cycles && c.cycles.includes(cycle)
-                );
-                console.log(`  Cycle ${cycle}: ${committeesInCycle.length} committees found`);
-                if (committeesInCycle.length > 0) {
-                  usedCycle = cycle;
-                  const currentCycle = await getElectionCycle();
-                  if (cycle !== currentCycle) {
-                    console.log(`🔄 Using committee data from cycle ${cycle} for ${member.name}`);
-                  }
-                  break;
-                }
-              }
-
-              if (usedCycle) {
-                console.log(`🔍 Found ${committeesData.results?.length || 0} committees for ${member.name} (cycle ${usedCycle})`);
-
-                // Log committee designations for debugging
-                const designations = committeesData.results.map(c => `${c.designation || 'N/A'}:${c.committee_id}`).join(', ');
-                console.log(`📋 Committee designations: ${designations}`);
-
-                // Filter for principal campaign committees (designation P or A) in the target cycle
-                const principalCommittees = committeesData.results?.filter(committee =>
-                  ['P', 'A'].includes(committee.designation) &&
-                  committee.cycles && committee.cycles.includes(usedCycle)
-                ) || [];
-
-                console.log(`✅ Found ${principalCommittees.length} P/A committees in cycle ${usedCycle}`);
-
-            if (principalCommittees.length > 0) {
-              const primaryCommittee = principalCommittees[0];
-              console.log(`✅ Discovered principal committee for ${member.name} (${office}): ${primaryCommittee.committee_id} (${primaryCommittee.name})`);
-
-              // Get financial data using the discovered committee (use the cycle we found)
-              const committeeTotalsResponse = await fetch(
-                `https://api.open.fec.gov/v1/committee/${primaryCommittee.committee_id}/totals/?api_key=${apiKey}&cycle=${usedCycle}`,
-                {
-                  headers: {
-                    'User-Agent': 'TaskForcePurple/1.0 (Political Transparency Platform)'
-                  }
-                }
+            if (usedCycle) {
+              console.log(
+                `🔍 Found ${committeesData.results?.length || 0} committees for ${member.name} (cycle ${usedCycle})`
               );
 
-              if (committeeTotalsResponse.ok) {
-                const committeeTotalsData = await committeeTotalsResponse.json();
-                const latestTotal = committeeTotalsData.results?.[0];
+              // Log committee designations for debugging
+              const designations = committeesData.results
+                .map(c => `${c.designation || 'N/A'}:${c.committee_id}`)
+                .join(', ');
+              console.log(`📋 Committee designations: ${designations}`);
 
-                if (latestTotal) {
-                  console.log(`💰 Committee discovery success for ${member.name}: $${latestTotal.receipts || 0}`);
+              // Filter for principal campaign committees (designation P or A) in the target cycle
+              const principalCommittees =
+                committeesData.results?.filter(
+                  committee =>
+                    ['P', 'A'].includes(committee.designation) &&
+                    committee.cycles &&
+                    committee.cycles.includes(usedCycle)
+                ) || [];
 
-                  const totalRaised = latestTotal.receipts || 0;
-                  const grassrootsDonations = latestTotal.individual_unitemized_contributions || 0;
-                  const largeDonorDonations = latestTotal.individual_itemized_contributions || 0;
-                  const grassrootsPercent = totalRaised > 0 ? Math.round((grassrootsDonations / totalRaised) * 100) : 0;
+              console.log(
+                `✅ Found ${principalCommittees.length} P/A committees in cycle ${usedCycle}`
+              );
 
-                  hasFinancialData = true;
-                  return {
-                    totalRaised,
-                    grassrootsDonations,
-                    largeDonorDonations,
-                    grassrootsPercent,
-                    pacMoney: latestTotal.other_political_committee_contributions || 0,
-                    partyMoney: latestTotal.political_party_committee_contributions || 0,
-                    committeeId: primaryCommittee.committee_id,
-                    committeeName: primaryCommittee.name,
-                    dataCycle: usedCycle // Track which cycle the data is from
-                  };
+              if (principalCommittees.length > 0) {
+                const primaryCommittee = principalCommittees[0];
+                console.log(
+                  `✅ Discovered principal committee for ${member.name} (${office}): ${primaryCommittee.committee_id} (${primaryCommittee.name})`
+                );
+
+                // Get financial data using the discovered committee (use the cycle we found)
+                const committeeTotalsResponse = await fetch(
+                  `https://api.open.fec.gov/v1/committee/${primaryCommittee.committee_id}/totals/?api_key=${apiKey}&cycle=${usedCycle}`,
+                  {
+                    headers: {
+                      'User-Agent': 'TaskForcePurple/1.0 (Political Transparency Platform)',
+                    },
+                  }
+                );
+
+                if (committeeTotalsResponse.ok) {
+                  const committeeTotalsData = await committeeTotalsResponse.json();
+                  const latestTotal = committeeTotalsData.results?.[0];
+
+                  if (latestTotal) {
+                    console.log(
+                      `💰 Committee discovery success for ${member.name}: $${latestTotal.receipts || 0}`
+                    );
+
+                    const totalRaised = latestTotal.receipts || 0;
+                    const grassrootsDonations =
+                      latestTotal.individual_unitemized_contributions || 0;
+                    const largeDonorDonations = latestTotal.individual_itemized_contributions || 0;
+                    const grassrootsPercent =
+                      totalRaised > 0 ? Math.round((grassrootsDonations / totalRaised) * 100) : 0;
+
+                    hasFinancialData = true;
+                    return {
+                      totalRaised,
+                      grassrootsDonations,
+                      largeDonorDonations,
+                      grassrootsPercent,
+                      pacMoney: latestTotal.other_political_committee_contributions || 0,
+                      partyMoney: latestTotal.political_party_committee_contributions || 0,
+                      committeeId: primaryCommittee.committee_id,
+                      committeeName: primaryCommittee.name,
+                      dataCycle: usedCycle, // Track which cycle the data is from
+                    };
+                  }
+                } else {
+                  try {
+                    await committeeTotalsResponse.json();
+                  } catch {}
                 }
               } else {
-                try { await committeeTotalsResponse.json(); } catch {}
+                console.log(`⚠️ No principal committees found for ${member.name} (${office})`);
               }
             } else {
-              console.log(`⚠️ No principal committees found for ${member.name} (${office})`);
+              console.log(`⚠️ No committees found in recent cycles for ${member.name}`);
             }
-              } else {
-                console.log(`⚠️ No committees found in recent cycles for ${member.name}`);
-              }
-            } else {
-              console.log(`⚠️ No committees found at all for ${member.name}`);
-            }
+          } else {
+            console.log(`⚠️ No committees found at all for ${member.name}`);
           }
-        } catch (error) {
-          console.error(`❌ Error during committee discovery for ${member.name}:`, error);
         }
+      } catch (error) {
+        console.error(`❌ Error during committee discovery for ${member.name}:`, error);
+      }
 
-        // Add delay after committee discovery API calls to respect rate limits
-        await new Promise(resolve => setTimeout(resolve, 15000));
+      // Add delay after committee discovery API calls to respect rate limits
+      await new Promise(resolve => setTimeout(resolve, 15000));
     }
 
     // Fallback: try the totals by entity endpoint
@@ -673,15 +783,17 @@ async function fetchMemberFinancials(member, env) {
       `https://api.open.fec.gov/v1/totals/by_entity/?api_key=${apiKey}&candidate_id=${candidate.candidate_id}&election_year=${currentCycle}&cycle=${currentCycle}`,
       {
         headers: {
-          'User-Agent': 'TaskForcePurple/1.0 (Political Transparency Platform)'
-        }
+          'User-Agent': 'TaskForcePurple/1.0 (Political Transparency Platform)',
+        },
       }
     );
 
     if (!totalsResponse.ok) {
       console.warn(`FEC totals API error for ${candidate.candidate_id}: ${totalsResponse.status}`);
       // Consume the response body to prevent deadlock
-      try { await totalsResponse.json(); } catch {}
+      try {
+        await totalsResponse.json();
+      } catch {}
       return null;
     }
 
@@ -698,7 +810,8 @@ async function fetchMemberFinancials(member, env) {
     // Calculate grassroots percentage (donations under $200)
     const totalRaised = latestTotal.receipts || 0;
     const grassrootsDonations = latestTotal.individual_unitemized_contributions || 0;
-    const grassrootsPercent = totalRaised > 0 ? Math.round((grassrootsDonations / totalRaised) * 100) : 0;
+    const grassrootsPercent =
+      totalRaised > 0 ? Math.round((grassrootsDonations / totalRaised) * 100) : 0;
 
     return {
       totalRaised,
@@ -706,11 +819,10 @@ async function fetchMemberFinancials(member, env) {
       grassrootsPercent,
       pacMoney: latestTotal.other_political_committee_contributions || 0,
       partyMoney: latestTotal.political_party_committee_contributions || 0,
-      committeeId: committee.committee_id,
+      committeeId: committee.committee_id, // eslint-disable-line no-undef
       committeeName: candidate.name,
-      dataCycle: await getElectionCycle() // Generic fallback uses current cycle
+      dataCycle: await getElectionCycle(), // Generic fallback uses current cycle
     };
-
   } catch (error) {
     console.warn(`Error fetching financials for ${member.name}:`, error.message);
     return null;
@@ -730,39 +842,53 @@ async function fetchPACDetails(committeeId, env) {
       `https://api.open.fec.gov/v1/schedules/schedule_a/?api_key=${apiKey}&committee_id=${committeeId}&contributor_type=committee&per_page=100&sort=-contribution_receipt_amount&two_year_transaction_period=${currentCycle}`,
       {
         headers: {
-          'User-Agent': 'TaskForcePurple/1.0 (Political Transparency Platform)'
-        }
+          'User-Agent': 'TaskForcePurple/1.0 (Political Transparency Platform)',
+        },
       }
     );
 
     if (!response.ok) {
       console.warn(`FEC Schedule A API error for ${committeeId}: ${response.status}`);
       // Consume the response body to prevent deadlock
-      try { await response.json(); } catch {}
+      try {
+        await response.json();
+      } catch {}
       return [];
     }
 
     const data = await response.json();
     const contributions = data.results || [];
 
-    console.log(`💰 Found ${contributions.length} total committee contributions for ${committeeId}`);
+    console.log(
+      `💰 Found ${contributions.length} total committee contributions for ${committeeId}`
+    );
 
     // Process and clean the contributions using FEC line numbers and entity types
     const pacContributions = contributions
       .filter(contrib => {
-        if (!contrib.contributor_name || contrib.contribution_receipt_amount <= 0) return false;
+        if (!contrib.contributor_name || contrib.contribution_receipt_amount <= 0) {
+          return false;
+        }
 
         // Exclude conduit/earmarked contributions (FEC Line 11AI)
-        if (contrib.line_number === '11AI') return false;
+        if (contrib.line_number === '11AI') {
+          return false;
+        }
 
         // Exclude other receipts: interest, dividends, refunds (FEC Line 15)
-        if (contrib.line_number === '15') return false;
+        if (contrib.line_number === '15') {
+          return false;
+        }
 
         // Exclude transfers between committees (FEC Line 12/16/17/18)
-        if (['12', '16', '17', '18'].includes(contrib.line_number)) return false;
+        if (['12', '16', '17', '18'].includes(contrib.line_number)) {
+          return false;
+        }
 
         // Exclude if this has a conduit committee ID (earmarked pass-through)
-        if (contrib.conduit_committee_id) return false;
+        if (contrib.conduit_committee_id) {
+          return false;
+        }
 
         // Only include actual PAC contributions (entity_type should be PAC)
         // But don't hard-require it since some valid PACs might have different entity types
@@ -777,7 +903,7 @@ async function fetchPACDetails(committeeId, env) {
         employerName: contrib.contributor_employer,
         contributorOccupation: contrib.contributor_occupation,
         contributorState: contrib.contributor_state,
-        receiptDescription: contrib.receipt_description
+        receiptDescription: contrib.receipt_description,
       }))
       .slice(0, 20); // Top 20 PAC contributors
 
@@ -818,19 +944,27 @@ async function fetchPACDetails(committeeId, env) {
           ...contrib,
           committee_type: metadata.committee_type,
           designation: metadata.designation,
-          transparency_weight: getPACTransparencyWeight(metadata.committee_type, metadata.designation),
+          transparency_weight: getPACTransparencyWeight(
+            metadata.committee_type,
+            metadata.designation
+          ),
           committee_category: getCommitteeCategory(metadata.committee_type, metadata.designation),
-          weighted_amount: contrib.amount * getPACTransparencyWeight(metadata.committee_type, metadata.designation)
+          weighted_amount:
+            contrib.amount *
+            getPACTransparencyWeight(metadata.committee_type, metadata.designation),
         };
 
         enhancedContributions.push(enhancedContrib);
 
-        console.log(`✅ Enhanced ${contrib.pacName}: ${enhancedContrib.committee_category} (weight: ${enhancedContrib.transparency_weight})`);
+        console.log(
+          `✅ Enhanced ${contrib.pacName}: ${enhancedContrib.committee_category} (weight: ${enhancedContrib.transparency_weight})`
+        );
       } else {
         // Find existing metadata for this committee (by contributorId or pacName)
-        const existing = enhancedContributions.find(c =>
-          (contrib.contributorId && c.contributorId === contrib.contributorId) ||
-          (contrib.pacName && c.pacName === contrib.pacName)
+        const existing = enhancedContributions.find(
+          c =>
+            (contrib.contributorId && c.contributorId === contrib.contributorId) ||
+            (contrib.pacName && c.pacName === contrib.pacName)
         );
 
         if (existing) {
@@ -840,7 +974,7 @@ async function fetchPACDetails(committeeId, env) {
             designation: existing.designation,
             transparency_weight: existing.transparency_weight,
             committee_category: existing.committee_category,
-            weighted_amount: contrib.amount * existing.transparency_weight
+            weighted_amount: contrib.amount * existing.transparency_weight,
           });
         } else {
           // Fallback without metadata
@@ -850,14 +984,13 @@ async function fetchPACDetails(committeeId, env) {
             designation: null,
             transparency_weight: 1.0,
             committee_category: 'Unknown',
-            weighted_amount: contrib.amount
+            weighted_amount: contrib.amount,
           });
         }
       }
     }
 
     return enhancedContributions;
-
   } catch (error) {
     console.warn(`Error fetching PAC details for ${committeeId}:`, error.message);
     return [];
@@ -873,14 +1006,16 @@ async function fetchCommitteeMetadata(committeeId, env) {
       `https://api.open.fec.gov/v1/committee/${committeeId}/?api_key=${apiKey}`,
       {
         headers: {
-          'User-Agent': 'TaskForcePurple/1.0 (Political Transparency Platform)'
-        }
+          'User-Agent': 'TaskForcePurple/1.0 (Political Transparency Platform)',
+        },
       }
     );
 
     if (!response.ok) {
       console.warn(`Committee API error for ${committeeId}: ${response.status}`);
-      try { await response.json(); } catch {} // Consume response body
+      try {
+        await response.json();
+      } catch {} // Consume response body
       return { committee_type: null, designation: null };
     }
 
@@ -894,9 +1029,8 @@ async function fetchCommitteeMetadata(committeeId, env) {
     return {
       committee_type: committee.committee_type,
       designation: committee.designation,
-      name: committee.name
+      name: committee.name,
     };
-
   } catch (error) {
     console.warn(`Error fetching committee metadata for ${committeeId}:`, error.message);
     return { committee_type: null, designation: null };
@@ -916,14 +1050,16 @@ async function searchCommitteeByName(committeeName, env) {
       `https://api.open.fec.gov/v1/committees/?api_key=${apiKey}&name=${encodeURIComponent(searchName)}&per_page=10`,
       {
         headers: {
-          'User-Agent': 'TaskForcePurple/1.0 (Political Transparency Platform)'
-        }
+          'User-Agent': 'TaskForcePurple/1.0 (Political Transparency Platform)',
+        },
       }
     );
 
     if (!response.ok) {
       console.warn(`FEC Committee search error for "${searchName}": ${response.status}`);
-      try { await response.json(); } catch {}
+      try {
+        await response.json();
+      } catch {}
       return { committee_type: null, designation: null };
     }
 
@@ -944,14 +1080,15 @@ async function searchCommitteeByName(committeeName, env) {
       committee = committees[0]; // Fallback to first result
     }
 
-    console.log(`✅ Found committee: ${committee.name} (${committee.committee_type}/${committee.designation})`);
+    console.log(
+      `✅ Found committee: ${committee.name} (${committee.committee_type}/${committee.designation})`
+    );
     return {
       committee_type: committee.committee_type,
       designation: committee.designation,
       committee_id: committee.committee_id,
-      name: committee.name
+      name: committee.name,
     };
-
   } catch (error) {
     console.warn(`Error searching for committee "${committeeName}":`, error.message);
     return { committee_type: null, designation: null };
@@ -982,27 +1119,55 @@ function getPACTransparencyWeight(committee_type, designation) {
 
 // NEW: Get committee category for display
 function getCommitteeCategory(committee_type, designation) {
-  if (committee_type === 'O') return 'Super PAC';
-  if (designation === 'D') return 'Leadership PAC';
-  if (designation === 'B') return 'Lobbyist PAC';
-  if (committee_type === 'P' || designation === 'P' || designation === 'A') return 'Candidate Committee';
-  if (committee_type === 'Q') return 'Qualified PAC';
-  if (committee_type === 'N') return 'Nonqualified PAC';
-  if (designation === 'U') return 'Unauthorized PAC';
+  if (committee_type === 'O') {
+    return 'Super PAC';
+  }
+  if (designation === 'D') {
+    return 'Leadership PAC';
+  }
+  if (designation === 'B') {
+    return 'Lobbyist PAC';
+  }
+  if (committee_type === 'P' || designation === 'P' || designation === 'A') {
+    return 'Candidate Committee';
+  }
+  if (committee_type === 'Q') {
+    return 'Qualified PAC';
+  }
+  if (committee_type === 'N') {
+    return 'Nonqualified PAC';
+  }
+  if (designation === 'U') {
+    return 'Unauthorized PAC';
+  }
   return 'Other PAC';
 }
 
 // Calculate tier based on grassroots percentage
 function calculateTier(grassrootsPercent, totalRaised) {
   // No financial data = no tier assignment
-  if (totalRaised === 0) return 'N/A';
+  if (totalRaised === 0) {
+    return 'N/A';
+  }
 
-  if (grassrootsPercent >= 90) return 'S';
-  if (grassrootsPercent >= 75) return 'A';
-  if (grassrootsPercent >= 60) return 'B';
-  if (grassrootsPercent >= 45) return 'C';
-  if (grassrootsPercent >= 30) return 'D';
-  if (grassrootsPercent >= 15) return 'E';
+  if (grassrootsPercent >= 90) {
+    return 'S';
+  }
+  if (grassrootsPercent >= 75) {
+    return 'A';
+  }
+  if (grassrootsPercent >= 60) {
+    return 'B';
+  }
+  if (grassrootsPercent >= 45) {
+    return 'C';
+  }
+  if (grassrootsPercent >= 30) {
+    return 'D';
+  }
+  if (grassrootsPercent >= 15) {
+    return 'E';
+  }
   return 'F';
 }
 
@@ -1011,17 +1176,20 @@ function calculateTier(grassrootsPercent, totalRaised) {
 // Per-chamber calculation accounts for different fundraising patterns (Senate vs House)
 function computeAdaptiveThreshold(members, chamber, percentile = 0.7) {
   // Filter members by chamber for per-chamber threshold calculation
-  const chamberMembers = chamber
-    ? members.filter(m => m.chamber === chamber)
-    : members;
+  const chamberMembers = chamber ? members.filter(m => m.chamber === chamber) : members;
 
   const largeDonorPercents = chamberMembers
-    .filter(m => m.totalRaised > 0 && m.largeDonorDonations !== undefined && m.largeDonorDonations !== null)
+    .filter(
+      m =>
+        m.totalRaised > 0 && m.largeDonorDonations !== undefined && m.largeDonorDonations !== null
+    )
     .map(m => (m.largeDonorDonations / m.totalRaised) * 100)
-    .filter(v => typeof v === "number" && !isNaN(v))
+    .filter(v => typeof v === 'number' && !isNaN(v))
     .sort((a, b) => a - b);
 
-  if (largeDonorPercents.length === 0) return 30; // fallback to fixed threshold
+  if (largeDonorPercents.length === 0) {
+    return 30;
+  } // fallback to fixed threshold
 
   const index = Math.floor(largeDonorPercents.length * percentile);
   const threshold = largeDonorPercents[Math.min(index, largeDonorPercents.length - 1)];
@@ -1064,12 +1232,14 @@ async function getAdaptiveThresholds(env, members) {
   const newCache = {
     houseThreshold: Math.round(houseThreshold * 10) / 10, // Round to 1 decimal
     senateThreshold: Math.round(senateThreshold * 10) / 10,
-    lastCalculated: new Date().toISOString()
+    lastCalculated: new Date().toISOString(),
   };
 
   try {
     await env.MEMBER_DATA.put(cacheKey, JSON.stringify(newCache));
-    console.log(`✅ Cached adaptive thresholds: House=${newCache.houseThreshold}%, Senate=${newCache.senateThreshold}%`);
+    console.log(
+      `✅ Cached adaptive thresholds: House=${newCache.houseThreshold}%, Senate=${newCache.senateThreshold}%`
+    );
   } catch (error) {
     console.warn('Failed to write threshold cache:', error);
   }
@@ -1085,33 +1255,31 @@ async function calculateEnhancedTier(member, allMembers = [], env = null) {
   }
 
   // Check if we have enhanced PAC data with actual committee metadata
-  const hasEnhancedData = member.pacContributions && member.pacContributions.length > 0
-    && member.pacContributions.some(pac => pac.committee_type || pac.designation);
+  const hasEnhancedData =
+    member.pacContributions &&
+    member.pacContributions.length > 0 &&
+    member.pacContributions.some(pac => pac.committee_type || pac.designation);
 
   if (hasEnhancedData) {
     // Calculate base individual funding percentage (grassroots + itemized)
-    const grassrootsPercent = member.totalRaised > 0
-      ? (member.grassrootsDonations / member.totalRaised) * 100
-      : 0;
+    const grassrootsPercent =
+      member.totalRaised > 0 ? (member.grassrootsDonations / member.totalRaised) * 100 : 0;
 
-    const itemizedPercent = (member.largeDonorDonations !== undefined && member.totalRaised > 0)
-      ? (member.largeDonorDonations / member.totalRaised) * 100
-      : 0;
+    const itemizedPercent =
+      member.largeDonorDonations !== undefined && member.totalRaised > 0
+        ? (member.largeDonorDonations / member.totalRaised) * 100
+        : 0;
 
     // Start with combined individual funding
     let individualFundingPercent = grassrootsPercent + itemizedPercent;
-
-    // Compute per-chamber adaptive threshold from member distribution (70th percentile)
-    // Senate and House have different fundraising patterns, so calculate separately
-    const adaptiveThreshold = allMembers.length > 0
-      ? computeAdaptiveThreshold(allMembers, member.chamber)
-      : 30; // fallback to fixed threshold if no member data
 
     // Load donor concentration data if available
     let concentration = null;
     if (env && member.bioguideId) {
       try {
-        const concentrationData = await env.MEMBER_DATA.get(`itemized_analysis:${member.bioguideId}`);
+        const concentrationData = await env.MEMBER_DATA.get(
+          `itemized_analysis_v2:${member.bioguideId}`
+        );
         if (concentrationData) {
           concentration = JSON.parse(concentrationData);
         }
@@ -1120,46 +1288,62 @@ async function calculateEnhancedTier(member, allMembers = [], env = null) {
       }
     }
 
-    // Apply tiered itemization concentration penalty (only if > adaptive threshold)
-    if (itemizedPercent > adaptiveThreshold) {
-      const excess = itemizedPercent - adaptiveThreshold;
-      let basePenalty = 0;
+    // DYNAMIC TRUST ANCHOR: Itemization threshold based on coordination risk
+    // The "safe" threshold for itemized funds depends on how easily donors can coordinate
 
-      if (excess <= 5) {
-        // 0-5% over threshold: 0.1x penalty per point
-        basePenalty = excess * 0.1;
-      } else if (excess <= 10) {
-        // 5-10% over: 0.1x on first 5%, 0.2x on next portion
-        basePenalty = (5 * 0.1) + ((excess - 5) * 0.2);
+    let trustAnchor = 40; // Default: Standard trust (fallback if no concentration data)
+    let nakamotoPercent = null;
+
+    if (
+      concentration &&
+      concentration.nakamotoCoefficient !== undefined &&
+      concentration.uniqueDonors !== undefined
+    ) {
+      const nakamoto = concentration.nakamotoCoefficient;
+      const uniqueDonors = concentration.uniqueDonors;
+      nakamotoPercent = (nakamoto / uniqueDonors) * 100;
+
+      // Determine trust anchor based on Nakamoto density
+      // Lower density (easier coordination) = stricter limit
+      // Higher density (harder coordination) = more lenient limit
+
+      if (nakamoto < 50) {
+        // Dinner party risk: < 50 people can coordinate trivially
+        trustAnchor = 10;
+        console.log(`${member.bioguideId} Trust Anchor: 10% (dinner party, ${nakamoto} donors)`);
+      } else if (nakamotoPercent < 5) {
+        // Elite capture: Country club / single gala coordination
+        trustAnchor = 25;
+        console.log(
+          `${member.bioguideId} Trust Anchor: 25% (elite capture, ${nakamotoPercent.toFixed(1)}%)`
+        );
+      } else if (nakamotoPercent < 10) {
+        // Standard: Factional, requires organization
+        trustAnchor = 40;
+        console.log(
+          `${member.bioguideId} Trust Anchor: 40% (standard, ${nakamotoPercent.toFixed(1)}%)`
+        );
       } else {
-        // 10%+ over: 0.1x on first 5%, 0.2x on next 5%, 0.3x on remainder
-        basePenalty = (5 * 0.1) + (5 * 0.2) + ((excess - 10) * 0.3);
+        // Movement: High entropy, impossible to coordinate
+        trustAnchor = 50;
+        console.log(
+          `${member.bioguideId} Trust Anchor: 50% (movement, ${nakamotoPercent.toFixed(1)}%)`
+        );
       }
+    }
 
-      // Adjust penalty by Nakamoto Coefficient (coordination risk)
-      let concentrationMultiplier = 1.0; // Default: no adjustment
+    // Calculate excess over trust anchor
+    const excess = Math.max(0, itemizedPercent - trustAnchor);
 
-      if (concentration && concentration.nakamotoCoefficient !== undefined) {
-        const nakamoto = concentration.nakamotoCoefficient;
+    // Apply quadratic penalty: P = E² / 20
+    // Quadratic punishes large structural violations harder than minor slips
+    if (excess > 0) {
+      const penalty = (excess * excess) / 20;
+      individualFundingPercent -= penalty;
 
-        // Nakamoto-based concentration adjustment (coordination feasibility):
-        // > 10,000: Impossible to coordinate → 0.25× penalty (reward)
-        // 1,000-10,000: Very difficult to organize → 0.5× penalty
-        // 100-1,000: Moderate risk - requires organization → 1.0× penalty (neutral)
-        // 10-100: High risk - small group can coordinate → 1.5× penalty
-        // < 10: Extreme risk - boardroom conspiracy → 2.0× penalty (max)
-
-        if (nakamoto > 10000) concentrationMultiplier = 0.25;
-        else if (nakamoto > 1000) concentrationMultiplier = 0.5;
-        else if (nakamoto > 100) concentrationMultiplier = 1.0;
-        else if (nakamoto > 10) concentrationMultiplier = 1.5;
-        else concentrationMultiplier = 2.0;
-
-        console.log(`${member.bioguideId} Nakamoto adjustment: ${nakamoto} donors → ${concentrationMultiplier}× multiplier`);
-      }
-
-      const itemizationPenalty = basePenalty * concentrationMultiplier;
-      individualFundingPercent -= itemizationPenalty;
+      console.log(
+        `${member.bioguideId} Itemization penalty: ${itemizedPercent.toFixed(1)}% - ${trustAnchor}% = ${excess.toFixed(1)}% excess → ${penalty.toFixed(2)}% penalty`
+      );
     }
 
     // Apply PAC transparency penalty to thresholds
@@ -1168,17 +1352,25 @@ async function calculateEnhancedTier(member, allMembers = [], env = null) {
 
     // Assign tier based on individual funding % vs adjusted thresholds
     let tier;
-    if (individualFundingPercent >= adjustedThresholds.S) tier = 'S';
-    else if (individualFundingPercent >= adjustedThresholds.A) tier = 'A';
-    else if (individualFundingPercent >= adjustedThresholds.B) tier = 'B';
-    else if (individualFundingPercent >= adjustedThresholds.C) tier = 'C';
-    else if (individualFundingPercent >= adjustedThresholds.D) tier = 'D';
-    else if (individualFundingPercent >= adjustedThresholds.E) tier = 'E';
-    else tier = 'F';
+    if (individualFundingPercent >= adjustedThresholds.S) {
+      tier = 'S';
+    } else if (individualFundingPercent >= adjustedThresholds.A) {
+      tier = 'A';
+    } else if (individualFundingPercent >= adjustedThresholds.B) {
+      tier = 'B';
+    } else if (individualFundingPercent >= adjustedThresholds.C) {
+      tier = 'C';
+    } else if (individualFundingPercent >= adjustedThresholds.D) {
+      tier = 'D';
+    } else if (individualFundingPercent >= adjustedThresholds.E) {
+      tier = 'E';
+    } else {
+      tier = 'F';
+    }
 
     return {
       tier,
-      individualFundingPercent: Math.round(individualFundingPercent)
+      individualFundingPercent: Math.round(individualFundingPercent),
     };
   }
 
@@ -1186,13 +1378,15 @@ async function calculateEnhancedTier(member, allMembers = [], env = null) {
   const fallbackTier = calculateTier(member.grassrootsPercent, member.totalRaised);
   return {
     tier: fallbackTier,
-    individualFundingPercent: Math.round(member.grassrootsPercent)
+    individualFundingPercent: Math.round(member.grassrootsPercent),
   };
 }
 
 // Calculate transparency penalty based on proportion of concerning PAC funding and large donors
 function calculateTransparencyPenalty(member) {
-  if (!member.totalRaised) return 0;
+  if (!member.totalRaised) {
+    return 0;
+  }
 
   let totalWeightedConcerningMoney = 0;
 
@@ -1200,9 +1394,10 @@ function calculateTransparencyPenalty(member) {
   if (member.pacContributions?.length) {
     for (const pac of member.pacContributions) {
       // Use transparency weight when committee metadata is available, default to 1.0 when missing
-      const weight = (pac.committee_type || pac.designation)
-        ? getPACTransparencyWeight(pac.committee_type, pac.designation)
-        : 1.0; // Neutral weight for PACs without committee metadata
+      const weight =
+        pac.committee_type || pac.designation
+          ? getPACTransparencyWeight(pac.committee_type, pac.designation)
+          : 1.0; // Neutral weight for PACs without committee metadata
       const weightedAmount = pac.amount * weight;
 
       // Only count weighted amounts above baseline (1.0x means neutral)
@@ -1226,12 +1421,12 @@ function calculateTransparencyPenalty(member) {
 // Get adjusted tier thresholds based on transparency penalty
 function getAdjustedThresholds(penaltyPoints) {
   return {
-    S: 90 + penaltyPoints,  // Need higher grassroots % if you have concerning PACs
+    S: 90 + penaltyPoints, // Need higher grassroots % if you have concerning PACs
     A: 75 + penaltyPoints,
     B: 60 + penaltyPoints,
     C: 45 + penaltyPoints,
     D: 30 + penaltyPoints,
-    E: 15 + penaltyPoints
+    E: 15 + penaltyPoints,
   };
 }
 
@@ -1265,7 +1460,9 @@ async function processMembers(congressMembers, env, testLimit = undefined) {
   // Apply test limit if specified (for testing small batches)
   const membersToProcess = testLimit ? congressMembers.slice(0, testLimit) : congressMembers;
   if (testLimit) {
-    console.log(`🧪 TEST MODE: Processing only first ${testLimit} members (of ${congressMembers.length} total)`);
+    console.log(
+      `🧪 TEST MODE: Processing only first ${testLimit} members (of ${congressMembers.length} total)`
+    );
   }
 
   for (const member of membersToProcess) {
@@ -1283,10 +1480,15 @@ async function processMembers(congressMembers, env, testLimit = undefined) {
         chamber: (() => {
           // Get most recent term (last item in array, since Congress.gov sorts oldest-first)
           const terms = member.terms?.item;
-          if (!terms || terms.length === 0) return 'Unknown';
+          if (!terms || terms.length === 0) {
+            return 'Unknown';
+          }
           const currentTerm = terms[terms.length - 1];
-          return currentTerm.chamber === 'House of Representatives' ? 'House' :
-                 currentTerm.chamber === 'Senate' ? 'Senate' : 'Unknown';
+          return currentTerm.chamber === 'House of Representatives'
+            ? 'House'
+            : currentTerm.chamber === 'Senate'
+              ? 'Senate'
+              : 'Unknown';
         })(),
 
         // Basic financial data
@@ -1306,10 +1508,12 @@ async function processMembers(congressMembers, env, testLimit = undefined) {
         // Metadata
         lastUpdated: new Date().toISOString(),
         pacDetailsStatus: 'pending', // Track PAC detail status
-        committeeInfo: financials ? {
-          id: financials.committeeId,
-          name: financials.committeeName
-        } : null
+        committeeInfo: financials
+          ? {
+              id: financials.committeeId,
+              name: financials.committeeName,
+            }
+          : null,
       };
 
       basicProcessedMembers.push(basicMember);
@@ -1337,7 +1541,6 @@ async function processMembers(congressMembers, env, testLimit = undefined) {
 
       // Rate limiting - 4 second delay to stay under FEC 16.67/minute limit (target 15/minute)
       await new Promise(resolve => setTimeout(resolve, 4000));
-
     } catch (error) {
       console.warn(`Error processing basic data for ${member.name}:`, error.message);
     }
@@ -1371,7 +1574,9 @@ async function processMembers(congressMembers, env, testLimit = undefined) {
         const currentData = await env.MEMBER_DATA.get('members:all');
         if (currentData) {
           const currentMembers = JSON.parse(currentData);
-          const memberIndex = currentMembers.findIndex(m => m.bioguideId === basicMember.bioguideId);
+          const memberIndex = currentMembers.findIndex(
+            m => m.bioguideId === basicMember.bioguideId
+          );
 
           if (memberIndex !== -1) {
             currentMembers[memberIndex].pacContributions = pacDetails;
@@ -1381,12 +1586,18 @@ async function processMembers(congressMembers, env, testLimit = undefined) {
             const currentCycle = await getElectionCycle();
             currentMembers[memberIndex].dataCycle = currentCycle;
             // NEW: Recalculate tier with enhanced transparency weighting
-            const { tier, individualFundingPercent } = await calculateEnhancedTier(currentMembers[memberIndex], currentMembers, env);
+            const { tier, individualFundingPercent } = await calculateEnhancedTier(
+              currentMembers[memberIndex],
+              currentMembers,
+              env
+            );
             currentMembers[memberIndex].tier = tier;
             currentMembers[memberIndex].individualFundingPercent = individualFundingPercent;
 
             await env.MEMBER_DATA.put('members:all', JSON.stringify(currentMembers));
-            console.log(`✅ PAC details updated for ${basicMember.name}: ${pacDetails.length} contributions`);
+            console.log(
+              `✅ PAC details updated for ${basicMember.name}: ${pacDetails.length} contributions`
+            );
           }
         }
       } else {
@@ -1397,19 +1608,22 @@ async function processMembers(congressMembers, env, testLimit = undefined) {
 
       // Progress update every few members
       if (pacDetailsProcessed % PAC_BATCH_SIZE === 0) {
-        console.log(`📊 PAC details: ${pacDetailsProcessed}/${basicProcessedMembers.length} members processed`);
+        console.log(
+          `📊 PAC details: ${pacDetailsProcessed}/${basicProcessedMembers.length} members processed`
+        );
       }
 
       // Rate limiting - same 4 second delay for PAC API calls
       await new Promise(resolve => setTimeout(resolve, 4000));
-
     } catch (error) {
       console.warn(`Error fetching PAC details for ${basicMember.name}:`, error.message);
     }
   }
 
   console.log(`✅ PHASE 2 COMPLETE: PAC details for ${pacDetailsProcessed} members`);
-  console.log(`🎉 TWO-CALL STRATEGY COMPLETE: ${basicProcessedMembers.length} members with basic data, ${pacDetailsProcessed} with detailed PAC data`);
+  console.log(
+    `🎉 TWO-CALL STRATEGY COMPLETE: ${basicProcessedMembers.length} members with basic data, ${pacDetailsProcessed} with detailed PAC data`
+  );
 
   return basicProcessedMembers;
 }
@@ -1429,13 +1643,15 @@ async function updateCongressionalData(env, testLimit = undefined) {
     callsUsed: result.callsUsed,
     membersProcessed: result.membersProcessed,
     executionTime: result.executionTime,
-    lastUpdated: new Date().toISOString()
+    lastUpdated: new Date().toISOString(),
   };
 }
 
 // Calculate enhanced grassroots percentage for display
 function calculateEnhancedGrassrootsPercent(member) {
-  if (!member.totalRaised || member.totalRaised === 0) return member.grassrootsPercent || 0;
+  if (!member.totalRaised || member.totalRaised === 0) {
+    return member.grassrootsPercent || 0;
+  }
 
   // If we have grassrootsDonations field (individual_unitemized_contributions <$200), use it
   if (member.grassrootsDonations !== undefined) {
@@ -1448,14 +1664,17 @@ function calculateEnhancedGrassrootsPercent(member) {
 
 // Get grassroots-friendly PAC types summary for display
 function getGrassrootsPACTypesSummary(member) {
-  if (!member.pacContributions?.length) return null;
+  if (!member.pacContributions?.length) {
+    return null;
+  }
 
   const grassrootsFriendlyTypes = new Set();
 
   for (const pac of member.pacContributions) {
-    const weight = (pac.committee_type || pac.designation)
-      ? getPACTransparencyWeight(pac.committee_type, pac.designation)
-      : 1.0;
+    const weight =
+      pac.committee_type || pac.designation
+        ? getPACTransparencyWeight(pac.committee_type, pac.designation)
+        : 1.0;
 
     // Only include PAC types that are grassroots-friendly (weight < 1.0)
     if (weight < 1.0) {
@@ -1476,7 +1695,7 @@ async function handleSingleMember(env, corsHeaders, url) {
     if (!membersData) {
       return new Response(JSON.stringify({ error: 'No data available' }), {
         status: 404,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
@@ -1486,7 +1705,7 @@ async function handleSingleMember(env, corsHeaders, url) {
     if (!member) {
       return new Response(JSON.stringify({ error: 'Member not found' }), {
         status: 404,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
@@ -1496,19 +1715,20 @@ async function handleSingleMember(env, corsHeaders, url) {
       ...member,
       grassrootsPercent: calculateEnhancedGrassrootsPercent(member),
       rawFECGrassrootsPercent: member.grassrootsPercent,
-      hasEnhancedData: member.pacContributions && member.pacContributions.length > 0
-        && member.pacContributions.some(pac => pac.committee_type || pac.designation),
-      grassrootsPACTypes: grassrootsPACTypes
+      hasEnhancedData:
+        member.pacContributions &&
+        member.pacContributions.length > 0 &&
+        member.pacContributions.some(pac => pac.committee_type || pac.designation),
+      grassrootsPACTypes: grassrootsPACTypes,
     };
 
     return new Response(JSON.stringify(enhancedMember), {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
-
   } catch (error) {
     return new Response(JSON.stringify({ error: error.message }), {
       status: 500,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   }
 }
@@ -1519,12 +1739,15 @@ async function handleMembers(env, corsHeaders) {
     const lastUpdated = await env.MEMBER_DATA.get('last_updated');
 
     if (!membersData) {
-      return new Response(JSON.stringify({
-        error: 'No data available. Run data update first.',
-        members: []
-      }), {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-      });
+      return new Response(
+        JSON.stringify({
+          error: 'No data available. Run data update first.',
+          members: [],
+        }),
+        {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        }
+      );
     }
 
     const members = JSON.parse(membersData);
@@ -1536,24 +1759,28 @@ async function handleMembers(env, corsHeaders) {
         ...member,
         grassrootsPercent: calculateEnhancedGrassrootsPercent(member),
         rawFECGrassrootsPercent: member.grassrootsPercent, // Keep original for reference
-        hasEnhancedData: member.pacContributions && member.pacContributions.length > 0
-          && member.pacContributions.some(pac => pac.committee_type || pac.designation),
-        grassrootsPACTypes: grassrootsPACTypes // Array of grassroots-friendly PAC types
+        hasEnhancedData:
+          member.pacContributions &&
+          member.pacContributions.length > 0 &&
+          member.pacContributions.some(pac => pac.committee_type || pac.designation),
+        grassrootsPACTypes: grassrootsPACTypes, // Array of grassroots-friendly PAC types
       };
     });
 
     // Get adaptive thresholds (cached quarterly) for tier explanations
     const adaptiveThresholds = await getAdaptiveThresholds(env, members);
 
-    return new Response(JSON.stringify({
-      members: enhancedMembers,
-      lastUpdated,
-      total: enhancedMembers.length,
-      adaptiveThresholds // Include current thresholds for UI display
-    }), {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-    });
-
+    return new Response(
+      JSON.stringify({
+        members: enhancedMembers,
+        lastUpdated,
+        total: enhancedMembers.length,
+        adaptiveThresholds, // Include current thresholds for UI display
+      }),
+      {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      }
+    );
   } catch (error) {
     throw new Error(`Failed to retrieve members: ${error.message}`);
   }
@@ -1563,7 +1790,8 @@ async function handleDataUpdate(env, corsHeaders, request) {
   try {
     // Check for authentication
     const url = new URL(request.url);
-    const authKey = url.searchParams.get('key') || request.headers.get('Authorization')?.replace('Bearer ', '');
+    const authKey =
+      url.searchParams.get('key') || request.headers.get('Authorization')?.replace('Bearer ', '');
     const expectedKey = env.UPDATE_SECRET;
 
     if (!expectedKey) {
@@ -1571,12 +1799,15 @@ async function handleDataUpdate(env, corsHeaders, request) {
     }
 
     if (!authKey || authKey !== expectedKey) {
-      return new Response(JSON.stringify({
-        error: 'Unauthorized - valid API key required'
-      }), {
-        status: 401,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-      });
+      return new Response(
+        JSON.stringify({
+          error: 'Unauthorized - valid API key required',
+        }),
+        {
+          status: 401,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        }
+      );
     }
 
     console.log('🔄 Manual data update triggered via API');
@@ -1587,14 +1818,16 @@ async function handleDataUpdate(env, corsHeaders, request) {
 
     const result = await updateCongressionalData(env, testLimit);
 
-    return new Response(JSON.stringify({
-      success: true,
-      message: 'Data update completed',
-      ...result
-    }), {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-    });
-
+    return new Response(
+      JSON.stringify({
+        success: true,
+        message: 'Data update completed',
+        ...result,
+      }),
+      {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      }
+    );
   } catch (error) {
     throw new Error(`Data update failed: ${error.message}`);
   }
@@ -1607,14 +1840,17 @@ async function handleStatus(env, corsHeaders) {
     const lastUpdated = await env.MEMBER_DATA.get('last_updated');
 
     if (!membersData) {
-      return new Response(JSON.stringify({
-        status: 'no_data',
-        message: 'No data available. Run data update first.',
-        lastUpdated: null,
-        progress: { total: 0, withFinancialData: 0, withPACDetails: 0 }
-      }), {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-      });
+      return new Response(
+        JSON.stringify({
+          status: 'no_data',
+          message: 'No data available. Run data update first.',
+          lastUpdated: null,
+          progress: { total: 0, withFinancialData: 0, withPACDetails: 0 },
+        }),
+        {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        }
+      );
     }
 
     const members = JSON.parse(membersData);
@@ -1628,7 +1864,7 @@ async function handleStatus(env, corsHeaders) {
       B: members.filter(m => m.tier === 'B').length,
       C: members.filter(m => m.tier === 'C').length,
       D: members.filter(m => m.tier === 'D').length,
-      'N/A': members.filter(m => m.tier === 'N/A').length
+      'N/A': members.filter(m => m.tier === 'N/A').length,
     };
 
     // Recent updates (last 10 members with financial data by lastUpdated)
@@ -1639,28 +1875,30 @@ async function handleStatus(env, corsHeaders) {
         name: m.name,
         tier: m.tier,
         grassrootsPercent: m.grassrootsPercent,
-        lastUpdated: m.lastUpdated
+        lastUpdated: m.lastUpdated,
       }));
 
-    return new Response(JSON.stringify({
-      status: 'active',
-      lastUpdated,
-      progress: {
-        total: members.length,
-        withFinancialData: withFinancialData.length,
-        withPACDetails: withPACDetails.length,
-        pendingPACDetails: withFinancialData.length - withPACDetails.length
-      },
-      tierCounts,
-      recentUpdates,
-      twoCallStrategy: {
-        phase1Complete: withFinancialData.length > 0,
-        phase2Progress: `${withPACDetails.length}/${withFinancialData.length} complete`
+    return new Response(
+      JSON.stringify({
+        status: 'active',
+        lastUpdated,
+        progress: {
+          total: members.length,
+          withFinancialData: withFinancialData.length,
+          withPACDetails: withPACDetails.length,
+          pendingPACDetails: withFinancialData.length - withPACDetails.length,
+        },
+        tierCounts,
+        recentUpdates,
+        twoCallStrategy: {
+          phase1Complete: withFinancialData.length > 0,
+          phase2Progress: `${withPACDetails.length}/${withFinancialData.length} complete`,
+        },
+      }),
+      {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       }
-    }), {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-    });
-
+    );
   } catch (error) {
     throw new Error(`Failed to get status: ${error.message}`);
   }
@@ -1671,13 +1909,14 @@ async function handleFECBatchUpdate(env, corsHeaders, request) {
   try {
     // Check for authentication
     const url = new URL(request.url);
-    const authKey = url.searchParams.get('key') || request.headers.get('Authorization')?.replace('Bearer ', '');
+    const authKey =
+      url.searchParams.get('key') || request.headers.get('Authorization')?.replace('Bearer ', '');
     const expectedKey = env.UPDATE_SECRET;
 
     if (!authKey || authKey !== expectedKey) {
       return new Response(JSON.stringify({ error: 'Unauthorized' }), {
         status: 401,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
@@ -1689,12 +1928,15 @@ async function handleFECBatchUpdate(env, corsHeaders, request) {
     // Load existing members from storage
     const existingData = await env.MEMBER_DATA.get('members:all');
     if (!existingData) {
-      return new Response(JSON.stringify({
-        error: 'No existing member data found. Run full update first.'
-      }), {
-        status: 400,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-      });
+      return new Response(
+        JSON.stringify({
+          error: 'No existing member data found. Run full update first.',
+        }),
+        {
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        }
+      );
     }
 
     const allMembers = JSON.parse(existingData);
@@ -1721,9 +1963,9 @@ async function handleFECBatchUpdate(env, corsHeaders, request) {
       // Phase 1: Process members without financial data
       const membersNeedingFinancials = allMembers
         .map((member, index) => ({ ...member, originalIndex: index }))
-        .filter((member, index) =>
-          index > lastProcessedIndex &&
-          (!member.totalRaised || member.totalRaised === 0)
+        .filter(
+          (member, index) =>
+            index > lastProcessedIndex && (!member.totalRaised || member.totalRaised === 0)
         )
         .slice(0, batchSize);
 
@@ -1749,10 +1991,12 @@ async function handleFECBatchUpdate(env, corsHeaders, request) {
               committeeId: financials.committeeId, // NEW: Save committee ID for Phase 2
               dataCycle: financials.dataCycle || currentCycle,
               tier: calculateTier(financials.grassrootsPercent, financials.totalRaised),
-              lastUpdated: new Date().toISOString()
+              lastUpdated: new Date().toISOString(),
             };
             updated++;
-            console.log(`✅ Updated financial data for ${member.name}: $${financials.totalRaised.toLocaleString()}`);
+            console.log(
+              `✅ Updated financial data for ${member.name}: $${financials.totalRaised.toLocaleString()}`
+            );
           }
 
           processed++;
@@ -1761,36 +2005,38 @@ async function handleFECBatchUpdate(env, corsHeaders, request) {
           // Save progress incrementally
           await env.MEMBER_DATA.put('batch_progress', JSON.stringify(progressData));
           await env.MEMBER_DATA.put('members:all', JSON.stringify(allMembers));
-
         } catch (error) {
           console.warn(`Error updating ${member.name}:`, error.message);
         }
       }
 
       // Check if we need to move to PAC phase
-      const remainingFinancial = allMembers.filter((member, index) =>
-        index > progressData.lastProcessedIndex &&
-        (!member.totalRaised || member.totalRaised === 0)
+      const remainingFinancial = allMembers.filter(
+        (member, index) =>
+          index > progressData.lastProcessedIndex &&
+          (!member.totalRaised || member.totalRaised === 0)
       );
 
       // Cycle to PAC phase either when:
       // 1. All financial data complete, OR
       // 2. We've processed our batch (cycle phases to respect rate limits)
       if (remainingFinancial.length === 0 || processed >= batchSize) {
-        console.log(`🔄 Cycling from financial to PAC phase (${processed} processed, ${remainingFinancial.length} remaining financial)`);
+        console.log(
+          `🔄 Cycling from financial to PAC phase (${processed} processed, ${remainingFinancial.length} remaining financial)`
+        );
         progressData.phase = 'pac';
         progressData.lastProcessedIndex = -1;
         await env.MEMBER_DATA.put('batch_progress', JSON.stringify(progressData));
       }
-
     } else if (phase === 'pac') {
       // Phase 2: Process members needing PAC details
       const membersNeedingPAC = allMembers
         .map((member, index) => ({ ...member, originalIndex: index }))
-        .filter((member, index) =>
-          index > lastProcessedIndex &&
-          member.totalRaised > 0 &&
-          (!member.pacDetailsStatus || member.pacDetailsStatus !== 'complete')
+        .filter(
+          (member, index) =>
+            index > lastProcessedIndex &&
+            member.totalRaised > 0 &&
+            (!member.pacDetailsStatus || member.pacDetailsStatus !== 'complete')
         )
         .slice(0, batchSize);
 
@@ -1810,14 +2056,20 @@ async function handleFECBatchUpdate(env, corsHeaders, request) {
                 ...allMembers[member.originalIndex],
                 pacContributions: pacDetails,
                 pacDetailsStatus: 'complete',
-                lastUpdated: new Date().toISOString()
+                lastUpdated: new Date().toISOString(),
               };
               // NEW: Recalculate tier with enhanced transparency weighting
-              const { tier, individualFundingPercent } = await calculateEnhancedTier(allMembers[member.originalIndex], allMembers, env);
+              const { tier, individualFundingPercent } = await calculateEnhancedTier(
+                allMembers[member.originalIndex],
+                allMembers,
+                env
+              );
               allMembers[member.originalIndex].tier = tier;
               allMembers[member.originalIndex].individualFundingPercent = individualFundingPercent;
               updated++;
-              console.log(`✅ Updated PAC details for ${member.name}: ${pacDetails.length} contributions`);
+              console.log(
+                `✅ Updated PAC details for ${member.name}: ${pacDetails.length} contributions`
+              );
             }
           }
 
@@ -1827,24 +2079,26 @@ async function handleFECBatchUpdate(env, corsHeaders, request) {
           // Save progress incrementally
           await env.MEMBER_DATA.put('batch_progress', JSON.stringify(progressData));
           await env.MEMBER_DATA.put('members:all', JSON.stringify(allMembers));
-
         } catch (error) {
           console.warn(`Error updating PAC details for ${member.name}:`, error.message);
         }
       }
 
       // Check if PAC phase is complete
-      const remainingPAC = allMembers.filter((member, index) =>
-        index > progressData.lastProcessedIndex &&
-        member.totalRaised > 0 &&
-        (!member.pacDetailsStatus || member.pacDetailsStatus !== 'complete')
+      const remainingPAC = allMembers.filter(
+        (member, index) =>
+          index > progressData.lastProcessedIndex &&
+          member.totalRaised > 0 &&
+          (!member.pacDetailsStatus || member.pacDetailsStatus !== 'complete')
       );
 
       // Cycle back to financial phase either when:
       // 1. All PAC processing complete, OR
       // 2. We've processed our batch (cycle phases to respect rate limits)
       if (remainingPAC.length === 0 || processed >= batchSize) {
-        console.log(`🔄 Cycling from PAC to financial phase (${processed} processed, ${remainingPAC.length} remaining PAC)`);
+        console.log(
+          `🔄 Cycling from PAC to financial phase (${processed} processed, ${remainingPAC.length} remaining PAC)`
+        );
         progressData.phase = 'financial';
         progressData.lastProcessedIndex = -1;
         await env.MEMBER_DATA.put('batch_progress', JSON.stringify(progressData));
@@ -1863,20 +2117,19 @@ async function handleFECBatchUpdate(env, corsHeaders, request) {
       phase: progressData.phase,
       nextIndex: progressData.lastProcessedIndex + 1,
       totalMembers: allMembers.length,
-      lastUpdated: new Date().toISOString()
+      lastUpdated: new Date().toISOString(),
     };
 
     console.log(`✅ Batch complete: ${processed} processed, ${updated} updated`);
 
     return new Response(JSON.stringify(response), {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
-
   } catch (error) {
     console.error('FEC batch update failed:', error);
     return new Response(JSON.stringify({ error: error.message }), {
       status: 500,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   }
 }
@@ -1890,7 +2143,7 @@ async function handleTestMember(env, corsHeaders, request) {
     if (!bioguideId) {
       return new Response(JSON.stringify({ error: 'bioguideId parameter required' }), {
         status: 400,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
@@ -1899,7 +2152,7 @@ async function handleTestMember(env, corsHeaders, request) {
     if (!currentData) {
       return new Response(JSON.stringify({ error: 'No member data found' }), {
         status: 404,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
@@ -1909,14 +2162,14 @@ async function handleTestMember(env, corsHeaders, request) {
     if (!member) {
       return new Response(JSON.stringify({ error: `Member ${bioguideId} not found` }), {
         status: 404,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
     if (!member.candidateId) {
       return new Response(JSON.stringify({ error: `Member ${bioguideId} has no candidateId` }), {
         status: 400,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
@@ -1930,7 +2183,11 @@ async function handleTestMember(env, corsHeaders, request) {
 
     // Calculate tier and individual funding percent with new PAC data
     const memberWithPACs = { ...members[memberIndex], pacContributions: enhancedPACDetails };
-    const { tier, individualFundingPercent } = await calculateEnhancedTier(memberWithPACs, members, env);
+    const { tier, individualFundingPercent } = await calculateEnhancedTier(
+      memberWithPACs,
+      members,
+      env
+    );
 
     members[memberIndex] = {
       ...members[memberIndex],
@@ -1938,26 +2195,28 @@ async function handleTestMember(env, corsHeaders, request) {
       pacDetailsStatus: 'complete',
       lastUpdated: new Date().toISOString(),
       tier,
-      individualFundingPercent
+      individualFundingPercent,
     };
 
     // Save updated data
     await env.MEMBER_DATA.put('members:all', JSON.stringify(members));
 
-    return new Response(JSON.stringify({
-      success: true,
-      member: members[memberIndex],
-      enhancedPACCount: enhancedPACDetails.filter(p => p.committee_type).length,
-      message: `Enhanced PAC processing completed for ${member.name}`
-    }), {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-    });
-
+    return new Response(
+      JSON.stringify({
+        success: true,
+        member: members[memberIndex],
+        enhancedPACCount: enhancedPACDetails.filter(p => p.committee_type).length,
+        message: `Enhanced PAC processing completed for ${member.name}`,
+      }),
+      {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      }
+    );
   } catch (error) {
     console.error('Test member processing failed:', error);
     return new Response(JSON.stringify({ error: error.message }), {
       status: 500,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   }
 }
@@ -1972,30 +2231,35 @@ async function handleSmartBatch(env, corsHeaders, request) {
     if (!authHeader || authHeader !== expectedAuth) {
       return new Response(JSON.stringify({ error: 'Unauthorized' }), {
         status: 401,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
     console.log('🔄 Manual smart batch processing triggered...');
     const result = await processSmartBatch(env);
 
-    return new Response(JSON.stringify({
-      success: true,
-      message: 'Smart batch processing completed',
-      result
-    }), {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-    });
-
+    return new Response(
+      JSON.stringify({
+        success: true,
+        message: 'Smart batch processing completed',
+        result,
+      }),
+      {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      }
+    );
   } catch (error) {
     console.error('Smart batch processing failed:', error);
-    return new Response(JSON.stringify({
-      error: error.message,
-      success: false
-    }), {
-      status: 500,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-    });
+    return new Response(
+      JSON.stringify({
+        error: error.message,
+        success: false,
+      }),
+      {
+        status: 500,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      }
+    );
   }
 }
 
@@ -2024,7 +2288,11 @@ async function performTierRecalculation(env) {
 
       // Calculate new tier using enhanced logic
       const oldTier = member.tier;
-      const { tier: newTier, individualFundingPercent } = await calculateEnhancedTier(member, members, env);
+      const { tier: newTier, individualFundingPercent } = await calculateEnhancedTier(
+        member,
+        members,
+        env
+      );
       member.individualFundingPercent = individualFundingPercent;
 
       // Recalculate grassrootsPercent to match tier calculation
@@ -2039,13 +2307,16 @@ async function performTierRecalculation(env) {
       // Update tier and/or grassrootsPercent if they changed
       if (oldTier !== newTier || member.grassrootsPercent !== newGrassrootsPercent) {
         // BUGFIX: Refresh dataCycle to fix stale 1970 values (Issue #15)
-        const currentCycle = member.dataCycle === 1970 || !member.dataCycle ? await getElectionCycle() : member.dataCycle;
+        const currentCycle =
+          member.dataCycle === 1970 || !member.dataCycle
+            ? await getElectionCycle()
+            : member.dataCycle;
         members[i] = {
           ...member,
           tier: newTier,
           grassrootsPercent: newGrassrootsPercent,
           dataCycle: currentCycle,
-          lastTierRecalculated: new Date().toISOString()
+          lastTierRecalculated: new Date().toISOString(),
         };
         recalculated++;
       } else {
@@ -2055,14 +2326,13 @@ async function performTierRecalculation(env) {
           members[i] = {
             ...member,
             dataCycle: currentCycle,
-            lastTierRecalculated: new Date().toISOString()
+            lastTierRecalculated: new Date().toISOString(),
           };
           recalculated++;
         } else {
           unchanged++;
         }
       }
-
     } catch (error) {
       console.error(`❌ Error processing ${member.name} (${member.bioguideId}):`, error);
       errors++;
@@ -2077,7 +2347,7 @@ async function performTierRecalculation(env) {
     recalculated,
     unchanged,
     errors,
-    completedAt: new Date().toISOString()
+    completedAt: new Date().toISOString(),
   };
 }
 
@@ -2091,7 +2361,7 @@ async function handleRecalculateTiers(env, corsHeaders, request) {
     if (!authHeader || authHeader !== expectedAuth) {
       return new Response(JSON.stringify({ error: 'Unauthorized' }), {
         status: 401,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
@@ -2102,24 +2372,26 @@ async function handleRecalculateTiers(env, corsHeaders, request) {
     const response = {
       success: true,
       message: 'Tier recalculation completed',
-      stats
+      stats,
     };
 
     console.log('🎯 Tier recalculation completed:', response.stats);
 
     return new Response(JSON.stringify(response), {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
-
   } catch (error) {
     console.error('Tier recalculation failed:', error);
-    return new Response(JSON.stringify({
-      error: error.message,
-      success: false
-    }), {
-      status: 500,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-    });
+    return new Response(
+      JSON.stringify({
+        error: error.message,
+        success: false,
+      }),
+      {
+        status: 500,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      }
+    );
   }
 }
 
@@ -2131,12 +2403,15 @@ async function handleProcessCandidate(env, corsHeaders, request) {
     const bioguideId = url.searchParams.get('bioguideId');
 
     if (!name && !bioguideId) {
-      return new Response(JSON.stringify({
-        error: 'Either name or bioguideId parameter required'
-      }), {
-        status: 400,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-      });
+      return new Response(
+        JSON.stringify({
+          error: 'Either name or bioguideId parameter required',
+        }),
+        {
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        }
+      );
     }
 
     console.log(`🎯 Processing specific candidate: ${name || bioguideId}`);
@@ -2144,12 +2419,15 @@ async function handleProcessCandidate(env, corsHeaders, request) {
     // Get current member data
     const currentData = await env.MEMBER_DATA.get('members:all');
     if (!currentData) {
-      return new Response(JSON.stringify({
-        error: 'No member data found in storage'
-      }), {
-        status: 404,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-      });
+      return new Response(
+        JSON.stringify({
+          error: 'No member data found in storage',
+        }),
+        {
+          status: 404,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        }
+      );
     }
 
     const members = JSON.parse(currentData);
@@ -2160,21 +2438,26 @@ async function handleProcessCandidate(env, corsHeaders, request) {
       targetMember = members.find(m => m.bioguideId === bioguideId);
     } else if (name) {
       // Try exact match first, then partial match
-      targetMember = members.find(m =>
-        m.name.toLowerCase() === name.toLowerCase() ||
-        m.name.toLowerCase().includes(name.toLowerCase()) ||
-        name.toLowerCase().includes(m.name.toLowerCase().split(',')[0])
+      targetMember = members.find(
+        m =>
+          m.name.toLowerCase() === name.toLowerCase() ||
+          m.name.toLowerCase().includes(name.toLowerCase()) ||
+          name.toLowerCase().includes(m.name.toLowerCase().split(',')[0])
       );
     }
 
     if (!targetMember) {
-      return new Response(JSON.stringify({
-        error: `Member not found: ${name || bioguideId}`,
-        suggestion: 'Try searching with full name format: "LastName, FirstName" or exact bioguideId'
-      }), {
-        status: 404,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-      });
+      return new Response(
+        JSON.stringify({
+          error: `Member not found: ${name || bioguideId}`,
+          suggestion:
+            'Try searching with full name format: "LastName, FirstName" or exact bioguideId',
+        }),
+        {
+          status: 404,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        }
+      );
     }
 
     console.log(`✅ Found member: ${targetMember.name} (${targetMember.bioguideId})`);
@@ -2199,7 +2482,11 @@ async function handleProcessCandidate(env, corsHeaders, request) {
         await fetchPACDetails(targetMember, env);
 
         // Step 3: Calculate enhanced tier
-        const { tier: newTier, individualFundingPercent } = await calculateEnhancedTier(targetMember, members, env);
+        const { tier: newTier, individualFundingPercent } = await calculateEnhancedTier(
+          targetMember,
+          members,
+          env
+        );
         targetMember.tier = newTier;
         targetMember.individualFundingPercent = individualFundingPercent;
         targetMember.lastProcessed = new Date().toISOString();
@@ -2226,48 +2513,52 @@ async function handleProcessCandidate(env, corsHeaders, request) {
           totalRaised: targetMember.totalRaised,
           pacCount: targetMember.pacContributions?.length || 0,
           processingStatus: targetMember.processingStatus,
-          lastProcessed: targetMember.lastProcessed
+          lastProcessed: targetMember.lastProcessed,
         },
         changes: {
           tierChanged: originalMember.tier !== targetMember.tier,
           financialDataAdded: originalMember.totalRaised === 0 && targetMember.totalRaised > 0,
           oldTier: originalMember.tier,
-          newTier: targetMember.tier
-        }
+          newTier: targetMember.tier,
+        },
       };
 
       console.log(`✅ Successfully processed ${targetMember.name}`);
 
       return new Response(JSON.stringify(response), {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
-
     } catch (processingError) {
       console.error(`❌ Error processing ${targetMember.name}:`, processingError);
 
-      return new Response(JSON.stringify({
-        error: `Processing failed for ${targetMember.name}: ${processingError.message}`,
-        member: {
-          name: targetMember.name,
-          bioguideId: targetMember.bioguideId,
-          state: targetMember.state,
-          chamber: targetMember.chamber
+      return new Response(
+        JSON.stringify({
+          error: `Processing failed for ${targetMember.name}: ${processingError.message}`,
+          member: {
+            name: targetMember.name,
+            bioguideId: targetMember.bioguideId,
+            state: targetMember.state,
+            chamber: targetMember.chamber,
+          },
+        }),
+        {
+          status: 500,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         }
-      }), {
-        status: 500,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-      });
+      );
     }
-
   } catch (error) {
     console.error('Process candidate failed:', error);
-    return new Response(JSON.stringify({
-      error: error.message,
-      success: false
-    }), {
-      status: 500,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-    });
+    return new Response(
+      JSON.stringify({
+        error: error.message,
+        success: false,
+      }),
+      {
+        status: 500,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      }
+    );
   }
 }
 
@@ -2276,7 +2567,8 @@ async function handleIndividualMemberUpdate(env, corsHeaders, request) {
   try {
     // Check for authentication
     const url = new URL(request.url);
-    const authKey = url.searchParams.get('key') || request.headers.get('Authorization')?.replace('Bearer ', '');
+    const authKey =
+      url.searchParams.get('key') || request.headers.get('Authorization')?.replace('Bearer ', '');
     const expectedKey = env.UPDATE_SECRET;
 
     if (!expectedKey) {
@@ -2284,24 +2576,30 @@ async function handleIndividualMemberUpdate(env, corsHeaders, request) {
     }
 
     if (!authKey || authKey !== expectedKey) {
-      return new Response(JSON.stringify({
-        error: 'Unauthorized - valid API key required'
-      }), {
-        status: 401,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-      });
+      return new Response(
+        JSON.stringify({
+          error: 'Unauthorized - valid API key required',
+        }),
+        {
+          status: 401,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        }
+      );
     }
 
     // Extract username from URL path
     const username = url.pathname.replace('/api/update-member/@', '');
 
     if (!username) {
-      return new Response(JSON.stringify({
-        error: 'Username required - use format /api/update-member/@username'
-      }), {
-        status: 400,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-      });
+      return new Response(
+        JSON.stringify({
+          error: 'Username required - use format /api/update-member/@username',
+        }),
+        {
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        }
+      );
     }
 
     console.log(`🎯 Individual member update requested for: @${username}`);
@@ -2315,17 +2613,23 @@ async function handleIndividualMemberUpdate(env, corsHeaders, request) {
     // If not found in handle mapping, check if it's already a bioguide ID pattern (letter followed by 6 digits)
     if (!bioguideId && /^[A-Z]\d{6}$/.test(username.toUpperCase())) {
       bioguideId = username.toUpperCase();
-      console.log(`🔧 Using ${username} as direct bioguide ID (not found in social handle mapping)`);
+      console.log(
+        `🔧 Using ${username} as direct bioguide ID (not found in social handle mapping)`
+      );
     }
 
     if (!bioguideId) {
-      return new Response(JSON.stringify({
-        error: `No member found for handle @${username}`,
-        suggestion: 'Try updating social handle mapping first, or use bioguide ID format (e.g., G000386)'
-      }), {
-        status: 404,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-      });
+      return new Response(
+        JSON.stringify({
+          error: `No member found for handle @${username}`,
+          suggestion:
+            'Try updating social handle mapping first, or use bioguide ID format (e.g., G000386)',
+        }),
+        {
+          status: 404,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        }
+      );
     }
 
     console.log(`✅ Found bioguide ID ${bioguideId} for @${username}`);
@@ -2340,12 +2644,15 @@ async function handleIndividualMemberUpdate(env, corsHeaders, request) {
     const memberIndex = members.findIndex(m => m.bioguideId === bioguideId);
 
     if (memberIndex === -1) {
-      return new Response(JSON.stringify({
-        error: `Member with bioguide ID ${bioguideId} not found in current data`
-      }), {
-        status: 404,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-      });
+      return new Response(
+        JSON.stringify({
+          error: `Member with bioguide ID ${bioguideId} not found in current data`,
+        }),
+        {
+          status: 404,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        }
+      );
     }
 
     const member = members[memberIndex];
@@ -2361,30 +2668,35 @@ async function handleIndividualMemberUpdate(env, corsHeaders, request) {
 
       console.log(`✅ Successfully updated ${updatedMember.name}`);
 
-      return new Response(JSON.stringify({
-        success: true,
-        member: updatedMember,
-        message: `Successfully updated ${updatedMember.name}`,
-        tier: updatedMember.tier,
-        totalRaised: updatedMember.totalRaised,
-        grassrootsPercent: updatedMember.grassrootsPercent,
-        pacContributions: updatedMember.pacContributions?.length || 0
-      }), {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-      });
+      return new Response(
+        JSON.stringify({
+          success: true,
+          member: updatedMember,
+          message: `Successfully updated ${updatedMember.name}`,
+          tier: updatedMember.tier,
+          totalRaised: updatedMember.totalRaised,
+          grassrootsPercent: updatedMember.grassrootsPercent,
+          pacContributions: updatedMember.pacContributions?.length || 0,
+        }),
+        {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        }
+      );
     } else {
       throw new Error(`Failed to update member data for ${member.name}`);
     }
-
   } catch (error) {
     console.error('Individual member update failed:', error);
-    return new Response(JSON.stringify({
-      error: error.message,
-      success: false
-    }), {
-      status: 500,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-    });
+    return new Response(
+      JSON.stringify({
+        error: error.message,
+        success: false,
+      }),
+      {
+        status: 500,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      }
+    );
   }
 }
 
@@ -2407,7 +2719,9 @@ async function updateSingleMember(member, env) {
 
     const financialData = await fetchMemberFinancials(member, env);
     if (!financialData) {
-      throw new Error(`Failed to fetch FEC financial data for ${member.name}. Member may not have an active FEC committee or name matching failed.`);
+      throw new Error(
+        `Failed to fetch FEC financial data for ${member.name}. Member may not have an active FEC committee or name matching failed.`
+      );
     }
 
     member.totalRaised = financialData.totalRaised;
@@ -2419,9 +2733,11 @@ async function updateSingleMember(member, env) {
     member.committeeId = financialData.committeeId;
     member.lastUpdated = new Date().toISOString();
     // BUGFIX: Always refresh dataCycle to prevent stale 1970 values (Issue #15)
-    member.dataCycle = financialData.dataCycle || await getElectionCycle();
+    member.dataCycle = financialData.dataCycle || (await getElectionCycle());
 
-    console.log(`✅ Financial data updated: $${member.totalRaised.toLocaleString()} raised, ${member.grassrootsPercent}% grassroots`);
+    console.log(
+      `✅ Financial data updated: $${member.totalRaised.toLocaleString()} raised, ${member.grassrootsPercent}% grassroots`
+    );
 
     // Phase 2: Update PAC details if we have committee info
     if (member.committeeId) {
@@ -2439,7 +2755,9 @@ async function updateSingleMember(member, env) {
         // Don't recalculate - totalRaised includes PACs, large individual donations, party money, etc.
         // Only individual_unitemized_contributions (<$200) count as true grassroots
 
-        console.log(`✅ PAC data updated: ${pacDetails.length} contributions, $${member.pacMoney.toLocaleString()} total`);
+        console.log(
+          `✅ PAC data updated: ${pacDetails.length} contributions, $${member.pacMoney.toLocaleString()} total`
+        );
       }
     }
 
@@ -2450,13 +2768,14 @@ async function updateSingleMember(member, env) {
 
     // Recalculate grassrootsPercent to match tier calculation
     if (member.totalRaised > 0) {
-      member.grassrootsPercent = Math.round((member.grassrootsDonations / member.totalRaised) * 100);
+      member.grassrootsPercent = Math.round(
+        (member.grassrootsDonations / member.totalRaised) * 100
+      );
     }
 
     console.log(`🎯 Final tier: ${member.tier} (${member.grassrootsPercent}% grassroots)`);
 
     return member;
-
   } catch (error) {
     console.error(`Error updating single member ${member.name}:`, error);
     return null;
@@ -2483,7 +2802,9 @@ async function getOrCreateSocialHandleMapping(env) {
     console.log('📱 Fetching fresh social media data from congress-legislators...');
 
     // Fetch social media YAML
-    const response = await fetch('https://raw.githubusercontent.com/unitedstates/congress-legislators/main/legislators-social-media.yaml');
+    const response = await fetch(
+      'https://raw.githubusercontent.com/unitedstates/congress-legislators/main/legislators-social-media.yaml'
+    );
 
     if (!response.ok) {
       throw new Error(`Failed to fetch social media data: ${response.status}`);
@@ -2523,16 +2844,17 @@ async function getOrCreateSocialHandleMapping(env) {
 
     // Add user-friendly aliases for popular handles
     const aliases = {
-      'aoc': 'O000172',        // Alexandria Ocasio-Cortez -> @repaoc
-      'bernie': 'S000033',     // Bernie Sanders
-      'warren': 'W000817',     // Elizabeth Warren
-      'ted': 'C001098',        // Ted Cruz
-      'marco': 'R000595'       // Marco Rubio
+      aoc: 'O000172', // Alexandria Ocasio-Cortez -> @repaoc
+      bernie: 'S000033', // Bernie Sanders
+      warren: 'W000817', // Elizabeth Warren
+      ted: 'C001098', // Ted Cruz
+      marco: 'R000595', // Marco Rubio
     };
 
     let aliasCount = 0;
     for (const [alias, bioguide] of Object.entries(aliases)) {
-      if (!handleMapping[alias]) {  // Don't overwrite existing handles
+      if (!handleMapping[alias]) {
+        // Don't overwrite existing handles
         handleMapping[alias] = bioguide;
         aliasCount++;
       }
@@ -2546,13 +2868,12 @@ async function getOrCreateSocialHandleMapping(env) {
     const mappingData = {
       handles: handleMapping,
       lastUpdated: new Date().toISOString(),
-      totalMapped: mappedCount
+      totalMapped: mappedCount,
     };
 
     await env.MEMBER_DATA.put('social_handle_mapping', JSON.stringify(mappingData));
 
     return handleMapping;
-
   } catch (error) {
     console.error('Error creating social handle mapping:', error);
 
@@ -2575,28 +2896,35 @@ async function handleSocialHandles(env, corsHeaders) {
 
     const handleCount = Object.keys(handleMap).length;
 
-    return new Response(JSON.stringify({
-      handles: handleMap,
-      count: handleCount,
-      description: "Available social handles for individual member updates via /api/update-member/@handle",
-      examples: [
-        "/api/update-member/@aoc",
-        "/api/update-member/@repjasmine",
-        "/api/update-member/@senatorhassan"
-      ]
-    }), {
-      status: 200,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-    });
+    return new Response(
+      JSON.stringify({
+        handles: handleMap,
+        count: handleCount,
+        description:
+          'Available social handles for individual member updates via /api/update-member/@handle',
+        examples: [
+          '/api/update-member/@aoc',
+          '/api/update-member/@repjasmine',
+          '/api/update-member/@senatorhassan',
+        ],
+      }),
+      {
+        status: 200,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      }
+    );
   } catch (error) {
     console.error('Error fetching social handles:', error);
-    return new Response(JSON.stringify({
-      error: 'Failed to fetch social handles',
-      message: error.message
-    }), {
-      status: 500,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-    });
+    return new Response(
+      JSON.stringify({
+        error: 'Failed to fetch social handles',
+        message: error.message,
+      }),
+      {
+        status: 500,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      }
+    );
   }
 }
 
@@ -2605,13 +2933,20 @@ async function handleRefreshSocialHandles(env, corsHeaders, request) {
   try {
     // Check authorization
     const authHeader = request.headers.get('Authorization');
-    if (!authHeader || !authHeader.startsWith('Bearer ') || authHeader.slice(7) !== 'taskforce_purple_2025_update') {
-      return new Response(JSON.stringify({
-        error: 'Unauthorized'
-      }), {
-        status: 401,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-      });
+    if (
+      !authHeader ||
+      !authHeader.startsWith('Bearer ') ||
+      authHeader.slice(7) !== 'taskforce_purple_2025_update'
+    ) {
+      return new Response(
+        JSON.stringify({
+          error: 'Unauthorized',
+        }),
+        {
+          status: 401,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        }
+      );
     }
 
     console.log('🔄 Force refreshing social handle mapping...');
@@ -2622,30 +2957,36 @@ async function handleRefreshSocialHandles(env, corsHeaders, request) {
     // Get fresh mapping (this will rebuild with aliases)
     const handles = await getOrCreateSocialHandleMapping(env);
 
-    return new Response(JSON.stringify({
-      success: true,
-      message: 'Social handle mapping refreshed',
-      count: Object.keys(handles).length,
-      aliases: {
-        aoc: handles.aoc || null,
-        bernie: handles.bernie || null,
-        warren: handles.warren || null,
-        ted: handles.ted || null,
-        marco: handles.marco || null
+    return new Response(
+      JSON.stringify({
+        success: true,
+        message: 'Social handle mapping refreshed',
+        count: Object.keys(handles).length,
+        aliases: {
+          aoc: handles.aoc || null,
+          bernie: handles.bernie || null,
+          warren: handles.warren || null,
+          ted: handles.ted || null,
+          marco: handles.marco || null,
+        },
+      }),
+      {
+        status: 200,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       }
-    }), {
-      status: 200,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-    });
+    );
   } catch (error) {
     console.error('Error refreshing social handles:', error);
-    return new Response(JSON.stringify({
-      error: 'Failed to refresh social handles',
-      message: error.message
-    }), {
-      status: 500,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-    });
+    return new Response(
+      JSON.stringify({
+        error: 'Failed to refresh social handles',
+        message: error.message,
+      }),
+      {
+        status: 500,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      }
+    );
   }
 }
 
@@ -2661,7 +3002,9 @@ function parseCongressSocialYAML(yamlText) {
     const trimmed = line.trim();
 
     // Skip comments and empty lines
-    if (trimmed.startsWith('#') || trimmed === '') continue;
+    if (trimmed.startsWith('#') || trimmed === '') {
+      continue;
+    }
 
     const currentIndent = line.length - line.trimLeft().length;
 
@@ -2675,7 +3018,9 @@ function parseCongressSocialYAML(yamlText) {
       continue;
     }
 
-    if (!currentEntry) continue;
+    if (!currentEntry) {
+      continue;
+    }
 
     // Parse ID fields
     if (currentIndent === indentLevel + 4 && trimmed.includes(':')) {
@@ -2694,7 +3039,11 @@ function parseCongressSocialYAML(yamlText) {
       continue;
     }
 
-    if (currentIndent === indentLevel + 4 && trimmed.includes(':') && !['bioguide', 'thomas', 'govtrack'].includes(trimmed.split(':')[0].trim())) {
+    if (
+      currentIndent === indentLevel + 4 &&
+      trimmed.includes(':') &&
+      !['bioguide', 'thomas', 'govtrack'].includes(trimmed.split(':')[0].trim())
+    ) {
       const [key, value] = trimmed.split(':', 2);
       const cleanKey = key.trim();
       const cleanValue = value ? value.trim().replace(/['"]/g, '') : '';
@@ -2723,7 +3072,7 @@ async function processSmartBatch(env) {
   const callBudget = 15; // FEC limit: 1,000/hour. Our usage: 60/hour (94% under limit)
   const maxMembersPerRun = 1; // CRITICAL: Cloudflare has ~50 subrequest limit. 1 member = ~10-15 subrequests
   let callsUsed = 0;
-  let membersProcessed = [];
+  const membersProcessed = [];
 
   try {
     console.log('📊 Starting smart batch processing...');
@@ -2747,9 +3096,11 @@ async function processSmartBatch(env) {
     console.log(`📋 Phase 2 queue: ${phase2Queue.length} members remaining`);
 
     // PRIORITY PROCESSING: Mismatches first, then regular phases
-    while ((mismatchQueue.length > 0 || phase1Queue.length > 0 || phase2Queue.length > 0) &&
-           callsUsed < callBudget && membersProcessed.length < maxMembersPerRun) {
-
+    while (
+      (mismatchQueue.length > 0 || phase1Queue.length > 0 || phase2Queue.length > 0) &&
+      callsUsed < callBudget &&
+      membersProcessed.length < maxMembersPerRun
+    ) {
       // FIRST PRIORITY: Process mismatch reconciliation (highest priority)
       if (mismatchQueue.length > 0 && callsUsed + 3 <= callBudget) {
         const member = mismatchQueue.shift();
@@ -2757,11 +3108,11 @@ async function processSmartBatch(env) {
           console.log(`🔧 Reconciling FEC mismatch: ${member.name}`);
           await reconcileFECMismatch(member, env);
           callsUsed += 3; // FEC lookup uses ~3 calls
-          membersProcessed.push({name: member.name, phase: 'mismatch', status: 'reconciled'});
+          membersProcessed.push({ name: member.name, phase: 'mismatch', status: 'reconciled' });
           await updateMismatchQueue(env, mismatchQueue);
         } catch (error) {
           console.warn(`⚠️ Mismatch reconciliation failed for ${member.name}:`, error.message);
-          membersProcessed.push({name: member.name, phase: 'mismatch', status: 'failed'});
+          membersProcessed.push({ name: member.name, phase: 'mismatch', status: 'failed' });
         }
         continue; // Process another mismatch if budget allows
       }
@@ -2769,7 +3120,7 @@ async function processSmartBatch(env) {
       // CPU LIMIT PROTECTION: Process only ONE member per run
       // Use round-robin: 3 Phase 1, then 1 Phase 2 (75% Phase 1, 25% Phase 2)
       // This keeps Phase 2 progressing while prioritizing Phase 1 backlog
-      const shouldProcessPhase2 = (runCount % 4 === 3) && phase2Queue.length > 0;
+      const shouldProcessPhase2 = runCount % 4 === 3 && phase2Queue.length > 0;
 
       if (!shouldProcessPhase2 && phase1Queue.length > 0 && callsUsed + 3 <= callBudget) {
         // PHASE 1 processing (3 out of 4 runs)
@@ -2780,14 +3131,18 @@ async function processSmartBatch(env) {
           await updateMemberWithPhase1Data(member, financials, env);
 
           callsUsed += 3;
-          membersProcessed.push({name: member.name, phase: 1, status: 'success'});
+          membersProcessed.push({ name: member.name, phase: 1, status: 'success' });
 
           // Update queue after successful processing
           await updatePhase1Queue(env, phase1Queue);
-
         } catch (error) {
           console.warn(`⚠️ Phase 1 failed for ${member.name}:`, error.message);
-          membersProcessed.push({name: member.name, phase: 1, status: 'failed', error: error.message});
+          membersProcessed.push({
+            name: member.name,
+            phase: 1,
+            status: 'failed',
+            error: error.message,
+          });
 
           // Check for rate limiting scenarios
           if (error.message.includes('Too many subrequests')) {
@@ -2796,8 +3151,12 @@ async function processSmartBatch(env) {
           }
 
           // Check for 503 Service Unavailable (API rate limiting)
-          if (error.message.includes('503') || error.message.includes('Service Unavailable') ||
-              error.message.includes('rate limit') || error.message.includes('Rate limit')) {
+          if (
+            error.message.includes('503') ||
+            error.message.includes('Service Unavailable') ||
+            error.message.includes('rate limit') ||
+            error.message.includes('Rate limit')
+          ) {
             console.log('🛑 API rate limit (503) detected, stopping batch processing');
             break;
           }
@@ -2808,7 +3167,6 @@ async function processSmartBatch(env) {
             break;
           }
         }
-
       } else if (phase2Queue.length > 0 && callsUsed + 4 <= callBudget) {
         // PHASE 2 processing (1 out of 4 runs, or when Phase 1 is empty)
         const member = phase2Queue.shift();
@@ -2817,14 +3175,18 @@ async function processSmartBatch(env) {
           await enhanceMemberWithPACData(member, env);
 
           callsUsed += 4; // Average PAC enhancement calls
-          membersProcessed.push({name: member.name, phase: 2, status: 'success'});
+          membersProcessed.push({ name: member.name, phase: 2, status: 'success' });
 
           // Update queue after successful processing
           await updatePhase2Queue(env, phase2Queue);
-
         } catch (error) {
           console.warn(`⚠️ Phase 2 failed for ${member.name}:`, error.message);
-          membersProcessed.push({name: member.name, phase: 2, status: 'failed', error: error.message});
+          membersProcessed.push({
+            name: member.name,
+            phase: 2,
+            status: 'failed',
+            error: error.message,
+          });
 
           // Check for rate limiting scenarios
           if (error.message.includes('Too many subrequests')) {
@@ -2833,8 +3195,12 @@ async function processSmartBatch(env) {
           }
 
           // Check for 503 Service Unavailable (API rate limiting)
-          if (error.message.includes('503') || error.message.includes('Service Unavailable') ||
-              error.message.includes('rate limit') || error.message.includes('Rate limit')) {
+          if (
+            error.message.includes('503') ||
+            error.message.includes('Service Unavailable') ||
+            error.message.includes('rate limit') ||
+            error.message.includes('Rate limit')
+          ) {
             console.log('🛑 API rate limit (503) detected, stopping batch processing');
             break;
           }
@@ -2854,7 +3220,7 @@ async function processSmartBatch(env) {
       membersProcessed: membersProcessed.length,
       lastRun: new Date().toISOString(),
       executionTime: Date.now() - startTime,
-      runCount: runCount + 1
+      runCount: runCount + 1,
     });
 
     // Auto-recalculate tiers if any members were processed to keep frontend updated
@@ -2863,13 +3229,17 @@ async function processSmartBatch(env) {
       try {
         console.log('🔄 Auto-triggering tier recalculation after batch processing...');
         tierRecalcStats = await performTierRecalculation(env);
-        console.log(`✅ Tier recalculation complete: ${tierRecalcStats.recalculated} updated, ${tierRecalcStats.unchanged} unchanged`);
+        console.log(
+          `✅ Tier recalculation complete: ${tierRecalcStats.recalculated} updated, ${tierRecalcStats.unchanged} unchanged`
+        );
       } catch (error) {
         console.warn('⚠️ Tier recalculation failed after batch processing:', error.message);
       }
     }
 
-    console.log(`📊 Smart batch summary: ${callsUsed}/${callBudget} API calls, ${membersProcessed.length} members processed`);
+    console.log(
+      `📊 Smart batch summary: ${callsUsed}/${callBudget} API calls, ${membersProcessed.length} members processed`
+    );
 
     return {
       callsUsed,
@@ -2877,9 +3247,8 @@ async function processSmartBatch(env) {
       members: membersProcessed,
       remainingBudget: callBudget - callsUsed,
       executionTime: Date.now() - startTime,
-      tierRecalculation: tierRecalcStats
+      tierRecalculation: tierRecalcStats,
     };
-
   } catch (error) {
     console.error('❌ Smart batch processing error:', error);
     throw error;
@@ -2912,7 +3281,7 @@ async function initializeProcessingQueues(env) {
         name: member.name,
         state: member.state,
         district: member.district,
-        party: member.partyName
+        party: member.partyName,
       }));
 
       await env.MEMBER_DATA.put('processing_queue_phase1', JSON.stringify(phase1Queue));
@@ -2934,10 +3303,12 @@ async function initializeProcessingQueues(env) {
           name: member.name,
           state: member.state,
           district: member.district,
-          party: member.party
+          party: member.party,
         });
-      } else if (member.pacContributions.length === 0 ||
-                 !member.pacContributions.some(pac => pac.committee_type)) {
+      } else if (
+        member.pacContributions.length === 0 ||
+        !member.pacContributions.some(pac => pac.committee_type)
+      ) {
         // Has financial data but needs Phase 2 (PAC enhancement)
         phase2Queue.push({
           bioguideId: member.bioguideId,
@@ -2945,7 +3316,7 @@ async function initializeProcessingQueues(env) {
           state: member.state,
           district: member.district,
           party: member.party,
-          committeeId: member.committeeInfo?.id
+          committeeId: member.committeeInfo?.id,
         });
       }
     }
@@ -2953,8 +3324,9 @@ async function initializeProcessingQueues(env) {
     await env.MEMBER_DATA.put('processing_queue_phase1', JSON.stringify(phase1Queue));
     await env.MEMBER_DATA.put('processing_queue_phase2', JSON.stringify(phase2Queue));
 
-    console.log(`✅ Initialized queues: ${phase1Queue.length} members in Phase 1, ${phase2Queue.length} in Phase 2`);
-
+    console.log(
+      `✅ Initialized queues: ${phase1Queue.length} members in Phase 1, ${phase2Queue.length} in Phase 2`
+    );
   } catch (error) {
     console.error('❌ Error initializing processing queues:', error);
     throw error;
@@ -3039,7 +3411,9 @@ async function scanForFECMismatches(env) {
 
   try {
     const membersData = await env.MEMBER_DATA.get('members:all');
-    if (!membersData) return mismatchQueue;
+    if (!membersData) {
+      return mismatchQueue;
+    }
 
     const members = JSON.parse(membersData);
 
@@ -3050,15 +3424,29 @@ async function scanForFECMismatches(env) {
       // 3. Common names that might be mixed up
 
       const isHighProfileSenator = member.chamber === 'Senate' && member.totalRaised === 0;
-      const hasWrongCommitteePattern = (
-        (member.chamber === 'Senate' && member.committeeInfo?.id && !member.committeeInfo.id.startsWith('S')) ||
-        (member.chamber === 'House' && member.committeeInfo?.id && !member.committeeInfo.id.startsWith('H'))
-      );
-      const hasCommonName = ['Graham', 'Johnson', 'Smith', 'Brown', 'Miller', 'Wilson', 'Davis', 'Garcia'].some(name =>
-        member.name.includes(name)
-      );
+      const hasWrongCommitteePattern =
+        (member.chamber === 'Senate' &&
+          member.committeeInfo?.id &&
+          !member.committeeInfo.id.startsWith('S')) ||
+        (member.chamber === 'House' &&
+          member.committeeInfo?.id &&
+          !member.committeeInfo.id.startsWith('H'));
+      const hasCommonName = [
+        'Graham',
+        'Johnson',
+        'Smith',
+        'Brown',
+        'Miller',
+        'Wilson',
+        'Davis',
+        'Garcia',
+      ].some(name => member.name.includes(name));
 
-      if (isHighProfileSenator || hasWrongCommitteePattern || (hasCommonName && member.totalRaised === 0)) {
+      if (
+        isHighProfileSenator ||
+        hasWrongCommitteePattern ||
+        (hasCommonName && member.totalRaised === 0)
+      ) {
         mismatchQueue.push({
           bioguideId: member.bioguideId,
           name: member.name,
@@ -3066,15 +3454,17 @@ async function scanForFECMismatches(env) {
           chamber: member.chamber,
           party: member.party,
           currentCommitteeId: member.committeeInfo?.id,
-          reason: isHighProfileSenator ? 'high-profile-zero' :
-                  hasWrongCommitteePattern ? 'wrong-committee-pattern' : 'common-name-zero'
+          reason: isHighProfileSenator
+            ? 'high-profile-zero'
+            : hasWrongCommitteePattern
+              ? 'wrong-committee-pattern'
+              : 'common-name-zero',
         });
       }
     }
 
     console.log(`🔍 Found ${mismatchQueue.length} potential FEC mismatches to reconcile`);
     return mismatchQueue;
-
   } catch (error) {
     console.error('Error scanning for mismatches:', error);
     return mismatchQueue;
@@ -3094,10 +3484,15 @@ async function reconcileFECMismatch(member, env) {
     const financials = await fetchMemberFinancials(member, env);
 
     // DEBUG: Log detailed financials response
-    console.log(`🔍 DEBUG: fetchMemberFinancials returned for ${member.name}:`, JSON.stringify(financials, null, 2));
+    console.log(
+      `🔍 DEBUG: fetchMemberFinancials returned for ${member.name}:`,
+      JSON.stringify(financials, null, 2)
+    );
 
     if (financials && financials.totalRaised > 0) {
-      console.log(`✅ Reconciled ${member.name}: Found correct FEC data with $${financials.totalRaised}`);
+      console.log(
+        `✅ Reconciled ${member.name}: Found correct FEC data with $${financials.totalRaised}`
+      );
 
       // Update the member data immediately
       await updateMemberWithPhase1Data(member, financials, env);
@@ -3105,10 +3500,11 @@ async function reconcileFECMismatch(member, env) {
       return true;
     } else {
       console.warn(`⚠️ Still no FEC data found for ${member.name} after reconciliation`);
-      console.log(`🔍 DEBUG: Financials was ${financials ? 'truthy' : 'falsy'}, totalRaised: ${financials?.totalRaised}`);
+      console.log(
+        `🔍 DEBUG: Financials was ${financials ? 'truthy' : 'falsy'}, totalRaised: ${financials?.totalRaised}`
+      );
       return false;
     }
-
   } catch (error) {
     console.error(`❌ Failed to reconcile FEC mapping for ${member.name}:`, error);
     throw error;
@@ -3143,7 +3539,7 @@ async function updateMemberWithPhase1Data(member, financials, env) {
         pacContributions: [],
         tier: calculateTier(financials?.grassrootsPercent || 0, financials?.totalRaised || 0),
         lastUpdated: new Date().toISOString(),
-        committeeInfo: financials?.committeeId ? { id: financials.committeeId } : null
+        committeeInfo: financials?.committeeId ? { id: financials.committeeId } : null,
       };
       members.push(newMember);
     } else {
@@ -3158,7 +3554,7 @@ async function updateMemberWithPhase1Data(member, financials, env) {
         dataCycle: financials?.dataCycle || currentCycle,
         tier: calculateTier(financials?.grassrootsPercent || 0, financials?.totalRaised || 0),
         lastUpdated: new Date().toISOString(),
-        committeeInfo: financials?.committeeId ? { id: financials.committeeId } : null
+        committeeInfo: financials?.committeeId ? { id: financials.committeeId } : null,
       };
     }
 
@@ -3174,12 +3570,11 @@ async function updateMemberWithPhase1Data(member, financials, env) {
         state: member.state,
         district: member.district,
         party: member.party,
-        committeeId: financials.committeeId
+        committeeId: financials.committeeId,
       });
       await updatePhase2Queue(env, phase2Queue);
       console.log(`➡️ Moved ${member.name} to Phase 2 queue`);
     }
-
   } catch (error) {
     console.error(`Error updating member ${member.name} with Phase 1 data:`, error);
     throw error;
@@ -3210,12 +3605,16 @@ async function enhanceMemberWithPACData(member, env) {
       targetMember.pacContributions = pacContributions;
 
       // Recalculate tier with enhanced data
-      const { tier, individualFundingPercent } = await calculateEnhancedTier(targetMember, members, env);
+      const { tier, individualFundingPercent } = await calculateEnhancedTier(
+        targetMember,
+        members,
+        env
+      );
       targetMember.tier = tier;
       targetMember.individualFundingPercent = individualFundingPercent;
       targetMember.lastUpdated = new Date().toISOString();
       // BUGFIX: Always refresh dataCycle to prevent stale 1970 values (Issue #15)
-      targetMember.dataCycle = targetMember.dataCycle || await getElectionCycle();
+      targetMember.dataCycle = targetMember.dataCycle || (await getElectionCycle());
 
       // Save updated data
       members[memberIndex] = targetMember;
@@ -3223,7 +3622,6 @@ async function enhanceMemberWithPACData(member, env) {
 
       console.log(`✅ Enhanced ${member.name} with ${pacContributions.length} PAC contributions`);
     }
-
   } catch (error) {
     console.error(`Error enhancing member ${member.name} with PAC data:`, error);
     throw error;
@@ -3240,12 +3638,13 @@ async function updateProcessingStatus(env, stats) {
       executionTime: stats.executionTime,
       runCount: stats.runCount || 0,
       phase1Remaining: (await getPhase1Queue(env)).length,
-      phase2Remaining: (await getPhase2Queue(env)).length
+      phase2Remaining: (await getPhase2Queue(env)).length,
     };
 
     await env.MEMBER_DATA.put('processing_status', JSON.stringify(status));
-    console.log(`📊 Processing status updated: ${status.phase1Remaining} Phase 1, ${status.phase2Remaining} Phase 2 remaining`);
-
+    console.log(
+      `📊 Processing status updated: ${status.phase1Remaining} Phase 1, ${status.phase2Remaining} Phase 2 remaining`
+    );
   } catch (error) {
     console.error('Error updating processing status:', error);
   }
@@ -3260,7 +3659,7 @@ async function handleResetPACData(env, corsHeaders, request) {
     if (!authHeader || authHeader !== expectedAuth) {
       return new Response(JSON.stringify({ error: 'Unauthorized' }), {
         status: 401,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
@@ -3271,7 +3670,7 @@ async function handleResetPACData(env, corsHeaders, request) {
     if (!membersData) {
       return new Response(JSON.stringify({ error: 'No member data found' }), {
         status: 404,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
@@ -3291,7 +3690,7 @@ async function handleResetPACData(env, corsHeaders, request) {
         phase2Queue.push({
           bioguideId: member.bioguideId,
           name: member.name,
-          committeeId: member.committeeId
+          committeeId: member.committeeId,
         });
       }
     }
@@ -3302,24 +3701,28 @@ async function handleResetPACData(env, corsHeaders, request) {
     // Rebuild Phase 2 queue
     await env.MEMBER_DATA.put('processing_queue_phase2', JSON.stringify(phase2Queue));
 
-    console.log(`✅ Reset complete: Cleared ${clearedCount} members, queued ${phase2Queue.length} for Phase 2`);
+    console.log(
+      `✅ Reset complete: Cleared ${clearedCount} members, queued ${phase2Queue.length} for Phase 2`
+    );
 
-    return new Response(JSON.stringify({
-      success: true,
-      message: 'PAC data reset complete',
-      membersCleared: clearedCount,
-      phase2QueueSize: phase2Queue.length,
-      nextStep: 'Phase 2 will re-process with corrected conduit filtering'
-    }), {
-      status: 200,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-    });
-
+    return new Response(
+      JSON.stringify({
+        success: true,
+        message: 'PAC data reset complete',
+        membersCleared: clearedCount,
+        phase2QueueSize: phase2Queue.length,
+        nextStep: 'Phase 2 will re-process with corrected conduit filtering',
+      }),
+      {
+        status: 200,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      }
+    );
   } catch (error) {
     console.error('Error resetting PAC data:', error);
     return new Response(JSON.stringify({ error: error.message }), {
       status: 500,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   }
 }
@@ -3334,7 +3737,7 @@ async function handleClearFECMapping(env, corsHeaders, request) {
     if (!authHeader || authHeader !== expectedAuth) {
       return new Response(JSON.stringify({ error: 'Unauthorized' }), {
         status: 401,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
@@ -3342,13 +3745,16 @@ async function handleClearFECMapping(env, corsHeaders, request) {
     const bioguideId = url.searchParams.get('bioguideId');
 
     if (!bioguideId) {
-      return new Response(JSON.stringify({
-        error: 'bioguideId parameter required',
-        example: '/api/clear-fec-mapping?bioguideId=G000359'
-      }), {
-        status: 400,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-      });
+      return new Response(
+        JSON.stringify({
+          error: 'bioguideId parameter required',
+          example: '/api/clear-fec-mapping?bioguideId=G000359',
+        }),
+        {
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        }
+      );
     }
 
     // Clear the cached FEC mapping
@@ -3357,25 +3763,30 @@ async function handleClearFECMapping(env, corsHeaders, request) {
 
     console.log(`🗑️ Cleared FEC mapping for ${bioguideId}`);
 
-    return new Response(JSON.stringify({
-      success: true,
-      message: `Cleared FEC mapping for ${bioguideId}`,
-      bioguideId: bioguideId,
-      action: 'Next lookup will search FEC API fresh and cache new result'
-    }), {
-      status: 200,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-    });
-
+    return new Response(
+      JSON.stringify({
+        success: true,
+        message: `Cleared FEC mapping for ${bioguideId}`,
+        bioguideId: bioguideId,
+        action: 'Next lookup will search FEC API fresh and cache new result',
+      }),
+      {
+        status: 200,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      }
+    );
   } catch (error) {
     console.error('Error clearing FEC mapping:', error);
-    return new Response(JSON.stringify({
-      error: 'Failed to clear FEC mapping',
-      message: error.message
-    }), {
-      status: 500,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-    });
+    return new Response(
+      JSON.stringify({
+        error: 'Failed to clear FEC mapping',
+        message: error.message,
+      }),
+      {
+        status: 500,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      }
+    );
   }
 }
 
@@ -3384,7 +3795,8 @@ async function handleRemoveMember(env, corsHeaders, request) {
   try {
     // Check for authentication
     const url = new URL(request.url);
-    const authKey = url.searchParams.get('key') || request.headers.get('Authorization')?.replace('Bearer ', '');
+    const authKey =
+      url.searchParams.get('key') || request.headers.get('Authorization')?.replace('Bearer ', '');
     const expectedKey = env.UPDATE_SECRET;
 
     if (!expectedKey) {
@@ -3392,24 +3804,30 @@ async function handleRemoveMember(env, corsHeaders, request) {
     }
 
     if (!authKey || authKey !== expectedKey) {
-      return new Response(JSON.stringify({
-        error: 'Unauthorized - valid API key required'
-      }), {
-        status: 401,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-      });
+      return new Response(
+        JSON.stringify({
+          error: 'Unauthorized - valid API key required',
+        }),
+        {
+          status: 401,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        }
+      );
     }
 
     // Extract bioguideId from URL path
     const bioguideId = url.pathname.replace('/api/remove-member/', '');
 
     if (!bioguideId) {
-      return new Response(JSON.stringify({
-        error: 'bioguideId required - use format /api/remove-member/{bioguideId}'
-      }), {
-        status: 400,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-      });
+      return new Response(
+        JSON.stringify({
+          error: 'bioguideId required - use format /api/remove-member/{bioguideId}',
+        }),
+        {
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        }
+      );
     }
 
     console.log(`🗑️ Member removal requested for bioguideId: ${bioguideId}`);
@@ -3417,13 +3835,16 @@ async function handleRemoveMember(env, corsHeaders, request) {
     // Get current members data from KV
     const membersData = await env.MEMBER_DATA.get('members:all');
     if (!membersData) {
-      return new Response(JSON.stringify({
-        error: 'No member data found in storage',
-        bioguideId: bioguideId
-      }), {
-        status: 404,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-      });
+      return new Response(
+        JSON.stringify({
+          error: 'No member data found in storage',
+          bioguideId: bioguideId,
+        }),
+        {
+          status: 404,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        }
+      );
     }
 
     const members = JSON.parse(membersData);
@@ -3431,14 +3852,17 @@ async function handleRemoveMember(env, corsHeaders, request) {
     // Find the member to remove
     const memberIndex = members.findIndex(member => member.bioguideId === bioguideId);
     if (memberIndex === -1) {
-      return new Response(JSON.stringify({
-        error: `Member with bioguideId ${bioguideId} not found`,
-        bioguideId: bioguideId,
-        totalMembers: members.length
-      }), {
-        status: 404,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-      });
+      return new Response(
+        JSON.stringify({
+          error: `Member with bioguideId ${bioguideId} not found`,
+          bioguideId: bioguideId,
+          totalMembers: members.length,
+        }),
+        {
+          status: 404,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        }
+      );
     }
 
     // Get member info before removal for response
@@ -3452,31 +3876,36 @@ async function handleRemoveMember(env, corsHeaders, request) {
 
     console.log(`✅ Removed ${removedMember.name} (${bioguideId}) from storage`);
 
-    return new Response(JSON.stringify({
-      success: true,
-      message: `Successfully removed member from storage`,
-      removedMember: {
-        bioguideId: removedMember.bioguideId,
-        name: removedMember.name,
-        state: removedMember.state,
-        party: removedMember.party
-      },
-      remainingMembers: members.length,
-      lastUpdated: new Date().toISOString()
-    }), {
-      status: 200,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-    });
-
+    return new Response(
+      JSON.stringify({
+        success: true,
+        message: `Successfully removed member from storage`,
+        removedMember: {
+          bioguideId: removedMember.bioguideId,
+          name: removedMember.name,
+          state: removedMember.state,
+          party: removedMember.party,
+        },
+        remainingMembers: members.length,
+        lastUpdated: new Date().toISOString(),
+      }),
+      {
+        status: 200,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      }
+    );
   } catch (error) {
     console.error('Member removal failed:', error);
-    return new Response(JSON.stringify({
-      error: error.message,
-      success: false
-    }), {
-      status: 500,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-    });
+    return new Response(
+      JSON.stringify({
+        error: error.message,
+        success: false,
+      }),
+      {
+        status: 500,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      }
+    );
   }
 }
 
@@ -3490,7 +3919,7 @@ async function handleRefreshCongressMetadata(env, corsHeaders, request) {
     if (!authHeader || authHeader !== expectedAuth) {
       return new Response(JSON.stringify({ error: 'Unauthorized' }), {
         status: 401,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
@@ -3508,8 +3937,8 @@ async function handleRefreshCongressMetadata(env, corsHeaders, request) {
         `https://api.congress.gov/v3/member/congress/119?currentMember=true&offset=${offset}&limit=${limit}&api_key=${apiKey}`,
         {
           headers: {
-            'User-Agent': 'TaskForcePurple/1.0 (Political Transparency Platform)'
-          }
+            'User-Agent': 'TaskForcePurple/1.0 (Political Transparency Platform)',
+          },
         }
       );
 
@@ -3520,7 +3949,9 @@ async function handleRefreshCongressMetadata(env, corsHeaders, request) {
       const data = await response.json();
       allCongressMembers = allCongressMembers.concat(data.members || []);
 
-      if (!data.members || data.members.length < limit) break;
+      if (!data.members || data.members.length < limit) {
+        break;
+      }
       offset += limit;
     }
 
@@ -3531,7 +3962,7 @@ async function handleRefreshCongressMetadata(env, corsHeaders, request) {
     if (!membersData) {
       return new Response(JSON.stringify({ error: 'No member data found' }), {
         status: 404,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
@@ -3548,15 +3979,20 @@ async function handleRefreshCongressMetadata(env, corsHeaders, request) {
         // Get most recent term (last item in array)
         const terms = congressMember.terms?.item;
         const currentTerm = terms && terms.length > 0 ? terms[terms.length - 1] : null;
-        const newChamber = currentTerm?.chamber === 'House of Representatives' ? 'House' :
-                          currentTerm?.chamber === 'Senate' ? 'Senate' : 'Unknown';
+        const newChamber =
+          currentTerm?.chamber === 'House of Representatives'
+            ? 'House'
+            : currentTerm?.chamber === 'Senate'
+              ? 'Senate'
+              : 'Unknown';
 
         // Only update if something changed
-        if (member.chamber !== newChamber ||
-            member.party !== congressMember.partyName ||
-            member.state !== congressMember.state ||
-            member.district !== congressMember.district) {
-
+        if (
+          member.chamber !== newChamber ||
+          member.party !== congressMember.partyName ||
+          member.state !== congressMember.state ||
+          member.district !== congressMember.district
+        ) {
           member.chamber = newChamber;
           member.party = congressMember.partyName;
           member.state = congressMember.state;
@@ -3573,22 +4009,24 @@ async function handleRefreshCongressMetadata(env, corsHeaders, request) {
 
     console.log(`✅ Refresh complete: Updated ${updatedCount} members`);
 
-    return new Response(JSON.stringify({
-      success: true,
-      message: 'Congress.gov metadata refresh complete',
-      totalMembers: allCongressMembers.length,
-      updatedCount: updatedCount,
-      lastUpdated: new Date().toISOString()
-    }), {
-      status: 200,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-    });
-
+    return new Response(
+      JSON.stringify({
+        success: true,
+        message: 'Congress.gov metadata refresh complete',
+        totalMembers: allCongressMembers.length,
+        updatedCount: updatedCount,
+        lastUpdated: new Date().toISOString(),
+      }),
+      {
+        status: 200,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      }
+    );
   } catch (error) {
     console.error('Error refreshing Congress metadata:', error);
     return new Response(JSON.stringify({ error: error.message }), {
       status: 500,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   }
 }

@@ -1,0 +1,14 @@
+# Build output
+dist/
+build/
+.vite/
+
+# Dependencies
+node_modules/
+
+# Generated files
+*.min.js
+*.bundle.js
+
+# Config files
+vite.config.js
