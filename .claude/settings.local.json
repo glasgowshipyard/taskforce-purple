@@ -68,7 +68,12 @@
       "Bash(npm run build:*)",
       "Bash(wrangler pages deploy:*)",
       "Bash(find:*)",
-      "Bash(wrangler kv namespace list:*)"
+      "Bash(wrangler kv namespace list:*)",
+      "Bash(wrangler d1 list:*)",
+      "Bash(wrangler versions list:*)",
+      "Bash(git log:*)",
+      "Bash(node add-members.js:*)",
+      "Bash(do echo \"Run $i...\")"
     ],
     "deny": [],
     "ask": []

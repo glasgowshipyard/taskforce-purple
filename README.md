@@ -35,10 +35,25 @@ Not all itemized donations are equal. The system applies a **sliding threshold**
 
 **Quadratic penalty** (P = E²/20) applies for exceeding your specific limit, punishing structural capture harder than minor slips.
 
-**Example**: Two members with 41% itemized funding:
+**Itemized percentage is calculated from individual funding only**, not total raised. This isolates the "human element" - of the people who gave, how many wrote big checks?
 
-- **12% Nakamoto** (1,500+ donors needed for 50%): Gets 50% limit → No penalty → S-tier
-- **4% Nakamoto** (100 donors for 50%): Gets 25% limit → 16% excess → 12.8% penalty → A-tier
+**Real-world example**: Bernie Sanders vs Nancy Pelosi (2026 cycle):
+
+**Bernie Sanders: S-tier**
+
+- Grassroots (<$200): $14.7M (80% of individual funding)
+- Large donations (≥$200): $3.7M (20% of individual funding)
+- Nakamoto %: 11.7% → Trust anchor: 50%
+- Itemized 20% < 50% → No penalty → S-tier
+
+**Nancy Pelosi: A-tier**
+
+- Grassroots (<$200): $1.3M (65% of individual funding)
+- Large donations (≥$200): $0.7M (35% of individual funding)
+- Nakamoto %: 4.4% → Trust anchor: 25%
+- Itemized 35% > 25% → 10% excess → 5% penalty → A-tier
+
+The key: Pelosi has 75% more large donation reliance (35% vs 20%), which the dynamic trust anchor catches.
 
 ## Tech Stack
 

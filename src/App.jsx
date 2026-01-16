@@ -291,44 +291,30 @@ export default function App() {
                     <h4 className="font-semibold text-gray-800 mb-2">Examples</h4>
                     <div className="text-sm text-gray-700 space-y-3">
                       <div>
-                        <p className="font-medium mb-1">AOC (S tier, House):</p>
+                        <p className="font-medium mb-1">Movement-Scale Funding (S tier):</p>
                         <p className="ml-4 text-xs">
-                          69% grassroots + 28% itemized = 97% individual funding
+                          $15M grassroots + $4M large = $19M individual (97% of total)
                         </p>
                         <p className="ml-4 text-xs">
-                          28% itemized is below {adaptiveThresholds?.houseThreshold || '~40'}%
-                          threshold → no penalty → S tier
+                          20% itemized (of individual), 12% Nakamoto → Trust anchor: 50%
+                        </p>
+                        <p className="ml-4 text-xs">
+                          20% &lt; 50% → 0% penalty → S tier (broad donor base: 13,000+ unique
+                          donors)
                         </p>
                       </div>
                       <div>
-                        <p className="font-medium mb-1">Dina Titus (C tier, House):</p>
+                        <p className="font-medium mb-1">Elite Capture Risk (A tier):</p>
                         <p className="ml-4 text-xs">
-                          7% grassroots + 49% itemized = 56% individual funding
+                          $1.3M grassroots + $0.7M large = $2.0M individual (93% of total)
                         </p>
-                        {adaptiveThresholds?.houseThreshold && (
-                          <p className="ml-4 text-xs">
-                            49% itemized is {(49 - adaptiveThresholds.houseThreshold).toFixed(1)}%
-                            over {adaptiveThresholds.houseThreshold}% threshold → ~
-                            {(
-                              5 * 0.1 +
-                              Math.min(49 - adaptiveThresholds.houseThreshold - 5, 5) * 0.2 +
-                              Math.max(49 - adaptiveThresholds.houseThreshold - 10, 0) * 0.3
-                            ).toFixed(1)}
-                            % penalty → ~
-                            {(
-                              56 -
-                              (5 * 0.1 +
-                                Math.min(49 - adaptiveThresholds.houseThreshold - 5, 5) * 0.2 +
-                                Math.max(49 - adaptiveThresholds.houseThreshold - 10, 0) * 0.3)
-                            ).toFixed(1)}
-                            % → C tier
-                          </p>
-                        )}
-                        {!adaptiveThresholds && (
-                          <p className="ml-4 text-xs">
-                            49% itemized is 9% over threshold → 1.3% penalty → 54.7% → C tier
-                          </p>
-                        )}
+                        <p className="ml-4 text-xs">
+                          35% itemized (of individual), 4% Nakamoto → Trust anchor: 25%
+                        </p>
+                        <p className="ml-4 text-xs">
+                          35% - 25% = 10% excess → (10² / 20) = 5% penalty → 88% → A tier (2,500
+                          unique donors)
+                        </p>
                       </div>
                       <p className="mt-3 italic text-xs">
                         Individual support is good, but <strong>donor coordination risk</strong>{' '}
@@ -466,11 +452,17 @@ export default function App() {
                             <span className="text-orange-300">Quadratic Penalty:</span> P = E² / 20,
                             where E = max(0, Itemized% - T)
                           </p>
+                          <p className="text-gray-400 text-xs ml-4 mt-2 italic">
+                            Note: Itemized% calculated from individual funding only (grassroots +
+                            large donations), not total raised. This isolates the "human element."
+                          </p>
                           <p className="text-gray-400 text-xs ml-4 mt-2">
-                            Example: 12% Nakamoto → T=50%, 41% itemized → 0% excess → no penalty
+                            Example: Member with 13,000+ donors, 12% Nakamoto → T=50%, 20% itemized
+                            → 0% excess → S-tier
                           </p>
                           <p className="text-gray-400 text-xs ml-4">
-                            Example: 4% Nakamoto → T=25%, 41% itemized → 16% excess → 12.8% penalty
+                            Example: Member with ~2,500 donors, 4% Nakamoto → T=25%, 35% itemized →
+                            10% excess → 5% penalty → A-tier
                           </p>
                         </div>
 

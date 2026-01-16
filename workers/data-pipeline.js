@@ -1255,23 +1255,42 @@ async function calculateEnhancedTier(member, allMembers = [], env = null) {
   }
 
   // Check if we have enhanced PAC data with actual committee metadata
-  const hasEnhancedData =
+  const hasEnhancedPACData =
     member.pacContributions &&
     member.pacContributions.length > 0 &&
     member.pacContributions.some(pac => pac.committee_type || pac.designation);
 
-  if (hasEnhancedData) {
+  // Check if we have donor concentration data for dynamic trust anchor
+  let hasConcentrationData = false;
+  if (env && member.bioguideId) {
+    try {
+      const concentrationData = await env.MEMBER_DATA.get(
+        `itemized_analysis_v2:${member.bioguideId}`
+      );
+      hasConcentrationData = !!concentrationData;
+    } catch (error) {
+      // Concentration data not available
+    }
+  }
+
+  // Run enhanced calculation if we have either PAC data OR concentration data
+  if (hasEnhancedPACData || hasConcentrationData) {
     // Calculate base individual funding percentage (grassroots + itemized)
+    // CRITICAL: Use individual funding total as denominator, NOT totalRaised
+    // This isolates the "human element" - of the people who gave, how reliant are you on big checks?
+    const individualFundingTotal = member.grassrootsDonations + (member.largeDonorDonations || 0);
+
     const grassrootsPercent =
-      member.totalRaised > 0 ? (member.grassrootsDonations / member.totalRaised) * 100 : 0;
+      individualFundingTotal > 0 ? (member.grassrootsDonations / individualFundingTotal) * 100 : 0;
 
     const itemizedPercent =
-      member.largeDonorDonations !== undefined && member.totalRaised > 0
-        ? (member.largeDonorDonations / member.totalRaised) * 100
+      member.largeDonorDonations !== undefined && individualFundingTotal > 0
+        ? (member.largeDonorDonations / individualFundingTotal) * 100
         : 0;
 
-    // Start with combined individual funding
-    let individualFundingPercent = grassrootsPercent + itemizedPercent;
+    // Combined individual funding as % of total raised (for final tier calculation)
+    let individualFundingPercent =
+      member.totalRaised > 0 ? (individualFundingTotal / member.totalRaised) * 100 : 0;
 
     // Load donor concentration data if available
     let concentration = null;

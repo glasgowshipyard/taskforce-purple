@@ -1,8 +1,43 @@
 # Donor Concentration Analysis - Technical Summary
 
-**Last Updated:** 2026-01-08
-**Status:** Prototype Complete (Bernie Sanders & Nancy Pelosi)
+**Last Updated:** 2026-01-16
+**Status:** ✅ DEPLOYED with corrected denominator fix
 **⚠️ CRITICAL:** Current implementation stores raw transactions (38 MB per member) - **DOES NOT scale to free tier**
+
+## Critical Fix: The Denominator Bug (2026-01-16)
+
+**The Problem:**
+The tier calculation was using `totalRaised` as the denominator when calculating itemized percentage:
+
+```javascript
+// WRONG - dilutes with PAC money
+const itemizedPercent = (largeDonorDonations / totalRaised) * 100;
+```
+
+This masked the true reliance on large donations because PAC money and other sources diluted the ratio.
+
+**The Fix:**
+Calculate itemized percentage from **individual funding only**:
+
+```javascript
+// CORRECT - isolates the human element
+const individualFundingTotal = grassrootsDonations + largeDonorDonations;
+const itemizedPercent = (largeDonorDonations / individualFundingTotal) * 100;
+```
+
+**Impact on Bernie vs Pelosi:**
+
+| Metric                       | Bernie Sanders | Nancy Pelosi        | Difference                        |
+| ---------------------------- | -------------- | ------------------- | --------------------------------- |
+| Grassroots:Large ratio       | 4:1 (80%:20%)  | 1.85:1 (65%:35%)    | **75% MORE large donor reliance** |
+| Itemized % (wrong formula)   | 19.4%          | 32.8%               | Hidden disparity                  |
+| Itemized % (correct formula) | 20%            | 35%                 | **Clear disparity**               |
+| Trust anchor                 | 50% (movement) | 25% (elite capture) | Based on Nakamoto %               |
+| Penalty                      | 0%             | 5%                  | Pelosi drops tier                 |
+| Final tier                   | S-tier         | A-tier              | ✅ Correctly differentiated       |
+
+**Why This Matters:**
+"Of the people who gave money, how reliant are you on big checks?" This is the question we need to answer, and it requires isolating individual contributions from PAC/transfer noise.
 
 ## Free Tier Storage Constraint (Added 2026-01-08)
 
