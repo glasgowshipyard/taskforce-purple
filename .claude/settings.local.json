@@ -73,7 +73,8 @@
       "Bash(wrangler versions list:*)",
       "Bash(git log:*)",
       "Bash(node add-members.js:*)",
-      "Bash(do echo \"Run $i...\")"
+      "Bash(do echo \"Run $i...\")",
+      "Bash(git stash:*)"
     ],
     "deny": [],
     "ask": []

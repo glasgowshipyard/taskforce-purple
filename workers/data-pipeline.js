@@ -84,6 +84,25 @@ export default {
 
   // Smart batch processing - rate-limited progressive updates
   async scheduled(event, env, ctx) {
+    // Check if daily Congress sync is due (runs once per day)
+    const lastSyncData = await env.MEMBER_DATA.get('last_congress_sync');
+    const lastSync = lastSyncData ? new Date(lastSyncData) : null;
+    const hoursSinceSync = lastSync ? (Date.now() - lastSync.getTime()) / (1000 * 60 * 60) : 999;
+
+    if (hoursSinceSync >= 24) {
+      console.log('🏛️ Running daily Congress member sync...');
+      try {
+        const result = await syncCongressMembers(env);
+        await env.MEMBER_DATA.put('last_congress_sync', new Date().toISOString());
+        console.log(
+          `✅ Congress sync complete: +${result.added} new members, -${result.removed} departed members`
+        );
+      } catch (error) {
+        console.error('❌ Congress sync failed:', error);
+        // Continue with normal processing even if sync fails
+      }
+    }
+
     // Check for priority queue (missing largeDonorDonations) first
     const priorityQueue = await env.MEMBER_DATA.get('priority_missing_queue');
     console.log(`🔍 Priority queue check: ${priorityQueue ? 'FOUND' : 'NOT FOUND'}`);
@@ -4109,4 +4128,165 @@ async function processPriorityQueue(env) {
   }
 
   return { processed, remaining: queue.length };
+}
+
+// Sync Congress member list - add new members, remove departed members
+async function syncCongressMembers(env) {
+  const apiKey = env.CONGRESS_API_KEY || 'zVpKDAacmPcazWQxhl5fhodhB9wNUH0urLCLkkV9';
+
+  // Step 1: Fetch all current Congress members from Congress.gov
+  let allCongressMembers = [];
+  let offset = 0;
+  const limit = 250;
+
+  while (true) {
+    const response = await fetch(
+      `https://api.congress.gov/v3/member/congress/119?currentMember=true&offset=${offset}&limit=${limit}&api_key=${apiKey}`,
+      {
+        headers: {
+          'User-Agent': 'TaskForcePurple/1.0 (Political Transparency Platform)',
+        },
+      }
+    );
+
+    if (!response.ok) {
+      throw new Error(`Congress.gov API error: ${response.status}`);
+    }
+
+    const data = await response.json();
+    allCongressMembers = allCongressMembers.concat(data.members || []);
+
+    if (!data.members || data.members.length < limit) {
+      break;
+    }
+    offset += limit;
+  }
+
+  console.log(`📥 Fetched ${allCongressMembers.length} current members from Congress.gov`);
+
+  // Sanity check - Congress should have ~535-540 members
+  if (allCongressMembers.length < 400) {
+    throw new Error(
+      `Suspicious member count: ${allCongressMembers.length} (expected ~535). Aborting sync to prevent data corruption.`
+    );
+  }
+
+  // Step 2: Load our current dataset
+  const membersData = await env.MEMBER_DATA.get('members:all');
+  if (!membersData) {
+    throw new Error('No member data found in KV');
+  }
+
+  const ourMembers = JSON.parse(membersData);
+  const congressBioguideIds = new Set(allCongressMembers.map(m => m.bioguideId));
+  const ourBioguideIds = new Set(ourMembers.map(m => m.bioguideId));
+
+  // Step 3: Find new members (in Congress but not in our dataset)
+  const newMembers = allCongressMembers.filter(m => !ourBioguideIds.has(m.bioguideId));
+
+  // Step 4: Find departed members (in our dataset but not in Congress)
+  const departedBioguideIds = [...ourBioguideIds].filter(id => !congressBioguideIds.has(id));
+
+  console.log(`🔍 Comparison: ${newMembers.length} new, ${departedBioguideIds.length} departed`);
+
+  // Step 5: Add new members to dataset
+  for (const congressMember of newMembers) {
+    // Get most recent term for chamber
+    const terms = congressMember.terms?.item;
+    const currentTerm = terms && terms.length > 0 ? terms[terms.length - 1] : null;
+    const chamber =
+      currentTerm?.chamber === 'House of Representatives'
+        ? 'House'
+        : currentTerm?.chamber === 'Senate'
+          ? 'Senate'
+          : 'Unknown';
+
+    const currentCycle = await getElectionCycle();
+
+    // Create new member record with empty financial data
+    const newMember = {
+      bioguideId: congressMember.bioguideId,
+      name: congressMember.name,
+      party: congressMember.partyName,
+      state: congressMember.state,
+      district: congressMember.district,
+      chamber: chamber,
+      totalRaised: 0,
+      grassrootsDonations: 0,
+      grassrootsPercent: 0,
+      pacMoney: 0,
+      partyMoney: 0,
+      dataCycle: currentCycle,
+      pacContributions: [],
+      tier: 'F', // Default tier until financial data fetched
+      lastUpdated: new Date().toISOString(),
+      pacDetailsStatus: 'pending',
+      committeeInfo: null,
+    };
+
+    ourMembers.push(newMember);
+    console.log(`➕ Added new member: ${congressMember.name} (${congressMember.bioguideId})`);
+  }
+
+  // Step 6: Remove departed members from dataset
+  for (const bioguideId of departedBioguideIds) {
+    const index = ourMembers.findIndex(m => m.bioguideId === bioguideId);
+    if (index >= 0) {
+      const departedName = ourMembers[index].name;
+      ourMembers.splice(index, 1);
+      console.log(`➖ Removed departed member: ${departedName} (${bioguideId})`);
+
+      // Clean up KV keys for departed member
+      try {
+        await env.MEMBER_DATA.delete(`itemized_analysis_v2:${bioguideId}`);
+        await env.MEMBER_DATA.delete(`itemized_progress:${bioguideId}`);
+      } catch (error) {
+        console.log(`  ⚠️ Failed to clean up KV keys for ${bioguideId}: ${error.message}`);
+      }
+    }
+  }
+
+  // Step 7: Remove departed members from all processing queues
+  if (departedBioguideIds.length > 0) {
+    await removeFromQueue(env, 'priority_missing_queue', departedBioguideIds);
+    await removeFromQueue(env, 'itemized_processing_queue', departedBioguideIds);
+  }
+
+  // Step 8: Save updated dataset
+  await env.MEMBER_DATA.put('members:all', JSON.stringify(ourMembers));
+
+  console.log(`💾 Saved updated dataset: ${ourMembers.length} total members`);
+
+  return { added: newMembers.length, removed: departedBioguideIds.length };
+}
+
+// Helper: Remove bioguideIds from a queue
+async function removeFromQueue(env, queueKey, bioguideIdsToRemove) {
+  const queueData = await env.MEMBER_DATA.get(queueKey);
+  if (!queueData) {
+    return; // Queue doesn't exist, nothing to do
+  }
+
+  const queue = JSON.parse(queueData);
+  const removeSet = new Set(bioguideIdsToRemove);
+
+  // Filter out departed members from queue
+  const originalLength = queue.length;
+  const filteredQueue = queue.filter(item => {
+    // Queue items might be objects with bioguideId or just bioguideId strings
+    const id = typeof item === 'string' ? item : item.bioguideId;
+    return !removeSet.has(id);
+  });
+
+  if (filteredQueue.length !== originalLength) {
+    if (filteredQueue.length === 0) {
+      await env.MEMBER_DATA.delete(queueKey);
+      console.log(`  🗑️ Deleted empty queue: ${queueKey}`);
+    } else {
+      await env.MEMBER_DATA.put(queueKey, JSON.stringify(filteredQueue));
+      console.log(
+        `  🔄 Updated ${queueKey}: removed ${originalLength - filteredQueue.length} departed members`
+      );
+    }
+  }
 }
