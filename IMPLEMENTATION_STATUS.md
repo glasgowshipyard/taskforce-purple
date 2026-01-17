@@ -1,201 +1,317 @@
 # Task Force Purple - Implementation Status
 
-## CRITICAL UPDATE (2026-01-07): Itemized Analysis Bugs Fixed & Re-Collection in Progress
-
-### What Happened
-Discovered critical bugs in itemized donor concentration analysis that caused 50%+ data loss:
-- **Pagination bug**: Worker stopped early and marked itself "complete"
-- **Bernie**: Only collected 17,566 of 37,612 transactions (47%)
-- **Pelosi**: Only collected 11,484 of ~23K transactions (est. 50%)
-- **Impact**: ALL previous concentration metrics were WRONG
-
-### What Was Fixed (2026-01-07)
-1. ✅ Pagination completion logic now tracks `reachedEnd` instead of `pagesProcessed < maxPagesToFetch`
-2. ✅ Deduplication now uses `first_name|last_name|state|zip` instead of inconsistent `contributor_name`
-3. ✅ Added transaction count validation (collected vs FEC reported)
-4. ✅ Added financial reconciliation (summed amounts vs `individual_itemized_contributions`)
-5. ✅ Improved progress logging to show "X/Y (Z%)"
-
-### Re-Collection Status (In Progress)
-- Bernie Sanders: Collecting all 37,612 transactions (ETA: ~45 min from 4:20 PM)
-- Nancy Pelosi: Queued to auto-start after Bernie
-- All old corrupted data deleted from KV storage
-- Cron running every 2 minutes with fixed code
-
-### Files Modified
-- `workers/itemized-prototype.js` - Pagination, deduplication, reconciliation fixes
+**Last Updated**: 2026-01-17
 
 ---
 
-## Current Implementation State (as of 2025-09-30)
+## Current System Status
 
-### Enhanced Transparency Algorithm ✅ WORKING
+### ✅ FULLY OPERATIONAL
 
-**Status**: Deployed and functional
-**Commit**: `6e1cdcb` - "Fix enhanced tier calculation to work with existing PAC data"
+All core systems are deployed and processing automatically:
 
-**What works**:
-- Enhanced tier calculation runs with existing PAC data
-- Graceful fallback when committee metadata is missing (uses 1.0x neutral weight)
-- P/A committee discount (0.15x) applies when metadata is available
-- Super PAC penalties (2.0x) apply when metadata is available
+1. **Data Pipeline** (taskforce-purple-api)
+   - Smart batch processing every 15 minutes
+   - Priority queue for missing largeDonorDonations (135 members, ~17 hours to complete)
+   - Daily Congress member sync (adds new/removes departed members)
+   - Dynamic trust anchor tier calculations with donor concentration analysis
 
-**Technical details**:
-- File: `workers/data-pipeline.js`
-- Function: `calculateEnhancedTier()` - line ~536
-- Uses `calculateTransparencyWeight()` with fallback to 1.0 for missing metadata
+2. **Itemized Donor Analysis** (itemized-free-tier)
+   - Queue-based processing of 538 members
+   - Runs every 15 minutes, processes 1 member per run
+   - Completion time: ~28 days for full dataset
+   - Provides Nakamoto coefficients for dynamic trust anchor
 
-### FEC Committee Metadata Enhancement ❌ NOT WORKING
+3. **Frontend** (taskforce-purple.pages.dev)
+   - Real-time tier display for all 540 members
+   - Dynamic trust anchor methodology explanation
+   - Mobile-responsive design
+   - Apolitical presentation (no politician names in examples)
 
-**Status**: Phase 2 is NOT running in production
-**Confirmed Issue**: PAC contributions only have basic fields, no `committee_type` or `designation`
+---
 
-**Current PAC data structure**:
-```json
-{
-  "amount": 97199.96,
-  "contributorOccupation": null,
-  "contributorState": "NJ",
-  "date": "2024-07-15",
-  "employerName": null,
-  "pacName": "PERSHING LLC"
-}
+## Recent Major Updates
+
+### 2026-01-16: Dynamic Trust Anchor System
+
+**Status**: ✅ DEPLOYED AND WORKING
+
+**What Changed**:
+
+- Fixed critical denominator bug in itemized percentage calculation
+- Changed from `largeDonorDonations / totalRaised` to `largeDonorDonations / (grassrootsDonations + largeDonorDonations)`
+- This isolates the "human element" - of the people who gave, how reliant are you on big checks?
+
+**Impact**:
+
+- Bernie Sanders: 20% itemized (S-tier maintained)
+- Nancy Pelosi: 35% itemized (drops to A-tier with 5% penalty)
+- Correctly differentiates movement-scale funding from elite capture risk
+
+**Files Modified**:
+
+- `workers/data-pipeline.js` - calculateEnhancedTier() function
+- `README.md` - Updated with real examples
+- `DONOR_CONCENTRATION_ANALYSIS.md` - Technical documentation
+- `src/App.jsx` - Frontend explanation with generic examples
+
+### 2026-01-17: Automatic Congress Member Sync
+
+**Status**: ✅ DEPLOYED
+
+**What It Does**:
+
+- Runs once per day (24-hour check in scheduled() function)
+- Fetches current members from Congress.gov (2-3 API calls)
+- Adds new members to dataset with empty financial data
+- Removes departed members from dataset, queues, and KV storage
+- Sanity check: aborts if < 400 members returned
+
+**Impact**:
+
+- No manual intervention needed for member list changes
+- 3 departed members will be removed on first run
+- Future Congress changes handled automatically
+
+**Files Modified**:
+
+- `workers/data-pipeline.js` - Added syncCongressMembers() and removeFromQueue()
+
+### 2026-01-17: Itemized Analysis Scaling
+
+**Status**: ✅ DEPLOYED
+
+**What Changed**:
+
+- Replaced hardcoded Bernie/Pelosi with queue-based processing
+- Created itemized_processing_queue with 538 members
+- Dynamic member lookup from members:all dataset
+- Auto-removes completed members from queue
+
+**Impact**:
+
+- All 540 members will have Nakamoto coefficients within ~28 days
+- Enables dynamic trust anchor for entire dataset
+- Free-tier compliant (5 API calls per run, 100ms delays)
+
+**Files Modified**:
+
+- `workers/itemized-free-tier.js` - Queue processing logic
+
+---
+
+## Active Processing Queues
+
+### Priority Queue (Missing largeDonorDonations)
+
+- **Status**: Processing automatically
+- **Members**: 135 remaining
+- **Rate**: 2 members every 15 minutes
+- **Completion**: ~17 hours
+- **Purpose**: Backfill missing largeDonorDonations field for accurate tier calculation
+
+### Itemized Processing Queue
+
+- **Status**: Processing automatically
+- **Members**: 538 remaining
+- **Rate**: 1 member every 15 minutes (5 API pages per member per run)
+- **Completion**: ~28 days
+- **Purpose**: Collect donor concentration data for all members
+
+---
+
+## Architecture Overview
+
+### Data Pipeline Flow
+
+```
+Congress.gov API (daily sync)
+    ↓
+members:all dataset (540 members in KV)
+    ↓
+Smart Batch Processing (every 15 minutes)
+    ├── Priority Queue → Fix missing largeDonorDonations
+    ├── Phase 1 → Fetch financial data (grassroots, total raised)
+    └── Phase 2 → Enhance with PAC details and metadata
+    ↓
+Tier Calculation
+    ├── Base calculation (grassroots %)
+    ├── Dynamic trust anchor (if concentration data available)
+    └── Enhanced PAC weighting (if metadata available)
+    ↓
+Frontend Display (tier list)
 ```
 
-**Missing fields that should be populated by Phase 2**:
-- `committee_type` (e.g., "O" for Super PAC, "P" for Candidate)
-- `designation` (e.g., "A" for Authorized, "D" for Leadership)
-- `committee_id` (FEC committee identifier)
-- `transparency_weight` (calculated weight for tier adjustment)
+### Itemized Analysis Flow
 
-**Files**:
-- `workers/data-pipeline.js` - lines 712+ (Phase 2 implementation exists but not running)
-- Functions: `fetchPACDetails()`, `searchCommitteeByName()`, `fetchCommitteeMetadata()`
-
-**Root Cause**: Phase 2 is being skipped due to rate limiting concerns or execution timeouts
-
-### UI Features ✅ WORKING
-
-**Status**: Deployed and functional
-
-**Features**:
-- FEC committee IDs display in PAC breakdown (`MembersList.jsx`)
-- Collapsible methodology explanation in footer (`App.jsx`)
-- Enhanced weighting system explanation
-- Mobile responsive design fixes
-
-### Data Pipeline Architecture
-
-**Phase 1**: Basic Financial Data (Fast)
-- Fetches grassroots percentage and total raised for all members
-- Uses standard FEC financial endpoints
-- Completes within worker timeout limits
-
-**Phase 2**: Enhanced Committee Metadata (Slow)
-- Should run incrementally on subset of members per execution
-- Looks up FEC committee details for PAC contributors
-- Populates `committee_type` and `designation` fields
-- Applies transparency weights based on committee classification
-
-## GitHub Issue Resolution Status (UPDATED - 2025-10-01)
-
-### ✅ ISSUES NOW RESOLVED
-
-**Issue #2: "Existing members not recalculated with enhanced PAC tiering"**
-- **Status**: ✅ RESOLVED - Phase 2 FEC enhancement now working in production
-- **Solution**: Individual member update system bypasses bulk processing limitations
-- **Current State**: Phase 2 PAC enhancement verified working with full committee metadata
-- **Evidence**: @senatorhassan test shows 20 PAC contributions with `committee_type`, `designation`, `transparency_weight`
-
-**Issue #4: "Tier calculation producing unexpected results after recalculation"**
-- **Status**: ✅ RESOLVED - enhanced tier algorithm working with committee metadata
-- **Solution**: Fixed function name bug (`calculateTransparencyWeight` → `getPACTransparencyWeight`)
-- **Current State**: Enhanced calculation working with proper transparency weights (0.045x, 1.0x)
-- **Evidence**: @senatorhassan correctly calculated tier D with transparency weighting
-
-**Issue #5: "Complete force-update functionality for individual member processing"**
-- **Status**: ✅ RESOLVED - Individual member update system implemented and working
-- **Solution**: `/api/update-member/@username` endpoint with social handle mapping
-- **Current State**: Full pipeline (Phase 1 + Phase 2) working for targeted updates
-- **Evidence**: @senatorhassan update completed successfully with full metadata
-
-### 🔄 PARTIALLY RESOLVED Issues
-
-**Issue #3: "Batch processing progress calculations incorrect"**
-- **Status**: PARTIALLY RESOLVED - better endpoints documented
-- **Fix**: Documented realistic small batch endpoints (`/api/update-fec-batch?batch=N`)
-- **Remaining**: Update progress estimates based on actual performance data
-- **Action Needed**: Update issue with realistic timelines, keep open for monitoring
-
-### ❌ UNRESOLVED Issues
-
-**Issue #5: "Complete force-update functionality for individual member processing"**
-- **Status**: NOT ADDRESSED - different functionality
-- **Reason**: Focused on pipeline bug fixes, not individual member updates
-
-**Issue #1: "Implement Real Bipartisan Voting Data for Overlap Tracker"**
-- **Status**: NOT ADDRESSED - different feature entirely
-- **Reason**: Focused on FEC data pipeline, not bipartisan voting integration
-
-## New Prototype: Itemized Donor Concentration Analysis ✅ COMPLETE
-
-**Status**: Successfully completed for Bernie Sanders and Nancy Pelosi (2025-10-21)
-**Worker**: `taskforce-purple-itemized-prototype`
-**Purpose**: Validate hypothesis that aggregate itemized percentages mask donor concentration
-
-**Results Confirmed:**
-- Bernie Sanders: 8,408 unique donors, 2.9% top-10 concentration
-- Nancy Pelosi: 1,476 unique donors, 8.9% top-10 concentration
-- **Finding**: Pelosi's donor base is 3× more concentrated despite similar aggregate percentages
-
-**Architectural Achievement:**
-- Successfully stored 17,566 + 11,484 transactions in KV (39 GB total data, chunked storage)
-- Implemented cursor-based pagination without hitting timeouts
-- Automatic cron processing (2-minute intervals) working reliably
-
-See `.CLAUDE_CONTEXT.md` § "Itemized Donor Concentration Analysis" for full technical details.
-
-## Next Steps
-
-1. Check worker logs to confirm Phase 2 execution
-2. Verify if any members have populated `committee_type`/`designation` fields
-3. Document exact batch sizes and timing that were working
-4. Create proper git workflow to track all worker deployments
-
-## Available Endpoints for Small Batch Processing
-
-1. **`/api/update-data?limit=N`** - Regular pipeline with test limit
-   - Processes only first N members through full pipeline
-   - Example: `POST /api/update-data?limit=5`
-   - Requires `UPDATE_SECRET` header
-
-2. **`/api/update-fec-batch?batch=N`** - Dedicated FEC enhancement
-   - Default batch: 3, max: 10 for safety
-   - Two-phase: financial data first, then PAC details
-   - Has progress tracking and state persistence
-   - Skips Congress.gov calls, FEC-only
-   - Example: `POST /api/update-fec-batch?batch=3`
-   - Requires `UPDATE_SECRET` header
-
-**This explains why small batched FEC runs were working last night** - they were using the dedicated `/api/update-fec-batch` endpoint, which was unaffected by the main pipeline bug.
-
-## What Actually Works vs. What's Broken (2025-10-01)
-
-### ✅ WORKING Components
-1. **Authorization system** - `Authorization: Bearer taskforce_purple_2025_update` works correctly
-2. **Small batch endpoint** - `/api/update-fec-batch?batch=N` processes members successfully
-3. **Phase 1 data collection** - Basic financial data collection functions properly
-4. **Function name bug fixed** - `fetchMemberFinancials` call is correct (commit `e7d3daf`)
-
-### ❌ BROKEN Components
-1. **Phase 2 FEC enhancement** - Cannot execute because 503/538 members (93.5%) lack financial data
-2. **Committee metadata population** - PAC contributions missing `committee_type`, `designation`, `committee_id`
-3. **Enhanced tier calculations** - Falls back to legacy algorithm due to missing metadata
-4. **Sequential phase dependency** - Phase 2 blocked until ALL Phase 1 complete
-
-### 🔍 ROOT CAUSE
-The system architecture requires **sequential completion**: Phase 1 must finish ALL 538 members before Phase 2 can start. With 503 members still needing financial data and processing 1 member per batch run, **Phase 2 will never execute** under current conditions.
+```
+FEC API (Schedule A itemized contributions)
+    ↓
+Stream-and-Aggregate (no raw storage)
+    ├── Donor deduplication (first|last|state|zip)
+    ├── Amount aggregation per donor
+    └── Progress tracking in KV
+    ↓
+Final Analysis
+    ├── Unique donor count
+    ├── Nakamoto coefficient (donors to control 50%)
+    ├── Nakamoto % (coordination risk metric)
+    └── Top-10 concentration
+    ↓
+Dynamic Trust Anchor Application
+    └── Sliding itemization threshold (10-50%)
+```
 
 ---
-*Last updated: 2025-10-21*
-*This document should be updated whenever significant changes are made to the data pipeline.*
+
+## Free Tier Compliance
+
+### Cloudflare Workers
+
+- **CPU Time**: ~5-10s per run (30s limit)
+- **Subrequests**: 5-7 per run (50 limit)
+- **Status**: ✅ 17-33% usage
+
+### Cloudflare KV
+
+- **Reads**: ~2-5 per run
+- **Writes**: ~2-4 per run (~200-400/day)
+- **Monthly**: ~6,000-12,000 writes (1,000/day × 30 = 30,000 limit)
+- **Status**: ✅ 20-40% usage
+
+### FEC API
+
+- **Rate Limit**: 1,000 requests/hour
+- **Usage**: ~60 requests/hour (4 runs × 15 calls)
+- **Status**: ✅ 6% usage
+
+### Congress.gov API
+
+- **Rate Limit**: 5,000 requests/hour
+- **Usage**: 2-3 requests/day (daily sync)
+- **Status**: ✅ <0.01% usage
+
+---
+
+## Known Issues & Limitations
+
+### Non-Issues (Previously Reported, Now Resolved)
+
+1. **Phase 2 PAC Enhancement**: Working correctly, processes members incrementally
+2. **Tier Calculation**: Enhanced algorithm working with dynamic trust anchor
+3. **Bernie/Pelosi Missing**: Added to dataset, concentration analysis complete
+
+### Actual Limitations
+
+1. **Itemized Analysis Timeline**: 28 days to complete all 540 members
+   - **Why**: Free tier constraints (1,000 API calls/hour spread over many members)
+   - **Impact**: Most members won't have dynamic trust anchor for ~1 month
+   - **Acceptable**: Large-scale changes are rare, incremental processing is fine
+
+2. **Worker Naming**: "itemized-free-tier" is misleading
+   - **Should be**: "itemized-analysis" or "donor-concentration-analysis"
+   - **Impact**: Low (functional, just confusing name)
+   - **Fix**: Low priority
+
+3. **Code Duplication**: STATE_ABBREVIATIONS map exists in two workers
+   - **Why**: Workers deploy independently, no shared module system
+   - **Impact**: 50 lines duplicated
+   - **Fix**: Could extract to shared module, but acceptable trade-off
+
+---
+
+## Deployment Information
+
+### Active Workers
+
+1. **taskforce-purple-api** (data-pipeline.js)
+   - URL: https://taskforce-purple-api.dev-a4b.workers.dev
+   - Version: 0f3271e1 (2026-01-17)
+   - Cron: _/15 _ \* \* \* (every 15 minutes)
+
+2. **itemized-free-tier** (itemized-free-tier.js)
+   - URL: https://itemized-free-tier.dev-a4b.workers.dev
+   - Version: 4a7dece7 (2026-01-16)
+   - Cron: _/15 _ \* \* \* (every 15 minutes)
+
+3. **taskforce-purple (frontend)**
+   - URL: https://taskforcepurple.pages.dev
+   - Deployment: Automatic via GitHub integration
+
+### Environment Variables
+
+Required secrets (set via `wrangler secret put`):
+
+- `CONGRESS_API_KEY`: Congress.gov API key
+- `FEC_API_KEY`: OpenFEC API key
+- `UPDATE_SECRET`: Authorization for manual API endpoints
+
+---
+
+## Future Enhancements (Not Scheduled)
+
+### Potential Improvements
+
+1. **Increase itemized processing speed**
+   - Current: 1 member per 15 minutes
+   - Possible: Process 2-3 members per run (if FEC rate limit allows)
+   - Benefit: Reduce 28 days to ~10-14 days
+
+2. **Real-time voting data integration**
+   - Add bipartisan overlap tracker with actual votes
+   - Currently just tier rankings based on funding
+
+3. **Historical trend analysis**
+   - Track tier changes over multiple election cycles
+   - Show funding pattern evolution
+
+4. **State/district filtering**
+   - Allow users to filter by geography
+   - "Show me my representatives"
+
+---
+
+## Maintenance
+
+### Regular Monitoring
+
+- Check worker logs for errors: `wrangler tail taskforce-purple-api`
+- Monitor queue progress: `wrangler kv key get "priority_missing_queue" --namespace-id=... --remote`
+- Verify frontend updates: Check https://taskforcepurple.pages.dev
+
+### Expected Behavior
+
+- Priority queue: Should empty in ~17 hours (check after 24 hours)
+- Congress sync: Should remove 3 departed members on first run (check logs next day)
+- Itemized queue: Should decrease by ~1 member every 15 minutes
+
+### Error Recovery
+
+All processing is idempotent:
+
+- Failed member updates → retry on next run
+- Corrupted progress data → delete and restart from scratch
+- API rate limits → worker stops gracefully, resumes next run
+
+---
+
+## Documentation
+
+### Key Files
+
+- `.CLAUDE_CONTEXT.md`: Session log and technical deep-dives
+- `README.md`: Public-facing overview with examples
+- `DONOR_CONCENTRATION_ANALYSIS.md`: Technical spec for concentration metrics
+- `SMART_BATCHING_STRATEGY.md`: Rate limiting and queue design
+- `API_STRUCTURES.md`: API endpoint documentation
+
+### Code References
+
+- Tier calculation: `workers/data-pipeline.js:1200-1450`
+- Dynamic trust anchor: `workers/data-pipeline.js:1330-1380`
+- Congress sync: `workers/data-pipeline.js:4133-4295`
+- Itemized analysis: `workers/itemized-free-tier.js:270-630`
+
+---
+
+_This document reflects the current production state as of 2026-01-17. All systems operational._
