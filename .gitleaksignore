@@ -1,0 +1,11 @@
+# Gitleaks ignore file - false positives in documentation
+
+# KV namespace ID - public identifier, not a secret
+8318226115e2423ab5d141adfa5419f9
+
+# Documentation placeholders - example auth tokens, not real secrets
+taskforce_purple_2025_update
+Bearer taskforce_purple_2025_update
+
+# Congress.gov API key placeholder in documentation
+zVpKDAacmPcazWQxhl5fhodhB9wNUH0urLCLkkV9
