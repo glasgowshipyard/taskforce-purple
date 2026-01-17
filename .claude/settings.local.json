@@ -83,7 +83,8 @@
       "Bash(/tmp/cleanup-chunks.sh:*)",
       "Bash(gh run:*)",
       "Bash(npm run lint:*)",
-      "Bash(npm run typecheck:*)"
+      "Bash(npm run typecheck:*)",
+      "Bash(npm audit fix:*)"
     ],
     "deny": [],
     "ask": []

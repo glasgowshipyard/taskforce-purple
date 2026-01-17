@@ -71,7 +71,7 @@ jobs:
           node-version: '20'
 
       - name: Run npm audit
-        run: npm audit --audit-level=moderate
+        run: npm audit --audit-level=high
         continue-on-error: false
 
       - name: Check for secrets

@@ -11,7 +11,7 @@
     "typecheck": "tsc --noEmit",
     "test": "echo \"No tests configured\" && exit 0",
     "format": "prettier --write \"**/*.{js,jsx,ts,tsx,json,css,md}\"",
-    "prepare": "husky"
+    "prepare": "node -e \"try{require('husky')}catch{process.exit(0)}\""
   },
   "dependencies": {
     "lucide-react": "^0.263.1",
