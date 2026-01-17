@@ -3,35 +3,11 @@
 
 title = "gitleaks config"
 
-# Allowlist for documentation files with example/placeholder values
-[[rules]]
-id = "allow-kv-namespace-in-docs"
-description = "KV namespace IDs in documentation"
-regex = '''8318226115e2423ab5d141adfa5419f9'''
-[rules.allowlist]
+# Global allowlist for documentation files
+[allowlist]
+description = "Allow documentation files with example/placeholder values"
 paths = [
   '''DATABASE_REFERENCE\.md''',
   '''\.CLAUDE_CONTEXT\.md''',
   '''API_STRUCTURES\.md'''
-]
-
-[[rules]]
-id = "allow-placeholder-auth"
-description = "Placeholder auth tokens in documentation"
-regex = '''taskforce_purple_2025_update'''
-[rules.allowlist]
-paths = [
-  '''DATABASE_REFERENCE\.md''',
-  '''\.CLAUDE_CONTEXT\.md''',
-  '''API_STRUCTURES\.md'''
-]
-
-[[rules]]
-id = "allow-congress-api-example"
-description = "Congress.gov API key placeholder in documentation"
-regex = '''zVpKDAacmPcazWQxhl5fhodhB9wNUH0urLCLkkV9'''
-[rules.allowlist]
-paths = [
-  '''API_STRUCTURES\.md''',
-  '''\.CLAUDE_CONTEXT\.md'''
 ]
