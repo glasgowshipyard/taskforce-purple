@@ -80,7 +80,10 @@
       "Bash(while read key)",
       "Bash(do echo \"Deleting $key...\" wrangler kv key delete \"$key\" --namespace-id=8318226115e2423ab5d141adfa5419f9 --remote done)",
       "Bash(chmod:*)",
-      "Bash(/tmp/cleanup-chunks.sh:*)"
+      "Bash(/tmp/cleanup-chunks.sh:*)",
+      "Bash(gh run:*)",
+      "Bash(npm run lint:*)",
+      "Bash(npm run typecheck:*)"
     ],
     "deny": [],
     "ask": []

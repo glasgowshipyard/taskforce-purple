@@ -1,5 +1,16 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Search, RefreshCw, AlertCircle, TrendingUp, DollarSign, Eye, Info, HelpCircle, ChevronDown, ChevronUp } from 'lucide-react';
+import {
+  Search,
+  RefreshCw,
+  AlertCircle,
+  TrendingUp,
+  DollarSign,
+  Eye,
+  Info,
+  HelpCircle,
+  ChevronDown,
+  ChevronUp,
+} from 'lucide-react';
 import { TaskForceAPI, mockCongressData } from '../lib/api.js';
 
 export default function MembersList() {
@@ -10,11 +21,9 @@ export default function MembersList() {
   const [selectedMember, setSelectedMember] = useState(null);
   const [lastUpdated, setLastUpdated] = useState(null);
   const [useMockData, setUseMockData] = useState(false);
-  const [showTooltip, setShowTooltip] = useState(null);
   const [focusedTier, setFocusedTier] = useState('S'); // Default to S tier
   const [showPACDetails, setShowPACDetails] = useState(false);
   const [showTierExplanation, setShowTierExplanation] = useState(false);
-  const [showNerdExplanation, setShowNerdExplanation] = useState(false);
 
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
@@ -75,10 +84,11 @@ export default function MembersList() {
   };
 
   const filteredMembers = useMemo(() => {
-    return members.filter(member =>
-      member.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      member.state.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      member.party.toLowerCase().includes(searchTerm.toLowerCase())
+    return members.filter(
+      member =>
+        member.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        member.state.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        member.party.toLowerCase().includes(searchTerm.toLowerCase())
     );
   }, [members, searchTerm]);
 
@@ -89,7 +99,9 @@ export default function MembersList() {
   }, [searchTerm]);
 
   const showcaseMembers = useMemo(() => {
-    if (currentPage !== 1 || searchTerm) return null; // Only show on page 1 with no search
+    if (currentPage !== 1 || searchTerm) {
+      return null;
+    } // Only show on page 1 with no search
 
     const showcase = [];
 
@@ -130,7 +142,7 @@ export default function MembersList() {
   // Regular sorted members for normal pages
   const sortedMembers = useMemo(() => {
     const sorted = [...filteredMembers].sort((a, b) => {
-      const tierOrder = { 'S': 8, 'A': 7, 'B': 6, 'C': 5, 'D': 4, 'E': 3, 'F': 2, 'N/A': 1 };
+      const tierOrder = { S: 8, A: 7, B: 6, C: 5, D: 4, E: 3, F: 2, 'N/A': 1 };
       if (tierOrder[a.tier] !== tierOrder[b.tier]) {
         return tierOrder[b.tier] - tierOrder[a.tier];
       }
@@ -142,7 +154,9 @@ export default function MembersList() {
     });
 
     // If showing showcase page, return that
-    if (showcaseMembers) return showcaseMembers;
+    if (showcaseMembers) {
+      return showcaseMembers;
+    }
 
     // Otherwise return paginated results
     // Adjust pagination to account for showcase on page 1
@@ -170,7 +184,6 @@ export default function MembersList() {
     setCurrentPage(1);
     setDisplayedCount(ITEMS_PER_PAGE);
   }, [searchTerm]);
-
 
   if (loading) {
     return (
@@ -216,57 +229,70 @@ export default function MembersList() {
         >
           <div className="flex items-center space-x-2">
             <HelpCircle className="w-5 h-5 text-purple-600" />
-            <h3 className="text-base sm:text-lg font-semibold text-gray-900">How We Rate Your Representatives</h3>
+            <h3 className="text-base sm:text-lg font-semibold text-gray-900">
+              How We Rate Your Representatives
+            </h3>
           </div>
-          <ChevronDown className={`w-5 h-5 text-purple-600 sm:hidden transition-transform ${showTierExplanation ? 'rotate-180' : ''}`} />
+          <ChevronDown
+            className={`w-5 h-5 text-purple-600 sm:hidden transition-transform ${showTierExplanation ? 'rotate-180' : ''}`}
+          />
         </button>
 
         {/* Show on desktop, collapsible on mobile */}
         <div className={`${showTierExplanation ? 'block' : 'hidden'} sm:block mt-4`}>
           {/* Interactive Tier Grid */}
           <div className="grid grid-cols-7 gap-1 sm:gap-2 mb-4 sm:mb-6">
-          {['S', 'A', 'B', 'C', 'D', 'E', 'F'].map((tier) => (
-            <button
-              key={tier}
-              onClick={() => setFocusedTier(tier)}
-              className={`rounded-lg p-2 sm:p-3 text-center transition-all duration-300 transform hover:scale-105 focus:outline-none cursor-pointer ${
-                TaskForceAPI.getTierColor(tier)
-              } ${
-                focusedTier === tier
-                  ? 'ring-2 sm:ring-4 ring-purple-400 ring-opacity-60 shadow-lg scale-105'
-                  : 'hover:shadow-md'
-              }`}
-            >
-              <div className="text-base sm:text-lg font-bold mb-0 sm:mb-1">{tier}</div>
-              <div className="text-[10px] sm:text-xs opacity-90 hidden sm:block">
-                {TaskForceAPI.getTierDescription(tier)}
-              </div>
-            </button>
-          ))}
-        </div>
+            {['S', 'A', 'B', 'C', 'D', 'E', 'F'].map(tier => (
+              <button
+                key={tier}
+                onClick={() => setFocusedTier(tier)}
+                className={`rounded-lg p-2 sm:p-3 text-center transition-all duration-300 transform hover:scale-105 focus:outline-none cursor-pointer ${TaskForceAPI.getTierColor(
+                  tier
+                )} ${
+                  focusedTier === tier
+                    ? 'ring-2 sm:ring-4 ring-purple-400 ring-opacity-60 shadow-lg scale-105'
+                    : 'hover:shadow-md'
+                }`}
+              >
+                <div className="text-base sm:text-lg font-bold mb-0 sm:mb-1">{tier}</div>
+                <div className="text-[10px] sm:text-xs opacity-90 hidden sm:block">
+                  {TaskForceAPI.getTierDescription(tier)}
+                </div>
+              </button>
+            ))}
+          </div>
 
           {/* Dynamic Tier Explanation */}
           <div className="bg-white rounded-lg p-3 sm:p-4 border-l-4 border-purple-400 shadow-sm">
             <div className="flex items-center space-x-2 mb-2 sm:mb-3">
-              <div className={`w-6 h-6 sm:w-8 sm:h-8 rounded-full flex items-center justify-center text-xs sm:text-sm font-bold ${TaskForceAPI.getTierColor(focusedTier)}`}>
+              <div
+                className={`w-6 h-6 sm:w-8 sm:h-8 rounded-full flex items-center justify-center text-xs sm:text-sm font-bold ${TaskForceAPI.getTierColor(focusedTier)}`}
+              >
                 {focusedTier}
               </div>
               <h4 className="font-semibold text-gray-900 text-sm sm:text-base">
                 {focusedTier} Tier: {TaskForceAPI.getTierDescription(focusedTier)}
               </h4>
             </div>
-            <p className="text-xs sm:text-sm text-gray-700">{TaskForceAPI.getTierExplanation(focusedTier)}</p>
+            <p className="text-xs sm:text-sm text-gray-700">
+              {TaskForceAPI.getTierExplanation(focusedTier)}
+            </p>
 
-          {/* Show PAC explanation for lower tiers */}
-          {(focusedTier === 'C' || focusedTier === 'D' || focusedTier === 'E' || focusedTier === 'F') && (
-            <div className="mt-3 p-3 bg-red-50 rounded-lg border border-red-200">
-              <p className="text-sm text-red-800">
-                <strong>What are PACs?</strong> {TaskForceAPI.getPACExplanation()}
-              </p>
-            </div>
-          )}
+            {/* Show PAC explanation for lower tiers */}
+            {(focusedTier === 'C' ||
+              focusedTier === 'D' ||
+              focusedTier === 'E' ||
+              focusedTier === 'F') && (
+              <div className="mt-3 p-3 bg-red-50 rounded-lg border border-red-200">
+                <p className="text-sm text-red-800">
+                  <strong>What are PACs?</strong> {TaskForceAPI.getPACExplanation()}
+                </p>
+              </div>
+            )}
 
-          <p className="text-xs text-gray-600 mt-3">💡 Click any representative below to see their detailed funding breakdown.</p>
+            <p className="text-xs text-gray-600 mt-3">
+              💡 Click any representative below to see their detailed funding breakdown.
+            </p>
           </div>
         </div>
       </div>
@@ -276,19 +302,28 @@ export default function MembersList() {
         <div className="bg-white rounded-lg shadow-lg p-6" id="member-profile">
           <div className="flex items-start justify-between mb-6">
             <div className="flex items-center space-x-4">
-              <div className={`w-16 h-16 flex-shrink-0 rounded-full flex items-center justify-center text-2xl font-bold ${TaskForceAPI.getTierColor(selectedMember.tier)}`}>
+              <div
+                className={`w-16 h-16 flex-shrink-0 rounded-full flex items-center justify-center text-2xl font-bold ${TaskForceAPI.getTierColor(selectedMember.tier)}`}
+              >
                 {selectedMember.tier}
               </div>
               <div>
                 <h2 className="text-2xl font-bold text-gray-900">{selectedMember.name}</h2>
                 <p className="text-gray-600">
-                  {selectedMember.party} - {selectedMember.state} {selectedMember.district && `(${selectedMember.district})`} | {selectedMember.chamber}
+                  {selectedMember.party} - {selectedMember.state}{' '}
+                  {selectedMember.district && `(${selectedMember.district})`} |{' '}
+                  {selectedMember.chamber}
                 </p>
-                <p className="text-sm text-gray-500 mt-1">{TaskForceAPI.getTierDescription(selectedMember.tier)}</p>
-                <p className="text-sm text-purple-600 mt-2 italic">{TaskForceAPI.getTierExplanation(selectedMember.tier)}</p>
+                <p className="text-sm text-gray-500 mt-1">
+                  {TaskForceAPI.getTierDescription(selectedMember.tier)}
+                </p>
+                <p className="text-sm text-purple-600 mt-2 italic">
+                  {TaskForceAPI.getTierExplanation(selectedMember.tier)}
+                </p>
                 {selectedMember.lastUpdated && (
                   <p className="text-xs text-gray-400 mt-1">
-                    Data last updated: {new Date(selectedMember.lastUpdated).toLocaleDateString('en-US', {
+                    Data last updated:{' '}
+                    {new Date(selectedMember.lastUpdated).toLocaleDateString('en-US', {
                       year: 'numeric',
                       month: 'short',
                       day: 'numeric',
@@ -312,7 +347,11 @@ export default function MembersList() {
                 <Info className="w-5 h-5 text-blue-600 mt-0.5 flex-shrink-0" />
                 <div className="text-blue-800 text-sm">
                   <p className="font-medium">No Recent Campaign Finance Data</p>
-                  <p>This could mean they're not up for re-election in 2024, newly elected, or we haven't found their FEC committee records yet. We're working to expand our data coverage.</p>
+                  <p>
+                    This could mean they're not up for re-election in 2024, newly elected, or we
+                    haven't found their FEC committee records yet. We're working to expand our data
+                    coverage.
+                  </p>
                 </div>
               </div>
             </div>
@@ -324,12 +363,31 @@ export default function MembersList() {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm font-medium text-gray-600 mb-1">Individual Funding Score</p>
-                  <p className="text-5xl font-bold text-green-600">{selectedMember.individualFundingPercent}%</p>
+                  <p className="text-5xl font-bold text-green-600">
+                    {selectedMember.individualFundingPercent}%
+                  </p>
                   <p className="text-sm text-gray-600 mt-2">
-                    People power from <span className="font-semibold">{selectedMember.grassrootsPercent}% grassroots</span> + <span className="font-semibold">{selectedMember.totalRaised > 0 && selectedMember.largeDonorDonations !== undefined ? ((selectedMember.largeDonorDonations / selectedMember.totalRaised) * 100).toFixed(0) : 0}% itemized</span> donations
+                    People power from{' '}
+                    <span className="font-semibold">
+                      {selectedMember.grassrootsPercent}% grassroots
+                    </span>{' '}
+                    +{' '}
+                    <span className="font-semibold">
+                      {selectedMember.totalRaised > 0 &&
+                      selectedMember.largeDonorDonations !== undefined
+                        ? (
+                            (selectedMember.largeDonorDonations / selectedMember.totalRaised) *
+                            100
+                          ).toFixed(0)
+                        : 0}
+                      % itemized
+                    </span>{' '}
+                    donations
                   </p>
                 </div>
-                <div className={`w-24 h-24 rounded-full flex items-center justify-center text-3xl font-bold ${TaskForceAPI.getTierColor(selectedMember.tier)}`}>
+                <div
+                  className={`w-24 h-24 rounded-full flex items-center justify-center text-3xl font-bold ${TaskForceAPI.getTierColor(selectedMember.tier)}`}
+                >
                   {selectedMember.tier}
                 </div>
               </div>
@@ -338,20 +396,40 @@ export default function MembersList() {
 
           {/* Financial breakdown */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-            <div className={`p-4 rounded-lg ${selectedMember.grassrootsPercent <= 15 ? 'bg-red-50' : 'bg-green-50'}`}>
+            <div
+              className={`p-4 rounded-lg ${selectedMember.grassrootsPercent <= 15 ? 'bg-red-50' : 'bg-green-50'}`}
+            >
               <div className="flex items-center space-x-2 mb-2">
-                <TrendingUp className={`w-5 h-5 ${selectedMember.grassrootsPercent <= 15 ? 'text-red-600' : 'text-green-600'}`} />
-                <span className={`font-semibold text-xs ${selectedMember.grassrootsPercent <= 15 ? 'text-red-800' : 'text-green-800'}`}>Grassroots (&lt;$200)</span>
+                <TrendingUp
+                  className={`w-5 h-5 ${selectedMember.grassrootsPercent <= 15 ? 'text-red-600' : 'text-green-600'}`}
+                />
+                <span
+                  className={`font-semibold text-xs ${selectedMember.grassrootsPercent <= 15 ? 'text-red-800' : 'text-green-800'}`}
+                >
+                  Grassroots (&lt;$200)
+                </span>
               </div>
-              <div className={`text-2xl font-bold ${selectedMember.grassrootsPercent <= 15 ? 'text-red-600' : 'text-green-600'}`}>
+              <div
+                className={`text-2xl font-bold ${selectedMember.grassrootsPercent <= 15 ? 'text-red-600' : 'text-green-600'}`}
+              >
                 {selectedMember.grassrootsPercent}%
                 {selectedMember.hasEnhancedData && selectedMember.grassrootsPACTypes && (
-                  <span className={`text-sm font-normal ${selectedMember.grassrootsPercent <= 15 ? 'text-red-600' : 'text-green-600'}`}>*</span>
+                  <span
+                    className={`text-sm font-normal ${selectedMember.grassrootsPercent <= 15 ? 'text-red-600' : 'text-green-600'}`}
+                  >
+                    *
+                  </span>
                 )}
               </div>
-              <div className={`text-sm ${selectedMember.grassrootsPercent <= 15 ? 'text-red-700' : 'text-green-700'}`}>{TaskForceAPI.formatCurrency(selectedMember.grassrootsDonations)}</div>
+              <div
+                className={`text-sm ${selectedMember.grassrootsPercent <= 15 ? 'text-red-700' : 'text-green-700'}`}
+              >
+                {TaskForceAPI.formatCurrency(selectedMember.grassrootsDonations)}
+              </div>
               {selectedMember.hasEnhancedData && selectedMember.grassrootsPACTypes && (
-                <div className={`text-xs mt-1 ${selectedMember.grassrootsPercent <= 15 ? 'text-red-600' : 'text-green-600'}`}>
+                <div
+                  className={`text-xs mt-1 ${selectedMember.grassrootsPercent <= 15 ? 'text-red-600' : 'text-green-600'}`}
+                >
                   *includes {selectedMember.grassrootsPACTypes.join(', ')}
                 </div>
               )}
@@ -360,15 +438,18 @@ export default function MembersList() {
             <div className="bg-orange-50 p-4 rounded-lg">
               <div className="flex items-center space-x-2 mb-2">
                 <DollarSign className="w-5 h-5 text-orange-600" />
-                <span className="font-semibold text-xs text-orange-800">Large Donors (&gt;$200)</span>
+                <span className="font-semibold text-xs text-orange-800">
+                  Large Donors (&gt;$200)
+                </span>
               </div>
               <div className="text-2xl font-bold text-orange-600">
                 {selectedMember.totalRaised > 0 && selectedMember.largeDonorDonations !== undefined
                   ? `${((selectedMember.largeDonorDonations / selectedMember.totalRaised) * 100).toFixed(1)}%`
-                  : '0%'
-                }
+                  : '0%'}
               </div>
-              <div className="text-sm text-orange-700">{TaskForceAPI.formatCurrency(selectedMember.largeDonorDonations || 0)}</div>
+              <div className="text-sm text-orange-700">
+                {TaskForceAPI.formatCurrency(selectedMember.largeDonorDonations || 0)}
+              </div>
             </div>
 
             <div className="bg-red-50 p-4 rounded-lg">
@@ -379,10 +460,11 @@ export default function MembersList() {
               <div className="text-2xl font-bold text-red-600">
                 {selectedMember.totalRaised > 0
                   ? `${((selectedMember.pacMoney / selectedMember.totalRaised) * 100).toFixed(1)}%`
-                  : '0%'
-                }
+                  : '0%'}
               </div>
-              <div className="text-sm text-red-700">{TaskForceAPI.formatCurrency(selectedMember.pacMoney)}</div>
+              <div className="text-sm text-red-700">
+                {TaskForceAPI.formatCurrency(selectedMember.pacMoney)}
+              </div>
             </div>
 
             <div className="bg-purple-50 p-4 rounded-lg">
@@ -390,19 +472,30 @@ export default function MembersList() {
                 <Eye className="w-5 h-5 text-purple-600" />
                 <span className="font-semibold text-xs text-purple-800">Total Raised</span>
               </div>
-              <div className="text-2xl font-bold text-purple-600">{TaskForceAPI.formatCurrency(selectedMember.totalRaised)}</div>
-              <div className="text-sm text-purple-700">{selectedMember.dataCycle || 2024} Election Cycle</div>
+              <div className="text-2xl font-bold text-purple-600">
+                {TaskForceAPI.formatCurrency(selectedMember.totalRaised)}
+              </div>
+              <div className="text-sm text-purple-700">
+                {selectedMember.dataCycle || 2024} Election Cycle
+              </div>
             </div>
           </div>
 
           {/* Funding Breakdown Explanation */}
           {selectedMember.totalRaised > 0 && (
             <div className="mt-4 p-4 bg-gray-50 rounded-lg border border-gray-300">
-              <h4 className="font-semibold text-gray-900 mb-3">How Your Representative's Score is Calculated</h4>
+              <h4 className="font-semibold text-gray-900 mb-3">
+                How Your Representative's Score is Calculated
+              </h4>
               <div className="space-y-2 text-sm text-gray-700">
                 <div className="flex items-start space-x-2">
                   <span className="font-semibold text-green-700 min-w-[120px]">Grassroots:</span>
-                  <span>All donations under $200{selectedMember.grassrootsPACTypes && selectedMember.grassrootsPACTypes.length > 0 && ` + ${selectedMember.grassrootsPACTypes.join(', ')} (85% discount applied)`}</span>
+                  <span>
+                    All donations under $200
+                    {selectedMember.grassrootsPACTypes &&
+                      selectedMember.grassrootsPACTypes.length > 0 &&
+                      ` + ${selectedMember.grassrootsPACTypes.join(', ')} (85% discount applied)`}
+                  </span>
                 </div>
                 <div className="flex items-start space-x-2">
                   <span className="font-semibold text-orange-700 min-w-[120px]">Large Donors:</span>
@@ -410,12 +503,20 @@ export default function MembersList() {
                 </div>
                 <div className="flex items-start space-x-2">
                   <span className="font-semibold text-red-700 min-w-[120px]">PAC Money:</span>
-                  <span>Corporate, union, and special interest PAC contributions (weighted by transparency: Super PACs 2.0x, Leadership/Lobbyist PACs 1.5x)</span>
+                  <span>
+                    Corporate, union, and special interest PAC contributions (weighted by
+                    transparency: Super PACs 2.0x, Leadership/Lobbyist PACs 1.5x)
+                  </span>
                 </div>
                 {selectedMember.individualFundingPercent && (
                   <div className="mt-3 pt-3 border-t border-gray-300">
                     <p className="text-xs text-gray-600">
-                      <span className="font-semibold">Individual Funding Score ({selectedMember.individualFundingPercent}%):</span> Grassroots + Large Donors, with penalties applied when few donors can coordinate to control funding (coordination risk) or concerning PAC funding patterns.
+                      <span className="font-semibold">
+                        Individual Funding Score ({selectedMember.individualFundingPercent}%):
+                      </span>{' '}
+                      Grassroots + Large Donors, with penalties applied when few donors can
+                      coordinate to control funding (coordination risk) or concerning PAC funding
+                      patterns.
                     </p>
                   </div>
                 )}
@@ -428,15 +529,21 @@ export default function MembersList() {
             <h4 className="font-semibold text-blue-900 mb-2">Why This Tier?</h4>
             <div className="text-sm text-blue-800 space-y-2">
               <p>
-                Tiers distinguish <span className="font-semibold text-green-700">individual support</span> (grassroots + itemized donations) from <span className="font-semibold text-red-700">institutional capture</span> (PAC money).
+                Tiers distinguish{' '}
+                <span className="font-semibold text-green-700">individual support</span> (grassroots
+                + itemized donations) from{' '}
+                <span className="font-semibold text-red-700">institutional capture</span> (PAC
+                money).
               </p>
               <p className="text-xs mt-2">
-                Based on <span className="text-green-700">individual funding %</span> (grassroots &lt;$200 + itemized &gt;$200), with penalties for donor coordination risk (when few donors can organize to control funding) and PAC transparency weights.
+                Based on <span className="text-green-700">individual funding %</span> (grassroots
+                &lt;$200 + itemized &gt;$200), with penalties for donor coordination risk (when few
+                donors can organize to control funding) and PAC transparency weights.
               </p>
               <a
                 href="#how-tiers-work"
                 className="text-xs text-blue-600 hover:text-blue-800 underline inline-block mt-2"
-                onClick={(e) => {
+                onClick={e => {
                   e.preventDefault();
                   const footer = document.getElementById('how-tiers-work');
                   const button = footer?.querySelector('button');
@@ -461,8 +568,15 @@ export default function MembersList() {
                 onClick={() => setShowPACDetails(!showPACDetails)}
                 className="flex items-center space-x-2 text-sm font-medium text-purple-600 hover:text-purple-800 transition-colors"
               >
-                {showPACDetails ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
-                <span>{showPACDetails ? 'Hide' : 'Show'} Detailed PAC Breakdown ({selectedMember.pacContributions.length} contributions)</span>
+                {showPACDetails ? (
+                  <ChevronUp className="w-4 h-4" />
+                ) : (
+                  <ChevronDown className="w-4 h-4" />
+                )}
+                <span>
+                  {showPACDetails ? 'Hide' : 'Show'} Detailed PAC Breakdown (
+                  {selectedMember.pacContributions.length} contributions)
+                </span>
               </button>
 
               {showPACDetails && (
@@ -473,13 +587,18 @@ export default function MembersList() {
                     selectedMember.pacContributions.map((pac, index) => {
                       const category = TaskForceAPI.categorizePACByName(pac.pacName);
                       return (
-                        <div key={index} className="flex items-center justify-between py-3 border-b border-gray-200 last:border-b-0">
+                        <div
+                          key={index}
+                          className="flex items-center justify-between py-3 border-b border-gray-200 last:border-b-0"
+                        >
                           <div className="flex-1">
                             <div className="flex items-center space-x-3">
                               <div>
                                 <h5 className="font-medium text-gray-900">{pac.pacName}</h5>
                                 <div className="flex items-center space-x-2 mt-1">
-                                  <span className={`text-xs px-2 py-1 rounded-full border ${category.color}`}>
+                                  <span
+                                    className={`text-xs px-2 py-1 rounded-full border ${category.color}`}
+                                  >
                                     {category.industry}
                                   </span>
                                   <span className="text-xs text-gray-500">{pac.date}</span>
@@ -508,7 +627,9 @@ export default function MembersList() {
                             </div>
                           </div>
                           <div className="text-right">
-                            <div className="font-semibold text-gray-900">{TaskForceAPI.formatCurrency(pac.amount)}</div>
+                            <div className="font-semibold text-gray-900">
+                              {TaskForceAPI.formatCurrency(pac.amount)}
+                            </div>
                             <div className="text-xs text-gray-500">
                               {selectedMember.totalRaised > 0
                                 ? `${((pac.amount / selectedMember.totalRaised) * 100).toFixed(1)}% of total`
@@ -521,22 +642,29 @@ export default function MembersList() {
                   ) : (
                     <div className="text-center py-8 text-gray-500">
                       <p>No detailed PAC contribution data available</p>
-                      <p className="text-xs mt-1">This could mean limited PAC funding or data collection in progress</p>
+                      <p className="text-xs mt-1">
+                        This could mean limited PAC funding or data collection in progress
+                      </p>
                     </div>
                   )}
 
                   <div className="mt-4 p-3 bg-blue-50 rounded border border-blue-200">
                     <p className="text-sm text-blue-800">
-                      <strong>Reading FEC Committee Codes:</strong><br />
+                      <strong>Reading FEC Committee Codes:</strong>
+                      <br />
                       <strong className="text-blue-900 mt-1 block">Types:</strong>
                       <span className="font-mono">O</span>=Super PAC (2.0x penalty),
                       <span className="font-mono">P</span>=Candidate Committee (85% discount),
-                      Regular PACs (1.0x penalty)<br />
+                      Regular PACs (1.0x penalty)
+                      <br />
                       <strong className="text-blue-900 mt-1 block">Designations:</strong>
                       <span className="font-mono">D</span>=Leadership PAC (1.5x penalty),
                       <span className="font-mono">B</span>=Lobbyist PAC (1.5x penalty),
-                      <span className="font-mono">A/P</span>=Authorized (85% discount)<br />
-                      <strong className="text-blue-900 mt-1 block">Industry labels</strong> (Financial Services, Labor, etc.) are for display only - penalties use FEC codes.
+                      <span className="font-mono">A/P</span>=Authorized (85% discount)
+                      <br />
+                      <strong className="text-blue-900 mt-1 block">Industry labels</strong>{' '}
+                      (Financial Services, Labor, etc.) are for display only - penalties use FEC
+                      codes.
                     </p>
                   </div>
                 </div>
@@ -568,7 +696,9 @@ export default function MembersList() {
       <div className="bg-white rounded-lg shadow-lg p-6">
         <div className="flex items-center justify-between mb-6">
           <div>
-            <h2 className="text-2xl font-bold text-gray-900 font-display">Congressional Tier List</h2>
+            <h2 className="text-2xl font-bold text-gray-900 font-display">
+              Congressional Tier List
+            </h2>
             {lastUpdated && (
               <p className="text-sm text-gray-500 mt-1">
                 Last updated: {new Date(lastUpdated).toLocaleDateString()}
@@ -583,7 +713,7 @@ export default function MembersList() {
                 placeholder="Search members..."
                 className="pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                 value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
+                onChange={e => setSearchTerm(e.target.value)}
               />
             </div>
             <button
@@ -600,15 +730,16 @@ export default function MembersList() {
         <div className="mb-4">
           {showcaseMembers && !searchTerm ? (
             <div className="bg-gradient-to-r from-purple-50 to-blue-50 border border-purple-200 rounded-lg p-4">
-              <h3 className="font-semibold text-purple-900 mb-2">Top 20 Representatives Showcase</h3>
+              <h3 className="font-semibold text-purple-900 mb-2">
+                Top 20 Representatives Showcase
+              </h3>
               <p className="text-sm text-purple-700">
-                Featuring the most grassroots-funded representatives in Congress - those most accountable to individual constituents like you, not special interests.
+                Featuring the most grassroots-funded representatives in Congress - those most
+                accountable to individual constituents like you, not special interests.
               </p>
             </div>
           ) : searchTerm ? (
-            <div className="text-sm text-gray-600">
-              Showing search results for "{searchTerm}"
-            </div>
+            <div className="text-sm text-gray-600">Showing search results for "{searchTerm}"</div>
           ) : (
             <div className="text-sm text-gray-600">
               Page {currentPage} of {totalPages} • Showing all Congress members
@@ -617,19 +748,24 @@ export default function MembersList() {
         </div>
 
         <div className="grid gap-2">
-          {sortedMembers.map((member) => (
+          {sortedMembers.map(member => (
             <div
               key={member.bioguideId}
               className="flex items-center space-x-3 sm:space-x-4 p-3 sm:p-4 bg-gray-50 rounded-lg hover:bg-gray-100 cursor-pointer transition-colors"
               onClick={() => setSelectedMember(member)}
             >
-              <div className={`w-10 h-10 sm:w-12 sm:h-12 flex-shrink-0 rounded-full flex items-center justify-center text-lg sm:text-xl font-bold ${TaskForceAPI.getTierColor(member.tier)}`}>
+              <div
+                className={`w-10 h-10 sm:w-12 sm:h-12 flex-shrink-0 rounded-full flex items-center justify-center text-lg sm:text-xl font-bold ${TaskForceAPI.getTierColor(member.tier)}`}
+              >
                 {member.tier}
               </div>
               <div className="min-w-0 flex-1">
-                <h3 className="font-semibold text-gray-900 text-sm sm:text-base truncate">{member.name}</h3>
+                <h3 className="font-semibold text-gray-900 text-sm sm:text-base truncate">
+                  {member.name}
+                </h3>
                 <p className="text-xs sm:text-sm text-gray-600 truncate">
-                  {member.party} - {member.state} {member.district && `(${member.district})`} | {member.chamber}
+                  {member.party} - {member.state} {member.district && `(${member.district})`} |{' '}
+                  {member.chamber}
                 </p>
               </div>
               <div className="text-right flex-shrink-0">
@@ -645,7 +781,8 @@ export default function MembersList() {
                     </div>
                     <div className="text-[10px] sm:text-sm text-gray-500">Grassroots</div>
                   </div>
-                )}</div>
+                )}
+              </div>
             </div>
           ))}
         </div>
@@ -711,7 +848,11 @@ export default function MembersList() {
                       </button>
                     );
                     if (startPage > 2) {
-                      pages.push(<span key="ellipsis1" className="text-gray-500">...</span>);
+                      pages.push(
+                        <span key="ellipsis1" className="text-gray-500">
+                          ...
+                        </span>
+                      );
                     }
                   }
 
@@ -738,7 +879,11 @@ export default function MembersList() {
                   // Show last page if not in range
                   if (endPage < totalPages) {
                     if (endPage < totalPages - 1) {
-                      pages.push(<span key="ellipsis2" className="text-gray-500">...</span>);
+                      pages.push(
+                        <span key="ellipsis2" className="text-gray-500">
+                          ...
+                        </span>
+                      );
                     }
                     pages.push(
                       <button
@@ -771,16 +916,13 @@ export default function MembersList() {
             )}
 
             <div className="text-sm text-gray-500">
-              {showcaseMembers ? (
-                "Showing top 20 representatives"
-              ) : (
-                `Showing ${sortedMembers.length} of ${filteredMembers.length} members`
-              )}
+              {showcaseMembers
+                ? 'Showing top 20 representatives'
+                : `Showing ${sortedMembers.length} of ${filteredMembers.length} members`}
             </div>
           </div>
         )}
       </div>
-
     </div>
   );
 }

@@ -124,17 +124,6 @@ export default function App() {
     </div>
   );
 
-  const renderProfile = () => (
-    <div className="bg-white rounded-lg shadow-lg p-8 text-center">
-      <Users className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-      <h3 className="text-lg font-semibold text-gray-900 mb-2">Member Profiles</h3>
-      <p className="text-gray-600">
-        Detailed member profiles are available in the Leaderboard tab. Click on any member to view
-        their funding breakdown.
-      </p>
-    </div>
-  );
-
   return (
     <div className="min-h-screen bg-gray-100">
       <header className="bg-gradient-to-r from-red-500 via-purple-600 to-blue-600 shadow-lg">

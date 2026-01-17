@@ -16,7 +16,6 @@
  */
 
 const PAGES_PER_RUN = 5; // 5 pages × 2.5s = 12.5s + overhead, fits in 30s wall-clock limit
-const TRANSACTIONS_PER_CHUNK = 1000; // ~1.5 MB per chunk, well under 25 MB KV limit
 
 export default {
   async fetch(request, env) {
@@ -30,12 +29,15 @@ export default {
       return getStatus(env);
     }
 
-    return new Response('Itemized Analysis Prototype\n\nEndpoints:\n  /analyze - Process next chunk for Sanders + Pelosi\n  /status - Check progress\n\nCron: Running every 2 minutes automatically', {
-      headers: { 'Content-Type': 'text/plain' }
-    });
+    return new Response(
+      'Itemized Analysis Prototype\n\nEndpoints:\n  /analyze - Process next chunk for Sanders + Pelosi\n  /status - Check progress\n\nCron: Running every 2 minutes automatically',
+      {
+        headers: { 'Content-Type': 'text/plain' },
+      }
+    );
   },
 
-  async scheduled(event, env, ctx) {
+  async scheduled(event, env, _ctx) {
     // Cron trigger - process next chunk automatically
     console.log('🕐 Cron trigger fired:', new Date().toISOString());
 
@@ -50,13 +52,13 @@ export default {
     } catch (error) {
       console.error('❌ Cron processing failed:', error.message);
     }
-  }
+  },
 };
 
 async function getStatus(env) {
   const members = [
     { name: 'Bernie Sanders', bioguideId: 'S000033' },
-    { name: 'Nancy Pelosi', bioguideId: 'P000197' }
+    { name: 'Nancy Pelosi', bioguideId: 'P000197' },
   ];
 
   const status = {};
@@ -68,22 +70,27 @@ async function getStatus(env) {
     if (progressData) {
       const progress = JSON.parse(progressData);
       // Don't include transaction data (old: transactions array, new: transactionBuffer)
-      const { transactions, transactionBuffer, ...statusInfo } = progress;
+      // eslint-disable-next-line no-unused-vars
+      const {
+        transactions: _transactions,
+        transactionBuffer: _transactionBuffer,
+        ...statusInfo
+      } = progress;
       status[member.bioguideId] = {
         name: member.name,
         status: progress.complete ? 'complete' : 'in_progress',
-        ...statusInfo
+        ...statusInfo,
       };
     } else {
       status[member.bioguideId] = {
         name: member.name,
-        status: 'not_started'
+        status: 'not_started',
       };
     }
   }
 
   return new Response(JSON.stringify(status, null, 2), {
-    headers: { 'Content-Type': 'application/json' }
+    headers: { 'Content-Type': 'application/json' },
   });
 }
 
@@ -92,7 +99,7 @@ async function analyzeMembers(env) {
   const results = {};
   const executionLog = [];
 
-  const log = (msg) => {
+  const log = msg => {
     console.log(msg);
     executionLog.push(`${new Date().toISOString()} - ${msg}`);
   };
@@ -104,7 +111,7 @@ async function analyzeMembers(env) {
   // Hardcoded for prototype
   const members = [
     { name: 'Bernie Sanders', bioguideId: 'S000033' },
-    { name: 'Nancy Pelosi', bioguideId: 'P000197' }
+    { name: 'Nancy Pelosi', bioguideId: 'P000197' },
   ];
 
   let totalPagesProcessed = 0;
@@ -122,17 +129,20 @@ async function analyzeMembers(env) {
         success: true,
         ...result,
         processingTimeMs: processingTime,
-        processingTimeSeconds: Math.round(processingTime / 1000)
+        processingTimeSeconds: Math.round(processingTime / 1000),
       };
 
       totalPagesProcessed += result.pagesProcessedThisRun || 0;
 
       if (result.complete) {
-        log(`✅ ${member.name} COMPLETE: ${result.totalTransactions} transactions, ${result.analysis?.uniqueDonors || 'N/A'} unique donors`);
+        log(
+          `✅ ${member.name} COMPLETE: ${result.totalTransactions} transactions, ${result.analysis?.uniqueDonors || 'N/A'} unique donors`
+        );
       } else {
-        log(`⏸️ ${member.name} in progress: ${result.totalTransactions} transactions collected, ${result.runsCompleted} runs completed`);
+        log(
+          `⏸️ ${member.name} in progress: ${result.totalTransactions} transactions collected, ${result.runsCompleted} runs completed`
+        );
       }
-
     } catch (error) {
       const processingTime = Date.now() - memberStartTime;
       console.error(`❌ ${member.name} failed:`, error);
@@ -142,7 +152,7 @@ async function analyzeMembers(env) {
         name: member.name,
         success: false,
         error: error.message,
-        processingTimeMs: processingTime
+        processingTimeMs: processingTime,
       };
     }
 
@@ -154,27 +164,34 @@ async function analyzeMembers(env) {
   }
 
   const totalTime = Date.now() - startTime;
-  log(`\n🏁 Chunk complete: ${totalTime}ms (${Math.round(totalTime/1000)}s)`);
+  log(`\n🏁 Chunk complete: ${totalTime}ms (${Math.round(totalTime / 1000)}s)`);
   log(`📄 Pages processed this run: ${totalPagesProcessed}`);
 
   // Check overall status
   const allComplete = await checkAllComplete(env, members);
 
-  return new Response(JSON.stringify({
-    allComplete,
-    results,
-    summary: {
-      totalProcessingTimeMs: totalTime,
-      totalProcessingTimeSeconds: Math.round(totalTime / 1000),
-      pagesProcessedThisRun: totalPagesProcessed,
-      allMembersComplete: allComplete
-    },
-    executionLog,
-    timestamp: new Date().toISOString(),
-    nextAction: allComplete ? '✅ All members complete!' : '▶️ Run /analyze again to continue'
-  }, null, 2), {
-    headers: { 'Content-Type': 'application/json' }
-  });
+  return new Response(
+    JSON.stringify(
+      {
+        allComplete,
+        results,
+        summary: {
+          totalProcessingTimeMs: totalTime,
+          totalProcessingTimeSeconds: Math.round(totalTime / 1000),
+          pagesProcessedThisRun: totalPagesProcessed,
+          allMembersComplete: allComplete,
+        },
+        executionLog,
+        timestamp: new Date().toISOString(),
+        nextAction: allComplete ? '✅ All members complete!' : '▶️ Run /analyze again to continue',
+      },
+      null,
+      2
+    ),
+    {
+      headers: { 'Content-Type': 'application/json' },
+    }
+  );
 }
 
 async function checkAllComplete(env, members) {
@@ -182,10 +199,14 @@ async function checkAllComplete(env, members) {
     const progressKey = `itemized_progress:${member.bioguideId}`;
     const progressData = await env.MEMBER_DATA.get(progressKey);
 
-    if (!progressData) return false;
+    if (!progressData) {
+      return false;
+    }
 
     const progress = JSON.parse(progressData);
-    if (!progress.complete) return false;
+    if (!progress.complete) {
+      return false;
+    }
   }
   return true;
 }
@@ -203,11 +224,21 @@ async function fetchItemizedTransactionsChunk(bioguideId, env, log) {
     log(`  📂 Resuming: ${progress.totalTransactions} transactions collected so far`);
 
     // Initialize fields that may not exist in old progress data
-    if (progress.totalTransactions === undefined) progress.totalTransactions = 0;
-    if (progress.totalChunks === undefined) progress.totalChunks = 0;
-    if (progress.runsCompleted === undefined) progress.runsCompleted = 0;
-    if (progress.lastIndex === undefined) progress.lastIndex = null;
-    if (progress.lastContributionReceiptDate === undefined) progress.lastContributionReceiptDate = null;
+    if (progress.totalTransactions === undefined) {
+      progress.totalTransactions = 0;
+    }
+    if (progress.totalChunks === undefined) {
+      progress.totalChunks = 0;
+    }
+    if (progress.runsCompleted === undefined) {
+      progress.runsCompleted = 0;
+    }
+    if (progress.lastIndex === undefined) {
+      progress.lastIndex = null;
+    }
+    if (progress.lastContributionReceiptDate === undefined) {
+      progress.lastContributionReceiptDate = null;
+    }
 
     if (progress.complete) {
       log(`  ✅ Already complete`);
@@ -216,14 +247,14 @@ async function fetchItemizedTransactionsChunk(bioguideId, env, log) {
         totalTransactions: progress.totalTransactions,
         totalChunks: progress.totalChunks,
         analysis: progress.analysis,
-        pagesProcessedThisRun: 0
+        pagesProcessedThisRun: 0,
       };
     }
   } else {
     // Starting fresh - need to get committee ID
     const memberInfo = {
-      'S000033': { name: 'Sanders', office: 'S', state: 'VT' },
-      'P000197': { name: 'Pelosi', office: 'H', state: 'CA' }
+      S000033: { name: 'Sanders', office: 'S', state: 'VT' },
+      P000197: { name: 'Pelosi', office: 'H', state: 'CA' },
     };
 
     const info = memberInfo[bioguideId];
@@ -255,7 +286,7 @@ async function fetchItemizedTransactionsChunk(bioguideId, env, log) {
       lastContributionReceiptDate: null, // Cursor for pagination
       transactionBuffer: [], // Temporary buffer for current chunk
       startedAt: new Date().toISOString(),
-      complete: false
+      complete: false,
     };
   }
 
@@ -281,7 +312,8 @@ async function fetchItemizedTransactionsChunk(bioguideId, env, log) {
     const pageStartTime = Date.now();
 
     // Build URL with cursor-based pagination
-    let url = `https://api.open.fec.gov/v1/schedules/schedule_a/?` +
+    let url =
+      `https://api.open.fec.gov/v1/schedules/schedule_a/?` +
       `api_key=${apiKey}` +
       `&committee_id=${committeeId}` +
       `&contributor_type=individual` +
@@ -290,14 +322,15 @@ async function fetchItemizedTransactionsChunk(bioguideId, env, log) {
 
     // Add cursor parameters if we have them (for continuation)
     if (progress.lastIndex && progress.lastContributionReceiptDate) {
-      url += `&last_index=${progress.lastIndex}` +
-             `&last_contribution_receipt_date=${encodeURIComponent(progress.lastContributionReceiptDate)}`;
+      url +=
+        `&last_index=${progress.lastIndex}` +
+        `&last_contribution_receipt_date=${encodeURIComponent(progress.lastContributionReceiptDate)}`;
     }
 
     const response = await fetch(url, {
       headers: {
-        'User-Agent': 'TaskForcePurple/1.0 (Political Transparency Platform)'
-      }
+        'User-Agent': 'TaskForcePurple/1.0 (Political Transparency Platform)',
+      },
     });
 
     const fetchTime = Date.now() - pageStartTime;
@@ -325,14 +358,18 @@ async function fetchItemizedTransactionsChunk(bioguideId, env, log) {
     // Update cursor for next page
     if (data.pagination && data.pagination.last_indexes) {
       progress.lastIndex = data.pagination.last_indexes.last_index;
-      progress.lastContributionReceiptDate = data.pagination.last_indexes.last_contribution_receipt_date;
+      progress.lastContributionReceiptDate =
+        data.pagination.last_indexes.last_contribution_receipt_date;
     }
 
     // Log progress with FEC's expected total count
     const totalCount = data.pagination?.count || '?';
-    const percentComplete = data.pagination?.count ?
-      Math.round((progress.totalTransactions / data.pagination.count) * 100) : '?';
-    log(`  📄 Fetched ${transactions.length} transactions (${fetchTime}ms) - Total: ${progress.totalTransactions}/${totalCount} (${percentComplete}%)`);
+    const percentComplete = data.pagination?.count
+      ? Math.round((progress.totalTransactions / data.pagination.count) * 100)
+      : '?';
+    log(
+      `  📄 Fetched ${transactions.length} transactions (${fetchTime}ms) - Total: ${progress.totalTransactions}/${totalCount} (${percentComplete}%)`
+    );
 
     // Store FEC's total count for validation later
     if (data.pagination?.count && !progress.fecTotalCount) {
@@ -346,7 +383,7 @@ async function fetchItemizedTransactionsChunk(bioguideId, env, log) {
   }
 
   const totalFetchTime = Date.now() - fetchStartTime;
-  log(`  ⏱️ Fetched ${pagesProcessed} API calls in ${Math.round(totalFetchTime/1000)}s`);
+  log(`  ⏱️ Fetched ${pagesProcessed} API calls in ${Math.round(totalFetchTime / 1000)}s`);
 
   // Save current buffer as a chunk (even if under 1000 transactions)
   // This ensures we don't lose data between runs
@@ -400,14 +437,16 @@ async function fetchItemizedTransactionsChunk(bioguideId, env, log) {
     const analysis = analyzeTransactions(allTransactions);
     progress.analysis = analysis;
 
-    log(`  ✅ Analysis complete: ${analysis.uniqueDonors} unique donors, avg $${analysis.avgDonation}`);
+    log(
+      `  ✅ Analysis complete: ${analysis.uniqueDonors} unique donors, avg $${analysis.avgDonation}`
+    );
 
     // CRITICAL: Reconcile our summed totalAmount against FEC's reported total
     log(`  🔍 Fetching FEC financial totals for reconciliation...`);
     try {
       const fecTotalsUrl = `https://api.open.fec.gov/v1/committee/${committeeId}/totals/?api_key=${apiKey}&cycle=${cycle}`;
       const fecTotalsResponse = await fetch(fecTotalsUrl, {
-        headers: { 'User-Agent': 'TaskForcePurple/1.0 (Political Transparency Platform)' }
+        headers: { 'User-Agent': 'TaskForcePurple/1.0 (Political Transparency Platform)' },
       });
 
       if (fecTotalsResponse.ok) {
@@ -423,10 +462,14 @@ async function fetchItemizedTransactionsChunk(bioguideId, env, log) {
           log(`  📊 FEC Reconciliation:`);
           log(`     FEC reported itemized total: $${fecItemizedTotal.toLocaleString()}`);
           log(`     Our calculated total:        $${ourCalculatedTotal.toLocaleString()}`);
-          log(`     Difference:                  $${difference.toLocaleString()} (${percentDiff.toFixed(2)}%)`);
+          log(
+            `     Difference:                  $${difference.toLocaleString()} (${percentDiff.toFixed(2)}%)`
+          );
 
           if (percentDiff > 1) {
-            log(`  ⚠️ WARNING: Totals differ by more than 1%! Check for missing or duplicate transactions.`);
+            log(
+              `  ⚠️ WARNING: Totals differ by more than 1%! Check for missing or duplicate transactions.`
+            );
           } else {
             log(`  ✅ Totals match within 1% tolerance`);
           }
@@ -436,7 +479,7 @@ async function fetchItemizedTransactionsChunk(bioguideId, env, log) {
             fecItemizedTotal,
             ourCalculatedTotal,
             difference,
-            percentDiff
+            percentDiff,
           };
         }
       }
@@ -454,7 +497,7 @@ async function fetchItemizedTransactionsChunk(bioguideId, env, log) {
       totalChunks: progress.totalChunks,
       analysis,
       fetchedAt: progress.startedAt,
-      completedAt: progress.completedAt
+      completedAt: progress.completedAt,
     };
 
     await env.MEMBER_DATA.put(analysisKey, JSON.stringify(analysisData));
@@ -476,7 +519,7 @@ async function fetchItemizedTransactionsChunk(bioguideId, env, log) {
     totalTransactions: progress.totalTransactions,
     totalChunks: progress.totalChunks,
     pagesProcessedThisRun: pagesProcessed,
-    analysis: progress.analysis || null
+    analysis: progress.analysis || null,
   };
 }
 
@@ -485,8 +528,8 @@ async function searchCommitteeId(name, office, state, apiKey) {
     `https://api.open.fec.gov/v1/candidates/search/?api_key=${apiKey}&q=${encodeURIComponent(name)}&office=${office}&state=${state}`,
     {
       headers: {
-        'User-Agent': 'TaskForcePurple/1.0 (Political Transparency Platform)'
-      }
+        'User-Agent': 'TaskForcePurple/1.0 (Political Transparency Platform)',
+      },
     }
   );
 
@@ -516,9 +559,8 @@ async function searchCommitteeId(name, office, state, apiKey) {
   const cycle = currentYear % 2 === 0 ? currentYear : currentYear + 1;
 
   // Find committee with current or recent cycle
-  const recentCommittee = committees.find(c =>
-    c.cycles && c.cycles.includes(cycle)
-  ) || committees[0];
+  const recentCommittee =
+    committees.find(c => c.cycles && c.cycles.includes(cycle)) || committees[0];
 
   return recentCommittee.committee_id;
 }
@@ -531,7 +573,7 @@ function analyzeTransactions(transactions) {
       avgDonation: 0,
       medianDonation: 0,
       minDonation: 0,
-      maxDonation: 0
+      maxDonation: 0,
     };
   }
 
@@ -599,8 +641,12 @@ function analyzeTransactions(transactions) {
   const top10Total = topDonors.reduce((sum, d) => sum + d.amount, 0);
   const top10Percent = (top10Total / totalAmount) * 100;
 
-  console.log(`  📈 Analysis: ${uniqueDonors} unique donors, $${totalAmount.toLocaleString()} total`);
-  console.log(`  💰 Avg: $${avgDonation.toFixed(2)}, Median: $${medianDonation}, Top 10: ${top10Percent.toFixed(1)}%`);
+  console.log(
+    `  📈 Analysis: ${uniqueDonors} unique donors, $${totalAmount.toLocaleString()} total`
+  );
+  console.log(
+    `  💰 Avg: $${avgDonation.toFixed(2)}, Median: $${medianDonation}, Top 10: ${top10Percent.toFixed(1)}%`
+  );
 
   return {
     uniqueDonors,
@@ -610,7 +656,7 @@ function analyzeTransactions(transactions) {
     minDonation,
     maxDonation,
     top10Donors: topDonors,
-    top10Percent: Math.round(top10Percent * 10) / 10
+    top10Percent: Math.round(top10Percent * 10) / 10,
   };
 }
 

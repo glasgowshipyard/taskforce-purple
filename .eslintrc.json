@@ -35,15 +35,15 @@
     "no-implied-eval": "error",
     "no-new-func": "error",
     "no-return-await": "warn",
-    "require-await": "warn",
+    "require-await": "off",
     "no-throw-literal": "warn",
     "no-case-declarations": "warn",
-    "no-empty": "warn",
+    "no-empty": ["warn", { "allowEmptyCatch": true }],
     "no-undef": "error",
-    "no-constant-condition": "warn",
+    "no-constant-condition": ["warn", { "checkLoops": false }],
     "react/react-in-jsx-scope": "off",
-    "react/prop-types": "warn",
-    "react/no-unescaped-entities": "warn",
+    "react/prop-types": "off",
+    "react/no-unescaped-entities": "off",
     "react-refresh/only-export-components": "warn"
   }
 }

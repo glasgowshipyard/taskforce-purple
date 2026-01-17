@@ -46,7 +46,7 @@ export default {
           return await handleResetPACData(env, corsHeaders, request);
         case '/api/refresh-congress-metadata':
           return await handleRefreshCongressMetadata(env, corsHeaders, request);
-        case '/api/debug-kv':
+        case '/api/debug-kv': {
           const queueData = await env.MEMBER_DATA.get('priority_missing_queue');
           const allKeys = await env.MEMBER_DATA.list();
           return new Response(
@@ -60,6 +60,7 @@ export default {
               headers: { ...corsHeaders, 'Content-Type': 'application/json' },
             }
           );
+        }
         default:
           // Check for individual member lookup pattern: /api/members/{bioguideId}
           if (url.pathname.startsWith('/api/members/')) {
@@ -85,7 +86,7 @@ export default {
   },
 
   // Smart batch processing - rate-limited progressive updates
-  async scheduled(event, env, ctx) {
+  async scheduled(event, env, _ctx) {
     // Check if daily Congress sync is due (runs once per day)
     const lastSyncData = await env.MEMBER_DATA.get('last_congress_sync');
     const lastSync = lastSyncData ? new Date(lastSyncData) : null;
@@ -200,7 +201,6 @@ async function fetchCongressMembers(env) {
   console.log('📊 Fetching current 119th Congress members...');
 
   let allMembers = [];
-  const offset = 0;
   const limit = 250;
 
   // First, get total count to determine pagination strategy
@@ -262,6 +262,7 @@ async function fetchCongressMembers(env) {
 
 // Select current committee using proper cycle and designation filtering
 // Returns: { committee, usedCycle }
+// eslint-disable-next-line no-unused-vars
 async function selectCurrentCommittee(candidateId, env, office = null) {
   const apiKey = env.FEC_API_KEY || 'zVpKDAacmPcazWQxhl5fhodhB9wNUH0urLCLkkV9';
 
@@ -1216,7 +1217,7 @@ async function getAdaptiveThresholds(env, members) {
 
 // NEW: Calculate enhanced tier using transparency penalty system
 // Returns object with { tier, individualFundingPercent } for display
-async function calculateEnhancedTier(member, allMembers = [], env = null) {
+async function calculateEnhancedTier(member, _allMembers = [], env = null) {
   if (!member.totalRaised || member.totalRaised === 0) {
     return { tier: 'N/A', individualFundingPercent: 0 };
   }
@@ -1246,9 +1247,6 @@ async function calculateEnhancedTier(member, allMembers = [], env = null) {
     // CRITICAL: Use individual funding total as denominator, NOT totalRaised
     // This isolates the "human element" - of the people who gave, how reliant are you on big checks?
     const individualFundingTotal = member.grassrootsDonations + (member.largeDonorDonations || 0);
-
-    const grassrootsPercent =
-      individualFundingTotal > 0 ? (member.grassrootsDonations / individualFundingTotal) * 100 : 0;
 
     const itemizedPercent =
       member.largeDonorDonations !== undefined && individualFundingTotal > 0
@@ -1422,6 +1420,7 @@ function getAdjustedThresholds(penaltyPoints) {
 // TESTING PARAMETER: Add ?limit=N to process only first N members for testing
 // Example: POST /api/update-data?limit=5 processes only 5 members
 // Default: undefined (processes all members)
+// eslint-disable-next-line no-unused-vars
 async function processMembers(congressMembers, env, testLimit = undefined) {
   console.log('🔄 Processing member data with two-call strategy...');
 
@@ -1615,7 +1614,7 @@ async function processMembers(congressMembers, env, testLimit = undefined) {
 }
 
 // Main data update function
-async function updateCongressionalData(env, testLimit = undefined) {
+async function updateCongressionalData(env, _testLimit = undefined) {
   console.log('🚀 Starting smart batch processing update...');
 
   // Use smart batch processing instead of bulk processing
@@ -2449,7 +2448,7 @@ async function handleProcessCandidate(env, corsHeaders, request) {
     console.log(`✅ Found member: ${targetMember.name} (${targetMember.bioguideId})`);
 
     // Get member's chamber info for FEC processing
-    const chamberType = targetMember.chamber === 'House' ? 'House of Representatives' : 'Senate';
+    // const chamberType = targetMember.chamber === 'House' ? 'House of Representatives' : 'Senate';
 
     // Process the member through the full FEC pipeline
     const memberIndex = members.findIndex(m => m.bioguideId === targetMember.bioguideId);

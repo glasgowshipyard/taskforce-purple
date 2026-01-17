@@ -38,7 +38,7 @@ export default {
     );
   },
 
-  async scheduled(event, env, ctx) {
+  async scheduled(event, env, _ctx) {
     // Cron trigger - process next chunk automatically
     console.log('🕐 Cron trigger fired:', new Date().toISOString());
 
@@ -82,7 +82,8 @@ async function getStatus(env) {
     } else if (progressData) {
       // In progress
       const progress = JSON.parse(progressData);
-      const { donorTotals, allAmounts, ...statusInfo } = progress; // Exclude large objects
+      // eslint-disable-next-line no-unused-vars
+      const { donorTotals: _donorTotals, allAmounts: _allAmounts, ...statusInfo } = progress; // Exclude large objects
       status[member.bioguideId] = {
         name: member.name,
         status: 'in_progress',
@@ -265,6 +266,7 @@ async function analyzeMembers(env) {
   );
 }
 
+// eslint-disable-next-line no-unused-vars
 async function checkAllComplete(env, members) {
   for (const member of members) {
     const analysisKey = `itemized_analysis_v2:${member.bioguideId}`;
