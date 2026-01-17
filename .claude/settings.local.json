@@ -74,7 +74,8 @@
       "Bash(git log:*)",
       "Bash(node add-members.js:*)",
       "Bash(do echo \"Run $i...\")",
-      "Bash(git stash:*)"
+      "Bash(git stash:*)",
+      "Bash(wrangler delete:*)"
     ],
     "deny": [],
     "ask": []
