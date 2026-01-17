@@ -82,8 +82,11 @@ async function getStatus(env) {
     } else if (progressData) {
       // In progress
       const progress = JSON.parse(progressData);
-      // eslint-disable-next-line no-unused-vars
-      const { donorTotals: _donorTotals, allAmounts: _allAmounts, ...statusInfo } = progress; // Exclude large objects
+      const {
+        donorTotals: _donorTotals, // eslint-disable-line no-unused-vars
+        allAmounts: _allAmounts, // eslint-disable-line no-unused-vars
+        ...statusInfo
+      } = progress; // Exclude large objects
       status[member.bioguideId] = {
         name: member.name,
         status: 'in_progress',

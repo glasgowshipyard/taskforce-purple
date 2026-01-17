@@ -70,10 +70,9 @@ async function getStatus(env) {
     if (progressData) {
       const progress = JSON.parse(progressData);
       // Don't include transaction data (old: transactions array, new: transactionBuffer)
-      // eslint-disable-next-line no-unused-vars
       const {
-        transactions: _transactions,
-        transactionBuffer: _transactionBuffer,
+        transactions: _transactions, // eslint-disable-line no-unused-vars
+        transactionBuffer: _transactionBuffer, // eslint-disable-line no-unused-vars
         ...statusInfo
       } = progress;
       status[member.bioguideId] = {
