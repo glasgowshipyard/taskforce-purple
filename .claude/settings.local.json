@@ -75,7 +75,12 @@
       "Bash(node add-members.js:*)",
       "Bash(do echo \"Run $i...\")",
       "Bash(git stash:*)",
-      "Bash(wrangler delete:*)"
+      "Bash(wrangler delete:*)",
+      "Bash(timeout 10 wrangler tail:*)",
+      "Bash(while read key)",
+      "Bash(do echo \"Deleting $key...\" wrangler kv key delete \"$key\" --namespace-id=8318226115e2423ab5d141adfa5419f9 --remote done)",
+      "Bash(chmod:*)",
+      "Bash(/tmp/cleanup-chunks.sh:*)"
     ],
     "deny": [],
     "ask": []

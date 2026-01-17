@@ -13,9 +13,9 @@ binding = "DONOR_DB"
 database_name = "taskforce-purple-donors"
 database_id = "87d24fba-1e43-45a0-aa84-1610e984aee8"
 
-# Cron trigger - run every 15 minutes
+# Cron trigger - run every 20 minutes
 [triggers]
-crons = ["*/15 * * * *"]
+crons = ["*/20 * * * *"]
 
 # Environment variables
 [vars]
