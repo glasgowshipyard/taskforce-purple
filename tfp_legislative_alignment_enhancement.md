@@ -1,12 +1,14 @@
 # Task Force Purple Legislative Alignment Module
 
 ## Objective
-Extend Task Force Purple’s analysis to correlate **funding tiers** with **voting behavior** on specific bills. 
+
+Extend Task Force Purple’s analysis to correlate **funding tiers** with **voting behavior** on specific bills.
 This module will provide insight into whether grassroots-funded or PAC-funded members tend to vote in alignment with public interest or special interests.
 
 ## Data Sources
 
 ### Primary (official)
+
 1. **Congress.gov API**
    - Bill and roll call vote data
    - Endpoints include:
@@ -65,14 +67,14 @@ This module will provide insight into whether grassroots-funded or PAC-funded me
 A table or bar chart displaying support percentage by tier.
 
 | Tier | Yes Votes | No Votes | Support % |
-|------|------------|-----------|------------|
-| S | 39 | 2 | 95% |
-| A | 87 | 12 | 88% |
-| B | 102 | 37 | 73% |
-| C | 56 | 68 | 45% |
-| D | 22 | 47 | 32% |
-| E | 9 | 41 | 18% |
-| F | 4 | 31 | 11% |
+| ---- | --------- | -------- | --------- |
+| S    | 39        | 2        | 95%       |
+| A    | 87        | 12       | 88%       |
+| B    | 102       | 37       | 73%       |
+| C    | 56        | 68       | 45%       |
+| D    | 22        | 47       | 32%       |
+| E    | 9         | 41       | 18%       |
+| F    | 4         | 31       | 11%       |
 
 This allows clear visibility into which funding tiers tend to vote with or against public-interest legislation.
 
@@ -93,5 +95,6 @@ This allows clear visibility into which funding tiers tend to vote with or again
    - Optionally include bill metadata, recent actions, and summary links.
 
 ## Rationale
-This enhancement connects funding data with real-world legislative outcomes. 
+
+This enhancement connects funding data with real-world legislative outcomes.
 It exposes correlations between corporate capture and policy alignment, enabling transparent, data-driven analysis of representation quality.

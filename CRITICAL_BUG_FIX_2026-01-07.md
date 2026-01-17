@@ -13,6 +13,7 @@ Discovered and fixed three critical bugs in the itemized donor concentration ana
 ### Bug #1: Pagination Completion Logic (CRITICAL)
 
 **Problem**:
+
 ```javascript
 // OLD (BROKEN):
 const isComplete = pagesProcessed < maxPagesToFetch;
@@ -21,11 +22,13 @@ const isComplete = pagesProcessed < maxPagesToFetch;
 The worker checked if `pagesProcessed < maxPagesToFetch` to determine completion. This meant any early break from the fetch loop (including getting empty results) would mark the analysis as "complete."
 
 **Impact**:
+
 - Bernie Sanders: Collected only 17,566 of 37,612 transactions (47% complete)
 - Nancy Pelosi: Collected only 11,484 of ~23,000 transactions (estimated 50% complete)
 - Worker marked both as "✅ COMPLETE" despite missing 20,000+ transactions
 
 **Fix**:
+
 ```javascript
 // NEW (FIXED):
 let reachedEnd = false;
@@ -42,12 +45,14 @@ Now properly tracks whether we actually received empty results from the FEC API.
 ### Bug #2: Deduplication Using Inconsistent Field
 
 **Problem**:
+
 ```javascript
 // OLD (BROKEN):
 const normalizedName = tx.contributor_name.toUpperCase().trim();
 ```
 
 Used the `contributor_name` field which has inconsistent formats:
+
 - "SMITH, JOHN"
 - "JOHN SMITH"
 - "Smith, John"
@@ -55,11 +60,13 @@ Used the `contributor_name` field which has inconsistent formats:
 Same person with different formats = counted as different donors.
 
 **Impact**:
+
 - Inflated unique donor counts
 - Understated concentration metrics
 - Inconsistent with FEC committee practices
 
 **Fix**:
+
 ```javascript
 // NEW (FIXED):
 const firstName = (tx.contributor_first_name || '').toUpperCase().trim();
@@ -73,10 +80,12 @@ Uses separate first/last name fields that are consistently formatted.
 
 **Problem**:
 No validation that:
+
 1. Collected transaction count matched FEC's reported total
 2. Summed transaction amounts matched FEC's `individual_itemized_contributions`
 
 **Impact**:
+
 - Bugs #1 and #2 went undetected for months
 - No way to verify data collection completeness
 - No confidence in calculated metrics
@@ -85,6 +94,7 @@ No validation that:
 Added two validation checks:
 
 1. **Transaction Count Validation**:
+
 ```javascript
 if (progress.fecTotalCount && progress.totalTransactions !== progress.fecTotalCount) {
   log(`⚠️ WARNING: Transaction count mismatch!`);
@@ -94,6 +104,7 @@ if (progress.fecTotalCount && progress.totalTransactions !== progress.fecTotalCo
 ```
 
 2. **Financial Reconciliation**:
+
 ```javascript
 const fecItemizedTotal = fecTotal.individual_itemized_contributions || 0;
 const ourCalculatedTotal = analysis.totalAmount;
@@ -125,12 +136,14 @@ if (percentDiff > 1) {
 ## Testing
 
 Before deploying, verified:
+
 1. ✅ FEC API pagination works correctly (tested with real cursors)
 2. ✅ Transaction count validation displays correctly
 3. ✅ Progress shows "X/Y (Z%)" format
 4. ✅ Worker stays within all limits (CPU, subrequests, FEC rate limit)
 
 Current limits usage:
+
 - Worker execution: ~9s of 30s limit (30%)
 - Subrequests: 5-7 of 50 limit (14%)
 - FEC rate limit: 2.5 calls/min of 16.67 limit (15%)
@@ -146,11 +159,13 @@ Current limits usage:
 ## Expected Results After Re-Collection
 
 Once Bernie completes (all 37,612 transactions):
+
 - Unique donor count will likely be ~16-18K (up from 8,408)
 - Top-10 concentration will likely be <2% (down from 2.9%)
 - Total amount will reconcile to FEC's $3,695,847.30
 
 Once Pelosi completes:
+
 - Unique donor count will likely be ~3-4K (up from 1,476)
 - Top-10 concentration will likely be ~5-6% (down from 8.9%)
 - The Bernie vs Pelosi comparison will finally be valid
@@ -165,11 +180,13 @@ Once Pelosi completes:
 ---
 
 **For GitHub Issues**: This can be split into separate issues:
+
 - Issue: "Fix pagination completion logic causing early termination"
 - Issue: "Fix deduplication using inconsistent contributor_name field"
 - Issue: "Add reconciliation validation for data collection"
 
 **For Git Commit**:
+
 ```
 fix(itemized-prototype): Fix critical data loss bugs in donor analysis
 

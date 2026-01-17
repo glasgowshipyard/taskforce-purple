@@ -18,7 +18,9 @@ export default {
          WHERE bioguide_id = ?
          GROUP BY donor_key
          ORDER BY total_amount DESC`
-      ).bind(bioguideId).all();
+      )
+        .bind(bioguideId)
+        .all();
 
       if (!result.results || result.results.length === 0) {
         return Response.json({ error: 'No transaction data found in D1', bioguideId });
@@ -57,7 +59,7 @@ export default {
         return Response.json({
           error: 'No analysis found in KV',
           bioguideId,
-          calculated: { whaleWeight, nakamotoCoefficient, uniqueDonors: N, totalAmount }
+          calculated: { whaleWeight, nakamotoCoefficient, uniqueDonors: N, totalAmount },
         });
       }
 
@@ -67,7 +69,7 @@ export default {
         whaleWeight,
         nakamotoCoefficient,
         lastUpdated: new Date().toISOString(),
-        recalculatedAt: new Date().toISOString()
+        recalculatedAt: new Date().toISOString(),
       };
 
       // Remove old deprecated metrics if they exist
@@ -85,28 +87,33 @@ export default {
         status: 'updated',
         old: {
           gini: currentAnalysis.gini,
-          hhi: currentAnalysis.hhi
+          hhi: currentAnalysis.hhi,
         },
         new: {
           whaleWeight,
-          nakamotoCoefficient
+          nakamotoCoefficient,
         },
         interpretation: {
           whaleWeight: `${(whaleWeight * 100).toFixed(2)}% of funding from top ${top1PercentCount} donors (top 1%)`,
           nakamotoCoefficient: `${nakamotoCoefficient} donors needed to control 50% of funding`,
-          captureRisk: nakamotoCoefficient < 100 ? 'HIGH - small group can coordinate' :
-                       nakamotoCoefficient < 1000 ? 'MODERATE - requires organization' :
-                       'LOW - coordination nearly impossible'
+          captureRisk:
+            nakamotoCoefficient < 100
+              ? 'HIGH - small group can coordinate'
+              : nakamotoCoefficient < 1000
+                ? 'MODERATE - requires organization'
+                : 'LOW - coordination nearly impossible',
         },
         uniqueDonors: N,
-        totalAmount
+        totalAmount,
       });
-
     } catch (error) {
-      return Response.json({
-        error: error.message,
-        stack: error.stack
-      }, { status: 500 });
+      return Response.json(
+        {
+          error: error.message,
+          stack: error.stack,
+        },
+        { status: 500 }
+      );
     }
-  }
+  },
 };

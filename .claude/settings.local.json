@@ -84,7 +84,8 @@
       "Bash(gh run:*)",
       "Bash(npm run lint:*)",
       "Bash(npm run typecheck:*)",
-      "Bash(npm audit fix:*)"
+      "Bash(npm audit fix:*)",
+      "Bash(npx prettier:*)"
     ],
     "deny": [],
     "ask": []

@@ -15,15 +15,19 @@ Task Force Purple is a political transparency platform that cuts through partisa
 ## Key Conceptual Frameworks
 
 ### Pay-to-Win Politics
+
 Politics has become a pay-to-win game where corporate money buys policy outcomes while regular citizens can't compete. Campaign donations = purchasing votes, lobbying = buying access, PAC money = policy influence. The wealthy get advantages regular voters can't access.
 
 ### Public Service Reminder
+
 Politicians are public servants - employees paid by taxpayers to serve the public interest. Their job description is clear: represent constituents, not donors. Team Purple treats them as accountable employees, not untouchable figures or tribal leaders.
 
 ### Political Enshittification
+
 Politics follows the same three-stage decay pattern as tech platforms:
+
 1. **Promises:** Campaign on serving constituents, build voter trust
-2. **Money:** Once elected, serve donors while maintaining voter-friendly rhetoric  
+2. **Money:** Once elected, serve donors while maintaining voter-friendly rhetoric
 3. **Fucking Over Constituents:** Pure extraction for wealthy interests, rely on partisan fear to keep votes locked in
 
 These frameworks make complex political corruption accessible through familiar experiences (gaming, workplace dynamics, tech platform decay).
@@ -39,6 +43,7 @@ These frameworks make complex political corruption accessible through familiar e
 ## Core Features
 
 ### 1. Congressional Tier List
+
 Rate all Congress members by funding source integrity:
 
 - **S Tier (85%+ grassroots):** Clean, people-funded representatives
@@ -48,12 +53,15 @@ Rate all Congress members by funding source integrity:
 - **D Tier (0-29%):** Corporate captured
 
 **Calculation:**
+
 ```
 grassrootsPercent = (donations < $200) / totalRaised * 100
 ```
 
 ### 2. Member Profiles
+
 Detailed breakdown for each Congress member:
+
 - Funding sources (grassroots vs PAC vs lobbyist money)
 - Recent voting record with bipartisan indicators
 - Top donors and conflicts of interest
@@ -61,7 +69,9 @@ Detailed breakdown for each Congress member:
 - Tier assignment with explanation
 
 ### 3. Bipartisan Overlap Tracker
+
 Identify issues where red/blue actually converge:
+
 - Infrastructure investment
 - Veterans healthcare
 - Antitrust enforcement
@@ -70,21 +80,26 @@ Identify issues where red/blue actually converge:
 - Highlight bills that unite S-tier members across parties
 
 ### 4. Special Interests Dashboard
+
 Map industries and lobbyists funding both parties:
+
 - Connect money trails to recent votes
 - Show parallel outcomes behind political theater
 - Track revolving door between government and industry
 
 ### 5. Smart Article System
+
 Two types of content:
 
 **Evergreen Explainers** (Human-written):
+
 - "Why Your Insurance Company Makes Everything So Hard"
 - "The Rural/Urban Lie: Same Problems, Different Scapegoats"
 - "How to Read Your Rep's Money Trail"
 - Academic concepts (Doctorow, Graeber) made accessible
 
 **Auto-Generated Updates** (AI + data-driven):
+
 - "💸 @SenCruz just got $500K from oil companies"
 - "📉 5 Members Who Dropped Tiers This Quarter"
 - "🤝 Rare Unity: S-tier members back rail safety"
@@ -93,6 +108,7 @@ Two types of content:
 ## Technical Architecture
 
 ### Platform: Cloudflare (Free Tier)
+
 - **Cloudflare Workers:** Data processing, API endpoints, OAuth
 - **Cloudflare Pages:** React frontend hosting
 - **Cloudflare KV:** Processed data storage
@@ -100,13 +116,16 @@ Two types of content:
 - **Domain:** taskforcepurple.com or .org
 
 ### Data Pipeline
+
 **Primary Sources (All Public APIs):**
+
 - **OpenFEC API** (`api.open.fec.gov/v1`): Campaign finance data, requires API key from api.data.gov
 - **Congress.gov API** (`api.congress.gov/v3`): Current members, voting records, requires API key
 - **Senate Lobbying Database**: Quarterly lobbying disclosure data
 - **Note**: ProPublica Congress API was discontinued in 2024
 
 **Real API Endpoints:**
+
 ```
 # Current Congress Members (119th Congress)
 GET https://api.congress.gov/v3/member/congress/119?currentMember=true&api_key={key}
@@ -122,6 +141,7 @@ GET https://api.open.fec.gov/v1/schedules/schedule_a/?api_key={key}&committee_id
 ```
 
 **Processing Flow:**
+
 1. **Daily Worker Schedule**: Fetch current member list from Congress.gov API
 2. **Weekly Worker Schedule**: Pull latest FEC financial data for all committees
 3. **Data Processing**: Calculate grassroots percentage from contributions <$200
@@ -130,7 +150,9 @@ GET https://api.open.fec.gov/v1/schedules/schedule_a/?api_key={key}&committee_id
 6. **Change Detection**: Trigger updates only when tier changes occur
 
 ### Frontend (React)
+
 **Core Components:**
+
 - Congressional leaderboard with search/filtering
 - Member profile pages with funding breakdowns
 - Bipartisan overlap visualization
@@ -138,6 +160,7 @@ GET https://api.open.fec.gov/v1/schedules/schedule_a/?api_key={key}&committee_id
 - Markdown editor with @mention system
 
 **Key Features:**
+
 - Real-time data integration
 - Responsive design for mobile/desktop
 - Social sharing optimized for viral content
@@ -146,7 +169,9 @@ GET https://api.open.fec.gov/v1/schedules/schedule_a/?api_key={key}&committee_id
 ## Content Management System
 
 ### Article Creation Workflow
+
 **Markdown WYSIWYG Editor:**
+
 - Browser-based editor (TipTap or similar)
 - Live preview with formatted text
 - @mention autocomplete for Congress members
@@ -154,6 +179,7 @@ GET https://api.open.fec.gov/v1/schedules/schedule_a/?api_key={key}&committee_id
 - Auto-deploys on commit
 
 **@Mention System:**
+
 - Type `@rep` → dropdown with autocomplete
 - Search by name, state, party affiliation
 - Auto-inserts correct member ID
@@ -161,13 +187,16 @@ GET https://api.open.fec.gov/v1/schedules/schedule_a/?api_key={key}&committee_id
 - Links to full member profiles
 
 **Example:**
+
 ```markdown
 @RepAOC consistently votes with her 87% grassroots funding profile,
 while @SenManchin takes $2M from coal and votes accordingly.
 ```
 
 ### Authentication
+
 **GitHub OAuth Integration:**
+
 - Writers login with existing GitHub accounts
 - Allowlist of approved contributors
 - No password management needed
@@ -175,12 +204,15 @@ while @SenManchin takes $2M from coal and votes accordingly.
 - Role-based access (writer, editor, admin)
 
 ### Content Types
+
 **Manual Articles:**
+
 - Evergreen explainers connecting theory to practice
 - Investigation pieces following money trails
 - Plain English breakdowns of complex issues
 
 **Auto-Generated Updates:**
+
 - Triggered by new FEC filings
 - Major vote contradictions
 - Tier changes and funding alerts
@@ -189,6 +221,7 @@ while @SenManchin takes $2M from coal and votes accordingly.
 ## Data Schema
 
 ### Member Records
+
 ```json
 {
   "bioguideId": "O000172",
@@ -211,6 +244,7 @@ while @SenManchin takes $2M from coal and votes accordingly.
 ```
 
 ### Vote Records
+
 ```json
 {
   "voteId": "h2025-123",
@@ -231,6 +265,7 @@ while @SenManchin takes $2M from coal and votes accordingly.
 ## API Endpoints
 
 ### External Data Sources (Government APIs)
+
 ```bash
 # Congress.gov API (Requires API key from api.congress.gov/sign-up)
 # Rate limit: 5,000 requests/hour
@@ -244,6 +279,7 @@ GET https://api.open.fec.gov/v1/schedules/schedule_a/?api_key={key}&committee_id
 ```
 
 ### Public API (Our Frontend Endpoints)
+
 ```
 GET /api/members - All Congress members with tier info
 GET /api/members/{bioguideId} - Detailed member profile
@@ -253,6 +289,7 @@ GET /api/tiers/{tier} - Members by tier ranking (S, A, B, C, D)
 ```
 
 ### Content API
+
 ```
 GET /api/articles - Published articles
 GET /api/articles/{slug} - Individual article
@@ -263,6 +300,7 @@ GET /api/members/search - Member autocomplete for @mentions
 ## Deployment & Development
 
 ### Local Development
+
 ```bash
 # Clone repository
 git clone [repo-url]
@@ -279,12 +317,14 @@ npm run update-data
 ```
 
 ### Production Deployment
+
 - **Automatic:** Git push to main branch triggers Cloudflare Pages build
 - **Data Pipeline:** Scheduled Workers run automatically
 - **Content:** Markdown files in repo auto-deploy
 - **Configuration:** Environment variables in Cloudflare dashboard
 
 ### Environment Variables
+
 ```
 # Required API Keys
 CONGRESS_API_KEY=xxx          # From api.congress.gov/sign-up
@@ -297,6 +337,7 @@ ALLOWED_WRITERS=username1,username2,username3
 ```
 
 ### API Key Setup Instructions
+
 1. **Congress.gov API**: Register at https://api.congress.gov/sign-up
    - Rate limit: 5,000 requests/hour
    - Free access to all congressional data
@@ -312,29 +353,36 @@ ALLOWED_WRITERS=username1,username2,username3
 ## Data Limitations & Challenges
 
 ### Real-World API Constraints
+
 **Data Update Frequency:**
+
 - **FEC Data**: Updated nightly, quarterly filings create big updates
 - **Congress.gov Data**: Members updated immediately, votes within hours
 - **Grassroots Calculation**: Requires individual contribution records (large datasets)
 
 **API Rate Limits:**
+
 - Congress.gov: 5,000 requests/hour (sufficient for daily updates)
 - OpenFEC: No official limits but large contribution datasets require pagination
 - Total members ~535, so daily fetches well within limits
 
 **Data Complexity:**
+
 - Members may have multiple committees (principal campaign committee + PACs)
 - Contribution records require aggregation to calculate grassroots percentage
 - Committee linkage to specific candidates requires bioguideId matching
 
 **MVP Simplifications:**
+
 1. **Start with most recent quarterly filing** instead of real-time data
 2. **Focus on principal campaign committees** initially (not all PACs)
 3. **Manual member list updates** until automated pipeline is stable
 4. **Batch processing** rather than real-time tier calculations
 
 ### ProPublica API Alternative
+
 Since ProPublica Congress API was discontinued in 2024, we need alternatives for:
+
 - **Voting Records**: Use Congress.gov API (house/senate roll call votes)
 - **Lobbying Data**: Direct access to Senate Lobbying Database
 - **Enhanced Data**: Stick to official government sources for MVP
@@ -342,7 +390,9 @@ Since ProPublica Congress API was discontinued in 2024, we need alternatives for
 ## Content Strategy
 
 ### Launch Content
+
 **Essential Explainers:**
+
 1. "How to Read This Site" - Tutorial for tier system
 2. "Reminder: They Work for You" - Public service fundamentals
 3. "How Politics Became Pay-to-Win" - Campaign finance corruption explained
@@ -351,13 +401,16 @@ Since ProPublica Congress API was discontinued in 2024, we need alternatives for
 6. "Following the Money: A Beginner's Guide" - How to read FEC data
 
 ### Ongoing Content
+
 **Weekly Updates:**
+
 - New funding alerts when quarterly reports drop
 - Voting contradictions: money vs. public statements
 - Tier changes and what they mean
 - Bipartisan wins and rare unity moments
 
 **Monthly Deep Dives:**
+
 - Industry influence investigations using pay-to-win framework
 - Political enshittification case studies (promises → money → betrayal)
 - Academic theory connected to current events (Doctorow, Graeber)
@@ -367,18 +420,21 @@ Since ProPublica Congress API was discontinued in 2024, we need alternatives for
 ## Success Metrics
 
 ### Engagement
+
 - Monthly active users
 - Social sharing rates
 - Time spent on member profiles
 - Article completion rates
 
 ### Impact
+
 - Media citations of tier rankings
 - Political discourse references
 - Member responses to ratings
 - Policy discussion quality improvement
 
 ### Technical
+
 - API response times
 - Data freshness
 - Search functionality usage
@@ -387,18 +443,21 @@ Since ProPublica Congress API was discontinued in 2024, we need alternatives for
 ## Future Enhancements
 
 ### Phase 2 Features
+
 - State and local politician tracking
 - Judicial influence mapping
 - Interactive data visualizations
 - API for third-party integrations
 
 ### Advanced Content
+
 - Predictive modeling for tier changes
 - Industry influence score tracking
 - Corporate network mapping
 - Historical trend analysis
 
 ### Community Features
+
 - User-submitted tip system
 - Crowdsourced fact-checking
 - Regional impact reporting
@@ -407,18 +466,21 @@ Since ProPublica Congress API was discontinued in 2024, we need alternatives for
 ## Implementation Priority
 
 ### MVP (Month 1)
+
 1. Basic tier list with funding data
 2. Member profiles with recent votes
 3. Simple article system
 4. Core data pipeline
 
 ### Enhancement (Month 2)
+
 1. Bipartisan overlap tracker
 2. @mention editor system
 3. Auto-generated updates
 4. Social sharing optimization
 
 ### Advanced (Month 3+)
+
 1. Advanced search and filtering
 2. Data visualization improvements
 3. Mobile app consideration
@@ -427,18 +489,21 @@ Since ProPublica Congress API was discontinued in 2024, we need alternatives for
 ## Technical Notes
 
 ### Rate Limiting
+
 - FEC API: No official limits, but be respectful
 - Congress.gov: Monitor for rate limiting
 - ProPublica: 5000 requests/day limit
 - Implement caching to minimize API calls
 
 ### Data Freshness
+
 - Campaign finance: Updated quarterly (mandatory filing dates)
 - Voting records: Updated within hours of votes
 - Lobbying data: Updated quarterly
 - Member information: Updated as needed
 
 ### Performance
+
 - Cloudflare edge caching for static content
 - KV storage for frequently accessed data
 - Lazy loading for large datasets

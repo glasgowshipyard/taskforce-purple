@@ -37,7 +37,7 @@ export class TaskForceAPI {
   static async triggerDataUpdate() {
     try {
       const response = await fetch(`${API_BASE_URL}/update-data`, {
-        method: 'POST'
+        method: 'POST',
       });
 
       if (!response.ok) {
@@ -56,54 +56,55 @@ export class TaskForceAPI {
     return new Intl.NumberFormat('en-US', {
       style: 'currency',
       currency: 'USD',
-      maximumFractionDigits: 0
+      maximumFractionDigits: 0,
     }).format(amount);
   }
 
   static getTierColor(tier) {
     const colors = {
-      'S': 'bg-green-500 text-white',
-      'A': 'bg-blue-500 text-white',
-      'B': 'bg-yellow-500 text-black',
-      'C': 'bg-orange-500 text-white',
-      'D': 'bg-red-400 text-white',
-      'E': 'bg-red-600 text-white',
-      'F': 'bg-gray-900 text-white',
-      'N/A': 'bg-gray-300 text-gray-600'
+      S: 'bg-green-500 text-white',
+      A: 'bg-blue-500 text-white',
+      B: 'bg-yellow-500 text-black',
+      C: 'bg-orange-500 text-white',
+      D: 'bg-red-400 text-white',
+      E: 'bg-red-600 text-white',
+      F: 'bg-gray-900 text-white',
+      'N/A': 'bg-gray-300 text-gray-600',
     };
     return colors[tier] || 'bg-gray-500 text-white';
   }
 
   static getTierDescription(tier) {
     const descriptions = {
-      'S': 'People-Funded (90%+)',
-      'A': 'Very Clean (75-89%)',
-      'B': 'Above Average (60-74%)',
-      'C': 'Below Average (45-59%)',
-      'D': 'PAC Heavy (30-44%)',
-      'E': 'Captured (15-29%)',
-      'F': 'Owned (0-14%)',
-      'N/A': 'No Financial Data Available'
+      S: 'People-Funded (90%+)',
+      A: 'Very Clean (75-89%)',
+      B: 'Above Average (60-74%)',
+      C: 'Below Average (45-59%)',
+      D: 'PAC Heavy (30-44%)',
+      E: 'Captured (15-29%)',
+      F: 'Owned (0-14%)',
+      'N/A': 'No Financial Data Available',
     };
     return descriptions[tier] || 'Unknown';
   }
 
   static getTierExplanation(tier) {
     const explanations = {
-      'S': 'Democratic power source. 90%+ individual funding (grassroots + itemized) with minimal PAC influence. Power derives from many individual donors, not institutional special interests. Extremely rare.',
-      'A': 'Strong individual support. 75-89% funded by individual donors with limited institutional capture. Power flows from constituents, not corporate PACs or special interests.',
-      'B': 'Above average. 60-74% individual funding. Majority people-funded with some institutional influence from PACs or vulnerable to coordinated donor pressure.',
-      'C': 'Below average diffusion. 45-59% individual funding. Mixed power sources with institutional interests or organized donor groups competing with constituent voices.',
-      'D': 'PAC heavy. 30-44% individual funding. Power increasingly derived from PACs, special interests, or small groups of coordinated large donors rather than broad individual support.',
-      'E': 'Captured. 15-29% individual funding. These members depend overwhelmingly on PACs, corporate money, or special interest funding rather than individual constituents.',
-      'F': 'Owned. 0-14% individual funding. Power comes almost entirely from PACs, special interests, or easily coordinated donor groups. Not accountable to everyday constituents.',
-      'N/A': 'No recent financial data available. This could mean they\'re not up for re-election or we haven\'t found their committee records yet.'
+      S: 'Democratic power source. 90%+ individual funding (grassroots + itemized) with minimal PAC influence. Power derives from many individual donors, not institutional special interests. Extremely rare.',
+      A: 'Strong individual support. 75-89% funded by individual donors with limited institutional capture. Power flows from constituents, not corporate PACs or special interests.',
+      B: 'Above average. 60-74% individual funding. Majority people-funded with some institutional influence from PACs or vulnerable to coordinated donor pressure.',
+      C: 'Below average diffusion. 45-59% individual funding. Mixed power sources with institutional interests or organized donor groups competing with constituent voices.',
+      D: 'PAC heavy. 30-44% individual funding. Power increasingly derived from PACs, special interests, or small groups of coordinated large donors rather than broad individual support.',
+      E: 'Captured. 15-29% individual funding. These members depend overwhelmingly on PACs, corporate money, or special interest funding rather than individual constituents.',
+      F: 'Owned. 0-14% individual funding. Power comes almost entirely from PACs, special interests, or easily coordinated donor groups. Not accountable to everyday constituents.',
+      'N/A':
+        "No recent financial data available. This could mean they're not up for re-election or we haven't found their committee records yet.",
     };
     return explanations[tier] || 'No explanation available.';
   }
 
   static getPACExplanation() {
-    return "Political Action Committees (PACs) bundle donations from corporations, special interests, and institutional sources. Heavy PAC funding represents institutional capture rather than individual constituent support. Individual funding (both grassroots <$200 and itemized >$200) represents direct support from people, while PAC money represents organized institutional interests.";
+    return 'Political Action Committees (PACs) bundle donations from corporations, special interests, and institutional sources. Heavy PAC funding represents institutional capture rather than individual constituent support. Individual funding (both grassroots <$200 and itemized >$200) represents direct support from people, while PAC money represents organized institutional interests.';
   }
 
   // Industry categorization for PAC contributors
@@ -111,45 +112,92 @@ export class TaskForceAPI {
     const name = pacName.toUpperCase();
 
     // Financial Services
-    if (name.includes('BANK') || name.includes('FINANCIAL') || name.includes('SECURITIES') ||
-        name.includes('INVESTMENT') || name.includes('CAPITAL') || name.includes('PERSHING') ||
-        name.includes('GOLDMAN') || name.includes('MORGAN')) {
+    if (
+      name.includes('BANK') ||
+      name.includes('FINANCIAL') ||
+      name.includes('SECURITIES') ||
+      name.includes('INVESTMENT') ||
+      name.includes('CAPITAL') ||
+      name.includes('PERSHING') ||
+      name.includes('GOLDMAN') ||
+      name.includes('MORGAN')
+    ) {
       return { industry: 'Financial Services', color: 'bg-blue-50 text-blue-800 border-blue-200' };
     }
 
     // Energy/Oil
-    if (name.includes('ENERGY') || name.includes('OIL') || name.includes('GAS') ||
-        name.includes('PETROLEUM') || name.includes('EXXON') || name.includes('CHEVRON')) {
+    if (
+      name.includes('ENERGY') ||
+      name.includes('OIL') ||
+      name.includes('GAS') ||
+      name.includes('PETROLEUM') ||
+      name.includes('EXXON') ||
+      name.includes('CHEVRON')
+    ) {
       return { industry: 'Energy & Oil', color: 'bg-orange-50 text-orange-800 border-orange-200' };
     }
 
     // Healthcare/Pharma
-    if (name.includes('HEALTH') || name.includes('PHARMA') || name.includes('MEDICAL') ||
-        name.includes('PFIZER') || name.includes('JOHNSON')) {
-      return { industry: 'Healthcare & Pharma', color: 'bg-green-50 text-green-800 border-green-200' };
+    if (
+      name.includes('HEALTH') ||
+      name.includes('PHARMA') ||
+      name.includes('MEDICAL') ||
+      name.includes('PFIZER') ||
+      name.includes('JOHNSON')
+    ) {
+      return {
+        industry: 'Healthcare & Pharma',
+        color: 'bg-green-50 text-green-800 border-green-200',
+      };
     }
 
     // Tech
-    if (name.includes('TECH') || name.includes('GOOGLE') || name.includes('AMAZON') ||
-        name.includes('MICROSOFT') || name.includes('APPLE') || name.includes('META')) {
+    if (
+      name.includes('TECH') ||
+      name.includes('GOOGLE') ||
+      name.includes('AMAZON') ||
+      name.includes('MICROSOFT') ||
+      name.includes('APPLE') ||
+      name.includes('META')
+    ) {
       return { industry: 'Technology', color: 'bg-purple-50 text-purple-800 border-purple-200' };
     }
 
     // Party Committees
-    if (name.includes('DSCC') || name.includes('DCCC') || name.includes('NRCC') ||
-        name.includes('NRSC') || name.includes('DEMOCRATIC') || name.includes('REPUBLICAN')) {
-      return { industry: 'Party Committee', color: 'bg-indigo-50 text-indigo-800 border-indigo-200' };
+    if (
+      name.includes('DSCC') ||
+      name.includes('DCCC') ||
+      name.includes('NRCC') ||
+      name.includes('NRSC') ||
+      name.includes('DEMOCRATIC') ||
+      name.includes('REPUBLICAN')
+    ) {
+      return {
+        industry: 'Party Committee',
+        color: 'bg-indigo-50 text-indigo-800 border-indigo-200',
+      };
     }
 
     // Labor Unions
-    if (name.includes('UNION') || name.includes('WORKERS') || name.includes('TEAMSTERS') ||
-        name.includes('AFL') || name.includes('CIO') || name.includes('SEIU')) {
+    if (
+      name.includes('UNION') ||
+      name.includes('WORKERS') ||
+      name.includes('TEAMSTERS') ||
+      name.includes('AFL') ||
+      name.includes('CIO') ||
+      name.includes('SEIU')
+    ) {
       return { industry: 'Labor Union', color: 'bg-yellow-50 text-yellow-800 border-yellow-200' };
     }
 
     // Defense/Military
-    if (name.includes('DEFENSE') || name.includes('MILITARY') || name.includes('LOCKHEED') ||
-        name.includes('BOEING') || name.includes('RAYTHEON')) {
+    if (
+      name.includes('DEFENSE') ||
+      name.includes('MILITARY') ||
+      name.includes('LOCKHEED') ||
+      name.includes('BOEING') ||
+      name.includes('RAYTHEON')
+    ) {
       return { industry: 'Defense & Military', color: 'bg-gray-50 text-gray-800 border-gray-200' };
     }
 
@@ -171,7 +219,7 @@ export const mockCongressData = [
     totalRaised: 2847293,
     grassrootsDonations: 2534231,
     pacMoney: 156847,
-    tier: 'S'
+    tier: 'S',
   },
   {
     bioguideId: 'O000172',
@@ -184,7 +232,7 @@ export const mockCongressData = [
     totalRaised: 4892847,
     grassrootsDonations: 4256776,
     pacMoney: 98234,
-    tier: 'S'
+    tier: 'S',
   },
   {
     bioguideId: 'M000355',
@@ -196,7 +244,7 @@ export const mockCongressData = [
     totalRaised: 8934782,
     grassrootsDonations: 2054860,
     pacMoney: 4521847,
-    tier: 'D'
+    tier: 'D',
   },
   {
     bioguideId: 'W000817',
@@ -208,7 +256,7 @@ export const mockCongressData = [
     totalRaised: 6234891,
     grassrootsDonations: 4738517,
     pacMoney: 892374,
-    tier: 'A'
+    tier: 'A',
   },
   {
     bioguideId: 'C001098',
@@ -220,7 +268,7 @@ export const mockCongressData = [
     totalRaised: 9847291,
     grassrootsDonations: 4431081,
     pacMoney: 3284719,
-    tier: 'C'
+    tier: 'C',
   },
   {
     bioguideId: 'P000197',
@@ -233,6 +281,6 @@ export const mockCongressData = [
     totalRaised: 12934827,
     grassrootsDonations: 4009736,
     pacMoney: 5847291,
-    tier: 'D'
-  }
+    tier: 'D',
+  },
 ];

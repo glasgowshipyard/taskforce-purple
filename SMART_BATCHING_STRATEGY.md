@@ -15,11 +15,13 @@
 ## Rate Limit Constraints
 
 ### FEC API Limits
+
 - **Official Limit**: 1,000 requests per hour
 - **Practical Rate**: 16.67 requests per minute
 - **Safety Buffer**: Use 15 requests per minute maximum
 
 ### Cloudflare Worker Limits
+
 - **Subrequest Limit**: ~50-100 per execution (based on observed "Too many subrequests")
 - **CPU Time Limit**: 30 seconds
 - **Safety Strategy**: 15 FEC calls per 15-minute execution
@@ -27,7 +29,9 @@
 ## API Call Requirements
 
 ### Phase 1 (Financial Data Collection)
+
 **Per Member**: 3 FEC API calls
+
 1. Candidate lookup call
 2. Committee financial summary call
 3. Itemized contributions call
@@ -35,7 +39,9 @@
 **Total Phase 1 Remaining**: 503 members × 3 calls = **1,509 FEC calls**
 
 ### Phase 2 (PAC Enhancement)
+
 **Per Member**: 2-5 FEC API calls (varies by PAC count)
+
 1. Committee metadata lookup (per unique PAC)
 2. Committee details fetch (per unique PAC)
 
@@ -47,6 +53,7 @@
 ## Smart Batching Mathematics
 
 ### Implemented Mixed Batch Sizes (CURRENT)
+
 - **Mixed Batch Strategy**: 3 Phase 1 + 1 Phase 2 per cycle
 - **Phase 1**: 3 members × 3 calls = 9 FEC calls
 - **Phase 2**: 1 member × 4 calls = 4 FEC calls
@@ -56,6 +63,7 @@
 ### Rate Limit Compliance Check
 
 #### Per-Minute Rate
+
 - **Execution Frequency**: Every 15 minutes
 - **Calls Per Execution**: 12-14 calls
 - **Effective Rate**: 12 calls ÷ 15 minutes = **0.8 calls/minute**
@@ -63,12 +71,14 @@
 - **Safety Margin**: 95.2% under limit ✅
 
 #### Per-Hour Rate
+
 - **Executions Per Hour**: 4 runs
 - **Calls Per Hour**: 4 × 14 = **56 calls**
 - **FEC Limit**: 1,000 calls/hour
 - **Safety Margin**: 94.4% under limit ✅
 
 #### Per-Day Rate
+
 - **Executions Per Day**: 96 runs (24 hours × 4)
 - **Calls Per Day**: 96 × 13 = **1,248 calls**
 - **Monthly Allowance**: 30 × 1,000 = 30,000 calls
@@ -77,12 +87,14 @@
 ## Completion Timeline
 
 ### Phase 1 (Financial Data)
+
 - **Remaining**: 503 members
 - **Batch Size**: 4 members per run
 - **Runs Needed**: 503 ÷ 4 = 126 runs
 - **Time to Complete**: 126 ÷ 4 = **31.5 hours = 1.3 days**
 
 ### Phase 2 (PAC Enhancement)
+
 - **Current Queue**: 25 members (have financial data, need PAC data)
 - **Future Queue**: 503 members (after Phase 1 completion)
 - **Total Phase 2**: 528 members
@@ -91,6 +103,7 @@
 - **Time to Complete**: 176 ÷ 4 = **44 hours = 1.8 days**
 
 ### Total Completion Time
+
 **Parallel Processing**: Phase 2 can start immediately on available members
 **Sequential Completion**: 1.3 days (Phase 1) + 1.8 days (Phase 2) = **3.1 days**
 **Optimized Completion**: ~**2-2.5 days** with mixed batching
@@ -98,6 +111,7 @@
 ## Adaptive Frequency Strategy
 
 ### Dynamic Schedule Based on Completion Rate
+
 ```javascript
 function getOptimalCronSchedule(completionPercentage) {
   if (completionPercentage < 50%) return "*/15 * * * *"; // Every 15 min (catch-up)
@@ -108,6 +122,7 @@ function getOptimalCronSchedule(completionPercentage) {
 ```
 
 ### Current Phase: Catch-up Mode
+
 - **Schedule**: `*/15 * * * *` (every 15 minutes)
 - **Duration**: Until 50% completion (~1 day)
 - **Expected Transition**: October 3rd to normal mode
@@ -115,6 +130,7 @@ function getOptimalCronSchedule(completionPercentage) {
 ## Implementation Architecture
 
 ### KV Storage Design
+
 ```javascript
 // Processing queues
 processing_queue_phase1: ["bioguideId1", "bioguideId2", ...] // 503 members
@@ -146,6 +162,7 @@ member_status_[bioguideId]: {
 ```
 
 ### Smart Batch Processing Logic (IMPLEMENTED)
+
 ```javascript
 async function processSmartBatch(env) {
   const callBudget = 15; // Conservative limit
@@ -158,7 +175,6 @@ async function processSmartBatch(env) {
 
   // Mixed batching strategy: 3 Phase 1 + 1 Phase 2 per cycle (13 calls, 2 buffer)
   while ((phase1Queue.length > 0 || phase2Queue.length > 0) && callsUsed < callBudget) {
-
     // Process up to 3 Phase 1 members (9 calls)
     let phase1Count = 0;
     while (phase1Queue.length > 0 && phase1Count < 3 && callsUsed + 3 <= callBudget) {
@@ -166,7 +182,7 @@ async function processSmartBatch(env) {
       await processPhase1Member(member, env);
       callsUsed += 3;
       phase1Count++;
-      processedMembers.push({member: member.name, phase: 1});
+      processedMembers.push({ member: member.name, phase: 1 });
     }
 
     // Process 1 Phase 2 member if budget allows (4 calls)
@@ -174,31 +190,36 @@ async function processSmartBatch(env) {
       const member = phase2Queue.shift();
       await processPhase2Member(member, env);
       callsUsed += 4;
-      processedMembers.push({member: member.name, phase: 2});
+      processedMembers.push({ member: member.name, phase: 2 });
     }
   }
 
   await updateProcessingStatus(env, callsUsed, processedMembers);
 
-  console.log(`📊 Smart batch complete: ${callsUsed}/15 calls used, ${processedMembers.length} members processed`);
-  return {callsUsed, processedMembers, remainingBudget: callBudget - callsUsed};
+  console.log(
+    `📊 Smart batch complete: ${callsUsed}/15 calls used, ${processedMembers.length} members processed`
+  );
+  return { callsUsed, processedMembers, remainingBudget: callBudget - callsUsed };
 }
 ```
 
 ## Error Handling & Recovery
 
 ### Rate Limit Detection
+
 - **Monitor**: "Too many subrequests" errors
 - **Action**: Immediate batch termination
 - **Recovery**: Mark failed members for retry
 - **Backoff**: Reduce batch size temporarily
 
 ### Checkpoint Persistence
+
 - **Save After**: Every successful member processing
 - **Resume From**: Last successful member
 - **Retry Logic**: Failed members get 3 attempts before quarantine
 
 ### Graceful Degradation
+
 ```javascript
 if (rateLimitDetected) {
   currentBatchSize = Math.max(1, currentBatchSize - 1);
@@ -209,12 +230,14 @@ if (rateLimitDetected) {
 ## Monitoring & Alerts
 
 ### Success Metrics
+
 - **Processing Rate**: Members per hour
 - **API Efficiency**: Calls per successful member
 - **Completion Progress**: Percentage complete
 - **Error Rate**: Failed members per batch
 
 ### Expected Performance
+
 - **Daily Throughput**: 384 Phase 1 + 288 Phase 2 = 672 members/day
 - **API Usage**: 1,344 calls/day (4.5% of monthly budget)
 - **Completion**: 2-3 days for full dataset
