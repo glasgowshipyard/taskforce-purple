@@ -16,7 +16,7 @@ All core systems are deployed and processing automatically:
    - Daily Congress member sync (adds new/removes departed members)
    - Dynamic trust anchor tier calculations with donor concentration analysis
 
-2. **Itemized Donor Analysis** (itemized-free-tier)
+2. **Itemized Donor Concentration Analysis** (itemized-analysis)
    - Queue-based processing of 538 members
    - Runs every 15 minutes, processes 1 member per run
    - Completion time: ~28 days for full dataset
@@ -96,7 +96,7 @@ All core systems are deployed and processing automatically:
 
 **Files Modified**:
 
-- `workers/itemized-free-tier.js` - Queue processing logic
+- `workers/itemized-analysis.js` - Queue processing logic
 
 ---
 
@@ -208,15 +208,10 @@ Dynamic Trust Anchor Application
    - **Impact**: Most members won't have dynamic trust anchor for ~1 month
    - **Acceptable**: Large-scale changes are rare, incremental processing is fine
 
-2. **Worker Naming**: "itemized-free-tier" is misleading
-   - **Should be**: "itemized-analysis" or "donor-concentration-analysis"
-   - **Impact**: Low (functional, just confusing name)
-   - **Fix**: Low priority
-
-3. **Code Duplication**: STATE_ABBREVIATIONS map exists in two workers
-   - **Why**: Workers deploy independently, no shared module system
-   - **Impact**: 50 lines duplicated
-   - **Fix**: Could extract to shared module, but acceptable trade-off
+2. **Itemized Analysis Timeline**: 28 days to complete all 540 members
+   - **Why**: Free tier constraints (1,000 API calls/hour spread over many members)
+   - **Impact**: Most members won't have dynamic trust anchor for ~1 month
+   - **Acceptable**: Large-scale changes are rare, incremental processing is fine
 
 ---
 
@@ -229,9 +224,9 @@ Dynamic Trust Anchor Application
    - Version: 0f3271e1 (2026-01-17)
    - Cron: _/15 _ \* \* \* (every 15 minutes)
 
-2. **itemized-free-tier** (itemized-free-tier.js)
-   - URL: https://itemized-free-tier.dev-a4b.workers.dev
-   - Version: 4a7dece7 (2026-01-16)
+2. **taskforce-purple-itemized-analysis** (itemized-analysis.js)
+   - URL: https://taskforce-purple-itemized-analysis.dev-a4b.workers.dev
+   - Version: 88dc369f (2026-01-17)
    - Cron: _/15 _ \* \* \* (every 15 minutes)
 
 3. **taskforce-purple (frontend)**
@@ -310,7 +305,8 @@ All processing is idempotent:
 - Tier calculation: `workers/data-pipeline.js:1200-1450`
 - Dynamic trust anchor: `workers/data-pipeline.js:1330-1380`
 - Congress sync: `workers/data-pipeline.js:4133-4295`
-- Itemized analysis: `workers/itemized-free-tier.js:270-630`
+- Itemized analysis: `workers/itemized-analysis.js:220-580`
+- Shared constants: `workers/shared-constants.js`
 
 ---
 
