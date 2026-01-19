@@ -14,7 +14,7 @@
     "prepare": "node -e \"try{require('husky')}catch{process.exit(0)}\""
   },
   "dependencies": {
-    "lucide-react": "^0.263.1",
+    "lucide-react": "^0.562.0",
     "react": "^18.2.0",
     "react-dom": "^18.2.0"
   },
