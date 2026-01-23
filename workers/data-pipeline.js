@@ -1766,7 +1766,7 @@ async function handleMembers(env, corsHeaders) {
             member.pacContributions.some(pac => pac.committee_type || pac.designation),
           grassrootsPACTypes: grassrootsPACTypes, // Array of grassroots-friendly PAC types
           // Donor concentration metrics (from itemized analysis)
-          nakamotoCoefficient: concentrationData?.nakamotoCoefficient || null,
+          nakamotoCoefficient: concentrationData?.nakamotoCoefficient ?? null,
           nakamotoPercent: concentrationData
             ? parseFloat(
                 (
@@ -1775,8 +1775,8 @@ async function handleMembers(env, corsHeaders) {
                 ).toFixed(1)
               )
             : null,
-          uniqueDonors: concentrationData?.uniqueDonors || null,
-          top10Concentration: concentrationData?.top10Concentration || null,
+          uniqueDonors: concentrationData?.uniqueDonors ?? null,
+          top10Concentration: concentrationData?.top10Concentration ?? null,
         };
       })
     );
