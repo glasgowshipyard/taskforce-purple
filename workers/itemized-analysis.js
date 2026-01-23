@@ -31,7 +31,7 @@ export default {
     }
 
     return new Response(
-      'Itemized Donor Concentration Analysis\n\nEndpoints:\n  /analyze - Process next member from queue\n  /status - Check queue progress\n\nCron: Running every 20 minutes automatically\nProcessing: 1 member per run (~5-7 days to complete all 537 members)',
+      'Itemized Donor Concentration Analysis\n\nEndpoints:\n  /analyze - Trigger processing\n  /status - View progress',
       {
         headers: { 'Content-Type': 'text/plain' },
       }
