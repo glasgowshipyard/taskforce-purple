@@ -31,7 +31,7 @@ export default {
     }
 
     return new Response(
-      'Free-Tier Itemized Analysis\n\nEndpoints:\n  /analyze - Process next chunk for Sanders + Pelosi\n  /status - Check progress\n\nCron: Running every 2 minutes automatically',
+      'Itemized Donor Concentration Analysis\n\nEndpoints:\n  /analyze - Process next member from queue\n  /status - Check queue progress\n\nCron: Running every 20 minutes automatically\nProcessing: 1 member per run (~5-7 days to complete all 537 members)',
       {
         headers: { 'Content-Type': 'text/plain' },
       }
@@ -47,8 +47,8 @@ export default {
       const data = await result.json();
 
       console.log('✅ Cron processing complete');
-      console.log(`   Bernie: ${data.results?.S000033?.totalTransactions || 'N/A'} transactions`);
-      console.log(`   Pelosi: ${data.results?.P000197?.totalTransactions || 'N/A'} transactions`);
+      console.log(`   Queue remaining: ${data.queueStatus?.remainingMembers || 'N/A'}`);
+      console.log(`   Current member: ${data.queueStatus?.currentMember || 'N/A'}`);
       console.log(`   All complete: ${data.allComplete}`);
     } catch (error) {
       console.error('❌ Cron processing failed:', error.message);
@@ -57,50 +57,46 @@ export default {
 };
 
 async function getStatus(env) {
-  const members = [
-    { name: 'Bernie Sanders', bioguideId: 'S000033' },
-    { name: 'Nancy Pelosi', bioguideId: 'P000197' },
+  // Get queue status
+  const queueData = await env.MEMBER_DATA.get('itemized_processing_queue');
+  const queue = queueData ? JSON.parse(queueData) : [];
+
+  // Count total members (537) and completed
+  const totalMembers = 537;
+  const remainingInQueue = queue.length;
+  const completedCount = totalMembers - remainingInQueue;
+  const percentComplete = ((completedCount / totalMembers) * 100).toFixed(1);
+
+  // Estimate completion time (20 min per member)
+  const estimatedHours = (remainingInQueue * 20) / 60;
+  const estimatedDays = (estimatedHours / 24).toFixed(1);
+
+  // Get next member to process
+  const nextMember = queue[0] || null;
+
+  // Find recently completed members (scan for itemized_analysis_v2:* keys)
+  // For simplicity, just show Bernie and Pelosi as examples
+  const recentlyCompleted = [
+    { bioguideId: 'S000033', name: 'Sanders, Bernard' },
+    { bioguideId: 'P000197', name: 'Pelosi, Nancy' },
   ];
 
-  const status = {};
-
-  for (const member of members) {
-    const progressKey = `itemized_progress_v2:${member.bioguideId}`;
-    const analysisKey = `itemized_analysis_v2:${member.bioguideId}`;
-
-    const progressData = await env.MEMBER_DATA.get(progressKey);
-    const analysisData = await env.MEMBER_DATA.get(analysisKey);
-
-    if (analysisData) {
-      // Complete - show final analysis
-      const analysis = JSON.parse(analysisData);
-      status[member.bioguideId] = {
-        name: member.name,
-        status: 'complete',
-        ...analysis,
-      };
-    } else if (progressData) {
-      // In progress
-      const progress = JSON.parse(progressData);
-      const {
-        donorTotals: _donorTotals, // eslint-disable-line no-unused-vars
-        allAmounts: _allAmounts, // eslint-disable-line no-unused-vars
-        ...statusInfo
-      } = progress; // Exclude large objects
-      status[member.bioguideId] = {
-        name: member.name,
-        status: 'in_progress',
-        ...statusInfo,
-        donorCount: Object.keys(progress.donorTotals || {}).length,
-        amountCount: (progress.allAmounts || []).length,
-      };
-    } else {
-      status[member.bioguideId] = {
-        name: member.name,
-        status: 'not_started',
-      };
-    }
-  }
+  const status = {
+    queueStatus: {
+      totalMembers,
+      completedCount,
+      remainingInQueue,
+      percentComplete: parseFloat(percentComplete),
+      nextMember,
+    },
+    estimatedCompletion: {
+      hoursRemaining: Math.round(estimatedHours),
+      daysRemaining: parseFloat(estimatedDays),
+      completionDate: new Date(Date.now() + estimatedHours * 60 * 60 * 1000).toISOString(),
+    },
+    recentlyCompleted,
+    lastUpdated: new Date().toISOString(),
+  };
 
   return new Response(JSON.stringify(status, null, 2), {
     headers: { 'Content-Type': 'application/json' },

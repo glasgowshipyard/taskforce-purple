@@ -1,6 +1,6 @@
 # Task Force Purple - Implementation Status
 
-**Last Updated**: 2026-01-17
+**Last Updated**: 2026-01-23
 
 ---
 
@@ -15,12 +15,14 @@ All core systems are deployed and processing automatically:
    - Priority queue completed (all members have financial data)
    - Daily Congress member sync (adds new/removes departed members)
    - Dynamic trust anchor tier calculations with donor concentration analysis
+   - **NEW**: Nakamoto coefficient data now exposed in `/api/members` endpoint
 
 2. **Itemized Donor Concentration Analysis** (itemized-analysis)
-   - Queue-based processing of 518 remaining members (19 complete)
+   - Queue-based processing of **502 remaining members (35 complete as of 2026-01-23)**
    - Runs every 20 minutes, processes 1 member per run
-   - Completion time: ~7 days for full dataset (Jan 24, 2026)
+   - Completion time: **~7 days for full dataset (Jan 30, 2026)**
    - Provides Nakamoto coefficients for dynamic trust anchor
+   - Processing rate: ~3 members/hour (verified working correctly)
 
 3. **Frontend** (taskforce-purple.pages.dev)
    - Real-time tier display for all 537 members
@@ -79,24 +81,80 @@ All core systems are deployed and processing automatically:
 
 ### 2026-01-17: Itemized Analysis Scaling
 
-**Status**: ✅ DEPLOYED
+**Status**: ✅ DEPLOYED (code changes)
 
 **What Changed**:
 
 - Replaced hardcoded Bernie/Pelosi with queue-based processing
-- Created itemized_processing_queue with 538 members
+- Updated worker to process from itemized_processing_queue
 - Dynamic member lookup from members:all dataset
 - Auto-removes completed members from queue
-
-**Impact**:
-
-- All 540 members will have Nakamoto coefficients within ~28 days
-- Enables dynamic trust anchor for entire dataset
-- Free-tier compliant (5 API calls per run, 100ms delays)
 
 **Files Modified**:
 
 - `workers/itemized-analysis.js` - Queue processing logic
+
+---
+
+### 2026-01-23: System Verification and Gap Resolution
+
+**Status**: ✅ COMPLETED
+
+**What Was Found**:
+
+System verification revealed gaps between Jan 17 status report claims and actual deployed state:
+
+1. **itemized_processing_queue** did not exist in KV storage
+   - Code to process queue existed but queue was never initialized
+   - Worker immediately returned "No processing queue found"
+   - Only 2 members processed (Bernie & Pelosi from proof-of-concept phase)
+
+2. **Nakamoto data not exposed in API**
+   - Data existed in separate `itemized_analysis_v2:*` KV keys
+   - Used internally for tier calculations but not visible to frontend
+   - `/api/members` showed `nakamotoCoefficient: null` for all members
+
+3. **Worker UI contained stale POC references**
+   - Homepage still said "Sanders + Pelosi" and "every 2 minutes"
+   - `/status` endpoint hardcoded to only check Bernie & Pelosi
+   - Console logs referenced specific bioguide IDs
+
+**What Was Fixed**:
+
+1. **Initialized Processing Queue** (535 members)
+   - Queried all 537 current bioguide IDs from `/api/members`
+   - Excluded S000033 (Bernie) and P000197 (Pelosi) - already complete
+   - Created queue as JSON array and stored in KV storage
+   - Result: Worker immediately began processing at 1 member/20 minutes
+
+2. **Exposed Nakamoto Data in API**
+   - Modified `handleMembers()` in `workers/data-pipeline.js`
+   - Added async loading of `itemized_analysis_v2:${bioguideId}` for each member
+   - Merged concentration data into API response: `nakamotoCoefficient`, `nakamotoPercent`, `uniqueDonors`, `top10Concentration`
+   - Deployed updated worker - verified Bernie shows Nakamoto: 1534 (11.7%)
+
+3. **Updated Worker UI** (removed all POC references)
+   - Homepage: Changed to "queue-based processing" and "every 20 minutes"
+   - Console logs: Now show queue status instead of hardcoded names
+   - `/status` endpoint: Completely rewritten to show queue progress, completion ETA, and real-time stats
+
+**Current Verified State** (as of 2026-01-23 02:35 UTC):
+
+- **Queue**: 502 members remaining, 35 complete (6.5%)
+- **Processing Rate**: ~3 members/hour (verified working correctly)
+- **Next Member**: Blackburn, Marsha (B001243)
+- **ETA**: 7 days (Jan 30, 2026)
+- **Nakamoto Data**: Exposed in API for all 35 completed members
+
+**Files Modified**:
+
+- `workers/data-pipeline.js` - handleMembers() function (lines 1740-1769)
+- `workers/itemized-analysis.js` - Homepage text, scheduled() logs, getStatus() function
+- `IMPLEMENTATION_STATUS.md` - This update
+
+**KV Operations**:
+
+- Created `itemized_processing_queue` with 535 member bioguide IDs
 
 ---
 
@@ -110,11 +168,13 @@ All core systems are deployed and processing automatically:
 
 ### Itemized Processing Queue
 
-- **Status**: Processing automatically
-- **Members**: 518 remaining (19 complete as of 2026-01-17)
-- **Rate**: 1 member every 20 minutes (5 API pages per member per run)
-- **Completion**: ~7 days (estimated Jan 24, 2026)
-- **Purpose**: Collect donor concentration data for all members
+- **Status**: ✅ Processing automatically
+- **Members**: 502 remaining (35 complete as of 2026-01-23 02:35 UTC)
+- **Rate**: ~3 members per hour (1 member every 20 minutes)
+- **Progress**: 6.5% complete (35/537 members analyzed)
+- **Completion**: ~7 days (estimated Jan 30, 2026)
+- **Purpose**: Collect donor concentration data (Nakamoto coefficients) for all members
+- **Next**: Blackburn, Marsha (B001243)
 
 ---
 

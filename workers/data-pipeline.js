@@ -1738,19 +1738,48 @@ async function handleMembers(env, corsHeaders) {
     const members = JSON.parse(membersData);
 
     // Enhance grassroots percentage display for members with PAC data
-    const enhancedMembers = members.map(member => {
-      const grassrootsPACTypes = getGrassrootsPACTypesSummary(member);
-      return {
-        ...member,
-        grassrootsPercent: calculateEnhancedGrassrootsPercent(member),
-        rawFECGrassrootsPercent: member.grassrootsPercent, // Keep original for reference
-        hasEnhancedData:
-          member.pacContributions &&
-          member.pacContributions.length > 0 &&
-          member.pacContributions.some(pac => pac.committee_type || pac.designation),
-        grassrootsPACTypes: grassrootsPACTypes, // Array of grassroots-friendly PAC types
-      };
-    });
+    // AND load donor concentration data (Nakamoto coefficients) if available
+    const enhancedMembers = await Promise.all(
+      members.map(async member => {
+        const grassrootsPACTypes = getGrassrootsPACTypesSummary(member);
+
+        // Load donor concentration data if available
+        let concentrationData = null;
+        if (member.bioguideId) {
+          try {
+            const data = await env.MEMBER_DATA.get(`itemized_analysis_v2:${member.bioguideId}`);
+            if (data) {
+              concentrationData = JSON.parse(data);
+            }
+          } catch (error) {
+            // No concentration data available yet
+          }
+        }
+
+        return {
+          ...member,
+          grassrootsPercent: calculateEnhancedGrassrootsPercent(member),
+          rawFECGrassrootsPercent: member.grassrootsPercent, // Keep original for reference
+          hasEnhancedData:
+            member.pacContributions &&
+            member.pacContributions.length > 0 &&
+            member.pacContributions.some(pac => pac.committee_type || pac.designation),
+          grassrootsPACTypes: grassrootsPACTypes, // Array of grassroots-friendly PAC types
+          // Donor concentration metrics (from itemized analysis)
+          nakamotoCoefficient: concentrationData?.nakamotoCoefficient || null,
+          nakamotoPercent: concentrationData
+            ? parseFloat(
+                (
+                  (concentrationData.nakamotoCoefficient / concentrationData.uniqueDonors) *
+                  100
+                ).toFixed(1)
+              )
+            : null,
+          uniqueDonors: concentrationData?.uniqueDonors || null,
+          top10Concentration: concentrationData?.top10Concentration || null,
+        };
+      })
+    );
 
     // Get adaptive thresholds (cached quarterly) for tier explanations
     const adaptiveThresholds = await getAdaptiveThresholds(env, members);
