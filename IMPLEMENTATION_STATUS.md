@@ -158,6 +158,50 @@ System verification revealed gaps between Jan 17 status report claims and actual
 
 ---
 
+### 2026-01-23: nakamotoCoefficient Bug Fix
+
+**Status**: ✅ FIXED AND DEPLOYED
+
+**Bug Description**:
+
+API was showing only 32 of 35 completed members with Nakamoto data. Investigation revealed:
+
+- **Affected members**: B001236 (Boozman), D000563 (Durbin), H001089 (Hawley)
+- **Root cause**: Used `||` operator for nullish coalescing in `workers/data-pipeline.js` line 1769
+- **Impact**: Members with `nakamotoCoefficient: 0` (valid data for zero itemized donations) were converted to `null`
+
+**Technical Details**:
+
+```javascript
+// BEFORE (broken):
+nakamotoCoefficient: concentrationData?.nakamotoCoefficient || null,
+
+// AFTER (fixed):
+nakamotoCoefficient: concentrationData?.nakamotoCoefficient ?? null,
+```
+
+The `||` operator treats `0` as falsy and returns `null`. The `??` (nullish coalescing) operator only returns `null` for `null`/`undefined`, preserving `0` as valid.
+
+**What Was Fixed**:
+
+- Changed three fields in `workers/data-pipeline.js` lines 1769, 1778, 1779:
+  - `nakamotoCoefficient`: Now uses `??` instead of `||`
+  - `uniqueDonors`: Same fix applied
+  - `top10Concentration`: Same fix applied
+
+**Verification**:
+
+- Before: 32 members showing Nakamoto data in API
+- After: 35 members showing Nakamoto data in API (matches KV count)
+- Affected members now correctly show `nakamotoCoefficient: 0` instead of `null`
+
+**Files Modified**:
+
+- `workers/data-pipeline.js` - Lines 1769, 1778, 1779
+- Deployed successfully at 2026-01-23 03:00 UTC
+
+---
+
 ## Active Processing Queues
 
 ### Priority Queue (Missing largeDonorDonations)
