@@ -368,32 +368,41 @@ Dynamic Trust Anchor Application
 
 ---
 
-## Free Tier Compliance
+## Free Tier Compliance (recalculated 2026-07-12)
 
-### Cloudflare Workers
+Both crons run every 20 minutes = 72 runs/day per worker.
 
-- **CPU Time**: ~5-10s per run (30s limit)
-- **Subrequests**: 5-7 per run (50 limit)
-- **Status**: ✅ 17-33% usage
+### Cloudflare KV — the binding constraint (1,000 writes/day)
 
-### Cloudflare KV
+- data-pipeline per run: processing status + queue + members:all + tier
+  recalc ≈ 4-5 writes → ~290-360/day
+- itemized worker per run: progress + queue = 2 writes → ~144/day
+  (+2 on a completion: analysis write + progress delete)
+- **Total ≈ 450-550/day ≈ 50-55% of budget** ✅
+- The July 2026 queue fixes add ~1 write per failure-defer (replaces a
+  formerly skipped write) and one queue rebuild per drain cycle — noise
+- KV reads: workers use ~700/day; `/api/members` costs ~540 reads per
+  request → ~180 requests/day ceiling on the 100k read budget (known
+  limitation; merge concentration data into members:all before real traffic)
 
-- **Reads**: ~2-5 per run
-- **Writes**: ~6-14 per run (both workers combined)
-- **Daily**: ~790-1,010 writes (72 runs/day × 2 workers)
-- **Status**: ⚠️ 79-101% of 1,000/day limit (adjusted from 15-min to 20-min schedule)
+### Cloudflare D1
 
-### FEC API
+- Steady state: transaction inserts only while actively collecting
+  (≤36k raw rows/day at full throughput; observed average ~7k/day),
+  aggregates+metadata only on member completion. Well under 100k rows/day ✅
+- **2026-07-12 one-time backfill spiked usage** (~705k rows written /
+  13.6M read in 24h) — deliberate, not recurring; back to baseline next day
 
-- **Rate Limit**: 1,000 requests/hour
-- **Usage**: ~60 requests/hour (4 runs × 15 calls)
-- **Status**: ✅ 6% usage
+### External fetches per invocation (50 limit)
 
-### Congress.gov API
+- data-pipeline ≤15 FEC calls; itemized ≤7 (5 pages + search + reconcile) ✅
+- KV/D1 operations count against the separate 1,000 internal-ops limit;
+  worst case (huge-member completion: ~130 D1 batch calls + KV ops) ≈ 15% ✅
 
-- **Rate Limit**: 5,000 requests/hour
-- **Usage**: 2-3 requests/day (daily sync)
-- **Status**: ✅ <0.01% usage
+### API rate limits
+
+- FEC (1,000/hr): both workers combined ~66/hr ≈ 7% ✅
+- Congress.gov (5,000/hr): 2-3 calls/day (daily sync) ✅
 
 ---
 
