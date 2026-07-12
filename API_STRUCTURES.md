@@ -112,19 +112,19 @@ Returns financial summary data. Uses dynamic election cycle calculation (2025→
 ### Test Congress.gov List Structure (what Worker uses)
 
 ```bash
-curl -s "https://api.congress.gov/v3/member/congress/119?currentMember=true&offset=0&limit=1&api_key=zVpKDAacmPcazWQxhl5fhodhB9wNUH0urLCLkkV9" | jq '.members[0] | {bioguideId, name, terms}'
+curl -s "https://api.congress.gov/v3/member/congress/119?currentMember=true&offset=0&limit=1&api_key=$YOUR_API_KEY" | jq '.members[0] | {bioguideId, name, terms}'
 ```
 
 ### Test Individual Member Structure
 
 ```bash
-curl -s "https://api.congress.gov/v3/member/H001046?api_key=zVpKDAacmPcazWQxhl5fhodhB9wNUH0urLCLkkV9" | jq '.member.terms'
+curl -s "https://api.congress.gov/v3/member/H001046?api_key=$YOUR_API_KEY" | jq '.member.terms'
 ```
 
 ### Test FEC Candidate Search
 
 ```bash
-curl -s "https://api.open.fec.gov/v1/candidates/search/?api_key=zVpKDAacmPcazWQxhl5fhodhB9wNUH0urLCLkkV9&q=Heinrich&office=S&state=NM" | jq '.results[0]'
+curl -s "https://api.open.fec.gov/v1/candidates/search/?api_key=$YOUR_API_KEY&q=Heinrich&office=S&state=NM" | jq '.results[0]'
 ```
 
 ### Check Current API Data
@@ -140,17 +140,17 @@ curl -s "https://taskforce-purple-api.dev-a4b.workers.dev/api/members" | jq '.me
 ### Test Update Endpoint
 
 ```bash
-curl -X POST "https://taskforce-purple-api.dev-a4b.workers.dev/api/update-data" -H "Authorization: Bearer taskforce_purple_2025_update"
+curl -X POST "https://taskforce-purple-api.dev-a4b.workers.dev/api/update-data" -H "Authorization: Bearer $UPDATE_SECRET"
 ```
 
 ### Individual Member Update
 
 ```bash
 # Update by username (requires social handle mapping)
-curl -X POST "https://taskforce-purple-api.dev-a4b.workers.dev/api/update-member/@bernie" -H "Authorization: Bearer taskforce_purple_2025_update"
+curl -X POST "https://taskforce-purple-api.dev-a4b.workers.dev/api/update-member/@bernie" -H "Authorization: Bearer $UPDATE_SECRET"
 
 # Update by bioguide ID (fallback for members without usernames)
-curl -X POST "https://taskforce-purple-api.dev-a4b.workers.dev/api/update-member/@G000386" -H "Authorization: Bearer taskforce_purple_2025_update"
+curl -X POST "https://taskforce-purple-api.dev-a4b.workers.dev/api/update-member/@G000386" -H "Authorization: Bearer $UPDATE_SECRET"
 ```
 
 **Note**: The endpoint first tries to find the username in social handle mapping. If not found, it checks if the input matches bioguide ID pattern (letter + 6 digits) and uses it directly. This allows updating members like Chuck Grassley who have `"username": null`.
@@ -159,7 +159,7 @@ curl -X POST "https://taskforce-purple-api.dev-a4b.workers.dev/api/update-member
 
 ```bash
 # Remove corrupted member data from KV storage (requires bioguide ID)
-curl -X POST "https://taskforce-purple-api.dev-a4b.workers.dev/api/remove-member/G000386" -H "Authorization: Bearer taskforce_purple_2025_update"
+curl -X POST "https://taskforce-purple-api.dev-a4b.workers.dev/api/remove-member/G000386" -H "Authorization: Bearer $UPDATE_SECRET"
 ```
 
 **Purpose**: Surgically removes a member's data from the `members:all` KV storage key. This is useful for fixing corrupted data (like Chuck Grassley's 1977-1978 PAC dates) by removing the bad data so fresh data can be fetched on the next update.
@@ -212,13 +212,13 @@ New `/api/update-fec-batch` endpoint processes small batches efficiently:
 **Basic batch run (3 members):**
 
 ```bash
-curl -X POST "https://taskforce-purple-api.dev-a4b.workers.dev/api/update-fec-batch" -H "Authorization: Bearer taskforce_purple_2025_update"
+curl -X POST "https://taskforce-purple-api.dev-a4b.workers.dev/api/update-fec-batch" -H "Authorization: Bearer $UPDATE_SECRET"
 ```
 
 **Custom batch size (5 members):**
 
 ```bash
-curl -X POST "https://taskforce-purple-api.dev-a4b.workers.dev/api/update-fec-batch?batch=5" -H "Authorization: Bearer taskforce_purple_2025_update"
+curl -X POST "https://taskforce-purple-api.dev-a4b.workers.dev/api/update-fec-batch?batch=5" -H "Authorization: Bearer $UPDATE_SECRET"
 ```
 
 **Response format:**

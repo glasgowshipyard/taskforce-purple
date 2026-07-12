@@ -4,10 +4,11 @@
 title = "gitleaks config"
 
 # Global allowlist for documentation files
+# NOTE: only allowlist files verified to contain NO real credentials.
+# .CLAUDE_CONTEXT.md and API_STRUCTURES.md were previously allowlisted here
+# while containing live keys - do not re-add files without checking.
 [allowlist]
-description = "Allow documentation files with example/placeholder values"
+description = "Allow documentation files with non-secret IDs (KV namespace, D1 database)"
 paths = [
-  '''DATABASE_REFERENCE\.md''',
-  '''\.CLAUDE_CONTEXT\.md''',
-  '''API_STRUCTURES\.md'''
+  '''DATABASE_REFERENCE\.md'''
 ]

@@ -85,7 +85,6 @@ temp/
 # Development analysis files
 # (removed BROKEN_CALCULATIONS.md - was redundant)
 
-# Claude reference docs (keep internal)
+# Claude reference docs (keep internal - contain operational secrets)
 .claude-reference.md
-GRASSROOTS_CALCULATION_GUIDE.md
 .CLAUDE_CONTEXT.md
