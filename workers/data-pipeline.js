@@ -1178,7 +1178,10 @@ async function calculateEnhancedTier(member, _allMembers = [], env = null) {
     );
   }
 
-  return result;
+  // Expose the loaded concentration so callers (tier recalculation) can merge
+  // it into members:all - the API serves from there instead of doing a
+  // per-member KV lookup on every request
+  return { ...result, concentration };
 }
 
 // Process and enrich member data with TWO-CALL STRATEGY
@@ -1504,49 +1507,23 @@ async function handleMembers(env, corsHeaders) {
 
     const members = JSON.parse(membersData);
 
-    // Enhance grassroots percentage display for members with PAC data
-    // AND load donor concentration data (Nakamoto coefficients) if available
-    const enhancedMembers = await Promise.all(
-      members.map(async member => {
-        const grassrootsPACTypes = getGrassrootsPACTypesSummary(member);
-
-        // Load donor concentration data if available
-        let concentrationData = null;
-        if (member.bioguideId) {
-          try {
-            const data = await env.MEMBER_DATA.get(`itemized_analysis_v2:${member.bioguideId}`);
-            if (data) {
-              concentrationData = JSON.parse(data);
-            }
-          } catch (error) {
-            // No concentration data available yet
-          }
-        }
-
-        return {
-          ...member,
-          grassrootsPercent: calculateEnhancedGrassrootsPercent(member),
-          rawFECGrassrootsPercent: member.grassrootsPercent, // Keep original for reference
-          hasEnhancedData:
-            member.pacContributions &&
-            member.pacContributions.length > 0 &&
-            member.pacContributions.some(pac => pac.committee_type || pac.designation),
-          grassrootsPACTypes: grassrootsPACTypes, // Array of grassroots-friendly PAC types
-          // Donor concentration metrics (from itemized analysis)
-          nakamotoCoefficient: concentrationData?.nakamotoCoefficient ?? null,
-          nakamotoPercent: concentrationData
-            ? parseFloat(
-                (
-                  (concentrationData.nakamotoCoefficient / concentrationData.uniqueDonors) *
-                  100
-                ).toFixed(1)
-              )
-            : null,
-          uniqueDonors: concentrationData?.uniqueDonors ?? null,
-          top10Concentration: concentrationData?.top10Concentration ?? null,
-        };
-      })
-    );
+    // Concentration metrics (nakamotoCoefficient etc.) are merged into
+    // members:all by performTierRecalculation at write time - no per-member
+    // KV lookups here. This endpoint costs 3 KV reads total, not ~540.
+    const enhancedMembers = members.map(member => ({
+      ...member,
+      grassrootsPercent: calculateEnhancedGrassrootsPercent(member),
+      rawFECGrassrootsPercent: member.grassrootsPercent, // Keep original for reference
+      hasEnhancedData:
+        member.pacContributions &&
+        member.pacContributions.length > 0 &&
+        member.pacContributions.some(pac => pac.committee_type || pac.designation),
+      grassrootsPACTypes: getGrassrootsPACTypesSummary(member),
+      nakamotoCoefficient: member.nakamotoCoefficient ?? null,
+      nakamotoPercent: member.nakamotoPercent ?? null,
+      uniqueDonors: member.uniqueDonors ?? null,
+      top10Concentration: member.top10Concentration ?? null,
+    }));
 
     // Get adaptive thresholds (cached quarterly) for tier explanations
     const adaptiveThresholds = await getAdaptiveThresholds(env, members);
@@ -1559,7 +1536,12 @@ async function handleMembers(env, corsHeaders) {
         adaptiveThresholds, // Include current thresholds for UI display
       }),
       {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        headers: {
+          ...corsHeaders,
+          'Content-Type': 'application/json',
+          // Data changes at most every 20 minutes (cron); let browsers cache
+          'Cache-Control': 'public, max-age=300',
+        },
       }
     );
   } catch (error) {
@@ -2069,12 +2051,28 @@ async function performTierRecalculation(env) {
 
       // Calculate new tier using enhanced logic
       const oldTier = member.tier;
-      const { tier: newTier, individualFundingPercent } = await calculateEnhancedTier(
-        member,
-        members,
-        env
-      );
+      const {
+        tier: newTier,
+        individualFundingPercent,
+        concentration,
+      } = await calculateEnhancedTier(member, members, env);
       member.individualFundingPercent = individualFundingPercent;
+
+      // Merge concentration metrics into the member record so /api/members
+      // can serve them from members:all (one KV read) instead of 537
+      // per-member lookups per request. Never wipe previously merged data
+      // on a transient KV miss.
+      if (concentration) {
+        member.nakamotoCoefficient = concentration.nakamotoCoefficient ?? null;
+        member.uniqueDonors = concentration.uniqueDonors ?? null;
+        member.top10Concentration = concentration.top10Concentration ?? null;
+        member.nakamotoPercent =
+          concentration.uniqueDonors > 0
+            ? parseFloat(
+                ((concentration.nakamotoCoefficient / concentration.uniqueDonors) * 100).toFixed(1)
+              )
+            : null;
+      }
 
       // Recalculate grassrootsPercent to match tier calculation
       // Use grassrootsDonations if available, otherwise fall back to old calculation

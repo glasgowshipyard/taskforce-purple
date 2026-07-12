@@ -381,9 +381,10 @@ Both crons run every 20 minutes = 72 runs/day per worker.
 - **Total ≈ 450-550/day ≈ 50-55% of budget** ✅
 - The July 2026 queue fixes add ~1 write per failure-defer (replaces a
   formerly skipped write) and one queue rebuild per drain cycle — noise
-- KV reads: workers use ~700/day; `/api/members` costs ~540 reads per
-  request → ~180 requests/day ceiling on the 100k read budget (known
-  limitation; merge concentration data into members:all before real traffic)
+- KV reads: tier recalculation after each batch reads per-member
+  concentration keys (~537 × 72 runs ≈ 39k/day, pre-existing);
+  `/api/members` costs 3 reads per request (merged at write time,
+  2026-07-12) → ~20k requests/day ceiling on the 100k read budget ✅
 
 ### Cloudflare D1
 
@@ -427,9 +428,13 @@ Both crons run every 20 minutes = 72 runs/day per worker.
    KV analyses remain authoritative for them. Fix requires storing the FEC
    `sub_id` per transaction and re-collecting. (The broader D1 mirror
    failure was fixed and backfilled 2026-07-12, see below.)
-3. **`/api/members` performs ~537 KV reads per request** (concentration merge).
-   Fine at hobby traffic; should be merged into `members:all` at write time
-   before any real audience.
+3. ~~`/api/members` performs ~537 KV reads per request~~ **Resolved
+   2026-07-12**: concentration metrics are merged into `members:all` by
+   `performTierRecalculation` (runs after every cron batch), so the endpoint
+   costs 3 KV reads and sends `Cache-Control: public, max-age=300`. Edge
+   caching would additionally require a custom domain (Cache API is inert on
+   workers.dev). N/A members merge automatically once Phase 1 gives them
+   financial data.
 
 ---
 
