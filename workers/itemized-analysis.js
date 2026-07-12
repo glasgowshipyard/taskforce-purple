@@ -622,9 +622,9 @@ async function fetchAndAggregateChunk(bioguideId, env, log) {
             analysis.totalTransactions,
             analysis.uniqueDonors,
             analysis.totalAmount,
-            analysis.fecReconciliation?.fecItemizedTotal || null,
+            analysis.fecReconciliation?.fecReportedTotal || null,
             progress.fecTotalCount || null,
-            analysis.fecReconciliation?.percentDiff || null,
+            analysis.fecReconciliation?.percentDifference || null,
             progress.startedAt,
             new Date().toISOString()
           )

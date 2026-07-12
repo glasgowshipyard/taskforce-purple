@@ -17,12 +17,14 @@ Task Force Purple exposes how politicians from both parties often serve the same
 
 Rankings based on **individual funding %** (grassroots + itemized donations from people), with **coordination risk penalties** applied:
 
-- **S Tier (85%+)**: Clean, people-funded representatives
-- **A Tier (70-84%)**: Mostly grassroots with low coordination risk
+- **S Tier (90%+)**: Clean, people-funded representatives
+- **A Tier (75-89%)**: Mostly grassroots with low coordination risk
 - **B Tier (60-74%)**: Majority individual funded
 - **C Tier (45-59%)**: Mixed sources, moderate coordination risk
 - **D Tier (30-44%)**: PAC heavy or high donor coordination risk
-- **E/F Tier (<30%)**: Corporate captured
+- **E Tier (15-29%)** / **F Tier (<15%)**: Corporate captured
+
+Thresholds shift upward by up to 30 points for concerning PAC funding (Super PACs, leadership/lobbyist PACs).
 
 ### Dynamic Trust Anchor System
 
@@ -33,7 +35,7 @@ Not all itemized donations are equal. The system applies a **sliding threshold**
 - **Elite capture** (<5% Nakamoto): 25% limit - donors fit in a country club
 - **Dinner party** (<50 total donors): 10% limit - coordination trivial
 
-**Quadratic penalty** (P = E²/20) applies for exceeding your specific limit, punishing structural capture harder than minor slips.
+**Quadratic penalty** (P = E²/20, capped at 40 points) applies for exceeding your specific limit, punishing structural capture harder than minor slips. Scores floor at 0, and concentration snapshots that don't credibly cover a member's itemized total fall back to the standard 40% limit instead of the strictest one.
 
 **Itemized percentage is calculated from individual funding only**, not total raised. This isolates the "human element" - of the people who gave, how many wrote big checks?
 
