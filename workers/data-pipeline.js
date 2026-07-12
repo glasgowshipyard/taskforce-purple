@@ -2909,12 +2909,32 @@ async function processSmartBatch(env) {
         try {
           console.log(`💰 Processing Phase 1: ${member.name}`);
           const financials = await fetchMemberFinancials(member, env);
-          await updateMemberWithPhase1Data(member, financials, env);
-
           callsUsed += 3;
-          membersProcessed.push({ name: member.name, phase: 1, status: 'success' });
 
-          // Update queue after successful processing
+          if (financials) {
+            await updateMemberWithPhase1Data(member, financials, env);
+            membersProcessed.push({ name: member.name, phase: 1, status: 'success' });
+          } else {
+            // FEC lookup found nothing. Previously this wrote zeros over the
+            // member and dropped them from the queue (issue #29). Defer with
+            // a retry budget instead.
+            const failCount = (member.failCount || 0) + 1;
+            if (failCount < 3) {
+              phase1Queue.push({ ...member, failCount });
+              console.warn(
+                `⚠️ Phase 1: no FEC data for ${member.name} (attempt ${failCount}/3), deferred to end of queue`
+              );
+              membersProcessed.push({ name: member.name, phase: 1, status: 'deferred' });
+            } else {
+              await markFECLookupExhausted(member, env);
+              console.warn(
+                `🚫 Phase 1: FEC lookup exhausted for ${member.name} after ${failCount} attempts, will retry in 90 days`
+              );
+              membersProcessed.push({ name: member.name, phase: 1, status: 'exhausted' });
+            }
+          }
+
+          // Persist queue after every outcome so failures can't stall or vanish
           await updatePhase1Queue(env, phase1Queue);
         } catch (error) {
           console.warn(`⚠️ Phase 1 failed for ${member.name}:`, error.message);
@@ -2925,28 +2945,32 @@ async function processSmartBatch(env) {
             error: error.message,
           });
 
-          // Check for rate limiting scenarios
-          if (error.message.includes('Too many subrequests')) {
-            console.log('🛑 Cloudflare subrequest limit detected, stopping batch processing');
-            break;
-          }
-
-          // Check for 503 Service Unavailable (API rate limiting)
-          if (
+          // Rate limiting: stop the batch WITHOUT persisting the queue, so
+          // the member stays at the front and is retried next run
+          const isRateLimit =
+            error.message.includes('Too many subrequests') ||
             error.message.includes('503') ||
             error.message.includes('Service Unavailable') ||
             error.message.includes('rate limit') ||
-            error.message.includes('Rate limit')
-          ) {
-            console.log('🛑 API rate limit (503) detected, stopping batch processing');
+            error.message.includes('Rate limit') ||
+            error.message.includes('429') ||
+            error.message.includes('Too Many Requests');
+
+          if (isRateLimit) {
+            console.log('🛑 Rate limit detected, stopping batch processing');
             break;
           }
 
-          // Check for 429 Too Many Requests
-          if (error.message.includes('429') || error.message.includes('Too Many Requests')) {
-            console.log('🛑 HTTP 429 rate limit detected, stopping batch processing');
-            break;
+          // Genuine failure: defer with a retry budget and persist, so one
+          // permanently failing member can't stall the queue head forever
+          const failCount = (member.failCount || 0) + 1;
+          if (failCount < 3) {
+            phase1Queue.push({ ...member, failCount });
+          } else {
+            await markFECLookupExhausted(member, env);
+            console.warn(`🚫 Phase 1: giving up on ${member.name} after ${failCount} attempts`);
           }
+          await updatePhase1Queue(env, phase1Queue);
         }
       } else if (phase2Queue.length > 0 && callsUsed + 4 <= callBudget) {
         // PHASE 2 processing (1 out of 4 runs, or when Phase 1 is empty)
@@ -3044,7 +3068,47 @@ async function initializeProcessingQueues(env) {
     const existingPhase2 = await env.MEMBER_DATA.get('processing_queue_phase2');
 
     if (existingPhase1 && existingPhase2) {
-      console.log('📋 Processing queues already initialized');
+      const phase1 = JSON.parse(existingPhase1);
+      if (phase1.length > 0) {
+        console.log('📋 Processing queues already initialized');
+        return;
+      }
+
+      // Phase 1 queue exists but is empty. Members can still lack financial
+      // data (failed lookups, cycle boundaries, sync-added members) - the old
+      // early return here left them stranded at totalRaised: 0 forever
+      // (issue #29). Re-queue them, skipping recently exhausted lookups.
+      const membersData = await env.MEMBER_DATA.get('members:all');
+      if (membersData) {
+        const members = JSON.parse(membersData);
+        const RETRY_EXHAUSTED_AFTER_MS = 90 * 24 * 60 * 60 * 1000;
+        const missing = members.filter(m => {
+          if (m.totalRaised !== 0 && m.totalRaised !== null) {
+            return false;
+          }
+          if (
+            m.fecLookupExhausted &&
+            Date.now() - new Date(m.fecLookupExhausted).getTime() < RETRY_EXHAUSTED_AFTER_MS
+          ) {
+            return false;
+          }
+          return true;
+        });
+
+        if (missing.length > 0) {
+          const requeued = missing.map(m => ({
+            bioguideId: m.bioguideId,
+            name: m.name,
+            state: m.state,
+            district: m.district,
+            party: m.party,
+          }));
+          await env.MEMBER_DATA.put('processing_queue_phase1', JSON.stringify(requeued));
+          console.log(
+            `🔁 Re-queued ${requeued.length} members with no financial data into Phase 1`
+          );
+        }
+      }
       return;
     }
 
@@ -3293,7 +3357,37 @@ async function reconcileFECMismatch(member, env) {
 }
 
 // Update member with Phase 1 data and move to Phase 2 queue if successful
+// Mark a member whose FEC lookup keeps failing so re-queue logic can skip
+// them for a while (non-filers like delegates never resolve)
+async function markFECLookupExhausted(member, env) {
+  try {
+    const membersData = await env.MEMBER_DATA.get('members:all');
+    if (!membersData) {
+      return;
+    }
+    const members = JSON.parse(membersData);
+    const memberIndex = members.findIndex(m => m.bioguideId === member.bioguideId);
+    if (memberIndex === -1) {
+      return;
+    }
+    members[memberIndex] = {
+      ...members[memberIndex],
+      fecLookupExhausted: new Date().toISOString(),
+    };
+    await env.MEMBER_DATA.put('members:all', JSON.stringify(members));
+  } catch (error) {
+    console.warn(`Failed to mark FEC lookup exhausted for ${member.name}:`, error.message);
+  }
+}
+
 async function updateMemberWithPhase1Data(member, financials, env) {
+  if (!financials) {
+    // Never overwrite a member with zeros because a lookup came back empty
+    console.warn(
+      `⚠️ updateMemberWithPhase1Data called without financials for ${member.name}, skipping`
+    );
+    return;
+  }
   try {
     // Get existing members data
     const membersData = await env.MEMBER_DATA.get('members:all');
