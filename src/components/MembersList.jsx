@@ -358,7 +358,7 @@ export default function MembersList() {
           )}
 
           {/* Individual Funding Score - Prominent Display */}
-          {selectedMember.totalRaised > 0 && selectedMember.individualFundingPercent && (
+          {selectedMember.totalRaised > 0 && selectedMember.individualFundingPercent != null && (
             <div className="mb-6 p-6 bg-gradient-to-r from-green-50 to-blue-50 rounded-lg border-2 border-green-200">
               <div className="flex items-center justify-between">
                 <div>
@@ -508,7 +508,7 @@ export default function MembersList() {
                     transparency: Super PACs 2.0x, Leadership/Lobbyist PACs 1.5x)
                   </span>
                 </div>
-                {selectedMember.individualFundingPercent && (
+                {selectedMember.individualFundingPercent != null && (
                   <div className="mt-3 pt-3 border-t border-gray-300">
                     <p className="text-xs text-gray-600">
                       <span className="font-semibold">
@@ -777,7 +777,7 @@ export default function MembersList() {
                 ) : (
                   <div>
                     <div className="text-base sm:text-lg font-bold text-green-600">
-                      {member.individualFundingPercent || member.grassrootsPercent}%
+                      {member.individualFundingPercent ?? member.grassrootsPercent}%
                     </div>
                     <div className="text-[10px] sm:text-sm text-gray-500">Grassroots</div>
                   </div>
