@@ -380,8 +380,21 @@ Dynamic Trust Anchor Application
    refreshed within a cycle. Early-cycle collections understate donor counts.
    The July 2026 reliability check stops junk snapshots from distorting tiers,
    but a periodic re-analysis policy is still an open TODO.
-2. **D1 analytical mirror is incomplete** (89/502 collection_metadata rows) —
-   D1 write failures are swallowed; KV remains the source of truth for tiers.
+2. **D1 analytical mirror is broken, root-caused 2026-07-12** (89/502
+   collection_metadata rows, 32 donor_aggregates rows across 4 members):
+   - `donor_aggregates` INSERT in `itemized-analysis.js` batches 100 rows ×
+     8 bound params = 800 parameters, over D1's per-statement limit (the
+     transactions insert in the same file empirically settled on ~110)
+   - Any member with more than ~12 donors throws on the first chunk, and the
+     shared try/catch skips the `collection_metadata` write too
+   - Evidence: every one of the 89 metadata rows belongs to a member with
+     0 donors (85) or ≤12 donors (4); writes ceased entirely after March
+     2026 once completions had real donor bases
+   - Fix path: batch aggregates like the transactions insert (D1 batch API,
+     ~10 rows/statement), give metadata its own try/catch, then backfill —
+     `donor_aggregates` can be rebuilt from `itemized_transactions` (1.4M
+     rows, 425 members) with a GROUP BY, and metadata from the KV analyses
+   - KV remains the source of truth for tiers; tiers are unaffected
 3. **`/api/members` performs ~537 KV reads per request** (concentration merge).
    Fine at hobby traffic; should be merged into `members:all` at write time
    before any real audience.
