@@ -29,6 +29,37 @@
 
 ## Recent Major Updates
 
+### 2026-07-12 (later): D1 Mirror Fixed and Backfilled
+
+**Status**: ✅ FIXED, DEPLOYED, BACKFILLED
+
+**Root cause**: the `donor_aggregates` INSERT in `itemized-analysis.js`
+packed 100 rows × 8 bound params = 800 parameters into one statement, over
+D1's per-statement limit. Any member with more than ~12 donors threw on the
+first chunk, and the shared try/catch silently skipped the
+`collection_metadata` write too. Evidence: all 89 pre-fix metadata rows
+belonged to members with 0 donors (85) or ≤12 (4); writes ceased entirely
+after March 2026 once completions had real donor bases.
+
+**Fix (deployed, worker version da4074f9)**: aggregates now use the D1 batch
+API (100 single-row statements per batch, same pattern as the transactions
+insert), and the metadata write has its own try/catch so an aggregates
+failure can never block the completion record.
+
+**Backfill (one-time, 2026-07-12)**:
+
+- `donor_aggregates` rebuilt from `itemized_transactions` via GROUP BY using
+  the worker's donor-key semantics: 326,136 rows across 425 members (8s)
+- `collection_metadata` backfilled from the 497 KV analyses via
+  `wrangler kv bulk get` (100-key chunks) → 499 total rows
+- Validation against KV found 28 members whose raw transactions are inflated
+  (January collection restarts re-wrote pages; no dedup key stored). Their
+  52,126 aggregate rows were deleted — no row beats a wrong row. Final state:
+  **397 members with verified aggregates (274,010 rows), 499 metadata rows**
+- Spot-check: A000148 matches KV exactly (740 donors, $1,477,988)
+
+---
+
 ### 2026-07-12: Tier Calculation Hardening + Phase 1 Silent-Skip Fix
 
 **Status**: ✅ DEPLOYED
@@ -380,21 +411,13 @@ Dynamic Trust Anchor Application
    refreshed within a cycle. Early-cycle collections understate donor counts.
    The July 2026 reliability check stops junk snapshots from distorting tiers,
    but a periodic re-analysis policy is still an open TODO.
-2. **D1 analytical mirror is broken, root-caused 2026-07-12** (89/502
-   collection_metadata rows, 32 donor_aggregates rows across 4 members):
-   - `donor_aggregates` INSERT in `itemized-analysis.js` batches 100 rows ×
-     8 bound params = 800 parameters, over D1's per-statement limit (the
-     transactions insert in the same file empirically settled on ~110)
-   - Any member with more than ~12 donors throws on the first chunk, and the
-     shared try/catch skips the `collection_metadata` write too
-   - Evidence: every one of the 89 metadata rows belongs to a member with
-     0 donors (85) or ≤12 donors (4); writes ceased entirely after March
-     2026 once completions had real donor bases
-   - Fix path: batch aggregates like the transactions insert (D1 batch API,
-     ~10 rows/statement), give metadata its own try/catch, then backfill —
-     `donor_aggregates` can be rebuilt from `itemized_transactions` (1.4M
-     rows, 425 members) with a GROUP BY, and metadata from the KV analyses
-   - KV remains the source of truth for tiers; tiers are unaffected
+2. **Raw `itemized_transactions` are duplicated for 28 early-collection
+   members** (incl. Sanders, Pelosi): January 2026 collection restarts
+   re-wrote pages and the table has no dedup key (FEC transaction IDs were
+   not stored). Their `donor_aggregates` rows were deliberately deleted —
+   KV analyses remain authoritative for them. Fix requires storing the FEC
+   `sub_id` per transaction and re-collecting. (The broader D1 mirror
+   failure was fixed and backfilled 2026-07-12, see below.)
 3. **`/api/members` performs ~537 KV reads per request** (concentration merge).
    Fine at hobby traffic; should be merged into `members:all` at write time
    before any real audience.

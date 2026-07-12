@@ -580,35 +580,32 @@ async function fetchAndAggregateChunk(bioguideId, env, log) {
           return { key, firstName, lastName, state, zip, amount };
         });
 
-        // Batch insert donor aggregates
-        const chunks = [];
-        for (let i = 0; i < donorAggregates.length; i += 100) {
-          chunks.push(donorAggregates.slice(i, i + 100));
+        // D1 has a low per-statement bound-parameter limit: one row per
+        // statement, batched via the D1 batch API (same pattern as the
+        // transaction insert above). The old 100-row multi-VALUES insert
+        // (800 params) failed for any member with >12 donors and silently
+        // took the metadata write down with it.
+        const BATCH_SIZE = 100; // statements per batch call (8 params each)
+        for (let i = 0; i < donorAggregates.length; i += BATCH_SIZE) {
+          const batch = donorAggregates.slice(i, i + BATCH_SIZE);
+          const statements = batch.map(d =>
+            env.DONOR_DB.prepare(
+              `INSERT OR REPLACE INTO donor_aggregates
+               (bioguide_id, cycle, donor_key, first_name, last_name, state, zip, total_amount, transaction_count)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1)`
+            ).bind(bioguideId, cycle, d.key, d.firstName, d.lastName, d.state, d.zip, d.amount)
+          );
+          await env.DONOR_DB.batch(statements);
         }
 
-        for (const chunk of chunks) {
-          const placeholders = chunk.map(() => '(?, ?, ?, ?, ?, ?, ?, ?, 1)').join(',');
-          const values = chunk.flatMap(d => [
-            bioguideId,
-            cycle,
-            d.key,
-            d.firstName,
-            d.lastName,
-            d.state,
-            d.zip,
-            d.amount,
-          ]);
+        log(`  ✅ D1 donor aggregates written`);
+      } catch (error) {
+        log(`  ⚠️ D1 aggregate write failed: ${error.message}`);
+      }
 
-          await env.DONOR_DB.prepare(
-            `INSERT OR REPLACE INTO donor_aggregates
-             (bioguide_id, cycle, donor_key, first_name, last_name, state, zip, total_amount, transaction_count)
-             VALUES ${placeholders}`
-          )
-            .bind(...values)
-            .run();
-        }
-
-        // Update collection metadata
+      // Collection metadata gets its own try/catch: an aggregates failure
+      // must never block the completion record
+      try {
         await env.DONOR_DB.prepare(
           `INSERT OR REPLACE INTO collection_metadata
            (bioguide_id, committee_id, cycle, status, total_transactions, unique_donors, total_amount,
@@ -631,9 +628,9 @@ async function fetchAndAggregateChunk(bioguideId, env, log) {
           )
           .run();
 
-        log(`  ✅ D1 writes complete`);
+        log(`  ✅ D1 collection metadata written`);
       } catch (error) {
-        log(`  ⚠️ D1 aggregate write failed: ${error.message}`);
+        log(`  ⚠️ D1 metadata write failed: ${error.message}`);
       }
     }
 
