@@ -11,10 +11,12 @@
  * Storage during collection: 535 members × 1 MB = 535 MB ✅
  * Storage after cleanup: 535 members × 2 KB = 1 MB ✅
  *
- * See FREE_TIER_ITEMIZED_STRATEGY.md for full design doc
+ * See DONOR_CONCENTRATION_ANALYSIS.md for the design doc and
+ * GRASSROOTS_CALCULATION_GUIDE.md for how the output feeds tier calculation.
  */
 
 import { STATE_ABBREVIATIONS } from './shared-constants.js';
+import { cycleForYear } from './tier-calculation.js';
 
 const PAGES_PER_RUN = 5; // 5 pages × 2.5s = 12.5s + overhead, fits in 30s wall-clock limit
 
@@ -363,7 +365,7 @@ async function fetchAndAggregateChunk(bioguideId, env, log) {
     log(`  💼 Committee ID: ${committeeId}`);
 
     const currentYear = new Date().getFullYear();
-    const cycle = currentYear % 2 === 0 ? currentYear : currentYear + 1;
+    const cycle = cycleForYear(currentYear);
     log(`  📅 Election cycle: ${cycle}`);
 
     progress = {
@@ -621,9 +623,9 @@ async function fetchAndAggregateChunk(bioguideId, env, log) {
             analysis.totalTransactions,
             analysis.uniqueDonors,
             analysis.totalAmount,
-            analysis.fecReconciliation?.fecItemizedTotal || null,
+            analysis.fecReconciliation?.fecReportedTotal || null,
             progress.fecTotalCount || null,
-            analysis.fecReconciliation?.percentDiff || null,
+            analysis.fecReconciliation?.percentDifference || null,
             progress.startedAt,
             new Date().toISOString()
           )
@@ -840,7 +842,7 @@ async function searchCommitteeId(name, office, state, apiKey) {
   }
 
   const currentYear = new Date().getFullYear();
-  const cycle = currentYear % 2 === 0 ? currentYear : currentYear + 1;
+  const cycle = cycleForYear(currentYear);
 
   const recentCommittee =
     committees.find(c => c.cycles && c.cycles.includes(cycle)) || committees[0];

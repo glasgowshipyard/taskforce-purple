@@ -2,6 +2,13 @@
 // Cloudflare Worker to fetch and process congressional data
 
 import { STATE_ABBREVIATIONS } from './shared-constants.js';
+import {
+  calculateEnhancedTier as computeEnhancedTier,
+  calculateTier,
+  cycleForYear,
+  getCommitteeCategory,
+  getPACTransparencyWeight,
+} from './tier-calculation.js';
 
 export default {
   async fetch(request, env) {
@@ -187,11 +194,11 @@ async function getCurrentYear() {
   throw new Error('All 4 NTP time sources failed - cannot determine current year');
 }
 
-// Calculate election cycle from current year
+// Calculate election cycle from current year.
+// FEC cycles are named by the even END year (2025 belongs to cycle 2026).
 async function getElectionCycle() {
   const currentYear = await getCurrentYear();
-  const cycle = currentYear % 2 === 0 ? currentYear : currentYear - 1;
-  return cycle;
+  return cycleForYear(currentYear);
 }
 
 // Fetch current Congress members from Congress.gov API (with pagination)
@@ -1064,80 +1071,8 @@ async function searchCommitteeByName(committeeName, env) {
 }
 
 // NEW: Calculate transparency weight for PAC contributions
-function getPACTransparencyWeight(committee_type, designation) {
-  // Base weight: 1.0 (normal PAC concern)
-  let weight = 1.0;
-
-  // Committee Type adjustments
-  if (committee_type === 'O') {
-    weight *= 2.0; // Super PACs are 2x more concerning
-  } else if (committee_type === 'P') {
-    weight *= 0.3; // Candidate committees are 70% less concerning
-  }
-
-  // Designation adjustments
-  if (designation === 'D' || designation === 'B') {
-    weight *= 1.5; // Leadership/Lobbyist PACs 50% more concerning
-  } else if (designation === 'P' || designation === 'A') {
-    weight *= 0.15; // Candidate/Authorized committees 85% less concerning (personal PACs)
-  }
-
-  return weight;
-}
-
-// NEW: Get committee category for display
-function getCommitteeCategory(committee_type, designation) {
-  if (committee_type === 'O') {
-    return 'Super PAC';
-  }
-  if (designation === 'D') {
-    return 'Leadership PAC';
-  }
-  if (designation === 'B') {
-    return 'Lobbyist PAC';
-  }
-  if (committee_type === 'P' || designation === 'P' || designation === 'A') {
-    return 'Candidate Committee';
-  }
-  if (committee_type === 'Q') {
-    return 'Qualified PAC';
-  }
-  if (committee_type === 'N') {
-    return 'Nonqualified PAC';
-  }
-  if (designation === 'U') {
-    return 'Unauthorized PAC';
-  }
-  return 'Other PAC';
-}
-
-// Calculate tier based on grassroots percentage
-function calculateTier(grassrootsPercent, totalRaised) {
-  // No financial data = no tier assignment
-  if (totalRaised === 0) {
-    return 'N/A';
-  }
-
-  if (grassrootsPercent >= 90) {
-    return 'S';
-  }
-  if (grassrootsPercent >= 75) {
-    return 'A';
-  }
-  if (grassrootsPercent >= 60) {
-    return 'B';
-  }
-  if (grassrootsPercent >= 45) {
-    return 'C';
-  }
-  if (grassrootsPercent >= 30) {
-    return 'D';
-  }
-  if (grassrootsPercent >= 15) {
-    return 'E';
-  }
-  return 'F';
-}
+// getPACTransparencyWeight, getCommitteeCategory, and calculateTier now live
+// in tier-calculation.js (imported at top of file)
 
 // Compute adaptive itemization threshold based on percentile distribution
 // Returns the 70th percentile of large donor concentrations for a specific chamber
@@ -1215,203 +1150,35 @@ async function getAdaptiveThresholds(env, members) {
   return newCache;
 }
 
-// NEW: Calculate enhanced tier using transparency penalty system
-// Returns object with { tier, individualFundingPercent } for display
+// Enhanced tier calculation: loads donor-concentration data from KV, then
+// delegates the math to the pure functions in tier-calculation.js.
+// Signature kept from the original so call sites are unchanged.
 async function calculateEnhancedTier(member, _allMembers = [], env = null) {
-  if (!member.totalRaised || member.totalRaised === 0) {
-    return { tier: 'N/A', individualFundingPercent: 0 };
-  }
-
-  // Check if we have enhanced PAC data with actual committee metadata
-  const hasEnhancedPACData =
-    member.pacContributions &&
-    member.pacContributions.length > 0 &&
-    member.pacContributions.some(pac => pac.committee_type || pac.designation);
-
-  // Check if we have donor concentration data for dynamic trust anchor
-  let hasConcentrationData = false;
+  let concentration = null;
   if (env && member.bioguideId) {
     try {
       const concentrationData = await env.MEMBER_DATA.get(
         `itemized_analysis_v2:${member.bioguideId}`
       );
-      hasConcentrationData = !!concentrationData;
+      if (concentrationData) {
+        concentration = JSON.parse(concentrationData);
+      }
     } catch (error) {
       // Concentration data not available
     }
   }
 
-  // Run enhanced calculation if we have either PAC data OR concentration data
-  if (hasEnhancedPACData || hasConcentrationData) {
-    // Calculate base individual funding percentage (grassroots + itemized)
-    // CRITICAL: Use individual funding total as denominator, NOT totalRaised
-    // This isolates the "human element" - of the people who gave, how reliant are you on big checks?
-    const individualFundingTotal = member.grassrootsDonations + (member.largeDonorDonations || 0);
+  const result = computeEnhancedTier(member, concentration);
 
-    const itemizedPercent =
-      member.largeDonorDonations !== undefined && individualFundingTotal > 0
-        ? (member.largeDonorDonations / individualFundingTotal) * 100
-        : 0;
-
-    // Combined individual funding as % of total raised (for final tier calculation)
-    let individualFundingPercent =
-      member.totalRaised > 0 ? (individualFundingTotal / member.totalRaised) * 100 : 0;
-
-    // Load donor concentration data if available
-    let concentration = null;
-    if (env && member.bioguideId) {
-      try {
-        const concentrationData = await env.MEMBER_DATA.get(
-          `itemized_analysis_v2:${member.bioguideId}`
-        );
-        if (concentrationData) {
-          concentration = JSON.parse(concentrationData);
-        }
-      } catch (error) {
-        console.log(`Note: No concentration data for ${member.bioguideId}`);
-      }
-    }
-
-    // DYNAMIC TRUST ANCHOR: Itemization threshold based on coordination risk
-    // The "safe" threshold for itemized funds depends on how easily donors can coordinate
-
-    let trustAnchor = 40; // Default: Standard trust (fallback if no concentration data)
-    let nakamotoPercent = null;
-
-    if (
-      concentration &&
-      concentration.nakamotoCoefficient !== undefined &&
-      concentration.uniqueDonors !== undefined
-    ) {
-      const nakamoto = concentration.nakamotoCoefficient;
-      const uniqueDonors = concentration.uniqueDonors;
-      nakamotoPercent = (nakamoto / uniqueDonors) * 100;
-
-      // Determine trust anchor based on Nakamoto density
-      // Lower density (easier coordination) = stricter limit
-      // Higher density (harder coordination) = more lenient limit
-
-      if (nakamoto < 50) {
-        // Dinner party risk: < 50 people can coordinate trivially
-        trustAnchor = 10;
-        console.log(`${member.bioguideId} Trust Anchor: 10% (dinner party, ${nakamoto} donors)`);
-      } else if (nakamotoPercent < 5) {
-        // Elite capture: Country club / single gala coordination
-        trustAnchor = 25;
-        console.log(
-          `${member.bioguideId} Trust Anchor: 25% (elite capture, ${nakamotoPercent.toFixed(1)}%)`
-        );
-      } else if (nakamotoPercent < 10) {
-        // Standard: Factional, requires organization
-        trustAnchor = 40;
-        console.log(
-          `${member.bioguideId} Trust Anchor: 40% (standard, ${nakamotoPercent.toFixed(1)}%)`
-        );
-      } else {
-        // Movement: High entropy, impossible to coordinate
-        trustAnchor = 50;
-        console.log(
-          `${member.bioguideId} Trust Anchor: 50% (movement, ${nakamotoPercent.toFixed(1)}%)`
-        );
-      }
-    }
-
-    // Calculate excess over trust anchor
-    const excess = Math.max(0, itemizedPercent - trustAnchor);
-
-    // Apply quadratic penalty: P = E² / 20
-    // Quadratic punishes large structural violations harder than minor slips
-    if (excess > 0) {
-      const penalty = (excess * excess) / 20;
-      individualFundingPercent -= penalty;
-
-      console.log(
-        `${member.bioguideId} Itemization penalty: ${itemizedPercent.toFixed(1)}% - ${trustAnchor}% = ${excess.toFixed(1)}% excess → ${penalty.toFixed(2)}% penalty`
-      );
-    }
-
-    // Apply PAC transparency penalty to thresholds
-    const transparencyPenalty = calculateTransparencyPenalty(member);
-    const adjustedThresholds = getAdjustedThresholds(transparencyPenalty);
-
-    // Assign tier based on individual funding % vs adjusted thresholds
-    let tier;
-    if (individualFundingPercent >= adjustedThresholds.S) {
-      tier = 'S';
-    } else if (individualFundingPercent >= adjustedThresholds.A) {
-      tier = 'A';
-    } else if (individualFundingPercent >= adjustedThresholds.B) {
-      tier = 'B';
-    } else if (individualFundingPercent >= adjustedThresholds.C) {
-      tier = 'C';
-    } else if (individualFundingPercent >= adjustedThresholds.D) {
-      tier = 'D';
-    } else if (individualFundingPercent >= adjustedThresholds.E) {
-      tier = 'E';
-    } else {
-      tier = 'F';
-    }
-
-    return {
-      tier,
-      individualFundingPercent: Math.round(individualFundingPercent),
-    };
+  if (result.detail?.path === 'enhanced') {
+    console.log(
+      `${member.bioguideId} tier=${result.tier} anchor=${result.detail.trustAnchor}% ` +
+        `(${result.detail.trustAnchorBasis}) itemized=${result.detail.itemizedPercent}% ` +
+        `penalty=${result.detail.itemizationPenalty} pacPenalty=${result.detail.transparencyPenalty}`
+    );
   }
 
-  // Fallback to standard calculation when enhanced data not available
-  const fallbackTier = calculateTier(member.grassrootsPercent, member.totalRaised);
-  return {
-    tier: fallbackTier,
-    individualFundingPercent: Math.round(member.grassrootsPercent),
-  };
-}
-
-// Calculate transparency penalty based on proportion of concerning PAC funding and large donors
-function calculateTransparencyPenalty(member) {
-  if (!member.totalRaised) {
-    return 0;
-  }
-
-  let totalWeightedConcerningMoney = 0;
-
-  // Add weighted PAC money (if we have PAC data)
-  if (member.pacContributions?.length) {
-    for (const pac of member.pacContributions) {
-      // Use transparency weight when committee metadata is available, default to 1.0 when missing
-      const weight =
-        pac.committee_type || pac.designation
-          ? getPACTransparencyWeight(pac.committee_type, pac.designation)
-          : 1.0; // Neutral weight for PACs without committee metadata
-      const weightedAmount = pac.amount * weight;
-
-      // Only count weighted amounts above baseline (1.0x means neutral)
-      if (weight > 1.0) {
-        totalWeightedConcerningMoney += weightedAmount;
-      }
-      // Candidate committees and good PACs (weight < 1.0) don't contribute to penalty
-    }
-  }
-
-  // Large donor concentration is now handled in tier calculation via itemization penalty
-  // No need to penalize here - itemized donations are part of individual support
-
-  // Calculate what % of their total funding is from weighted concerning sources
-  const concerningPercent = (totalWeightedConcerningMoney / member.totalRaised) * 100;
-
-  // Apply penalty: 1 point per 1% of concerning funding, max 30 points (increased from 15 to accommodate large donors)
-  return Math.min(Math.floor(concerningPercent), 30);
-}
-
-// Get adjusted tier thresholds based on transparency penalty
-function getAdjustedThresholds(penaltyPoints) {
-  return {
-    S: 90 + penaltyPoints, // Need higher grassroots % if you have concerning PACs
-    A: 75 + penaltyPoints,
-    B: 60 + penaltyPoints,
-    C: 45 + penaltyPoints,
-    D: 30 + penaltyPoints,
-    E: 15 + penaltyPoints,
-  };
+  return result;
 }
 
 // Process and enrich member data with TWO-CALL STRATEGY
@@ -3142,12 +2909,32 @@ async function processSmartBatch(env) {
         try {
           console.log(`💰 Processing Phase 1: ${member.name}`);
           const financials = await fetchMemberFinancials(member, env);
-          await updateMemberWithPhase1Data(member, financials, env);
-
           callsUsed += 3;
-          membersProcessed.push({ name: member.name, phase: 1, status: 'success' });
 
-          // Update queue after successful processing
+          if (financials) {
+            await updateMemberWithPhase1Data(member, financials, env);
+            membersProcessed.push({ name: member.name, phase: 1, status: 'success' });
+          } else {
+            // FEC lookup found nothing. Previously this wrote zeros over the
+            // member and dropped them from the queue (issue #29). Defer with
+            // a retry budget instead.
+            const failCount = (member.failCount || 0) + 1;
+            if (failCount < 3) {
+              phase1Queue.push({ ...member, failCount });
+              console.warn(
+                `⚠️ Phase 1: no FEC data for ${member.name} (attempt ${failCount}/3), deferred to end of queue`
+              );
+              membersProcessed.push({ name: member.name, phase: 1, status: 'deferred' });
+            } else {
+              await markFECLookupExhausted(member, env);
+              console.warn(
+                `🚫 Phase 1: FEC lookup exhausted for ${member.name} after ${failCount} attempts, will retry in 90 days`
+              );
+              membersProcessed.push({ name: member.name, phase: 1, status: 'exhausted' });
+            }
+          }
+
+          // Persist queue after every outcome so failures can't stall or vanish
           await updatePhase1Queue(env, phase1Queue);
         } catch (error) {
           console.warn(`⚠️ Phase 1 failed for ${member.name}:`, error.message);
@@ -3158,28 +2945,32 @@ async function processSmartBatch(env) {
             error: error.message,
           });
 
-          // Check for rate limiting scenarios
-          if (error.message.includes('Too many subrequests')) {
-            console.log('🛑 Cloudflare subrequest limit detected, stopping batch processing');
-            break;
-          }
-
-          // Check for 503 Service Unavailable (API rate limiting)
-          if (
+          // Rate limiting: stop the batch WITHOUT persisting the queue, so
+          // the member stays at the front and is retried next run
+          const isRateLimit =
+            error.message.includes('Too many subrequests') ||
             error.message.includes('503') ||
             error.message.includes('Service Unavailable') ||
             error.message.includes('rate limit') ||
-            error.message.includes('Rate limit')
-          ) {
-            console.log('🛑 API rate limit (503) detected, stopping batch processing');
+            error.message.includes('Rate limit') ||
+            error.message.includes('429') ||
+            error.message.includes('Too Many Requests');
+
+          if (isRateLimit) {
+            console.log('🛑 Rate limit detected, stopping batch processing');
             break;
           }
 
-          // Check for 429 Too Many Requests
-          if (error.message.includes('429') || error.message.includes('Too Many Requests')) {
-            console.log('🛑 HTTP 429 rate limit detected, stopping batch processing');
-            break;
+          // Genuine failure: defer with a retry budget and persist, so one
+          // permanently failing member can't stall the queue head forever
+          const failCount = (member.failCount || 0) + 1;
+          if (failCount < 3) {
+            phase1Queue.push({ ...member, failCount });
+          } else {
+            await markFECLookupExhausted(member, env);
+            console.warn(`🚫 Phase 1: giving up on ${member.name} after ${failCount} attempts`);
           }
+          await updatePhase1Queue(env, phase1Queue);
         }
       } else if (phase2Queue.length > 0 && callsUsed + 4 <= callBudget) {
         // PHASE 2 processing (1 out of 4 runs, or when Phase 1 is empty)
@@ -3277,7 +3068,47 @@ async function initializeProcessingQueues(env) {
     const existingPhase2 = await env.MEMBER_DATA.get('processing_queue_phase2');
 
     if (existingPhase1 && existingPhase2) {
-      console.log('📋 Processing queues already initialized');
+      const phase1 = JSON.parse(existingPhase1);
+      if (phase1.length > 0) {
+        console.log('📋 Processing queues already initialized');
+        return;
+      }
+
+      // Phase 1 queue exists but is empty. Members can still lack financial
+      // data (failed lookups, cycle boundaries, sync-added members) - the old
+      // early return here left them stranded at totalRaised: 0 forever
+      // (issue #29). Re-queue them, skipping recently exhausted lookups.
+      const membersData = await env.MEMBER_DATA.get('members:all');
+      if (membersData) {
+        const members = JSON.parse(membersData);
+        const RETRY_EXHAUSTED_AFTER_MS = 90 * 24 * 60 * 60 * 1000;
+        const missing = members.filter(m => {
+          if (m.totalRaised !== 0 && m.totalRaised !== null) {
+            return false;
+          }
+          if (
+            m.fecLookupExhausted &&
+            Date.now() - new Date(m.fecLookupExhausted).getTime() < RETRY_EXHAUSTED_AFTER_MS
+          ) {
+            return false;
+          }
+          return true;
+        });
+
+        if (missing.length > 0) {
+          const requeued = missing.map(m => ({
+            bioguideId: m.bioguideId,
+            name: m.name,
+            state: m.state,
+            district: m.district,
+            party: m.party,
+          }));
+          await env.MEMBER_DATA.put('processing_queue_phase1', JSON.stringify(requeued));
+          console.log(
+            `🔁 Re-queued ${requeued.length} members with no financial data into Phase 1`
+          );
+        }
+      }
       return;
     }
 
@@ -3526,7 +3357,37 @@ async function reconcileFECMismatch(member, env) {
 }
 
 // Update member with Phase 1 data and move to Phase 2 queue if successful
+// Mark a member whose FEC lookup keeps failing so re-queue logic can skip
+// them for a while (non-filers like delegates never resolve)
+async function markFECLookupExhausted(member, env) {
+  try {
+    const membersData = await env.MEMBER_DATA.get('members:all');
+    if (!membersData) {
+      return;
+    }
+    const members = JSON.parse(membersData);
+    const memberIndex = members.findIndex(m => m.bioguideId === member.bioguideId);
+    if (memberIndex === -1) {
+      return;
+    }
+    members[memberIndex] = {
+      ...members[memberIndex],
+      fecLookupExhausted: new Date().toISOString(),
+    };
+    await env.MEMBER_DATA.put('members:all', JSON.stringify(members));
+  } catch (error) {
+    console.warn(`Failed to mark FEC lookup exhausted for ${member.name}:`, error.message);
+  }
+}
+
 async function updateMemberWithPhase1Data(member, financials, env) {
+  if (!financials) {
+    // Never overwrite a member with zeros because a lookup came back empty
+    console.warn(
+      `⚠️ updateMemberWithPhase1Data called without financials for ${member.name}, skipping`
+    );
+    return;
+  }
   try {
     // Get existing members data
     const membersData = await env.MEMBER_DATA.get('members:all');

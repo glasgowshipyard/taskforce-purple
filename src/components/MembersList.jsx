@@ -358,41 +358,44 @@ export default function MembersList() {
           )}
 
           {/* Individual Funding Score - Prominent Display */}
-          {selectedMember.totalRaised > 0 && selectedMember.individualFundingPercent && (
-            <div className="mb-6 p-6 bg-gradient-to-r from-green-50 to-blue-50 rounded-lg border-2 border-green-200">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-gray-600 mb-1">Individual Funding Score</p>
-                  <p className="text-5xl font-bold text-green-600">
-                    {selectedMember.individualFundingPercent}%
-                  </p>
-                  <p className="text-sm text-gray-600 mt-2">
-                    People power from{' '}
-                    <span className="font-semibold">
-                      {selectedMember.grassrootsPercent}% grassroots
-                    </span>{' '}
-                    +{' '}
-                    <span className="font-semibold">
-                      {selectedMember.totalRaised > 0 &&
-                      selectedMember.largeDonorDonations !== undefined
-                        ? (
-                            (selectedMember.largeDonorDonations / selectedMember.totalRaised) *
-                            100
-                          ).toFixed(0)
-                        : 0}
-                      % itemized
-                    </span>{' '}
-                    donations
-                  </p>
-                </div>
-                <div
-                  className={`w-24 h-24 rounded-full flex items-center justify-center text-3xl font-bold ${TaskForceAPI.getTierColor(selectedMember.tier)}`}
-                >
-                  {selectedMember.tier}
+          {selectedMember.totalRaised > 0 &&
+            Number.isFinite(selectedMember.individualFundingPercent) && (
+              <div className="mb-6 p-6 bg-gradient-to-r from-green-50 to-blue-50 rounded-lg border-2 border-green-200">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-gray-600 mb-1">
+                      Individual Funding Score
+                    </p>
+                    <p className="text-5xl font-bold text-green-600">
+                      {selectedMember.individualFundingPercent}%
+                    </p>
+                    <p className="text-sm text-gray-600 mt-2">
+                      People power from{' '}
+                      <span className="font-semibold">
+                        {selectedMember.grassrootsPercent}% grassroots
+                      </span>{' '}
+                      +{' '}
+                      <span className="font-semibold">
+                        {selectedMember.totalRaised > 0 &&
+                        selectedMember.largeDonorDonations !== undefined
+                          ? (
+                              (selectedMember.largeDonorDonations / selectedMember.totalRaised) *
+                              100
+                            ).toFixed(0)
+                          : 0}
+                        % itemized
+                      </span>{' '}
+                      donations
+                    </p>
+                  </div>
+                  <div
+                    className={`w-24 h-24 rounded-full flex items-center justify-center text-3xl font-bold ${TaskForceAPI.getTierColor(selectedMember.tier)}`}
+                  >
+                    {selectedMember.tier}
+                  </div>
                 </div>
               </div>
-            </div>
-          )}
+            )}
 
           {/* Financial breakdown */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
@@ -508,7 +511,7 @@ export default function MembersList() {
                     transparency: Super PACs 2.0x, Leadership/Lobbyist PACs 1.5x)
                   </span>
                 </div>
-                {selectedMember.individualFundingPercent && (
+                {Number.isFinite(selectedMember.individualFundingPercent) && (
                   <div className="mt-3 pt-3 border-t border-gray-300">
                     <p className="text-xs text-gray-600">
                       <span className="font-semibold">
@@ -777,7 +780,7 @@ export default function MembersList() {
                 ) : (
                   <div>
                     <div className="text-base sm:text-lg font-bold text-green-600">
-                      {member.individualFundingPercent || member.grassrootsPercent}%
+                      {member.individualFundingPercent ?? member.grassrootsPercent}%
                     </div>
                     <div className="text-[10px] sm:text-sm text-gray-500">Grassroots</div>
                   </div>

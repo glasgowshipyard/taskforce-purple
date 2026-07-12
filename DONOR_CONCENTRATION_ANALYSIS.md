@@ -1,8 +1,14 @@
 # Donor Concentration Analysis - Technical Summary
 
-**Last Updated:** 2026-01-16
-**Status:** ✅ DEPLOYED with corrected denominator fix
-**⚠️ CRITICAL:** Current implementation stores raw transactions (38 MB per member) - **DOES NOT scale to free tier**
+**Last Updated:** 2026-07-12
+**Status:** ✅ DEPLOYED (stream-and-aggregate architecture, free-tier compatible)
+
+> Historical note: warnings below about raw-transaction storage (38 MB/member)
+> describe the abandoned 2025 prototype. The deployed worker
+> (`workers/itemized-analysis.js`) streams and aggregates — ~2 KB per member
+> in KV after completion. How the resulting Nakamoto data feeds tiers is
+> documented in `GRASSROOTS_CALCULATION_GUIDE.md`, including the July 2026
+> reliability check that ignores partial/junk snapshots.
 
 ## Critical Fix: The Denominator Bug (2026-01-16)
 
