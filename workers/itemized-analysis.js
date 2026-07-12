@@ -15,6 +15,7 @@
  */
 
 import { STATE_ABBREVIATIONS } from './shared-constants.js';
+import { cycleForYear } from './tier-calculation.js';
 
 const PAGES_PER_RUN = 5; // 5 pages × 2.5s = 12.5s + overhead, fits in 30s wall-clock limit
 
@@ -363,7 +364,7 @@ async function fetchAndAggregateChunk(bioguideId, env, log) {
     log(`  💼 Committee ID: ${committeeId}`);
 
     const currentYear = new Date().getFullYear();
-    const cycle = currentYear % 2 === 0 ? currentYear : currentYear + 1;
+    const cycle = cycleForYear(currentYear);
     log(`  📅 Election cycle: ${cycle}`);
 
     progress = {
@@ -840,7 +841,7 @@ async function searchCommitteeId(name, office, state, apiKey) {
   }
 
   const currentYear = new Date().getFullYear();
-  const cycle = currentYear % 2 === 0 ? currentYear : currentYear + 1;
+  const cycle = cycleForYear(currentYear);
 
   const recentCommittee =
     committees.find(c => c.cycles && c.cycles.includes(cycle)) || committees[0];
