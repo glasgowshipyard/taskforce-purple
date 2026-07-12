@@ -44,7 +44,12 @@ These frameworks make complex political corruption accessible through familiar e
 
 ### 1. Congressional Tier List
 
-Rate all Congress members by funding source integrity:
+Rate all Congress members by funding source integrity.
+
+> **Superseded (2026):** the shipped system uses S–F tiers based on individual
+> funding percent with dynamic trust anchors and PAC transparency penalties —
+> see `GRASSROOTS_CALCULATION_GUIDE.md` for the current algorithm. The
+> original spec below is kept for historical context.
 
 - **S Tier (85%+ grassroots):** Clean, people-funded representatives
 - **A Tier (70-84%):** Mostly grassroots funding
@@ -52,7 +57,7 @@ Rate all Congress members by funding source integrity:
 - **C Tier (30-49%):** PAC/lobbyist heavy
 - **D Tier (0-29%):** Corporate captured
 
-**Calculation:**
+**Original calculation:**
 
 ```
 grassrootsPercent = (donations < $200) / totalRaised * 100

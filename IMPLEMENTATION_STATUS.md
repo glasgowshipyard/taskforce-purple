@@ -1,38 +1,71 @@
 # Task Force Purple - Implementation Status
 
-**Last Updated**: 2026-01-23
+**Last Updated**: 2026-07-12
 
 ---
 
 ## Current System Status
 
-### ✅ FULLY OPERATIONAL
-
-All core systems are deployed and processing automatically:
-
 1. **Data Pipeline** (taskforce-purple-api)
    - Smart batch processing every 20 minutes
-   - Priority queue completed (all members have financial data)
    - Daily Congress member sync (adds new/removes departed members)
-   - Dynamic trust anchor tier calculations with donor concentration analysis
-   - **NEW**: Nakamoto coefficient data now exposed in `/api/members` endpoint
+   - Dynamic trust anchor tier calculations (see `GRASSROOTS_CALCULATION_GUIDE.md`)
+   - Tier math extracted to `workers/tier-calculation.js` with unit tests (`npm test`)
+   - ~112 members stranded at `totalRaised: 0` are being backfilled after the
+     July 2026 silent-skip fix (see below); expect N/A count to fall to just
+     the true non-filers (delegates) over a few days of cron runs
 
 2. **Itemized Donor Concentration Analysis** (itemized-analysis)
-   - Queue-based processing of **502 remaining members (35 complete as of 2026-01-23)**
-   - Runs every 20 minutes, processes 1 member per run
-   - Completion time: **~7 days for full dataset (Jan 30, 2026)**
-   - Provides Nakamoto coefficients for dynamic trust anchor
-   - Processing rate: ~3 members/hour (verified working correctly)
+   - Queue-based processing, 1 member per 20-minute cron run
+   - 502/537 complete as of 2026-07-12; the remaining ~35 cycle in the queue
+     (mostly members without FEC committees yet)
+   - Known gap: D1 `collection_metadata` has only 89 rows vs 502 KV analyses —
+     D1 write errors are caught and logged but not retried
 
 3. **Frontend** (taskforce-purple.pages.dev)
-   - Real-time tier display for all 537 members
-   - Dynamic trust anchor methodology explanation
-   - Mobile-responsive design
-   - Apolitical presentation (no politician names in examples)
+   - Tier display for all 537 members, deployed automatically on push to main
 
 ---
 
 ## Recent Major Updates
+
+### 2026-07-12: Tier Calculation Hardening + Phase 1 Silent-Skip Fix
+
+**Status**: ✅ DEPLOYED
+
+**Tier math** (was producing negative scores for 292 members; 330/537 in tier F):
+
+- Extracted all tier math into `workers/tier-calculation.js` (pure functions,
+  24 unit tests including the documented Bernie/Pelosi reference cases)
+- Itemization penalty capped at 40 points (was unbounded, observed up to 390)
+- `individualFundingPercent` floored at 0 (was as low as -167% in the API)
+- Reliability check on concentration snapshots: <10 unique donors or <50%
+  coverage of reported itemized total → neutral 40% anchor instead of the
+  harshest 10% anchor (zero-donor snapshots previously read as maximum risk)
+- Election-cycle math unified in one place; data-pipeline previously mapped
+  odd years DOWN (2025→2024) while itemized-analysis mapped UP (2025→2026).
+  FEC names cycles by the even end-year, so up is correct.
+- Simulated impact across live data: tier F 330→227, negative scores 292→0,
+  115 members move up, none down, reference cases unchanged
+
+**Phase 1 silent skip** (root cause of issue #29's 112 N/A members):
+
+- `fetchMemberFinancials` returning null previously overwrote the member with
+  zeros and dequeued them as processed. Now: defer to end of queue with a
+  3-attempt budget, then mark `fecLookupExhausted` (retried after 90 days)
+- `initializeProcessingQueues` re-queues `totalRaised: 0` members when the
+  Phase 1 queue is empty (previously early-returned because the empty queue
+  key existed, stranding them forever)
+- Thrown Phase 1 errors defer-and-persist so a permanently failing member
+  can't stall the queue head; rate-limit errors still retry the same member
+
+**Also fixed**: frontend truthiness bugs hiding 0% scores and rendering
+negative ones; D1 reconciliation field-name mismatch (`fecItemizedTotal` /
+`percentDiff` vs the actual `fecReportedTotal` / `percentDifference`) that
+left those columns always null; README tier thresholds synced with code;
+`npm test` now runs vitest instead of a no-op echo.
+
+---
 
 ### 2026-01-16: Dynamic Trust Anchor System
 
@@ -343,11 +376,15 @@ Dynamic Trust Anchor Application
 
 ### Actual Limitations
 
-1. **Itemized Analysis Timeline**: ~7 days to complete remaining 518 members
-   - **Why**: Free tier KV constraints (1,000 writes/day limit)
-   - **Impact**: Members receive dynamic trust anchor progressively (1 every 20 min)
-   - **Acceptable**: Base tiers functional now, trust anchor improves accuracy over time
-   - **Status**: 19/537 members complete (3.5%), estimated completion Jan 24, 2026
+1. **Itemized analysis freshness**: snapshots are collected once and never
+   refreshed within a cycle. Early-cycle collections understate donor counts.
+   The July 2026 reliability check stops junk snapshots from distorting tiers,
+   but a periodic re-analysis policy is still an open TODO.
+2. **D1 analytical mirror is incomplete** (89/502 collection_metadata rows) —
+   D1 write failures are swallowed; KV remains the source of truth for tiers.
+3. **`/api/members` performs ~537 KV reads per request** (concentration merge).
+   Fine at hobby traffic; should be merged into `members:all` at write time
+   before any real audience.
 
 ---
 

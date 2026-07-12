@@ -11,7 +11,8 @@
  * Storage during collection: 535 members × 1 MB = 535 MB ✅
  * Storage after cleanup: 535 members × 2 KB = 1 MB ✅
  *
- * See FREE_TIER_ITEMIZED_STRATEGY.md for full design doc
+ * See DONOR_CONCENTRATION_ANALYSIS.md for the design doc and
+ * GRASSROOTS_CALCULATION_GUIDE.md for how the output feeds tier calculation.
  */
 
 import { STATE_ABBREVIATIONS } from './shared-constants.js';
