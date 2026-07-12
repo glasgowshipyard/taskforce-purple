@@ -158,6 +158,44 @@ System verification revealed gaps between Jan 17 status report claims and actual
 
 ---
 
+### 2026-02-21: Itemized Queue Stall Bug Fix
+
+**Status**: ✅ FIXED AND DEPLOYED
+
+**Bug Description**:
+
+Itemized analysis processed only 10 members in 29 days (Jan 23 → Feb 21) despite the cron running every 20 minutes. Investigation revealed Perry, Scott (P000605) was permanently stuck at position 0 of the queue with error "No principal committee found". Every cron run hit Perry, failed, and left him in place — the queue never advanced.
+
+**Root Cause**:
+
+Two compounding issues:
+
+1. The Jan 23 queue initialization added all 535 members indiscriminately, including ~115 members with `totalRaised: 0` who had been added by the Congress sync but not yet processed by the data pipeline's Phase 1 (so they have no FEC committee ID).
+
+2. The error path in `analyzeMembers()` (lines 196–207) caught the error and recorded it, but the queue update logic (lines 220–232) only removed a member if `itemized_analysis_v2:{bioguideId}` existed after the run. Failed members were left at position 0 indefinitely.
+
+**Fix**:
+
+Changed queue update logic in `analyzeMembers()` in `workers/itemized-analysis.js` to distinguish three outcomes:
+
+- **Complete** (`analysisData` exists): remove from front of queue
+- **Failed** (`results[bioguideId].success === false`): defer to end of queue so others can proceed
+- **In progress** (multi-run member, no result yet): keep at front
+
+Members with no FEC committee (still awaiting Phase 1 data) will now cycle to the back and be retried automatically once the data pipeline has caught up to them.
+
+**Current State** (as of 2026-02-21):
+
+- 45/538 members complete (8.4%)
+- 494 members in queue
+- Fix deployed — queue now draining
+
+**Files Modified**:
+
+- `workers/itemized-analysis.js` — queue update logic in `analyzeMembers()` (lines 220–235)
+
+---
+
 ### 2026-01-23: nakamotoCoefficient Bug Fix
 
 **Status**: ✅ FIXED AND DEPLOYED

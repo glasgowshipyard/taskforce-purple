@@ -217,17 +217,25 @@ async function analyzeMembers(env) {
   log(`\n🏁 Chunk complete: ${totalTime}ms (${Math.round(totalTime / 1000)}s)`);
   log(`📄 Pages processed this run: ${totalPagesProcessed}`);
 
-  // Update queue - remove completed member
+  // Update queue - remove completed member, defer failed member, or keep in-progress member
   const member = members[0];
   const analysisKey = `itemized_analysis_v2:${member.bioguideId}`;
   const analysisData = await env.MEMBER_DATA.get(analysisKey);
 
   if (analysisData) {
     // Member is complete, remove from queue
-    queue.shift(); // Remove first element
+    queue.shift();
     await env.MEMBER_DATA.put(queueKey, JSON.stringify(queue));
     log(`✅ ${member.name} complete and removed from queue. ${queue.length} members remaining.`);
+  } else if (results[member.bioguideId]?.success === false) {
+    // Member failed (e.g. no FEC committee found yet) - defer to end so queue can advance
+    queue.shift();
+    queue.push(member);
+    await env.MEMBER_DATA.put(queueKey, JSON.stringify(queue));
+    log(`⏭️ ${member.name} deferred to end of queue: ${results[member.bioguideId]?.error}`);
   } else {
+    // Still in progress (multi-run member), keep at front
+    await env.MEMBER_DATA.put(queueKey, JSON.stringify(queue));
     log(`⏸️ ${member.name} still in progress, keeping in queue`);
   }
 
