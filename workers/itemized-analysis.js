@@ -352,22 +352,24 @@ async function fetchAndAggregateChunk(bioguideId, env, log) {
       throw new Error(`Member not found in dataset: ${bioguideId}`);
     }
 
-    // Extract member info for FEC API search
-    const lastName = memberRecord.name.split(',')[0].trim(); // "Heinrich, Martin" → "Heinrich"
-    const office = memberRecord.chamber === 'Senate' ? 'S' : 'H';
-    const stateAbbr = STATE_ABBREVIATIONS[memberRecord.state] || memberRecord.state;
+    // Prefer the committee the data pipeline's Phase 1 already discovered -
+    // re-searching by last name picked wrong same-name candidates (the
+    // pipeline had the identical bug, fixed 2026-07-13 via incumbent sort)
+    let committeeId = memberRecord.committeeInfo?.id || null;
 
-    const info = {
-      name: lastName,
-      office: office,
-      state: stateAbbr,
-    };
+    if (committeeId) {
+      log(`  💼 Using committee from member record: ${committeeId}`);
+    } else {
+      const lastName = memberRecord.name.split(',')[0].trim(); // "Heinrich, Martin" → "Heinrich"
+      const office = memberRecord.chamber === 'Senate' ? 'S' : 'H';
+      const stateAbbr = STATE_ABBREVIATIONS[memberRecord.state] || memberRecord.state;
 
-    log(`  🔍 Searching FEC for ${info.name} (${info.office}-${info.state})...`);
-    const committeeId = await searchCommitteeId(info.name, info.office, info.state, apiKey);
+      log(`  🔍 Searching FEC for ${lastName} (${office}-${stateAbbr})...`);
+      committeeId = await searchCommitteeId(lastName, office, stateAbbr, apiKey);
+    }
 
     if (!committeeId) {
-      throw new Error(`No committee found for ${info.name}`);
+      throw new Error(`No committee found for ${memberRecord.name}`);
     }
 
     log(`  💼 Committee ID: ${committeeId}`);
@@ -873,6 +875,9 @@ async function searchCommitteeId(name, office, state, apiKey) {
     throw new Error('No candidates found in search');
   }
 
+  // We only look up sitting members - prefer the incumbent among same-name
+  // candidates (same fix as the data pipeline, 2026-07-13)
+  candidates.sort((a, b) => (b.incumbent_challenge === 'I') - (a.incumbent_challenge === 'I'));
   const candidate = candidates[0];
   const committees = candidate.principal_committees || [];
 

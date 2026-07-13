@@ -146,52 +146,15 @@ export default {
   },
 };
 
-// Get current year from reliable external NTP/time sources (Cloudflare Workers Date is broken)
+// Get current year. Historical note: this used to query 4 external NTP/time
+// APIs under the belief that Workers' Date is broken. It isn't - Date is
+// frozen only within synchronous execution and advances after I/O, which is
+// more than accurate enough to determine the YEAR. The external calls burned
+// up to 8 subrequests + 8s of 2s-timeouts per member lookup, and when all
+// four flaked (regularly), the entire financial lookup threw and the member
+// was deferred - a major source of intermittent Phase 1 failures.
 async function getCurrentYear() {
-  // Primary + 3 fallback NTP/time APIs (1+3 = 4 total)
-  const timeSources = [
-    {
-      name: 'time.gov (NIST)',
-      url: 'https://time.gov/currenttime',
-      parse: data => new Date(data.datetime).getFullYear(),
-    },
-    {
-      name: 'worldtimeapi.org',
-      url: 'https://worldtimeapi.org/api/timezone/America/New_York',
-      parse: data => new Date(data.datetime).getFullYear(),
-    },
-    {
-      name: 'timeapi.io',
-      url: 'https://timeapi.io/api/Time/current/zone?timeZone=America/New_York',
-      parse: data => new Date(data.dateTime).getFullYear(),
-    },
-    {
-      name: 'worldclockapi.com',
-      url: 'http://worldclockapi.com/api/json/est/now',
-      parse: data => new Date(data.currentDateTime).getFullYear(),
-    },
-  ];
-
-  // Try each source in order
-  for (const source of timeSources) {
-    try {
-      const response = await fetch(source.url, {
-        signal: AbortSignal.timeout(2000), // 2 second timeout per source
-      });
-      if (response.ok) {
-        const data = await response.json();
-        const year = source.parse(data);
-        console.log(`📅 Got year from ${source.name}: ${year}`);
-        return year;
-      }
-    } catch (error) {
-      console.warn(`⚠️ ${source.name} failed: ${error.message}`);
-      // Continue to next source
-    }
-  }
-
-  // All sources failed - this is a critical error, cannot proceed
-  throw new Error('All 4 NTP time sources failed - cannot determine current year');
+  return new Date().getFullYear();
 }
 
 // Calculate election cycle from current year.
@@ -783,8 +746,15 @@ async function fetchMemberFinancials(member, env) {
     const totalsData = await totalsResponse.json();
     const latestTotal = totalsData.results?.[0];
 
-    if (!latestTotal) {
-      console.warn(`No financial totals found for ${candidate.candidate_id}`);
+    // NOTE: /totals/by_entity/ ignores candidate_id entirely - it returns
+    // marketwide aggregate rows (cumulative_* fields, no `receipts`). The
+    // old code read `latestTotal.receipts || 0` and fabricated a $0
+    // "success", overwriting members with zeros. Only accept a row that
+    // actually has candidate-level fields.
+    if (!latestTotal || latestTotal.receipts === undefined || latestTotal.receipts === null) {
+      console.warn(
+        `No usable candidate-level totals for ${candidate.candidate_id} - treating as lookup failure`
+      );
       return null;
     }
 
