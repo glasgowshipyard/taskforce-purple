@@ -437,6 +437,14 @@ async function fetchMemberFinancials(member, env) {
         return null;
       }
 
+      // We are always looking up sitting members, so prefer FEC's incumbent
+      // flag. Same-name candidates in the same state+office otherwise win by
+      // list order (e.g. "Hawley, MO-S" first returns a 1993 perennial
+      // candidate, whose empty finances made the real senator N/A for months)
+      searchData.results.sort(
+        (a, b) => (b.incumbent_challenge === 'I') - (a.incumbent_challenge === 'I')
+      );
+
       // CRITICAL FIX: Find candidate that actually matches our member's state and office
       candidate = searchData.results.find(c => {
         const candidateState = c.state?.toUpperCase();
