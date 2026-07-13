@@ -2072,6 +2072,12 @@ async function performTierRecalculation(env) {
                 ((concentration.nakamotoCoefficient / concentration.uniqueDonors) * 100).toFixed(1)
               )
             : null;
+        // Network attribution (issue #33) - present only on analyses
+        // collected after 2026-07-12; older snapshots keep these unset
+        if (concentration.conduits !== undefined) {
+          member.topConduits = concentration.conduits;
+          member.earmarkedIndividualTotal = concentration.earmarkedTotal ?? null;
+        }
       }
 
       // Recalculate grassrootsPercent to match tier calculation

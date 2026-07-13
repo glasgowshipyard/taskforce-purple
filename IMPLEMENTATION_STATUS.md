@@ -29,6 +29,43 @@
 
 ## Recent Major Updates
 
+### 2026-07-12 (evening): Conduit/Earmark Network Attribution (issue #33, first slice)
+
+**Status**: ✅ DEPLOYED (itemized worker 4f4b2171, pipeline e4e46bec)
+
+**What it does**: captures which networks bundle a member's individual money.
+FEC earmark mechanics (verified empirically): donors appear as normal
+individual rows marked "EARMARKED CONTRIBUTION" with NULL conduit fields; the
+conduit's identity arrives as a separate MEMO row (entity PAC/ORG, line 11AI)
+naming it, with the attributed total. We previously skipped all memo rows —
+correct for money totals, but it discarded the network's name.
+
+**Changes**:
+
+- `workers/schedule-a-classify.js` (new, unit-tested): pure row classifier —
+  invalid / conduit-memo / memo / committee / individual-earmarked / individual
+- Itemized worker: dropped `contributor_type=individual` from the Schedule A
+  fetch (that filter excluded the PAC-entity memo rows naming conduits);
+  classifier now separates rows. Aggregates `conduitTotals` (by normalized
+  name) and `earmarkedTotal` during collection; analysis output gains
+  `conduits` (top 10), `earmarkedTotal`, `earmarkedCount`
+- Row-count validation now compares FEC's pagination count against all rows
+  seen (`rawRowCount`), since the unfiltered fetch includes memo/committee rows
+- Pipeline merge: `topConduits` + `earmarkedIndividualTotal` flow into
+  members:all (and thus the API) for analyses that have them
+- Money totals unchanged: conduit lumps stay excluded from donor/amount math
+
+**Validation** (live FEC data, one member committee, 800 rows): ActBlue
+$63,304/365 lumps; American Israel Public Affairs Committee PAC $25,700/27
+lumps; JStreetPAC $250/1 — generically-named and fully-named networks caught
+by the same machinery.
+
+**Coverage note**: only analyses collected from now on carry conduit data —
+the 497 existing snapshots predate it. Full coverage arrives with the
+analysis refresh policy (known limitation #1) or targeted re-collection.
+
+---
+
 ### 2026-07-12 (later): D1 Mirror Fixed and Backfilled
 
 **Status**: ✅ FIXED, DEPLOYED, BACKFILLED

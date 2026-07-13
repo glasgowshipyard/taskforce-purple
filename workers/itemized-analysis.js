@@ -17,6 +17,7 @@
 
 import { STATE_ABBREVIATIONS } from './shared-constants.js';
 import { cycleForYear } from './tier-calculation.js';
+import { classifyScheduleARow, normalizeConduitName, topConduits } from './schedule-a-classify.js';
 
 const PAGES_PER_RUN = 5; // 5 pages × 2.5s = 12.5s + overhead, fits in 30s wall-clock limit
 
@@ -326,6 +327,13 @@ async function fetchAndAggregateChunk(bioguideId, env, log) {
     if (!progress.runsCompleted) {
       progress.runsCompleted = 0;
     }
+    if (!progress.conduitTotals) {
+      progress.conduitTotals = {};
+    }
+    if (progress.earmarkedTotal === undefined) {
+      progress.earmarkedTotal = 0;
+      progress.earmarkedCount = 0;
+    }
 
     log(`  📂 Resuming: ${progress.totalTransactions || 0} transactions aggregated so far`);
     log(`  👥 Current unique donors: ${Object.keys(progress.donorTotals).length}`);
@@ -374,11 +382,15 @@ async function fetchAndAggregateChunk(bioguideId, env, log) {
       cycle,
       totalTransactions: 0,
       totalAmount: 0,
+      rawRowCount: 0, // every fetched row incl. memos - compared to FEC's pagination count
       runsCompleted: 0,
       lastIndex: null,
       lastContributionReceiptDate: null,
       donorTotals: {}, // Map: "FIRST|LAST|STATE|ZIP" → total amount
       allAmounts: [], // Array of all amounts for median calculation
+      conduitTotals: {}, // Map: normalized conduit name → { amount, count }
+      earmarkedTotal: 0, // individual money that arrived pre-bundled via a conduit
+      earmarkedCount: 0,
       startedAt: new Date().toISOString(),
     };
   }
@@ -400,11 +412,13 @@ async function fetchAndAggregateChunk(bioguideId, env, log) {
     const pageStartTime = Date.now();
 
     // Build URL with cursor-based pagination
+    // NOTE: no contributor_type=individual filter - it drops the PAC-entity
+    // memo rows that name earmark conduits (issue #33). classifyScheduleARow
+    // separates individuals / committees / conduit lumps instead.
     let url =
       `https://api.open.fec.gov/v1/schedules/schedule_a/?` +
       `api_key=${apiKey}` +
       `&committee_id=${committeeId}` +
-      `&contributor_type=individual` +
       `&per_page=${perPage}` +
       `&two_year_transaction_period=${cycle}`;
 
@@ -441,12 +455,32 @@ async function fetchAndAggregateChunk(bioguideId, env, log) {
     // **KEY CHANGE: Update aggregates in-memory AND write to D1**
     const d1Inserts = [];
     for (const tx of transactions) {
-      // Skip memo entries (double-counting prevention)
-      if (tx.memoed_subtotal === true) {
+      progress.rawRowCount = (progress.rawRowCount || 0) + 1;
+
+      const rowClass = classifyScheduleARow(tx);
+
+      if (rowClass === 'invalid' || rowClass === 'memo' || rowClass === 'committee') {
+        // memos double-count; committee money is Phase 2's job
         continue;
       }
-      if (!tx.contribution_receipt_amount || tx.contribution_receipt_amount <= 0) {
+
+      if (rowClass === 'conduit-memo') {
+        // Network attribution (issue #33): the memo lump names the conduit
+        // (AIPAC PAC, ActBlue, ...) that bundled individual money. Track it,
+        // but keep it out of the money totals.
+        const conduitName = normalizeConduitName(tx.contributor_name);
+        const existing = progress.conduitTotals[conduitName] || { amount: 0, count: 0 };
+        existing.amount += tx.contribution_receipt_amount;
+        existing.count += 1;
+        progress.conduitTotals[conduitName] = existing;
         continue;
+      }
+
+      if (rowClass === 'individual-earmarked') {
+        // Countable individual money that arrived pre-bundled via a conduit
+        progress.earmarkedTotal = (progress.earmarkedTotal || 0) + tx.contribution_receipt_amount;
+        progress.earmarkedCount = (progress.earmarkedCount || 0) + 1;
+        // falls through to normal individual aggregation below
       }
 
       // Composite deduplication key
@@ -555,14 +589,17 @@ async function fetchAndAggregateChunk(bioguideId, env, log) {
   if (isComplete) {
     log(`  🎉 Collection complete! Calculating final metrics...`);
 
-    // Validate transaction count
-    if (progress.fecTotalCount && progress.totalTransactions !== progress.fecTotalCount) {
-      log(`  ⚠️ WARNING: Transaction count mismatch!`);
-      log(`     FEC reported: ${progress.fecTotalCount} transactions`);
-      log(`     We collected: ${progress.totalTransactions} transactions`);
-      log(`     Missing: ${progress.fecTotalCount - progress.totalTransactions} transactions`);
+    // Validate row count. FEC's pagination.count includes memo/committee
+    // rows, so compare against rawRowCount (every row seen), not the
+    // countable-individual total.
+    const collectedRows = progress.rawRowCount ?? progress.totalTransactions;
+    if (progress.fecTotalCount && collectedRows !== progress.fecTotalCount) {
+      log(`  ⚠️ WARNING: Row count mismatch!`);
+      log(`     FEC reported: ${progress.fecTotalCount} rows`);
+      log(`     We collected: ${collectedRows} rows`);
+      log(`     Missing: ${progress.fecTotalCount - collectedRows} rows`);
     } else if (progress.fecTotalCount) {
-      log(`  ✅ Transaction count validated: ${progress.totalTransactions} matches FEC total`);
+      log(`  ✅ Row count validated: ${collectedRows} matches FEC total`);
     }
 
     // Calculate final metrics from aggregates
@@ -738,6 +775,11 @@ function calculateMetricsFromAggregates(progress, log) {
     top10Concentration: top10Total / progress.totalAmount,
     whaleWeight: whaleWeight,
     nakamotoCoefficient: nakamotoCoefficient,
+    // Network attribution (issue #33): conduit lumps from memo rows and the
+    // portion of individual money that arrived pre-bundled
+    conduits: topConduits(progress.conduitTotals || {}, 10),
+    earmarkedTotal: Math.round((progress.earmarkedTotal || 0) * 100) / 100,
+    earmarkedCount: progress.earmarkedCount || 0,
     topDonors: top10.map(d => ({
       name: `${d.firstName} ${d.lastName}`.trim(),
       state: d.state,
