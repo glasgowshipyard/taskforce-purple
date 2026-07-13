@@ -29,6 +29,27 @@
 
 ## Recent Major Updates
 
+### 2026-07-13: Pages Builds Silently Broken Since January — Fixed
+
+**Status**: ✅ FIXED
+
+Every Cloudflare Pages production build since commit c198808 (mid-January)
+had **failed**: `npm ci` on the build image rejected a package-lock.json
+that was out of sync with package.json. The live site served a stale
+January bundle for ~6 months; nobody noticed because member data comes from
+the API at runtime. Discovered while verifying the donor-concentration card
+deploy. Fix: regenerated the lock file (verified `npm ci` passes clean).
+
+Also corrected: docs pointed to `taskforcepurple.pages.dev`, which does not
+exist (NXDOMAIN) — the real domains are **taskforce-purple.pages.dev** and
+**taskforcepurple.com** (live, not "coming soon" as README claimed).
+
+**Lesson recorded**: "auto-deploys on push" is only true when builds pass —
+check `npx wrangler pages deployment list --project-name=taskforce-purple`
+after frontend pushes.
+
+---
+
 ### 2026-07-12 (evening): Conduit/Earmark Network Attribution (issue #33, first slice)
 
 **Status**: ✅ DEPLOYED (itemized worker 4f4b2171, pipeline e4e46bec)
@@ -490,7 +511,7 @@ Both crons run every 20 minutes = 72 runs/day per worker.
    - Cron: _/20 _ \* \* \* (every 20 minutes)
 
 3. **taskforce-purple (frontend)**
-   - URL: https://taskforcepurple.pages.dev
+   - URL: https://taskforce-purple.pages.dev
    - Deployment: Automatic via GitHub integration
 
 ### Environment Variables
@@ -532,7 +553,7 @@ Required secrets (set via `wrangler secret put`):
 
 - Check worker logs for errors: `wrangler tail taskforce-purple-api`
 - Monitor queue progress: `wrangler kv key get "priority_missing_queue" --namespace-id=... --remote`
-- Verify frontend updates: Check https://taskforcepurple.pages.dev
+- Verify frontend updates: Check https://taskforce-purple.pages.dev
 
 ### Expected Behavior
 

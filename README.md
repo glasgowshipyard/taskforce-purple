@@ -97,7 +97,7 @@ npm run dev
 
 ## Live Platform
 
-Visit **https://taskforcepurple.pages.dev** to see the platform in action with real congressional data.
+Visit **https://taskforce-purple.pages.dev** to see the platform in action with real congressional data.
 
 ## Development
 
@@ -141,6 +141,6 @@ MIT License - see LICENSE file for details
 
 ## Links
 
-- **Live Site**: https://taskforcepurple.com (coming soon)
+- **Live Site**: https://taskforcepurple.com
 - **Specification**: [taskforce-purple.md](./taskforce-purple.md)
 - **Demo Component**: [taskforce-purple.tsx](./taskforce-purple.tsx)
