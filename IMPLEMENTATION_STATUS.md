@@ -34,6 +34,38 @@
 
 ## Recent Major Updates
 
+### 2026-07-13 (functional check): Three More Intermittent-Failure Fixes
+
+**Status**: ✅ DEPLOYED (pipeline d39ff7b1, itemized 592f831c); stale
+mapping cache fully purged (18 keys, owner-approved)
+
+Found while verifying the backfill end-to-end (worker log tails):
+
+1. **NTP time-fetching removed**: `getCurrentYear()` queried up to 4
+   external time APIs per call under the false belief that Workers' `Date`
+   is broken (it only freezes within synchronous execution). When all four
+   flaked — regularly — the entire financial lookup threw and the member
+   deferred. Now just `new Date().getFullYear()`. Also saves ~8
+   subrequests + up to 8s per lookup.
+2. **`/totals/by_entity/` fallback fabricated $0**: that endpoint ignores
+   `candidate_id` and returns marketwide aggregate rows with no `receipts`
+   field; `.receipts || 0` turned that into a $0 "success" that overwrote
+   members with zeros. Now requires candidate-level fields or fails
+   properly (null → retry budget).
+3. **Itemized worker had its own wrong-twin bug**: it re-searched
+   candidates by last name and took the first result. Now it uses the
+   `committeeInfo.id` Phase 1 already discovered (search + incumbent sort
+   as fallback only).
+
+**Verified live**: Perry, Scott $4.4M → tier E; Durbin $80k → tier F
+(both N/A since Oct 2025). N/A count 111 → 96 in ~16 hours and falling.
+
+**Known wrinkle**: members mid-collection at deploy time (J000294) resume
+with a pagination cursor from the filtered fetch, so their conduit data
+will be partial until re-collected under a future refresh policy.
+
+---
+
 ### 2026-07-13 (later): Wrong-Candidate FEC Matching — the Real N/A Root Cause
 
 **Status**: ✅ FIX DEPLOYED (pipeline d9b62a39); cache purge partially done
@@ -56,11 +88,9 @@ cycles: 1994, 1996). Two stacked bugs:
 clearing his cached mapping, Hawley resolves with $1,518,950.76 raised
 (matches direct FEC query), tier F, after 9 months of N/A.
 
-**Remaining**: ~115 zero-raised members may still carry stale/wrong cached
-mappings. Purge them (bulk delete `fec_mapping_*` for `totalRaised: 0`
-members, or per member via `/api/clear-fec-mapping?bioguideId=X`) so the
-backfill re-searches with the fixed matcher. Until purged, re-queued
-members will keep writing zeros from cached wrong candidates.
+**Resolved 2026-07-13**: all remaining stale mappings (18 keys) purged with
+owner approval; fresh lookups re-search through the incumbent-preferring
+matcher and cache correct candidates.
 
 ---
 
