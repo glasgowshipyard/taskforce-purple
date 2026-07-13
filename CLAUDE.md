@@ -69,6 +69,10 @@ integration) — there is no manual frontend deploy step.
   goes public-facing (owner's call — don't re-litigate, don't add new ones).
 - Queue processing is designed to never let one failing member block a queue
   head: failures defer to the end with a retry budget. Preserve this pattern.
+- `fec_mapping_{bioguideId}` KV keys cache FEC candidate matches and are
+  trusted forever. A wrong cached match pins a member to the wrong candidate
+  (and their zeros) until cleared via `/api/clear-fec-mapping?bioguideId=X`.
+  If a member has implausible zeros, suspect this cache first.
 - `.claude/settings.local.json` is local-only and gitignored — never commit.
 
 ## Conventions

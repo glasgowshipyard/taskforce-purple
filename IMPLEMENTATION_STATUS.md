@@ -22,12 +22,47 @@
    - Known gap: D1 `collection_metadata` has only 89 rows vs 502 KV analyses —
      D1 write errors are caught and logged but not retried
 
-3. **Frontend** (taskforce-purple.pages.dev)
-   - Tier display for all 537 members, deployed automatically on push to main
+3. **Frontend** (taskforce-purple.pages.dev / taskforcepurple.com)
+   - Tier display for all 537 members; member cards show donor concentration
+     (Nakamoto stat + badge) and bundled-donation conduits where data exists
+   - Auto-deploys on push to main — verified working again 2026-07-13 after
+     six months of silent build failures (see dated entry below); check
+     `npx wrangler pages deployment list --project-name=taskforce-purple`
+     after frontend pushes
 
 ---
 
 ## Recent Major Updates
+
+### 2026-07-13 (later): Wrong-Candidate FEC Matching — the Real N/A Root Cause
+
+**Status**: ✅ FIX DEPLOYED (pipeline d9b62a39); cache purge partially done
+
+The Phase 1 backfill was "processing" members but writing zeros. Worker
+logs revealed why: `fec_mapping_H001089` mapped Josh Hawley to
+**S4MO00045 — James Gregory Hawley, a 1993 perennial candidate** (committee
+cycles: 1994, 1996). Two stacked bugs:
+
+1. Candidate matching relied on `office_sought`, which is always null in
+   the FEC search response, so it always fell through to committee-type
+   matching, where same-name candidates win by list order
+2. The wrong candidate's $0 totals count as "found data": zeros were
+   written, the member left the queue as processed, and the wrong mapping
+   stayed **cached** in `fec_mapping_{bioguideId}` — so every retry
+   repeated the mistake
+
+**Fix**: sort FEC search results to prefer `incumbent_challenge === 'I'`
+(we only ever look up sitting members). Verified end-to-end: after
+clearing his cached mapping, Hawley resolves with $1,518,950.76 raised
+(matches direct FEC query), tier F, after 9 months of N/A.
+
+**Remaining**: ~115 zero-raised members may still carry stale/wrong cached
+mappings. Purge them (bulk delete `fec_mapping_*` for `totalRaised: 0`
+members, or per member via `/api/clear-fec-mapping?bioguideId=X`) so the
+backfill re-searches with the fixed matcher. Until purged, re-queued
+members will keep writing zeros from cached wrong candidates.
+
+---
 
 ### 2026-07-13: Pages Builds Silently Broken Since January — Fixed
 

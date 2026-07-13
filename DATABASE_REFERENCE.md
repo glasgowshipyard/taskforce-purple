@@ -131,45 +131,58 @@ wrangler kv key get "adaptive_thresholds" --namespace-id=8318226115e2423ab5d141a
 
 #### Per-Member Analysis Keys
 
-**`analysis:{bioguideId}`** - Itemized donor concentration analysis
+**`itemized_analysis_v2:{bioguideId}`** - Itemized donor concentration analysis
+(corrected 2026-07-13: this doc previously said `analysis:{bioguideId}`,
+which was never the deployed key name)
 
 ```bash
 # Get analysis for specific member
-wrangler kv key get "analysis:S000033" --namespace-id=8318226115e2423ab5d141adfa5419f9 --remote | jq .
-
-# List all members with completed analysis
-wrangler kv key list --namespace-id=8318226115e2423ab5d141adfa5419f9 --remote | jq '.[] | select(.name | startswith("analysis:")) | .name'
+wrangler kv key get "itemized_analysis_v2:S000033" --namespace-id=8318226115e2423ab5d141adfa5419f9 --remote | jq .
 
 # Count completed analyses
-wrangler kv key list --namespace-id=8318226115e2423ab5d141adfa5419f9 --remote | jq '[.[] | select(.name | startswith("analysis:"))] | length'
+wrangler kv key list --prefix="itemized_analysis_v2:" --namespace-id=8318226115e2423ab5d141adfa5419f9 --remote | jq 'length'
 ```
 
-**Structure**:
+**Structure** (fields as of 2026-07-13; `conduits`/`earmarked*` only on
+analyses collected after 2026-07-12):
 
 ```json
 {
   "bioguideId": "S000033",
-  "totalItemized": 1308214.17,
+  "committeeId": "C00411330",
+  "cycle": 2026,
   "uniqueDonors": 13102,
+  "totalTransactions": 30371,
+  "totalAmount": 3695847.3,
+  "avgDonation": 121.69,
+  "medianDonation": 50,
+  "top10Concentration": 0.022,
+  "whaleWeight": 0.19,
   "nakamotoCoefficient": 1534,
-  "nakamotoPercent": 11.7,
-  "totalTransactions": 15847,
-  "avgDonation": 82.55,
-  "lastUpdated": "2026-01-17T15:30:00Z"
+  "conduits": [{ "name": "ACTBLUE", "amount": 63304, "count": 365 }],
+  "earmarkedTotal": 79986,
+  "earmarkedCount": 348,
+  "fecReconciliation": { "fecReportedTotal": 0, "percentDifference": 0 },
+  "collectionCompletedAt": "2026-01-16T..."
 }
 ```
 
-**`progress:{bioguideId}`** - Processing progress for itemized analysis
+**`itemized_progress_v2:{bioguideId}`** - In-flight collection state
+(deleted on completion)
 
 ```bash
-# Check progress for member
-wrangler kv key get "progress:S000033" --namespace-id=8318226115e2423ab5d141adfa5419f9 --remote | jq .
+wrangler kv key get "itemized_progress_v2:S000033" --namespace-id=8318226115e2423ab5d141adfa5419f9 --remote | jq 'keys'
 ```
 
-**`fec_mapping_{bioguideId}`** - FEC committee ID mappings
+**`fec_mapping_{bioguideId}`** - Cached FEC candidate match
+
+⚠️ Trusted forever once written. A wrong match (e.g. a same-name perennial
+candidate) pins the member to that candidate's finances until cleared —
+see IMPLEMENTATION_STATUS 2026-07-13 entry. Clear with
+`/api/clear-fec-mapping?bioguideId=X` or `wrangler kv key delete`.
 
 ```bash
-# Get FEC committee for member
+# Get FEC candidate mapping for member
 wrangler kv key get "fec_mapping_S000033" --namespace-id=8318226115e2423ab5d141adfa5419f9 --remote | jq .
 
 # List all FEC mappings
