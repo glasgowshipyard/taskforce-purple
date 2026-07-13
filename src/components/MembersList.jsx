@@ -10,6 +10,8 @@ import {
   HelpCircle,
   ChevronDown,
   ChevronUp,
+  Users,
+  Share2,
 } from 'lucide-react';
 import { TaskForceAPI, mockCongressData } from '../lib/api.js';
 
@@ -394,6 +396,70 @@ export default function MembersList() {
                     {selectedMember.tier}
                   </div>
                 </div>
+              </div>
+            )}
+
+          {/* Donor concentration - who controls the big money */}
+          {Number.isFinite(selectedMember.nakamotoCoefficient) &&
+            selectedMember.uniqueDonors >= 10 && (
+              <div className="mb-6 p-6 bg-purple-50 rounded-lg border border-purple-200">
+                <div className="flex items-center space-x-2 mb-3">
+                  <Users className="w-5 h-5 text-purple-700" />
+                  <h3 className="font-semibold text-purple-900">Donor Concentration</h3>
+                  {(() => {
+                    const n = selectedMember.nakamotoCoefficient;
+                    const pct = selectedMember.nakamotoPercent;
+                    const badge =
+                      n < 50
+                        ? { text: 'Highly concentrated', cls: 'bg-red-100 text-red-800' }
+                        : pct < 5
+                          ? { text: 'Concentrated', cls: 'bg-orange-100 text-orange-800' }
+                          : pct < 10
+                            ? { text: 'Typical', cls: 'bg-yellow-100 text-yellow-800' }
+                            : { text: 'Broad-based', cls: 'bg-green-100 text-green-800' };
+                    return (
+                      <span className={`text-xs font-semibold px-2 py-1 rounded-full ${badge.cls}`}>
+                        {badge.text}
+                      </span>
+                    );
+                  })()}
+                </div>
+                <p className="text-sm text-gray-700">
+                  Half of all the large-donation money this campaign raised came from just{' '}
+                  <span className="font-bold text-purple-900">
+                    {selectedMember.nakamotoCoefficient.toLocaleString()}
+                  </span>{' '}
+                  of its{' '}
+                  <span className="font-semibold">
+                    {selectedMember.uniqueDonors.toLocaleString()}
+                  </span>{' '}
+                  identifiable donors. Fewer people holding half the money means those donors matter
+                  more to the campaign.
+                </p>
+
+                {selectedMember.topConduits && selectedMember.topConduits.length > 0 && (
+                  <div className="mt-4 pt-4 border-t border-purple-200">
+                    <div className="flex items-center space-x-2 mb-2">
+                      <Share2 className="w-4 h-4 text-purple-700" />
+                      <h4 className="text-sm font-semibold text-purple-900">Bundled donations</h4>
+                    </div>
+                    <p className="text-xs text-gray-600 mb-2">
+                      These organizations collected donations from individuals and passed them along
+                      to this campaign. Bundling is legal and common, but it shows which networks
+                      organize a campaign's donors.
+                    </p>
+                    <ul className="space-y-1">
+                      {selectedMember.topConduits.slice(0, 5).map(conduit => (
+                        <li key={conduit.name} className="flex justify-between text-sm">
+                          <span className="text-gray-800">{conduit.name}</span>
+                          <span className="font-semibold text-purple-900">
+                            {TaskForceAPI.formatCurrency(conduit.amount)}
+                          </span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
               </div>
             )}
 
