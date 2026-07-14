@@ -9,9 +9,11 @@ live in `API_KEYS.md` and `.claude-reference.md` (both gitignored).
 
 1. `IMPLEMENTATION_STATUS.md` — current system state, dated change log,
    known limitations. Read this first; it is kept accurate.
-2. `GRASSROOTS_CALCULATION_GUIDE.md` — the tier algorithm as deployed.
-3. `DATABASE_REFERENCE.md` — every KV key and D1 table, with query commands.
-4. `API_STRUCTURES.md` — worker endpoints (secrets shown as `$PLACEHOLDER`).
+2. `ROADMAP.md` — what should happen next, with designs, costs, and
+   dependencies. Phase D (security) is deliberately parked — owner's call.
+3. `GRASSROOTS_CALCULATION_GUIDE.md` — the tier algorithm as deployed.
+4. `DATABASE_REFERENCE.md` — every KV key and D1 table, with query commands.
+5. `API_STRUCTURES.md` — worker endpoints (secrets shown as `$PLACEHOLDER`).
 
 Docs marked "historical" or "superseded" (`taskforce-purple.md` spec,
 prototype warnings in `DONOR_CONCENTRATION_ANALYSIS.md`) describe abandoned
