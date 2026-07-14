@@ -34,6 +34,43 @@
 
 ## Recent Major Updates
 
+### 2026-07-14: Analysis Refresh Policy + sub_id Storage (ROADMAP Phase A)
+
+**Status**: ✅ DEPLOYED (itemized worker b52c9f79); D1 migration applied
+
+- **Refresh policy**: when the itemized queue drains, it rebuilds itself
+  from members whose analysis is missing or **>30 days old** (oldest
+  first; requires `committeeInfo.id`). Staleness scans are throttled to
+  one per 6h when everything is fresh. A stale analysis keeps serving
+  tiers until its replacement lands (atomic swap at completion).
+- **Delete-before-recollect**: a fresh collection first clears the
+  member's `itemized_transactions` + `donor_aggregates` rows — makes
+  re-collection idempotent and heals the 28 January-duplicated members
+  as they come up for refresh.
+- **Cron runs take 20 pages** (15-minute scheduled-run limit), HTTP
+  `/analyze` keeps 5 (30s limit). Full-Congress pass: ~2 weeks.
+- **Itemized failures get a 3-try budget** (were cycling forever, which
+  would have blocked queue drain and thus rebuild).
+- **`sub_id`** (FEC unique transaction id) now stored with a unique
+  index; inserts are INSERT OR IGNORE. Enables incremental top-ups later.
+- `/status` reports real counts (was hardcoded 537 + fake examples).
+
+**Budget note**: at maximum sustained throughput, 20-page runs could
+exceed D1's nominal 100k rows-written/day (index writes multiply row
+counts). Empirically this has not been enforced as a hard block (the
+2026-07-12 backfill wrote 705k rows in a day), D1 writes are non-fatal
+to collection, and delete-before-recollect makes any gap self-healing on
+the next refresh pass. Watch `wrangler d1 info` during the first full
+pass; drop `PAGES_PER_RUN_CRON` if write errors appear in logs.
+
+**Verified live**: honest `/status` (536 members / 499 analyses / real
+queue), 5-page HTTP run processed the queue head under the new code,
+`sub_id` landing in D1 (250 rows, 250 distinct). Expected trajectory:
+current queue drains, first rebuild enqueues ~500 stale analyses, full
+conduit coverage arrives over ~2 weeks.
+
+---
+
 ### 2026-07-13 (functional check): Three More Intermittent-Failure Fixes
 
 **Status**: ✅ DEPLOYED (pipeline d39ff7b1, itemized 592f831c); stale

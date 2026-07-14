@@ -8,6 +8,10 @@ why). Ordering reflects dependencies — Phase A unblocks most of Phase C.
 
 ## Phase A — Data freshness and integrity
 
+> **✅ SHIPPED 2026-07-14** (both A1 and A2; see IMPLEMENTATION_STATUS for
+> the as-built record, including one deviation: staleness scans throttled
+> to one per 6h, and a D1 write-volume watch item for the first full pass).
+
 ### A1. Analysis refresh policy (next up — detailed design)
 
 **Problem**: itemized analyses are collected once and frozen. Consequences:
