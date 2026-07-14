@@ -48,13 +48,13 @@ base could coordinate, measured by the **Nakamoto coefficient** (number of top
 donors controlling 50% of itemized money) from the donor concentration
 analysis:
 
-| Condition | Anchor | Meaning |
-| --- | --- | --- |
-| Nakamoto < 50 donors | 10% | Dinner party: coordination trivial |
-| Nakamoto % of donors < 5% | 25% | Elite capture: country-club scale |
-| Nakamoto % of donors < 10% | 40% | Standard: requires organization |
-| Nakamoto % of donors ≥ 10% | 50% | Movement: coordination impossible |
-| No / unreliable concentration data | 40% | Neutral default |
+| Condition                          | Anchor | Meaning                            |
+| ---------------------------------- | ------ | ---------------------------------- |
+| Nakamoto < 50 donors               | 10%    | Dinner party: coordination trivial |
+| Nakamoto % of donors < 5%          | 25%    | Elite capture: country-club scale  |
+| Nakamoto % of donors < 10%         | 40%    | Standard: requires organization    |
+| Nakamoto % of donors ≥ 10%         | 50%    | Movement: coordination impossible  |
+| No / unreliable concentration data | 40%    | Neutral default                    |
 
 **Reliability check (added July 2026)**: a concentration snapshot only counts
 if it has ≥10 unique donors AND its collected total covers ≥50% of the
@@ -80,12 +80,12 @@ points and 292 members had negative scores.
 Weighted concerning PAC money shifts the tier thresholds upward, max 30
 points:
 
-| PAC type | Weight |
-| --- | --- |
-| `O` Super PAC | 2.0x |
-| `D` Leadership / `B` Lobbyist designation | 1.5x (multiplies) |
-| `P`/`A` Candidate/Authorized committees | 0.15x (never penalized) |
-| Unknown metadata | 1.0x (neutral, never penalized) |
+| PAC type                                  | Weight                          |
+| ----------------------------------------- | ------------------------------- |
+| `O` Super PAC                             | 2.0x                            |
+| `D` Leadership / `B` Lobbyist designation | 1.5x (multiplies)               |
+| `P`/`A` Candidate/Authorized committees   | 0.15x (never penalized)         |
+| Unknown metadata                          | 1.0x (neutral, never penalized) |
 
 ```
 concerningPercent = Σ(amount × weight, where weight > 1) / totalRaised × 100
@@ -106,10 +106,10 @@ raw grassroots percent against the unshifted thresholds. Members with
 
 ## Reference cases (locked in unit tests)
 
-| Member | Itemized share | Anchor | Penalty | Tier |
-| --- | --- | --- | --- | --- |
-| Sanders (13k donors, Nakamoto 11.7%) | 20% | 50% (movement) | 0 | S |
-| Pelosi (2.6k donors, Nakamoto 4.4%) | 35% | 25% (elite) | 5 | A |
-| Zero-donor snapshot (junk data) | any | 40% (default) | bounded | — |
+| Member                               | Itemized share | Anchor         | Penalty | Tier |
+| ------------------------------------ | -------------- | -------------- | ------- | ---- |
+| Sanders (13k donors, Nakamoto 11.7%) | 20%            | 50% (movement) | 0       | S    |
+| Pelosi (2.6k donors, Nakamoto 4.4%)  | 35%            | 25% (elite)    | 5       | A    |
+| Zero-donor snapshot (junk data)      | any            | 40% (default)  | bounded | —    |
 
 Run `npm test` before changing any of this.
