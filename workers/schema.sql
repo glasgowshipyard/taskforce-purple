@@ -7,6 +7,7 @@ CREATE TABLE IF NOT EXISTS itemized_transactions (
   bioguide_id TEXT NOT NULL,
   committee_id TEXT NOT NULL,
   cycle INTEGER NOT NULL,
+  sub_id TEXT, -- FEC unique transaction id (added 2026-07; NULL on legacy rows)
 
   -- Donor information
   contributor_first_name TEXT,
@@ -30,6 +31,8 @@ CREATE INDEX IF NOT EXISTS idx_bioguide ON itemized_transactions(bioguide_id);
 CREATE INDEX IF NOT EXISTS idx_committee ON itemized_transactions(committee_id);
 CREATE INDEX IF NOT EXISTS idx_cycle ON itemized_transactions(cycle);
 CREATE INDEX IF NOT EXISTS idx_donor_lookup ON itemized_transactions(bioguide_id, contributor_first_name, contributor_last_name, contributor_state, contributor_zip);
+-- Unique on sub_id for dedup/idempotent inserts (SQLite allows multiple NULLs, so legacy rows are unaffected)
+CREATE UNIQUE INDEX IF NOT EXISTS idx_sub_id ON itemized_transactions(sub_id);
 
 -- Pre-aggregated donor totals (for fast Gini/concentration queries)
 CREATE TABLE IF NOT EXISTS donor_aggregates (

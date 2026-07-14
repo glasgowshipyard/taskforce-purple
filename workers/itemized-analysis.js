@@ -19,14 +19,31 @@ import { STATE_ABBREVIATIONS } from './shared-constants.js';
 import { cycleForYear } from './tier-calculation.js';
 import { classifyScheduleARow, normalizeConduitName, topConduits } from './schedule-a-classify.js';
 
-const PAGES_PER_RUN = 5; // 5 pages × 2.5s = 12.5s + overhead, fits in 30s wall-clock limit
+// HTTP-triggered runs must fit the 30s wall-clock limit; cron-triggered
+// runs get 15 minutes, so they can take much larger bites (ROADMAP A1)
+const PAGES_PER_RUN_HTTP = 5;
+const PAGES_PER_RUN_CRON = 20;
+
+// Analyses older than this are re-collected by the refresh policy.
+// The queue rebuild and the completion checks share this constant.
+export const ANALYSIS_STALENESS_DAYS = 30;
+
+// An analysis is "fresh" if collected within the staleness window.
+// Missing/undated analyses are stale by definition.
+export function isAnalysisFresh(analysis, nowMs = Date.now()) {
+  const completedAt = analysis?.collectionCompletedAt || analysis?.lastUpdated;
+  if (!completedAt) {
+    return false;
+  }
+  return nowMs - new Date(completedAt).getTime() < ANALYSIS_STALENESS_DAYS * 24 * 60 * 60 * 1000;
+}
 
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
 
     if (url.pathname === '/analyze') {
-      return analyzeMembers(env);
+      return analyzeMembers(env, PAGES_PER_RUN_HTTP);
     }
 
     if (url.pathname === '/status') {
@@ -46,7 +63,7 @@ export default {
     console.log('🕐 Cron trigger fired:', new Date().toISOString());
 
     try {
-      const result = await analyzeMembers(env);
+      const result = await analyzeMembers(env, PAGES_PER_RUN_CRON);
       const data = await result.json();
 
       console.log('✅ Cron processing complete');
@@ -60,44 +77,26 @@ export default {
 };
 
 async function getStatus(env) {
-  // Get queue status
-  const queueData = await env.MEMBER_DATA.get('itemized_processing_queue');
+  // Real counts, not hardcoded guesses: member total from members:all,
+  // analysis count from a prefixed key list (1 list op)
+  const [queueData, membersData, keyList] = await Promise.all([
+    env.MEMBER_DATA.get('itemized_processing_queue'),
+    env.MEMBER_DATA.get('members:all'),
+    env.MEMBER_DATA.list({ prefix: 'itemized_analysis_v2:' }),
+  ]);
+
   const queue = queueData ? JSON.parse(queueData) : [];
-
-  // Count total members (537) and completed
-  const totalMembers = 537;
-  const remainingInQueue = queue.length;
-  const completedCount = totalMembers - remainingInQueue;
-  const percentComplete = ((completedCount / totalMembers) * 100).toFixed(1);
-
-  // Estimate completion time (20 min per member)
-  const estimatedHours = (remainingInQueue * 20) / 60;
-  const estimatedDays = (estimatedHours / 24).toFixed(1);
-
-  // Get next member to process
-  const nextMember = queue[0] || null;
-
-  // Find recently completed members (scan for itemized_analysis_v2:* keys)
-  // For simplicity, just show Bernie and Pelosi as examples
-  const recentlyCompleted = [
-    { bioguideId: 'S000033', name: 'Sanders, Bernard' },
-    { bioguideId: 'P000197', name: 'Pelosi, Nancy' },
-  ];
+  const totalMembers = membersData ? JSON.parse(membersData).length : null;
+  const analysesStored = keyList?.keys?.length ?? null;
 
   const status = {
+    mode: `refresh (analyses re-collected after ${ANALYSIS_STALENESS_DAYS} days)`,
     queueStatus: {
       totalMembers,
-      completedCount,
-      remainingInQueue,
-      percentComplete: parseFloat(percentComplete),
-      nextMember,
+      analysesStored,
+      remainingInQueue: queue.length,
+      nextMember: queue[0] || null,
     },
-    estimatedCompletion: {
-      hoursRemaining: Math.round(estimatedHours),
-      daysRemaining: parseFloat(estimatedDays),
-      completionDate: new Date(Date.now() + estimatedHours * 60 * 60 * 1000).toISOString(),
-    },
-    recentlyCompleted,
     lastUpdated: new Date().toISOString(),
   };
 
@@ -106,7 +105,57 @@ async function getStatus(env) {
   });
 }
 
-async function analyzeMembers(env) {
+// Refresh policy (ROADMAP A1): when the queue is empty, rebuild it from
+// members whose analysis is missing or older than ANALYSIS_STALENESS_DAYS,
+// oldest first. Members need a committeeInfo.id (discovered by the data
+// pipeline's Phase 1) to be collectable. Costs ~1 KV read per member, once
+// per full pass (~2 weeks) - a rebuild run only rebuilds, processing
+// starts on the next run.
+async function rebuildQueue(env, log) {
+  const membersData = await env.MEMBER_DATA.get('members:all');
+  if (!membersData) {
+    log('⚠️ No members:all dataset - cannot rebuild queue');
+    return [];
+  }
+
+  const members = JSON.parse(membersData);
+  const collectable = members.filter(m => m.committeeInfo?.id);
+  log(`🔁 Rebuilding queue: checking ${collectable.length} collectable members for staleness...`);
+
+  const now = Date.now();
+  const candidates = [];
+  for (const member of collectable) {
+    let completedAtMs = 0; // missing analysis sorts oldest
+    try {
+      const data = await env.MEMBER_DATA.get(`itemized_analysis_v2:${member.bioguideId}`);
+      if (data) {
+        const analysis = JSON.parse(data);
+        if (isAnalysisFresh(analysis, now)) {
+          continue;
+        }
+        const completedAt = analysis.collectionCompletedAt || analysis.lastUpdated;
+        completedAtMs = completedAt ? new Date(completedAt).getTime() : 0;
+      }
+    } catch {
+      // unreadable analysis -> treat as missing (stale)
+    }
+    candidates.push({ bioguideId: member.bioguideId, name: member.name, completedAtMs });
+  }
+
+  candidates.sort((a, b) => a.completedAtMs - b.completedAtMs);
+  const queue = candidates.map(c => ({ bioguideId: c.bioguideId, name: c.name }));
+
+  if (queue.length > 0) {
+    await env.MEMBER_DATA.put('itemized_processing_queue', JSON.stringify(queue));
+    log(`🔁 Queue rebuilt with ${queue.length} members (oldest analysis first)`);
+  } else {
+    log(`✅ All analyses fresh (< ${ANALYSIS_STALENESS_DAYS} days) - nothing to refresh`);
+  }
+
+  return queue;
+}
+
+async function analyzeMembers(env, pagesPerRun = PAGES_PER_RUN_HTTP) {
   const startTime = Date.now();
   const results = {};
   const executionLog = [];
@@ -118,41 +167,50 @@ async function analyzeMembers(env) {
 
   log('🚀 Starting free-tier itemized analysis chunk');
   log(`⏰ Start time: ${new Date().toISOString()}`);
-  log(`📦 Pages per run: ${PAGES_PER_RUN} (50 subrequest limit)`);
+  log(`📦 Pages per run: ${pagesPerRun}`);
 
   // Get processing queue from KV
   const queueKey = 'itemized_processing_queue';
   const queueData = await env.MEMBER_DATA.get(queueKey);
-
-  if (!queueData) {
-    log('✅ No processing queue found - all members complete or queue not initialized');
-    return new Response(
-      JSON.stringify(
-        {
-          allComplete: true,
-          message: 'No processing queue found',
-          timestamp: new Date().toISOString(),
-        },
-        null,
-        2
-      ),
-      {
-        headers: { 'Content-Type': 'application/json' },
-      }
-    );
-  }
-
-  const queue = JSON.parse(queueData);
-  log(`📋 Processing queue: ${queue.length} members remaining`);
+  let queue = queueData ? JSON.parse(queueData) : [];
 
   if (queue.length === 0) {
-    log('✅ Queue is empty - all members processed');
-    await env.MEMBER_DATA.delete(queueKey);
+    // Refresh policy: rebuild from stale/missing analyses. Processing of
+    // the rebuilt queue starts on the NEXT run (keeps this invocation's
+    // KV-op count bounded). Throttled: the rebuild scan costs ~1 KV read
+    // per member, so when everything is fresh, only re-check every 6h
+    // instead of every cron tick.
+    const REBUILD_CHECK_INTERVAL_MS = 6 * 60 * 60 * 1000;
+    const lastCheck = await env.MEMBER_DATA.get('itemized_refresh_last_check');
+    if (lastCheck && Date.now() - new Date(lastCheck).getTime() < REBUILD_CHECK_INTERVAL_MS) {
+      log(
+        `😴 Queue empty; next staleness scan after ${new Date(new Date(lastCheck).getTime() + REBUILD_CHECK_INTERVAL_MS).toISOString()}`
+      );
+      return new Response(
+        JSON.stringify(
+          {
+            allComplete: true,
+            message: 'Queue empty; staleness scan throttled',
+            timestamp: new Date().toISOString(),
+          },
+          null,
+          2
+        ),
+        { headers: { 'Content-Type': 'application/json' } }
+      );
+    }
+    await env.MEMBER_DATA.put('itemized_refresh_last_check', new Date().toISOString());
+    queue = await rebuildQueue(env, log);
     return new Response(
       JSON.stringify(
         {
-          allComplete: true,
-          message: 'All members processed successfully',
+          allComplete: queue.length === 0,
+          message:
+            queue.length === 0
+              ? `All analyses fresh (< ${ANALYSIS_STALENESS_DAYS} days)`
+              : `Queue rebuilt with ${queue.length} members; processing starts next run`,
+          queueStatus: { remainingMembers: queue.length },
+          executionLog,
           timestamp: new Date().toISOString(),
         },
         null,
@@ -163,6 +221,8 @@ async function analyzeMembers(env) {
       }
     );
   }
+
+  log(`📋 Processing queue: ${queue.length} members remaining`);
 
   // Process only the first member from queue (stay within resource limits)
   const members = [queue[0]];
@@ -174,7 +234,7 @@ async function analyzeMembers(env) {
     const memberStartTime = Date.now();
 
     try {
-      const result = await fetchAndAggregateChunk(member.bioguideId, env, log);
+      const result = await fetchAndAggregateChunk(member.bioguideId, env, log, pagesPerRun);
       const processingTime = Date.now() - memberStartTime;
 
       results[member.bioguideId] = {
@@ -210,7 +270,7 @@ async function analyzeMembers(env) {
     }
 
     // Check if we're at subrequest limit
-    if (totalPagesProcessed >= PAGES_PER_RUN) {
+    if (totalPagesProcessed >= pagesPerRun) {
       log(`\n⚠️ Reached page limit (${totalPagesProcessed} pages processed), stopping this run`);
       break;
     }
@@ -220,22 +280,43 @@ async function analyzeMembers(env) {
   log(`\n🏁 Chunk complete: ${totalTime}ms (${Math.round(totalTime / 1000)}s)`);
   log(`📄 Pages processed this run: ${totalPagesProcessed}`);
 
-  // Update queue - remove completed member, defer failed member, or keep in-progress member
+  // Update queue - remove completed member, defer failed member, or keep
+  // in-progress member. "Complete" means the analysis is FRESH: under the
+  // refresh policy a stale analysis exists during re-collection (it keeps
+  // serving tiers until atomically replaced at completion), so bare key
+  // existence is not completion.
   const member = members[0];
   const analysisKey = `itemized_analysis_v2:${member.bioguideId}`;
   const analysisData = await env.MEMBER_DATA.get(analysisKey);
+  let parsedAnalysis = null;
+  try {
+    parsedAnalysis = analysisData ? JSON.parse(analysisData) : null;
+  } catch {
+    parsedAnalysis = null;
+  }
+  const memberComplete = isAnalysisFresh(parsedAnalysis);
 
-  if (analysisData) {
-    // Member is complete, remove from queue
+  if (memberComplete) {
     queue.shift();
     await env.MEMBER_DATA.put(queueKey, JSON.stringify(queue));
     log(`✅ ${member.name} complete and removed from queue. ${queue.length} members remaining.`);
   } else if (results[member.bioguideId]?.success === false) {
-    // Member failed (e.g. no FEC committee found yet) - defer to end so queue can advance
+    // Failed (e.g. no FEC committee found yet). Defer with a retry budget;
+    // permanent failures must not cycle forever or the queue never drains
+    // and the refresh rebuild never triggers.
     queue.shift();
-    queue.push(member);
+    const failCount = (member.failCount || 0) + 1;
+    if (failCount < 3) {
+      queue.push({ ...member, failCount });
+      log(
+        `⏭️ ${member.name} deferred (attempt ${failCount}/3): ${results[member.bioguideId]?.error}`
+      );
+    } else {
+      log(
+        `🚫 ${member.name} dropped after ${failCount} failures; next queue rebuild retries if collectable`
+      );
+    }
     await env.MEMBER_DATA.put(queueKey, JSON.stringify(queue));
-    log(`⏭️ ${member.name} deferred to end of queue: ${results[member.bioguideId]?.error}`);
   } else {
     // Still in progress (multi-run member), keep at front
     await env.MEMBER_DATA.put(queueKey, JSON.stringify(queue));
@@ -253,7 +334,7 @@ async function analyzeMembers(env) {
         queueStatus: {
           remainingMembers: queue.length,
           currentMember: member.name,
-          currentMemberComplete: !!analysisData,
+          currentMemberComplete: memberComplete,
         },
         summary: {
           totalProcessingTimeMs: totalTime,
@@ -289,22 +370,27 @@ async function checkAllComplete(env, members) {
   return true;
 }
 
-async function fetchAndAggregateChunk(bioguideId, env, log) {
+async function fetchAndAggregateChunk(bioguideId, env, log, pagesPerRun = PAGES_PER_RUN_HTTP) {
   const apiKey = env.FEC_API_KEY || 'zVpKDAacmPcazWQxhl5fhodhB9wNUH0urLCLkkV9';
   const progressKey = `itemized_progress_v2:${bioguideId}`;
   const analysisKey = `itemized_analysis_v2:${bioguideId}`;
 
-  // Check if already complete
+  // Fresh analysis -> nothing to do. A STALE analysis does NOT short-circuit:
+  // the refresh policy re-collects it, and the stale analysis keeps serving
+  // tiers until the new one atomically replaces it at completion.
   const existingAnalysis = await env.MEMBER_DATA.get(analysisKey);
   if (existingAnalysis) {
     const analysis = JSON.parse(existingAnalysis);
-    log(`  ✅ Already complete`);
-    return {
-      complete: true,
-      totalTransactions: analysis.totalTransactions,
-      uniqueDonors: analysis.uniqueDonors,
-      pagesProcessedThisRun: 0,
-    };
+    if (isAnalysisFresh(analysis)) {
+      log(`  ✅ Already complete (fresh)`);
+      return {
+        complete: true,
+        totalTransactions: analysis.totalTransactions,
+        uniqueDonors: analysis.uniqueDonors,
+        pagesProcessedThisRun: 0,
+      };
+    }
+    log(`  🔄 Stale analysis (${analysis.collectionCompletedAt || 'undated'}) - re-collecting`);
   }
 
   // Check for existing progress
@@ -378,6 +464,31 @@ async function fetchAndAggregateChunk(bioguideId, env, log) {
     const cycle = cycleForYear(currentYear);
     log(`  📅 Election cycle: ${cycle}`);
 
+    // Delete-before-recollect (ROADMAP A1): the raw-transaction table has
+    // legacy rows without sub_id, so a re-collection would duplicate them
+    // (that is exactly how 28 members got inflated in January). Clearing
+    // the member's rows up front makes re-collection idempotent and heals
+    // previously-duplicated members as they come up for refresh.
+    if (env.DONOR_DB) {
+      try {
+        const delTx = await env.DONOR_DB.prepare(
+          'DELETE FROM itemized_transactions WHERE bioguide_id = ? AND cycle = ?'
+        )
+          .bind(bioguideId, cycle)
+          .run();
+        const delAgg = await env.DONOR_DB.prepare(
+          'DELETE FROM donor_aggregates WHERE bioguide_id = ? AND cycle = ?'
+        )
+          .bind(bioguideId, cycle)
+          .run();
+        log(
+          `  🗑️ Cleared prior D1 rows: ${delTx.meta?.changes ?? '?'} transactions, ${delAgg.meta?.changes ?? '?'} aggregates`
+        );
+      } catch (error) {
+        log(`  ⚠️ D1 pre-clear failed (continuing): ${error.message}`);
+      }
+    }
+
     progress = {
       bioguideId,
       committeeId,
@@ -402,7 +513,7 @@ async function fetchAndAggregateChunk(bioguideId, env, log) {
 
   // Fetch transactions using cursor-based pagination
   const perPage = 100;
-  const maxPagesToFetch = PAGES_PER_RUN;
+  const maxPagesToFetch = pagesPerRun;
 
   log(`  📥 Fetching Schedule A transactions (up to ${maxPagesToFetch} API calls)...`);
 
@@ -503,11 +614,14 @@ async function fetchAndAggregateChunk(bioguideId, env, log) {
       progress.totalTransactions++;
       progress.totalAmount += tx.contribution_receipt_amount;
 
-      // Prepare D1 insert for raw transaction
+      // Prepare D1 insert for raw transaction. sub_id is FEC's unique
+      // transaction identifier (ROADMAP A2) - enables dedup and future
+      // incremental top-ups instead of full re-collections.
       d1Inserts.push({
         bioguide_id: bioguideId,
         committee_id: committeeId,
         cycle: cycle,
+        sub_id: tx.sub_id != null ? String(tx.sub_id) : null,
         contributor_first_name: tx.contributor_first_name || null,
         contributor_last_name: tx.contributor_last_name || null,
         contributor_state: tx.contributor_state || null,
@@ -531,17 +645,20 @@ async function fetchAndAggregateChunk(bioguideId, env, log) {
 
         // Use D1 batch API with individual statements instead of multi-row VALUES
         for (const batch of batches) {
+          // INSERT OR IGNORE + unique sub_id index = idempotent even if a
+          // run repeats a page (cursor overlap, retries)
           const statements = batch.map(tx =>
             env.DONOR_DB.prepare(
-              `INSERT INTO itemized_transactions
-               (bioguide_id, committee_id, cycle, contributor_first_name, contributor_last_name,
+              `INSERT OR IGNORE INTO itemized_transactions
+               (bioguide_id, committee_id, cycle, sub_id, contributor_first_name, contributor_last_name,
                 contributor_state, contributor_zip, contributor_employer, contributor_occupation,
                 amount, contribution_receipt_date)
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
             ).bind(
               tx.bioguide_id,
               tx.committee_id,
               tx.cycle,
+              tx.sub_id,
               tx.contributor_first_name,
               tx.contributor_last_name,
               tx.contributor_state,
