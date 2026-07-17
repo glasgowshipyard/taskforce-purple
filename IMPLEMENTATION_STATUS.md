@@ -34,6 +34,42 @@
 
 ## Recent Major Updates
 
+### 2026-07-17: FARA Cross-Reference + Donor Network Quicklook (issues #34, #33)
+
+**Status**: ✅ DEPLOYED (itemized 9125ac90, pipeline c373a5fa, frontend)
+
+**FARA (first slice)**: donations from employees of DOJ-registered
+foreign-agent firms, matched by donor-reported employer.
+
+- `fara_registrants` (D1): 533 active registrants from
+  `efile.fara.gov/api/v1/Registrants/json/Active` (the only working
+  endpoint — DOJ's ShortFormRegistrants and ForeignPrincipals endpoints
+  404 in every format; individual-agent matching and foreign-principal
+  attribution get added when DOJ fixes them)
+- `fara_employer_matches` (D1): 225 exact contributor_employer strings
+  mapped to registrants via precision-first normalized matching (built
+  locally; refresh by re-running the match when registrants update)
+- Itemized worker computes `faraFirms`/`faraEmployerTotal` per member at
+  collection completion; pipeline merges to members:all; the 29 analyses
+  fresh at deploy time were backfilled directly (one-time, 29 KV writes)
+- Top findings at deploy: Pappas $82k/18 firms, Husted $62.5k/19,
+  Moody $62k/17 — bipartisan by construction
+
+**Presentation (the "make shady legible" pass)**:
+
+- `src/lib/donor-taxonomy.js` (tested): display-only sector
+  classification of bundlers (platform / pro-Israel lobby /
+  party-machine / advocacy / industry / tribal / foreign-agent) with
+  lucide icons; unknown names degrade to neutral; tier scoring still
+  never touches name patterns
+- Member cards: red "Foreign-agent connected money" section with DOJ
+  citation + per-firm FARA registration numbers; bundled-money headline
+  ("$X — Y% — didn't arrive on its own"); sector icons/labels on conduits
+- Tier list rows: quicklook icons for flag-worthy networks without
+  opening the card
+
+---
+
 ### 2026-07-14: Analysis Refresh Policy + sub_id Storage (ROADMAP Phase A)
 
 **Status**: ✅ DEPLOYED (itemized worker b52c9f79); D1 migration applied
