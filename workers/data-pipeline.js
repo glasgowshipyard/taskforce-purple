@@ -3015,9 +3015,14 @@ async function processSmartBatch(env) {
       runCount: runCount + 1,
     });
 
-    // Auto-recalculate tiers if any members were processed to keep frontend updated
+    // Auto-recalculate tiers every run, NOT just when this pipeline
+    // processed members: the itemized worker's refresh pass produces new
+    // analysis data (concentration, conduits, FARA) continuously, and the
+    // recalc is what merges it into members:all. Gating it on
+    // membersProcessed froze all merges once the phase queues drained
+    // (found 2026-07-17 via a member card serving week-old analysis fields).
     let tierRecalcStats = null;
-    if (membersProcessed.length > 0) {
+    {
       try {
         console.log('🔄 Auto-triggering tier recalculation after batch processing...');
         tierRecalcStats = await performTierRecalculation(env);
@@ -3061,19 +3066,30 @@ async function initializeProcessingQueues(env) {
         return;
       }
 
-      // Phase 1 queue exists but is empty. Members can still lack financial
-      // data (failed lookups, cycle boundaries, sync-added members) - the old
-      // early return here left them stranded at totalRaised: 0 forever
-      // (issue #29). Re-queue them, skipping recently exhausted lookups.
+      // Phase 1 queue exists but is empty. Two kinds of members need
+      // (re-)processing:
+      //  - missing data: totalRaised 0/null (failed lookups, sync-added
+      //    members) - stranded forever before the 2026-07-13 fix (issue #29)
+      //  - STALE data: financials are never refreshed once nonzero, so
+      //    members kept year-old cycle totals (and null largeDonorDonations
+      //    from the old zero-write bug) while their donor analyses were
+      //    fresh - two eras on one member card (found 2026-07-17)
       const membersData = await env.MEMBER_DATA.get('members:all');
       if (membersData) {
         const members = JSON.parse(membersData);
         const RETRY_EXHAUSTED_AFTER_MS = 90 * 24 * 60 * 60 * 1000;
+        const FINANCIAL_STALENESS_MS = 45 * 24 * 60 * 60 * 1000;
         const missing = members.filter(m => {
-          if (m.totalRaised !== 0 && m.totalRaised !== null) {
+          const missingData = m.totalRaised === 0 || m.totalRaised === null;
+          const stale =
+            !missingData &&
+            (!m.lastUpdated ||
+              Date.now() - new Date(m.lastUpdated).getTime() > FINANCIAL_STALENESS_MS);
+          if (!missingData && !stale) {
             return false;
           }
           if (
+            missingData &&
             m.fecLookupExhausted &&
             Date.now() - new Date(m.fecLookupExhausted).getTime() < RETRY_EXHAUSTED_AFTER_MS
           ) {
@@ -3081,6 +3097,10 @@ async function initializeProcessingQueues(env) {
           }
           return true;
         });
+        // Oldest data first
+        missing.sort(
+          (a, b) => new Date(a.lastUpdated || 0).getTime() - new Date(b.lastUpdated || 0).getTime()
+        );
 
         if (missing.length > 0) {
           const requeued = missing.map(m => ({

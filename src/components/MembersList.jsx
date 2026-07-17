@@ -387,14 +387,15 @@ export default function MembersList() {
                       </span>{' '}
                       +{' '}
                       <span className="font-semibold">
+                        {/* null itemized = not yet fetched, which is NOT 0% */}
                         {selectedMember.totalRaised > 0 &&
-                        selectedMember.largeDonorDonations !== undefined
-                          ? (
+                        Number.isFinite(selectedMember.largeDonorDonations)
+                          ? `${(
                               (selectedMember.largeDonorDonations / selectedMember.totalRaised) *
                               100
-                            ).toFixed(0)
-                          : 0}
-                        % itemized
+                            ).toFixed(0)}%`
+                          : 'unfetched'}{' '}
+                        itemized
                       </span>{' '}
                       donations
                     </p>
@@ -418,14 +419,18 @@ export default function MembersList() {
                   {(() => {
                     const n = selectedMember.nakamotoCoefficient;
                     const pct = selectedMember.nakamotoPercent;
+                    // Red/orange flag risk; the rest stay NEUTRAL. Wide donor
+                    // spread describes large-donor structure only and must not
+                    // read as an endorsement - this badge sits on F-tier,
+                    // PAC-funded cards too.
                     const badge =
                       n < 50
                         ? { text: 'Highly concentrated', cls: 'bg-red-100 text-red-800' }
                         : pct < 5
                           ? { text: 'Concentrated', cls: 'bg-orange-100 text-orange-800' }
                           : pct < 10
-                            ? { text: 'Typical', cls: 'bg-yellow-100 text-yellow-800' }
-                            : { text: 'Broad-based', cls: 'bg-green-100 text-green-800' };
+                            ? { text: 'Typical spread', cls: 'bg-gray-200 text-gray-700' }
+                            : { text: 'Widely spread', cls: 'bg-slate-200 text-slate-700' };
                     return (
                       <span className={`text-xs font-semibold px-2 py-1 rounded-full ${badge.cls}`}>
                         {badge.text}
@@ -591,12 +596,15 @@ export default function MembersList() {
                 </span>
               </div>
               <div className="text-2xl font-bold text-orange-600">
-                {selectedMember.totalRaised > 0 && selectedMember.largeDonorDonations !== undefined
+                {selectedMember.totalRaised > 0 &&
+                Number.isFinite(selectedMember.largeDonorDonations)
                   ? `${((selectedMember.largeDonorDonations / selectedMember.totalRaised) * 100).toFixed(1)}%`
-                  : '0%'}
+                  : '—'}
               </div>
               <div className="text-sm text-orange-700">
-                {TaskForceAPI.formatCurrency(selectedMember.largeDonorDonations || 0)}
+                {Number.isFinite(selectedMember.largeDonorDonations)
+                  ? TaskForceAPI.formatCurrency(selectedMember.largeDonorDonations)
+                  : 'not yet fetched'}
               </div>
             </div>
 
