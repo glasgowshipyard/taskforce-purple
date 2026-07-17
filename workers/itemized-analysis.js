@@ -727,6 +727,42 @@ async function fetchAndAggregateChunk(bioguideId, env, log, pagesPerRun = PAGES_
     // Reconcile with FEC totals
     await reconcileWithFEC(committeeId, cycle, analysis, apiKey, log);
 
+    // FARA cross-reference (issue #34): donations from employees of firms
+    // registered as foreign agents. fara_employer_matches maps exact
+    // contributor_employer strings to DOJ FARA registrants (loaded from
+    // efile.fara.gov; refresh documented in DATABASE_REFERENCE).
+    if (env.DONOR_DB) {
+      try {
+        const fara = await env.DONOR_DB.prepare(
+          `SELECT m.fara_firm, m.registration_number, ROUND(SUM(t.amount), 2) AS total, COUNT(*) AS donations
+           FROM itemized_transactions t
+           JOIN fara_employer_matches m ON t.contributor_employer = m.employer
+           WHERE t.bioguide_id = ? AND t.cycle = ?
+           GROUP BY m.registration_number
+           ORDER BY total DESC LIMIT 8`
+        )
+          .bind(bioguideId, cycle)
+          .all();
+
+        const firms = fara.results || [];
+        analysis.faraFirms = firms.map(f => ({
+          name: f.fara_firm,
+          registrationNumber: f.registration_number,
+          amount: f.total,
+          donations: f.donations,
+        }));
+        analysis.faraEmployerTotal =
+          Math.round(firms.reduce((s, f) => s + (f.total || 0), 0) * 100) / 100;
+        if (analysis.faraEmployerTotal > 0) {
+          log(
+            `  🌐 FARA: $${Math.round(analysis.faraEmployerTotal).toLocaleString()} from employees of ${firms.length} registered foreign-agent firms`
+          );
+        }
+      } catch (error) {
+        log(`  ⚠️ FARA cross-reference failed (continuing): ${error.message}`);
+      }
+    }
+
     // Write donor aggregates to D1 (for analytical queries)
     if (env.DONOR_DB) {
       try {

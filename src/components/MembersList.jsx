@@ -12,8 +12,17 @@ import {
   ChevronUp,
   Users,
   Share2,
+  Globe,
+  Flag,
+  Landmark,
+  Megaphone,
+  Briefcase,
 } from 'lucide-react';
 import { TaskForceAPI, mockCongressData } from '../lib/api.js';
+import { classifyOrganization, sectorInfo, quicklookSectors } from '../lib/donor-taxonomy.js';
+
+// lucide icon components referenced by name from the donor taxonomy
+const SECTOR_ICONS = { Share2, Landmark, Flag, Megaphone, Briefcase, Globe, Users };
 
 export default function MembersList() {
   const [members, setMembers] = useState([]);
@@ -441,27 +450,97 @@ export default function MembersList() {
                   <div className="mt-4 pt-4 border-t border-purple-200">
                     <div className="flex items-center space-x-2 mb-2">
                       <Share2 className="w-4 h-4 text-purple-700" />
-                      <h4 className="text-sm font-semibold text-purple-900">Bundled donations</h4>
+                      <h4 className="text-sm font-semibold text-purple-900">
+                        Who bundles this campaign's money
+                      </h4>
                     </div>
-                    <p className="text-xs text-gray-600 mb-2">
-                      These organizations collected donations from individuals and passed them along
-                      to this campaign. Bundling is legal and common, but it shows which networks
-                      organize a campaign's donors.
-                    </p>
+                    {(() => {
+                      const individual =
+                        (selectedMember.grassrootsDonations || 0) +
+                        (selectedMember.largeDonorDonations || 0);
+                      const earmarked = selectedMember.earmarkedIndividualTotal || 0;
+                      const pct = individual > 0 ? Math.round((earmarked / individual) * 100) : 0;
+                      return earmarked > 0 ? (
+                        <p className="text-sm text-gray-800 mb-2">
+                          <span className="font-bold">
+                            {TaskForceAPI.formatCurrency(earmarked)}
+                          </span>{' '}
+                          of this campaign's donations from people —{' '}
+                          <span className="font-bold">{pct}%</span> — didn't arrive on their own.
+                          Organizations collected them and delivered them in blocks. Legal, and
+                          exactly how influence networks operate in plain sight:
+                        </p>
+                      ) : null;
+                    })()}
                     <ul className="space-y-1">
-                      {selectedMember.topConduits.slice(0, 5).map(conduit => (
-                        <li key={conduit.name} className="flex justify-between text-sm">
-                          <span className="text-gray-800">{conduit.name}</span>
-                          <span className="font-semibold text-purple-900">
-                            {TaskForceAPI.formatCurrency(conduit.amount)}
-                          </span>
-                        </li>
-                      ))}
+                      {selectedMember.topConduits.slice(0, 5).map(conduit => {
+                        const sector = classifyOrganization(conduit.name);
+                        const info = sectorInfo(sector);
+                        const SectorIcon = SECTOR_ICONS[info.icon] || Users;
+                        return (
+                          <li
+                            key={conduit.name}
+                            className="flex items-center justify-between text-sm"
+                          >
+                            <span className="flex items-center gap-2 text-gray-800">
+                              <SectorIcon
+                                className={`w-4 h-4 flex-shrink-0 ${info.tone === 'flag' ? 'text-orange-600' : 'text-purple-500'}`}
+                              />
+                              <span>
+                                {conduit.name}
+                                <span className="ml-2 text-xs text-gray-500">{info.label}</span>
+                              </span>
+                            </span>
+                            <span className="font-semibold text-purple-900">
+                              {TaskForceAPI.formatCurrency(conduit.amount)}
+                            </span>
+                          </li>
+                        );
+                      })}
                     </ul>
                   </div>
                 )}
               </div>
             )}
+
+          {/* Foreign-agent connected money (DOJ FARA registry cross-reference) */}
+          {(selectedMember.faraEmployerTotal || 0) > 0 && (
+            <div className="mb-6 p-6 bg-red-50 rounded-lg border-2 border-red-300">
+              <div className="flex items-center space-x-2 mb-3">
+                <Globe className="w-5 h-5 text-red-700" />
+                <h3 className="font-semibold text-red-900">Foreign-agent connected money</h3>
+              </div>
+              <p className="text-sm text-gray-800">
+                This campaign took{' '}
+                <span className="font-bold text-red-900">
+                  {TaskForceAPI.formatCurrency(selectedMember.faraEmployerTotal)}
+                </span>{' '}
+                from people who work at firms registered with the U.S. Justice Department as agents
+                of foreign governments and foreign interests.
+              </p>
+              {selectedMember.faraFirms && selectedMember.faraFirms.length > 0 && (
+                <ul className="mt-3 space-y-1">
+                  {selectedMember.faraFirms.slice(0, 6).map(firm => (
+                    <li key={firm.registrationNumber} className="flex justify-between text-sm">
+                      <span className="text-gray-800">
+                        {firm.name}
+                        <span className="ml-2 text-xs text-gray-500">
+                          FARA reg. #{firm.registrationNumber}
+                        </span>
+                      </span>
+                      <span className="font-semibold text-red-900">
+                        {TaskForceAPI.formatCurrency(firm.amount)}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              )}
+              <p className="text-xs text-gray-500 mt-3">
+                Matched by donor-reported employer against the DOJ&apos;s public FARA registry
+                (fara.gov). Disclosed and legal — and now visible.
+              </p>
+            </div>
+          )}
 
           {/* Financial breakdown */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
@@ -837,6 +916,25 @@ export default function MembersList() {
                   {member.chamber}
                 </p>
               </div>
+              {/* Quicklook: flag-worthy money networks at a glance */}
+              {(() => {
+                const sectors = quicklookSectors(member);
+                return sectors.length > 0 ? (
+                  <div className="flex items-center gap-1 flex-shrink-0">
+                    {sectors.slice(0, 4).map(sector => {
+                      const info = sectorInfo(sector);
+                      const QuickIcon = SECTOR_ICONS[info.icon] || Users;
+                      return (
+                        <span key={sector} title={info.label}>
+                          <QuickIcon
+                            className={`w-4 h-4 ${info.tone === 'alert' ? 'text-red-600' : 'text-orange-500'}`}
+                          />
+                        </span>
+                      );
+                    })}
+                  </div>
+                ) : null;
+              })()}
               <div className="text-right flex-shrink-0">
                 {member.totalRaised === 0 ? (
                   <div>

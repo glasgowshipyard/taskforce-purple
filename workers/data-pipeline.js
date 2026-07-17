@@ -2056,6 +2056,11 @@ async function performTierRecalculation(env) {
           member.topConduits = concentration.conduits;
           member.earmarkedIndividualTotal = concentration.earmarkedTotal ?? null;
         }
+        // FARA cross-reference (issue #34) - analyses after 2026-07-17
+        if (concentration.faraFirms !== undefined) {
+          member.faraFirms = concentration.faraFirms;
+          member.faraEmployerTotal = concentration.faraEmployerTotal ?? null;
+        }
       }
 
       // Recalculate grassrootsPercent to match tier calculation
