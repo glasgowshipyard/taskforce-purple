@@ -34,6 +34,49 @@
 
 ## Recent Major Updates
 
+### 2026-07-18: Cross-Cycle Financial Corruption (post-mortem)
+
+**Status**: ✅ FIXED, REPAIRED, VERIFIED (pipeline 13d4b0ae)
+
+**Symptom**: 9 members at tier S with individualFundingPercent over 100%
+(Cramer 170%, Gallego 747%) — the S showcase was populated by the most
+corrupted records on the site.
+
+**Causal chain** (three contributing failures, months apart):
+
+1. **Latent** (January): `updateMemberWithPhase1Data` wrote
+   totalRaised/grassroots/PAC from fresh financials but never wrote
+   `largeDonorDonations`. Other write paths populated it, so records
+   stayed accidentally consistent — as long as nothing ever refreshed.
+2. **Trigger** (2026-07-17): the financial-staleness refresh re-fetched
+   2024-class senators for cycle 2026 → fresh small totals + retained
+   huge 2024 itemized = arithmetically impossible records.
+3. **Mask** (July hardening): the penalty cap + score floor converted
+   impossible inputs (IFP 210–787 pre-cap) into plausible-looking S
+   tiers instead of failing loudly. Fixing symptoms (negative scores)
+   without an input invariant hid the next corruption class.
+
+**Fixes**: Phase 1 writer now always writes `largeDonorDonations` from
+the fetch (null if absent, never cross-cycle carryover);
+tier-calculation gained a sanity guard — individual funding exceeding
+totalRaised is impossible, so such records refuse enhanced scoring and
+fall back to grassroots-only with an `inconsistent-financials` detail
+flag (unit-tested with the literal Cramer numbers). The 15 corrupted
+members were re-fetched through the fixed path.
+
+**Verified after repair + recalc**: 0 impossible records, 0 members over
+100%. Cramer: S/170% → **D/39%** on real 2026 numbers. S tier now: AOC,
+Warren, Ossoff, Kelly, Vindman, Sanders.
+
+**Lesson recorded**: every "impossible" state deserves an invariant
+check that fails loudly, not a clamp that makes it presentable. Related
+open design question: the Nakamoto <50 absolute rule fires before the
+density rule, giving small-state members with proportionally wide donor
+bases (Cramer: 49 of 403 = 12%) the harshest anchor — owner's call
+whether to reorder.
+
+---
+
 ### 2026-07-17: FARA Cross-Reference + Donor Network Quicklook (issues #34, #33)
 
 **Status**: ✅ DEPLOYED (itemized 9125ac90, pipeline c373a5fa, frontend)
