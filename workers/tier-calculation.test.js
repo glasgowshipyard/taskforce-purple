@@ -229,6 +229,28 @@ describe('calculateEnhancedTier', () => {
     expect(withJunk.tier).toBe(withNone.tier);
   });
 
+  it('refuses to score impossible money (itemized > totalRaised) - the Cramer case', () => {
+    // Real production corruption 2026-07-18: fresh 2026-cycle totals with a
+    // stale 2024-cycle itemized figure produced IFP 170-747% and S tiers
+    const cramer = {
+      totalRaised: 1139407,
+      grassrootsDonations: 514887,
+      largeDonorDonations: 1882643, // larger than totalRaised - impossible
+      grassrootsPercent: 45,
+      pacContributions: [{ amount: 10000, committee_type: 'Q', designation: 'D' }],
+    };
+    const concentration = { nakamotoCoefficient: 49, uniqueDonors: 403, totalAmount: 1800000 };
+    const result = calculateEnhancedTier(cramer, concentration);
+    expect(result.detail.reason).toBe('inconsistent-financials');
+    expect(result.tier).toBe('C'); // grassroots-only fallback: 45% -> C
+    expect(result.individualFundingPercent).toBeLessThanOrEqual(100);
+  });
+
+  it('the sanity guard does not trip on legitimate members', () => {
+    const { detail } = calculateEnhancedTier(bernie, bernieConcentration);
+    expect(detail.reason).toBeUndefined();
+  });
+
   it('handles missing grassrootsDonations without NaN', () => {
     const member = {
       totalRaised: 1000000,

@@ -3415,6 +3415,11 @@ async function updateMemberWithPhase1Data(member, financials, env) {
         totalRaised: financials?.totalRaised || 0,
         grassrootsDonations: financials?.grassrootsDonations || 0,
         grassrootsPercent: financials?.grassrootsPercent || 0,
+        // Must be written alongside totalRaised - dropping it here while
+        // the spread kept a previous cycle's value created impossible
+        // records (itemized > totalRaised, IFP up to 747%) when the
+        // financial refresh landed (found 2026-07-18 via Cramer)
+        largeDonorDonations: financials?.largeDonorDonations ?? null,
         pacMoney: financials?.pacMoney || 0,
         partyMoney: financials?.partyMoney || 0,
         dataCycle: financials?.dataCycle || currentCycle,
@@ -3431,6 +3436,9 @@ async function updateMemberWithPhase1Data(member, financials, env) {
         totalRaised: financials?.totalRaised || 0,
         grassrootsDonations: financials?.grassrootsDonations || 0,
         grassrootsPercent: financials?.grassrootsPercent || 0,
+        // Never carry a previous cycle's itemized total across a refresh
+        // (see comment in the new-member branch above)
+        largeDonorDonations: financials?.largeDonorDonations ?? null,
         pacMoney: financials?.pacMoney || 0,
         partyMoney: financials?.partyMoney || 0,
         dataCycle: financials?.dataCycle || currentCycle,

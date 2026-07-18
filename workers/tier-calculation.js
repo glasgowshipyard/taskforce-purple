@@ -241,6 +241,21 @@ export function calculateEnhancedTier(member, concentration = null, options = DE
   const itemized = member.largeDonorDonations || 0;
   const individualFundingTotal = grassroots + itemized;
 
+  // SANITY GUARD: individual donations are a subset of total receipts, so
+  // individualFunding > totalRaised is impossible - it means the record
+  // mixes data from different cycles (e.g. fresh totals + stale itemized).
+  // Refuse to score corrupt inputs; fall back to the grassroots-only path.
+  // Without this, cross-cycle records produced IFP up to 747% and the
+  // penalty cap laundered them into S tiers (found 2026-07-18, Cramer et al).
+  if (individualFundingTotal > member.totalRaised * 1.02) {
+    const fallbackTier = calculateTier(member.grassrootsPercent, member.totalRaised);
+    return {
+      tier: fallbackTier,
+      individualFundingPercent: Math.round(member.grassrootsPercent || 0),
+      detail: { path: 'fallback', reason: 'inconsistent-financials' },
+    };
+  }
+
   const itemizedPercent =
     individualFundingTotal > 0 ? (itemized / individualFundingTotal) * 100 : 0;
 
