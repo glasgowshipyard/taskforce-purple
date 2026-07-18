@@ -101,3 +101,7 @@ CREATE TABLE IF NOT EXISTS calculated_metrics (
 
   PRIMARY KEY (bioguide_id, cycle, metric_name)
 );
+
+-- Employer lookup for the FARA join (added 2026-07-18: the per-completion
+-- join was scanning unindexed, ~99M D1 row-reads/day)
+CREATE INDEX IF NOT EXISTS idx_tx_employer ON itemized_transactions(bioguide_id, contributor_employer);
