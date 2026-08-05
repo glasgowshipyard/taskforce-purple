@@ -153,7 +153,9 @@ export default function MembersList() {
   // Regular sorted members for normal pages
   const sortedMembers = useMemo(() => {
     const sorted = [...filteredMembers].sort((a, b) => {
-      const tierOrder = { S: 8, A: 7, B: 6, C: 5, D: 4, E: 3, F: 2, 'N/A': 1 };
+      // DISPUTED must have an entry: a missing key yields NaN comparators,
+      // which makes Array.sort behaviour undefined for the whole list
+      const tierOrder = { S: 8, A: 7, B: 6, C: 5, D: 4, E: 3, F: 2, 'N/A': 1, DISPUTED: 0 };
       if (tierOrder[a.tier] !== tierOrder[b.tier]) {
         return tierOrder[b.tier] - tierOrder[a.tier];
       }

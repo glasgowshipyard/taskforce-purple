@@ -70,6 +70,9 @@ export class TaskForceAPI {
       E: 'bg-red-600 text-white',
       F: 'bg-gray-900 text-white',
       'N/A': 'bg-gray-300 text-gray-600',
+      // Our figures don't reconcile to the FEC filing - not a judgement
+      // about the member, so it must not look like a bad grade
+      DISPUTED: 'bg-purple-200 text-purple-900',
     };
     return colors[tier] || 'bg-gray-500 text-white';
   }
@@ -84,6 +87,7 @@ export class TaskForceAPI {
       E: 'Captured (15-29%)',
       F: 'Owned (0-14%)',
       'N/A': 'No Financial Data Available',
+      DISPUTED: 'Figures Under Review',
     };
     return descriptions[tier] || 'Unknown';
   }
@@ -99,6 +103,8 @@ export class TaskForceAPI {
       F: 'Owned. 0-14% individual funding. Power comes almost entirely from PACs, special interests, or easily coordinated donor groups. Not accountable to everyday constituents.',
       'N/A':
         "No recent financial data available. This could mean they're not up for re-election or we haven't found their committee records yet.",
+      DISPUTED:
+        "Our figures for this campaign don't add up against the FEC's own filing, so we won't publish a grade we can't stand behind. This is a problem with our data, not a finding about this member.",
     };
     return explanations[tier] || 'No explanation available.';
   }

@@ -229,21 +229,54 @@ describe('calculateEnhancedTier', () => {
     expect(withJunk.tier).toBe(withNone.tier);
   });
 
-  it('refuses to score impossible money (itemized > totalRaised) - the Cramer case', () => {
-    // Real production corruption 2026-07-18: fresh 2026-cycle totals with a
-    // stale 2024-cycle itemized figure produced IFP 170-747% and S tiers
+  it('disputes unreconciled figures instead of guessing a tier - the Cramer case', () => {
     const cramer = {
       totalRaised: 1139407,
       grassrootsDonations: 514887,
-      largeDonorDonations: 1882643, // larger than totalRaised - impossible
+      largeDonorDonations: 1882643, // assembled from two cycles
       grassrootsPercent: 45,
+      dataCycle: 2026,
+      // no financialsVerified marker - we cannot vouch for these numbers
       pacContributions: [{ amount: 10000, committee_type: 'Q', designation: 'D' }],
     };
-    const concentration = { nakamotoCoefficient: 49, uniqueDonors: 403, totalAmount: 1800000 };
-    const result = calculateEnhancedTier(cramer, concentration);
-    expect(result.detail.reason).toBe('inconsistent-financials');
-    expect(result.tier).toBe('C'); // grassroots-only fallback: 45% -> C
+    const result = calculateEnhancedTier(cramer, {
+      nakamotoCoefficient: 49,
+      uniqueDonors: 403,
+      totalAmount: 1800000,
+    });
+    expect(result.disputed).toBe(true);
+    expect(result.tier).toBe('DISPUTED');
+    expect(result.individualFundingPercent).toBeNull();
+    // Guards the frontend: a tier missing from tierOrder makes the sort
+    // comparator return NaN and corrupts the whole list order
+    expect(typeof result.tier).toBe('string');
+  });
+
+  it('scores a verified filing that exceeds net receipts, flagged - the Thanedar case', () => {
+    // FEC reports itemized $600,204 against net receipts $390,276 for 2026.
+    // Refunds make gross exceed net; the filing is real, so publish it.
+    const thanedar = {
+      totalRaised: 390276,
+      grassrootsDonations: 18989,
+      largeDonorDonations: 600204,
+      grassrootsPercent: 5,
+      dataCycle: 2026,
+      financialsVerified: true,
+      financialsVerifiedCycle: 2026,
+      pacContributions: [{ amount: 5000, committee_type: 'Q', designation: 'U' }],
+    };
+    const result = calculateEnhancedTier(thanedar, null);
+    expect(result.disputed).toBe(false);
+    expect(result.anomaly).toBe('itemized-exceeds-net-receipts');
+    expect(result.tier).toMatch(/^[SABCDEF]$/);
     expect(result.individualFundingPercent).toBeLessThanOrEqual(100);
+    expect(result.detail.rawIndividualFundingPercent).toBeGreaterThan(100);
+  });
+
+  it('ordinary members carry no dispute or anomaly flags', () => {
+    const result = calculateEnhancedTier(bernie, bernieConcentration);
+    expect(result.disputed).toBe(false);
+    expect(result.anomaly).toBeNull();
   });
 
   it('the sanity guard does not trip on legitimate members', () => {

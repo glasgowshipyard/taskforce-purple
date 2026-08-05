@@ -241,25 +241,42 @@ export function calculateEnhancedTier(member, concentration = null, options = DE
   const itemized = member.largeDonorDonations || 0;
   const individualFundingTotal = grassroots + itemized;
 
-  // SANITY GUARD: individual donations are a subset of total receipts, so
-  // individualFunding > totalRaised is impossible - it means the record
-  // mixes data from different cycles (e.g. fresh totals + stale itemized).
-  // Refuse to score corrupt inputs; fall back to the grassroots-only path.
-  // Without this, cross-cycle records produced IFP up to 747% and the
-  // penalty cap laundered them into S tiers (found 2026-07-18, Cramer et al).
-  if (individualFundingTotal > member.totalRaised * 1.02) {
-    const fallbackTier = calculateTier(member.grassrootsPercent, member.totalRaised);
+  // Individual donations exceeding total receipts has TWO causes, and they
+  // need opposite treatment (2026-07-24):
+  //
+  //   a) Our own error - figures assembled from different cycles. Cramer hit
+  //      170-747% this way and the penalty cap laundered it into S tiers.
+  //   b) The FEC's own filing - `receipts` is net of refunds while
+  //      `individual_itemized_contributions` is gross, so a committee that
+  //      returned money legitimately reports itemized > receipts. Thanedar
+  //      files exactly this for cycle 2026 (159%).
+  //
+  // Ratio cannot separate them (159% vs 170%). What separates them is
+  // FIDELITY TO SOURCE: were these numbers written from a single FEC
+  // response for the cycle we claim? That is a question about our own
+  // accuracy rather than a guess about how campaign finance behaves.
+  const exceedsReceipts = individualFundingTotal > member.totalRaised * 1.02;
+  const sourceVerified =
+    member.financialsVerified === true && member.financialsVerifiedCycle === member.dataCycle;
+
+  if (exceedsReceipts && !sourceVerified) {
+    // Ours to explain - do not publish a letter grade for it. Must be a
+    // real string, not null: the frontend's tierOrder lookup would return
+    // undefined and NaN comparators corrupt the whole sorted list.
     return {
-      tier: fallbackTier,
-      individualFundingPercent: Math.round(member.grassrootsPercent || 0),
-      detail: { path: 'fallback', reason: 'inconsistent-financials' },
+      tier: 'DISPUTED',
+      disputed: true,
+      disputeReason: 'figures-not-reconciled-to-source',
+      individualFundingPercent: null,
+      detail: { path: 'disputed' },
     };
   }
 
   const itemizedPercent =
     individualFundingTotal > 0 ? (itemized / individualFundingTotal) * 100 : 0;
 
-  let individualFundingPercent = (individualFundingTotal / member.totalRaised) * 100;
+  const rawIndividualFundingPercent = (individualFundingTotal / member.totalRaised) * 100;
+  let individualFundingPercent = rawIndividualFundingPercent;
 
   const { anchor, basis, nakamotoPercent } = getTrustAnchor(member, concentration, options);
   const itemizationPenalty = calculateItemizationPenalty(itemizedPercent, anchor, options);
@@ -268,6 +285,9 @@ export function calculateEnhancedTier(member, concentration = null, options = DE
   if (options.floorAtZero) {
     individualFundingPercent = Math.max(0, individualFundingPercent);
   }
+  // A verified filing can exceed 100% (refunds - see above). Cap the score so
+  // it stays readable, and keep the raw figure for the card's footnote.
+  individualFundingPercent = Math.min(100, individualFundingPercent);
 
   const transparencyPenalty = calculateTransparencyPenalty(member);
   const thresholds = getAdjustedThresholds(transparencyPenalty);
@@ -292,9 +312,13 @@ export function calculateEnhancedTier(member, concentration = null, options = DE
   return {
     tier,
     individualFundingPercent: Math.round(individualFundingPercent),
+    disputed: false,
+    // Reconciles to source but reads oddly - shown as a footnote, not a fault
+    anomaly: exceedsReceipts ? 'itemized-exceeds-net-receipts' : null,
     detail: {
       path: 'enhanced',
       itemizedPercent: Math.round(itemizedPercent * 10) / 10,
+      rawIndividualFundingPercent: Math.round(rawIndividualFundingPercent),
       trustAnchor: anchor,
       trustAnchorBasis: basis,
       nakamotoPercent,

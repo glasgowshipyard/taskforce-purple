@@ -621,7 +621,7 @@ async function fetchAndAggregateChunk(bioguideId, env, log, pagesPerRun = PAGES_
         bioguide_id: bioguideId,
         committee_id: committeeId,
         cycle: cycle,
-        sub_id: tx.sub_id != null ? String(tx.sub_id) : null,
+        sub_id: tx.sub_id === null || tx.sub_id === undefined ? null : String(tx.sub_id),
         contributor_first_name: tx.contributor_first_name || null,
         contributor_last_name: tx.contributor_last_name || null,
         contributor_state: tx.contributor_state || null,

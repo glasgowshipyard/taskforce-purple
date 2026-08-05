@@ -3423,6 +3423,10 @@ async function updateMemberWithPhase1Data(member, financials, env) {
         pacMoney: financials?.pacMoney || 0,
         partyMoney: financials?.partyMoney || 0,
         dataCycle: financials?.dataCycle || currentCycle,
+        // Written from one FEC response for one cycle - lets the scorer tell
+        // "the filing says this" from "we assembled this wrong" (2026-07-24)
+        financialsVerified: true,
+        financialsVerifiedCycle: financials?.dataCycle || currentCycle,
         pacContributions: [],
         tier: calculateTier(financials?.grassrootsPercent || 0, financials?.totalRaised || 0),
         lastUpdated: new Date().toISOString(),
@@ -3442,6 +3446,10 @@ async function updateMemberWithPhase1Data(member, financials, env) {
         pacMoney: financials?.pacMoney || 0,
         partyMoney: financials?.partyMoney || 0,
         dataCycle: financials?.dataCycle || currentCycle,
+        // Written from one FEC response for one cycle - lets the scorer tell
+        // "the filing says this" from "we assembled this wrong" (2026-07-24)
+        financialsVerified: true,
+        financialsVerifiedCycle: financials?.dataCycle || currentCycle,
         tier: calculateTier(financials?.grassrootsPercent || 0, financials?.totalRaised || 0),
         lastUpdated: new Date().toISOString(),
         committeeInfo: financials?.committeeId ? { id: financials.committeeId } : null,
