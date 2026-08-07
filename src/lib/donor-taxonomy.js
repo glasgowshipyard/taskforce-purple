@@ -23,61 +23,9 @@ export const SECTORS = {
   other: { label: 'Organization', icon: 'Users', tone: 'neutral' },
 };
 
-/**
- * Foreign-interest networks: organisations whose stated purpose is to
- * advance a particular country's interests in US politics. Incorporation
- * is irrelevant - AIPAC is US-registered and describes itself as America's
- * pro-Israel lobby. What we show is the interest the network exists to
- * serve, in its own terms.
- *
- * The rule is applied identically to every country. Adding one country's
- * networks without the others would make this a targeting tool rather than
- * a transparency one. Extend the list freely; unlisted organisations simply
- * carry no country, never a guess.
- */
-const FOREIGN_INTEREST = [
-  {
-    country: 'Israel',
-    flag: '🇮🇱',
-    patterns: [
-      'ISRAEL PUBLIC AFFAIRS',
-      'AIPAC',
-      'NORPAC',
-      'JSTREET',
-      'J STREET',
-      'DMFI',
-      'DEMOCRATIC MAJORITY FOR ISRAEL',
-      'REPUBLICAN JEWISH COALITION',
-    ],
-  },
-  {
-    country: 'Armenia',
-    flag: '🇦🇲',
-    patterns: ['ARMENIAN NATIONAL COMMITTEE', 'ANCA ', 'ARMENIAN AMERICAN'],
-  },
-  { country: 'Turkey', flag: '🇹🇷', patterns: ['TURKISH COALITION', 'TURKISH AMERICAN'] },
-  { country: 'Cuba', flag: '🇨🇺', patterns: ['US-CUBA DEMOCRACY', 'CUBAN AMERICAN'] },
-  { country: 'Greece', flag: '🇬🇷', patterns: ['HELLENIC', 'GREEK AMERICAN'] },
-  {
-    country: 'India',
-    flag: '🇮🇳',
-    patterns: ['US-INDIA', 'INDIAN AMERICAN IMPACT', 'IMPACT PROJECT'],
-  },
-  { country: 'Taiwan', flag: '🇹🇼', patterns: ['FORMOSA', 'TAIWANESE AMERICAN'] },
-  { country: 'Ireland', flag: '🇮🇪', patterns: ['IRISH AMERICAN'] },
-  { country: 'Ukraine', flag: '🇺🇦', patterns: ['UKRAINIAN AMERICAN', 'UKRAINE CAUCUS'] },
-];
-
-/** The foreign interest a bundler exists to advance, or null. */
-export function foreignInterestFor(name) {
-  const n = ` ${(name || '').toUpperCase()} `;
-  for (const entry of FOREIGN_INTEREST) {
-    if (entry.patterns.some(p => n.includes(p))) {
-      return { country: entry.country, flag: entry.flag };
-    }
-  }
-  return null;
-}
+// Foreign interest is derived from the committee's own FEC-filed name -
+// see foreign-interest.js. Re-exported here so callers have one import.
+export { detectForeignInterest as foreignInterestFor } from './foreign-interest.js';
 
 // Name patterns (normalized uppercase) -> sector. First match wins.
 // Extend freely - unrecognized names degrade to 'other', never hidden.
