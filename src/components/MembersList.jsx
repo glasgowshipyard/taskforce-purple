@@ -551,9 +551,17 @@ export default function MembersList() {
                     <li key={firm.registrationNumber} className="flex justify-between text-sm">
                       <span className="text-gray-800">
                         {firm.name}
-                        <span className="ml-2 text-xs text-gray-500">
-                          FARA reg. #{firm.registrationNumber}
-                        </span>
+                        {/* Deep-links to the registrant's filings on DOJ's own
+                            eFile system - verified parameterised by reg number */}
+                        <a
+                          href={`https://efile.fara.gov/ords/fara/f?p=1381:200:::NO:RP,200:P200_REG_NUMBER:${firm.registrationNumber}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="ml-2 text-xs text-red-700 underline hover:text-red-900"
+                          title="View this firm's filings on the Justice Department's FARA registry"
+                        >
+                          FARA reg. #{firm.registrationNumber} ↗
+                        </a>
                       </span>
                       <span className="font-semibold text-red-900">
                         {TaskForceAPI.formatCurrency(firm.amount)}
