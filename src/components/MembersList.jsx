@@ -19,7 +19,12 @@ import {
   Briefcase,
 } from 'lucide-react';
 import { TaskForceAPI, mockCongressData } from '../lib/api.js';
-import { classifyOrganization, sectorInfo, quicklookSectors } from '../lib/donor-taxonomy.js';
+import {
+  classifyOrganization,
+  sectorInfo,
+  quicklookSectors,
+  foreignInterestFor,
+} from '../lib/donor-taxonomy.js';
 
 // lucide icon components referenced by name from the donor taxonomy
 const SECTOR_ICONS = { Share2, Landmark, Flag, Megaphone, Briefcase, Globe, Users };
@@ -484,18 +489,33 @@ export default function MembersList() {
                         const sector = classifyOrganization(conduit.name);
                         const info = sectorInfo(sector);
                         const SectorIcon = SECTOR_ICONS[info.icon] || Users;
+                        // Networks that exist to advance a particular
+                        // country's interests show that country, in their own
+                        // terms. Same rule for every country.
+                        const foreign = foreignInterestFor(conduit.name);
                         return (
                           <li
                             key={conduit.name}
                             className="flex items-center justify-between text-sm"
                           >
                             <span className="flex items-center gap-2 text-gray-800">
-                              <SectorIcon
-                                className={`w-4 h-4 flex-shrink-0 ${info.tone === 'flag' ? 'text-orange-600' : 'text-purple-500'}`}
-                              />
+                              {foreign ? (
+                                <span
+                                  className="flex-shrink-0 text-base leading-none"
+                                  title={`Foreign interest: ${foreign.country}`}
+                                >
+                                  {foreign.flag}
+                                </span>
+                              ) : (
+                                <SectorIcon
+                                  className={`w-4 h-4 flex-shrink-0 ${info.tone === 'flag' ? 'text-orange-600' : 'text-purple-500'}`}
+                                />
+                              )}
                               <span>
                                 {conduit.name}
-                                <span className="ml-2 text-xs text-gray-500">{info.label}</span>
+                                <span className="ml-2 text-xs text-gray-500">
+                                  {foreign ? `${foreign.country} interest` : info.label}
+                                </span>
                               </span>
                             </span>
                             <span className="font-semibold text-purple-900">
