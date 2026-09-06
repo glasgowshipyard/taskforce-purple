@@ -83,10 +83,23 @@ via `/api/process-candidate`, then recalculate).
 ## 6. Budgets (free-tier meters)
 
 ```bash
-# D1 last-24h usage (nominal free caps: 5M rows read, 100k written - not
-# currently hard-enforced; KV is the one that actually bites)
+# D1 last-24h usage. Free caps: 5M rows read, 100k rows written per day.
+# HARD-ENFORCED since ~2026-09-01 - exceeding either returns errors until
+# 00:00 UTC. Treat any reading over cap as a defect, not a warning.
 npx wrangler d1 info taskforce-purple-donors
 ```
+
+If `rows_read` spikes, suspect a query using the wrong index. `EXPLAIN QUERY
+PLAN` in front of any statement shows which one it picked, and costs nothing:
+
+```bash
+npx wrangler d1 execute taskforce-purple-donors --remote \
+  --command "EXPLAIN QUERY PLAN DELETE FROM itemized_transactions WHERE bioguide_id='S000033' AND cycle=2026;"
+```
+
+Wanted: `USING INDEX idx_bioguide`. An index on a low-cardinality column
+(`cycle` has two values) means a full scan — that cost 18.8M reads a day
+until it was dropped on 2026-09-02.
 
 KV daily ops (1,000 writes/day is the binding cap; steady state ~350–600):
 the Cloudflare dashboard → Workers & Pages → KV → namespace → Metrics.

@@ -464,30 +464,15 @@ async function fetchAndAggregateChunk(bioguideId, env, log, pagesPerRun = PAGES_
     const cycle = cycleForYear(currentYear);
     log(`  📅 Election cycle: ${cycle}`);
 
-    // Delete-before-recollect (ROADMAP A1): the raw-transaction table has
-    // legacy rows without sub_id, so a re-collection would duplicate them
-    // (that is exactly how 28 members got inflated in January). Clearing
-    // the member's rows up front makes re-collection idempotent and heals
-    // previously-duplicated members as they come up for refresh.
-    if (env.DONOR_DB) {
-      try {
-        const delTx = await env.DONOR_DB.prepare(
-          'DELETE FROM itemized_transactions WHERE bioguide_id = ? AND cycle = ?'
-        )
-          .bind(bioguideId, cycle)
-          .run();
-        const delAgg = await env.DONOR_DB.prepare(
-          'DELETE FROM donor_aggregates WHERE bioguide_id = ? AND cycle = ?'
-        )
-          .bind(bioguideId, cycle)
-          .run();
-        log(
-          `  🗑️ Cleared prior D1 rows: ${delTx.meta?.changes ?? '?'} transactions, ${delAgg.meta?.changes ?? '?'} aggregates`
-        );
-      } catch (error) {
-        log(`  ⚠️ D1 pre-clear failed (continuing): ${error.message}`);
-      }
-    }
+    // NOTE: nothing is deleted here. Re-collection used to clear the member's
+    // rows up front, which meant re-inserting every transaction we already
+    // held on every refresh - ~24,500 row inserts a day, each costing about
+    // six row-writes across the indexes, which is what blew the D1 write cap
+    // in September 2026. INSERT OR IGNORE on sub_id already makes collection
+    // idempotent for the 442 members holding dedup keys, so a refresh now
+    // writes only genuinely new transactions. Legacy rows without a sub_id
+    // (17 members) are cleared at COMPLETION, once their replacements have
+    // landed - see the completion block below.
 
     progress = {
       bioguideId,
@@ -760,6 +745,41 @@ async function fetchAndAggregateChunk(bioguideId, env, log, pagesPerRun = PAGES_
         }
       } catch (error) {
         log(`  ⚠️ FARA cross-reference failed (continuing): ${error.message}`);
+      }
+    }
+
+    // Clear superseded rows now that the replacement data is collected and
+    // in memory - never before (2026-09-05). Two scoped deletes:
+    //
+    //   1. Legacy transactions with no sub_id. Those cannot be deduplicated
+    //      by INSERT OR IGNORE, so leaving them alongside a fresh collection
+    //      would double-count the member (the January 2026 inflation). For
+    //      the 442 members already holding sub_ids this matches nothing and
+    //      costs nothing, and it extinguishes itself once the remaining 17
+    //      have refreshed.
+    //   2. This member's donor aggregates, which are fully rewritten below.
+    if (env.DONOR_DB) {
+      try {
+        // INDEXED BY is not optional: without it SQLite picks idx_sub_id and
+        // scans every NULL entry in the table (382,016 of them) for each
+        // member, which would re-blow the read cap. Forcing idx_bioguide
+        // reads only this member's rows. Verified with EXPLAIN QUERY PLAN.
+        const delLegacy = await env.DONOR_DB.prepare(
+          'DELETE FROM itemized_transactions INDEXED BY idx_bioguide WHERE bioguide_id = ? AND cycle = ? AND sub_id IS NULL'
+        )
+          .bind(bioguideId, cycle)
+          .run();
+        const removed = delLegacy.meta?.changes ?? 0;
+        if (removed > 0) {
+          log(`  🗑️ Cleared ${removed} superseded legacy transactions (no sub_id)`);
+        }
+        await env.DONOR_DB.prepare(
+          'DELETE FROM donor_aggregates WHERE bioguide_id = ? AND cycle = ?'
+        )
+          .bind(bioguideId, cycle)
+          .run();
+      } catch (error) {
+        log(`  ⚠️ D1 cleanup failed (continuing): ${error.message}`);
       }
     }
 
