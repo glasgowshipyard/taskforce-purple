@@ -26,10 +26,12 @@ CREATE TABLE IF NOT EXISTS itemized_transactions (
   created_at TEXT DEFAULT CURRENT_TIMESTAMP
 );
 
--- Indexes for fast queries
+-- Indexes for fast queries. Keep this list minimal: every index costs an
+-- extra row-write on each insert, and D1's free tier caps writes at 100k/day.
+-- idx_cycle, idx_committee and idx_donor_lookup were dropped in September
+-- 2026 - unused by any query, and idx_cycle (two distinct values) forced
+-- full scans.
 CREATE INDEX IF NOT EXISTS idx_bioguide ON itemized_transactions(bioguide_id);
-CREATE INDEX IF NOT EXISTS idx_committee ON itemized_transactions(committee_id);
-CREATE INDEX IF NOT EXISTS idx_donor_lookup ON itemized_transactions(bioguide_id, contributor_first_name, contributor_last_name, contributor_state, contributor_zip);
 -- Unique on sub_id for dedup/idempotent inserts (SQLite allows multiple NULLs, so legacy rows are unaffected)
 CREATE UNIQUE INDEX IF NOT EXISTS idx_sub_id ON itemized_transactions(sub_id);
 

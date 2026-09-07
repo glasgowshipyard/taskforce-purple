@@ -773,11 +773,17 @@ async function fetchAndAggregateChunk(bioguideId, env, log, pagesPerRun = PAGES_
         if (removed > 0) {
           log(`  🗑️ Cleared ${removed} superseded legacy transactions (no sub_id)`);
         }
-        await env.DONOR_DB.prepare(
-          'DELETE FROM donor_aggregates WHERE bioguide_id = ? AND cycle = ?'
-        )
-          .bind(bioguideId, cycle)
-          .run();
+        // donor_aggregates are NOT deleted first. Their primary key is
+        // (bioguide_id, cycle, donor_key) and the rewrite below uses
+        // INSERT OR REPLACE, so every row this run produces overwrites its
+        // predecessor. Deleting first doubled the write cost of every
+        // completion for no benefit (~21k row-writes/day of the 109k that
+        // breached the cap on 2026-09-07).
+        //
+        // Residual: a donor present in a previous collection but absent from
+        // this one leaves a stale row. That needs an FEC correction to
+        // happen and this table is an analytical mirror, rebuildable from
+        // itemized_transactions with a GROUP BY (as done in July 2026).
       } catch (error) {
         log(`  ⚠️ D1 cleanup failed (continuing): ${error.message}`);
       }
