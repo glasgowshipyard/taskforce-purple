@@ -18,6 +18,13 @@
 import { STATE_ABBREVIATIONS } from './shared-constants.js';
 import { cycleForYear } from './tier-calculation.js';
 import { classifyScheduleARow, normalizeConduitName, topConduits } from './schedule-a-classify.js';
+import {
+  readBudget,
+  chargeBudget,
+  canAfford,
+  estimateRowWrites,
+  DAILY_ROW_WRITE_BUDGET,
+} from './d1-write-budget.js';
 
 // HTTP-triggered runs must fit the 30s wall-clock limit; cron-triggered
 // runs get 15 minutes, so they can take much larger bites (ROADMAP A1)
@@ -169,6 +176,37 @@ async function analyzeMembers(env, pagesPerRun = PAGES_PER_RUN_HTTP) {
   log(`⏰ Start time: ${new Date().toISOString()}`);
   log(`📦 Pages per run: ${pagesPerRun}`);
 
+  // D1's 100k row-writes/day is hard-enforced: past it, writes error until
+  // 00:00 UTC. Stand down rather than spend FEC calls producing data we
+  // cannot store - the member stays at the queue head and resumes tomorrow.
+  const budget = await readBudget(env.DONOR_DB);
+  const meter = { spent: 0 };
+  log(
+    `🧾 D1 write budget: ${budget.spent.toLocaleString()}/${DAILY_ROW_WRITE_BUDGET.toLocaleString()} used today (${budget.remaining.toLocaleString()} left)`
+  );
+  if (budget.remaining <= 0) {
+    log(
+      budget.degraded
+        ? '🛑 Standing down: the write ledger could not be read, so remaining budget is unprovable'
+        : `🛑 Standing down: daily D1 write budget exhausted, resumes 00:00 UTC`
+    );
+    return new Response(
+      JSON.stringify(
+        {
+          allComplete: false,
+          budgetExhausted: true,
+          budget,
+          message: 'D1 daily write budget exhausted; no work attempted this run',
+          executionLog,
+          timestamp: new Date().toISOString(),
+        },
+        null,
+        2
+      ),
+      { headers: { 'Content-Type': 'application/json' } }
+    );
+  }
+
   // Get processing queue from KV
   const queueKey = 'itemized_processing_queue';
   const queueData = await env.MEMBER_DATA.get(queueKey);
@@ -234,7 +272,14 @@ async function analyzeMembers(env, pagesPerRun = PAGES_PER_RUN_HTTP) {
     const memberStartTime = Date.now();
 
     try {
-      const result = await fetchAndAggregateChunk(member.bioguideId, env, log, pagesPerRun);
+      const result = await fetchAndAggregateChunk(
+        member.bioguideId,
+        env,
+        log,
+        pagesPerRun,
+        budget,
+        meter
+      );
       const processingTime = Date.now() - memberStartTime;
 
       results[member.bioguideId] = {
@@ -323,6 +368,13 @@ async function analyzeMembers(env, pagesPerRun = PAGES_PER_RUN_HTTP) {
     log(`⏸️ ${member.name} still in progress, keeping in queue`);
   }
 
+  // Bill this run to today's ledger. Once per run, not once per write: the
+  // ledger update is itself a D1 write.
+  await chargeBudget(env.DONOR_DB, meter.spent);
+  log(
+    `🧾 D1 rows written this run: ~${meter.spent.toLocaleString()} (day total ~${(budget.spent + meter.spent).toLocaleString()}/${DAILY_ROW_WRITE_BUDGET.toLocaleString()})`
+  );
+
   // Check overall status
   const allComplete = queue.length === 0;
 
@@ -330,6 +382,11 @@ async function analyzeMembers(env, pagesPerRun = PAGES_PER_RUN_HTTP) {
     JSON.stringify(
       {
         allComplete,
+        d1Budget: {
+          rowsWrittenThisRun: meter.spent,
+          dayTotal: budget.spent + meter.spent,
+          dailyBudget: DAILY_ROW_WRITE_BUDGET,
+        },
         results,
         queueStatus: {
           remainingMembers: queue.length,
@@ -370,7 +427,14 @@ async function checkAllComplete(env, members) {
   return true;
 }
 
-async function fetchAndAggregateChunk(bioguideId, env, log, pagesPerRun = PAGES_PER_RUN_HTTP) {
+async function fetchAndAggregateChunk(
+  bioguideId,
+  env,
+  log,
+  pagesPerRun = PAGES_PER_RUN_HTTP,
+  budget = { remaining: Infinity, degraded: false },
+  meter = { spent: 0 }
+) {
   const apiKey = env.FEC_API_KEY || 'zVpKDAacmPcazWQxhl5fhodhB9wNUH0urLCLkkV9';
   const progressKey = `itemized_progress_v2:${bioguideId}`;
   const analysisKey = `itemized_analysis_v2:${bioguideId}`;
@@ -506,7 +570,26 @@ async function fetchAndAggregateChunk(bioguideId, env, log, pagesPerRun = PAGES_
   let pagesProcessed = 0;
   let reachedEnd = false;
 
+  let budgetStopped = false;
+
   while (pagesProcessed < maxPagesToFetch) {
+    // Stop before spending an FEC call we cannot store the result of. A page
+    // is at most `perPage` transactions, and completion still has to write
+    // this member's aggregates, so reserve for both rather than paging up to
+    // the line and then failing on the write that matters.
+    const pageCost = estimateRowWrites({ transactions: perPage });
+    const completionReserve = estimateRowWrites({
+      aggregates: Object.keys(progress.donorTotals || {}).length,
+      metadataReplaces: 1,
+    });
+    if (!canAfford(budget, meter.spent, pageCost + completionReserve)) {
+      log(
+        `  🧾 Pausing after ${pagesProcessed} pages: next page would exceed the daily D1 write budget`
+      );
+      budgetStopped = true;
+      break;
+    }
+
     const pageStartTime = Date.now();
 
     // Build URL with cursor-based pagination
@@ -656,6 +739,7 @@ async function fetchAndAggregateChunk(bioguideId, env, log, pagesPerRun = PAGES_
           );
 
           await env.DONOR_DB.batch(statements);
+          meter.spent += estimateRowWrites({ transactions: batch.length });
         }
 
         log(`  💾 Wrote ${d1Inserts.length} transactions to D1 (${batches.length} batches)`);
@@ -688,7 +772,9 @@ async function fetchAndAggregateChunk(bioguideId, env, log, pagesPerRun = PAGES_
   progress.lastUpdated = new Date().toISOString();
 
   // Check if complete
-  const isComplete = reachedEnd;
+  // A run halted by the write budget is paused, not finished: `reachedEnd`
+  // can only be true if we actually paged to the end of the FEC results.
+  const isComplete = reachedEnd && !budgetStopped;
 
   if (isComplete) {
     log(`  🎉 Collection complete! Calculating final metrics...`);
@@ -770,6 +856,7 @@ async function fetchAndAggregateChunk(bioguideId, env, log, pagesPerRun = PAGES_
           .bind(bioguideId, cycle)
           .run();
         const removed = delLegacy.meta?.changes ?? 0;
+        meter.spent += estimateRowWrites({ transactionDeletes: removed });
         if (removed > 0) {
           log(`  🗑️ Cleared ${removed} superseded legacy transactions (no sub_id)`);
         }
@@ -806,14 +893,29 @@ async function fetchAndAggregateChunk(bioguideId, env, log, pagesPerRun = PAGES_
         const BATCH_SIZE = 100; // statements per batch call (8 params each)
         for (let i = 0; i < donorAggregates.length; i += BATCH_SIZE) {
           const batch = donorAggregates.slice(i, i + BATCH_SIZE);
+          // Upsert, NOT `INSERT OR REPLACE`. REPLACE is a delete followed by
+          // an insert, so it cost 4 row-writes (table + PK index, twice) for
+          // every donor on every re-collection even when the amount was
+          // identical - ~57k of the 117k row-writes that breached the free
+          // tier's 100k cap on 2026-09-09. DO UPDATE touches no indexed
+          // column, so it costs 1; the WHERE makes an unchanged donor cost 0.
           const statements = batch.map(d =>
             env.DONOR_DB.prepare(
-              `INSERT OR REPLACE INTO donor_aggregates
+              `INSERT INTO donor_aggregates
                (bioguide_id, cycle, donor_key, first_name, last_name, state, zip, total_amount, transaction_count)
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1)`
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1)
+               ON CONFLICT(bioguide_id, cycle, donor_key) DO UPDATE SET
+                 first_name = excluded.first_name,
+                 last_name = excluded.last_name,
+                 state = excluded.state,
+                 zip = excluded.zip,
+                 total_amount = excluded.total_amount,
+                 updated_at = CURRENT_TIMESTAMP
+               WHERE donor_aggregates.total_amount IS NOT excluded.total_amount`
             ).bind(bioguideId, cycle, d.key, d.firstName, d.lastName, d.state, d.zip, d.amount)
           );
           await env.DONOR_DB.batch(statements);
+          meter.spent += estimateRowWrites({ aggregates: batch.length });
         }
 
         log(`  ✅ D1 donor aggregates written`);
@@ -845,6 +947,7 @@ async function fetchAndAggregateChunk(bioguideId, env, log, pagesPerRun = PAGES_
             new Date().toISOString()
           )
           .run();
+        meter.spent += estimateRowWrites({ metadataReplaces: 1 });
 
         log(`  ✅ D1 collection metadata written`);
       } catch (error) {

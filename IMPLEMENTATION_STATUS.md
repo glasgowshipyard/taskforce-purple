@@ -34,6 +34,61 @@
 
 ## Recent Major Updates
 
+### 2026-09-09: D1 write cap breached three days running (post-mortem)
+
+**Status**: ✅ METERED AND ENFORCED (analysis worker `c27def85`)
+
+**Symptom**: `rows_written_24h` of 138,740 → 109,214 → 117,205 against a
+100,000/day free-tier cap that Cloudflare began hard-enforcing ~2026-09-01.
+Past the cap, D1 writes error until 00:00 UTC. Successive fixes cut the cost
+per row and writes still went **up**, because the same fixes made collection
+faster (13 → 18 members/day) and nothing was counting.
+
+**Root cause**: there was no D1 write budget anywhere in the codebase. KV was
+budgeted deliberately — one member per run, 20-minute cron — and D1 rode along
+on that throughput knob under a limit that was never previously enforced. No
+counter, no threshold, no check.
+
+**Second finding — the arithmetic was wrong too.** Per-row costs had been
+_derived_ (1 table row + 1 per index). Measured against production D1:
+
+| operation                         | derived | measured |
+| --------------------------------- | ------- | -------- |
+| new transaction                   | 4       | **5**    |
+| duplicate transaction (OR IGNORE) | 0       | **1**    |
+| new aggregate                     | 2       | 2        |
+| aggregate, amount changed         | 4       | **1**    |
+| aggregate, amount unchanged       | 4       | **0**    |
+
+The fifth write per transaction is `sqlite_sequence`, maintained because
+`itemized_transactions.id` is `AUTOINCREMENT` — ~16,000 row-writes/day of
+bookkeeping this schema never reads. Dropping it needs a 1.5M-row table
+rebuild costing ~15 days of budget, so it is documented, not done.
+
+`16,491 × 5 + 14,424 × 2 + 16 = 111,319`, plus ignored duplicates at 1 each,
+accounts for the observed 117,205.
+
+**Fixes**:
+
+1. `workers/d1-write-budget.js` — a daily ledger (`d1_write_budget` table, one
+   row per UTC day) with a self-imposed 85,000 budget. Checked at run start
+   and before every page; the run stands down rather than spending FEC calls
+   on data it cannot store. **Fails closed**: an unreadable ledger reports
+   zero remaining. 16 unit tests.
+2. `donor_aggregates` moved from `INSERT OR REPLACE` to
+   `ON CONFLICT DO UPDATE ... WHERE total_amount IS NOT excluded.total_amount`.
+   A donor whose total has not changed since the last collection now costs
+   **0** row-writes instead of 2 — most donors, most collections.
+
+**Verified**: with today's actual usage seeded into the ledger, a live
+`/analyze` returned `budgetExhausted: true` and did no work. Upsert costs
+were measured on production D1, not assumed.
+
+**Residual**: a budget-exhausted day means collection pauses until 00:00 UTC.
+That is the intended trade — freshness yields to staying inside the free tier.
+If pauses become routine rather than occasional, the lever is
+`ANALYSIS_STALENESS_DAYS` (currently 30), not a paid plan.
+
 ### 2026-07-18: Cross-Cycle Financial Corruption (post-mortem)
 
 **Status**: ✅ FIXED, REPAIRED, VERIFIED (pipeline 13d4b0ae)

@@ -89,6 +89,33 @@ via `/api/process-candidate`, then recalculate).
 npx wrangler d1 info taskforce-purple-donors
 ```
 
+**The write budget (added 2026-09-09).** The pipeline now meters itself and
+stands down rather than breaching the write cap. What it thinks it has spent:
+
+```bash
+npx wrangler d1 execute taskforce-purple-donors --remote \
+  --command "SELECT * FROM d1_write_budget;"
+```
+
+One row, today's UTC date, against a self-imposed budget of 85,000 (15% under
+Cloudflare's 100k). At 00:00 UTC the day rolls and the row is replaced.
+
+```bash
+# What the worker itself reports - the same number, from its own mouth
+curl -s "https://taskforce-purple-itemized-analysis.dev-a4b.workers.dev/analyze" | jq '.d1Budget // {budgetExhausted, budget}'
+```
+
+Reading `"budgetExhausted": true` is the system **working**, not failing: it
+means collection paused itself and resumes at midnight UTC. The member stays
+at the queue head and loses nothing but a day of freshness.
+
+Two numbers that should stay close: `rows_written_24h` from `d1 info` and
+`rows_written` from the ledger. If the ledger reads much _lower_, something is
+writing to D1 outside the metered path — find it, because that is exactly how
+the cap got breached three days running in September 2026. The per-row costs
+the meter uses are measured, not derived (see `workers/d1-write-budget.js`);
+re-measure with `--file=` on a scratch statement, which prints `rows_written`.
+
 If `rows_read` spikes, suspect a query using the wrong index. `EXPLAIN QUERY
 PLAN` in front of any statement shows which one it picked, and costs nothing:
 
@@ -149,14 +176,16 @@ curl -X POST "https://taskforce-purple-api.dev-a4b.workers.dev/api/clear-fec-map
 
 ## 9. Known failure signatures
 
-| Symptom                                 | Likely cause                      | First move                                                            |
-| --------------------------------------- | --------------------------------- | --------------------------------------------------------------------- |
-| Member with implausible zeros           | Stale/wrong `fec_mapping_*` cache | Clear mapping (§8), reprocess                                         |
-| Score >100% or itemized > total         | Cross-cycle record corruption     | §5 check, reprocess affected, recalc                                  |
-| Card data much older than analysis data | Financial refresh stalled         | §4 queue length; tail the api worker                                  |
-| Queue frozen on same member for hours   | Failure-defer not advancing       | Tail the worker; see the queue-stall pattern in IMPLEMENTATION_STATUS |
-| Frontend changes not visible            | Pages build failed                | §7 deployment list; check the build log link it prints                |
-| Everything frozen, no logs at all       | Cloudflare incident               | `curl -s https://www.cloudflarestatus.com/api/v2/status.json`         |
+| Symptom                                   | Likely cause                      | First move                                                            |
+| ----------------------------------------- | --------------------------------- | --------------------------------------------------------------------- |
+| Member with implausible zeros             | Stale/wrong `fec_mapping_*` cache | Clear mapping (§8), reprocess                                         |
+| Score >100% or itemized > total           | Cross-cycle record corruption     | §5 check, reprocess affected, recalc                                  |
+| Card data much older than analysis data   | Financial refresh stalled         | §4 queue length; tail the api worker                                  |
+| Queue frozen on same member for hours     | Failure-defer not advancing       | Tail the worker; see the queue-stall pattern in IMPLEMENTATION_STATUS |
+| Frontend changes not visible              | Pages build failed                | §7 deployment list; check the build log link it prints                |
+| Everything frozen, no logs at all         | Cloudflare incident               | `curl -s https://www.cloudflarestatus.com/api/v2/status.json`         |
+| Collection stopped mid-day, no errors     | D1 write budget spent (by design) | §6 ledger; resumes 00:00 UTC                                          |
+| `d1 info` writes >> ledger `rows_written` | An unmetered D1 write path        | §6; every D1 write must charge the meter                              |
 
 ## Related docs
 

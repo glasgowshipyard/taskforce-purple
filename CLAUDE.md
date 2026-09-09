@@ -65,9 +65,18 @@ integration) — there is no manual frontend deploy step.
 - **Cloudflare free tier**: ~1,000 KV writes/day total across both workers is
   the binding constraint; that's why crons are 20-minute and process one
   member per run. Don't add per-run KV writes casually.
+- **D1 write budget**: the free tier's 100k rows-written/day is hard-enforced.
+  `workers/d1-write-budget.js` meters every D1 write and stands the pipeline
+  down at 85k. **Any new D1 write must charge the meter** (`meter.spent +=
+estimateRowWrites({...})`) — an unmetered path silently reopens the hole.
+  Its per-row costs are measured against production, not derived from the
+  index count; re-measure rather than reason about them (RUNBOOK §6).
 - **D1 bound-parameter limit**: batch inserts at ~10 rows/statement (see the
   transactions insert in itemized-analysis.js). Larger batches fail silently
   if wrapped in catch blocks — this already bit us once.
+- Prefer `INSERT ... ON CONFLICT DO UPDATE ... WHERE <changed>` over
+  `INSERT OR REPLACE`: an unchanged row then costs zero row-writes instead of
+  two. Never write a row just to restate its current value.
 - Worker secrets (`CONGRESS_API_KEY`, `FEC_API_KEY`, `UPDATE_SECRET`) are set
   via `wrangler secret put`. Hardcoded fallbacks still exist in the workers;
   removing them plus rotating keys is deliberately deferred until the project

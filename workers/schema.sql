@@ -106,3 +106,13 @@ CREATE TABLE IF NOT EXISTS calculated_metrics (
 -- Employer lookup for the FARA join (added 2026-07-18: the per-completion
 -- join was scanning unindexed, ~99M D1 row-reads/day)
 CREATE INDEX IF NOT EXISTS idx_tx_employer ON itemized_transactions(bioguide_id, contributor_employer);
+
+-- Daily row-write ledger (added 2026-09-09). D1's free tier caps writes at
+-- 100k rows/UTC day and hard-enforces it; nothing in this codebase counted
+-- them until the cap was breached three days running. One row per day, held
+-- here rather than in KV because KV writes are the scarcer budget.
+-- See workers/d1-write-budget.js.
+CREATE TABLE IF NOT EXISTS d1_write_budget (
+  day TEXT PRIMARY KEY,          -- UTC date, YYYY-MM-DD; the cap resets at 00:00 UTC
+  rows_written INTEGER NOT NULL DEFAULT 0
+);
