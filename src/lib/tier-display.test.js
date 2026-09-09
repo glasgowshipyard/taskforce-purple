@@ -41,3 +41,33 @@ describe('tier display coverage', () => {
     expect(TaskForceAPI.getTierColor('DISPUTED')).not.toBe(TaskForceAPI.getTierColor('F'));
   });
 });
+
+describe('ringfenced tiers withhold figures', () => {
+  it('DISPUTED is ringfenced', () => {
+    expect(TaskForceAPI.isRingfenced('DISPUTED')).toBe(true);
+  });
+
+  it('every real letter grade publishes its figures', () => {
+    for (const tier of ['S', 'A', 'B', 'C', 'D', 'E', 'F', 'N/A']) {
+      expect(TaskForceAPI.isRingfenced(tier), `${tier} must not be ringfenced`).toBe(false);
+    }
+  });
+
+  it('is safe for absent or unknown tiers', () => {
+    // A member whose tier failed to serialise must not accidentally read as
+    // publishable; equally, an unknown tier is not something we withhold.
+    expect(TaskForceAPI.isRingfenced(undefined)).toBe(false);
+    expect(TaskForceAPI.isRingfenced(null)).toBe(false);
+    expect(TaskForceAPI.isRingfenced('NONSENSE')).toBe(false);
+  });
+
+  it('a ringfenced tier must still have full display handling', () => {
+    // Withholding the figures is not a reason to skip colour/description/
+    // explanation - the card still renders, it just carries no numbers.
+    for (const tier of TIERS_EMITTED_BY_SCORER.filter(t => TaskForceAPI.isRingfenced(t))) {
+      expect(TaskForceAPI.getTierDescription(tier)).not.toBe('Unknown');
+      expect(TaskForceAPI.getTierExplanation(tier)).not.toBe('No explanation available.');
+      expect(typeof tierOrder[tier]).toBe('number');
+    }
+  });
+});

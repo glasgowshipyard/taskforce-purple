@@ -4,6 +4,20 @@
 // Direct Worker URL since Pages routing isn't set up yet
 const API_BASE_URL = 'https://taskforce-purple-api.dev-a4b.workers.dev/api';
 
+// Tiers that WITHHOLD a grade rather than award one.
+//
+// When a tier is ringfenced we must not publish the figures behind it either.
+// For DISPUTED we cannot tell whether the underlying FEC filing is sound (the
+// agency reports receipts net of refunds and itemized gross, so a committee
+// that returned money legitimately files itemized > receipts) or whether our
+// own record is corrupt (figures assembled across cycles). That
+// indistinguishability is the entire reason the tier exists - so printing a
+// percentage derived from those same figures contradicts the sentence sitting
+// next to it on the card.
+//
+// Add any future withholding tier here and every suppression site follows.
+const RINGFENCED_TIERS = ['DISPUTED'];
+
 export class TaskForceAPI {
   static async fetchMembers() {
     try {
@@ -58,6 +72,14 @@ export class TaskForceAPI {
       currency: 'USD',
       maximumFractionDigits: 0,
     }).format(amount);
+  }
+
+  /**
+   * True when the tier withholds a grade, so no funding figures derived from
+   * the same record may be displayed. See RINGFENCED_TIERS.
+   */
+  static isRingfenced(tier) {
+    return RINGFENCED_TIERS.includes(tier);
   }
 
   static getTierColor(tier) {

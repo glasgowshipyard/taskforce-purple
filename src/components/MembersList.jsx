@@ -577,95 +577,112 @@ export default function MembersList() {
             </div>
           )}
 
-          {/* Financial breakdown */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-            <div
-              className={`p-4 rounded-lg ${selectedMember.grassrootsPercent <= 15 ? 'bg-red-50' : 'bg-green-50'}`}
-            >
-              <div className="flex items-center space-x-2 mb-2">
-                <TrendingUp
-                  className={`w-5 h-5 ${selectedMember.grassrootsPercent <= 15 ? 'text-red-600' : 'text-green-600'}`}
-                />
-                <span
-                  className={`font-semibold text-xs ${selectedMember.grassrootsPercent <= 15 ? 'text-red-800' : 'text-green-800'}`}
-                >
-                  Grassroots (&lt;$200)
-                </span>
-              </div>
+          {/* Financial breakdown. Suppressed entirely when the tier is
+              ringfenced: these panels render the same figures the scorer
+              refused to stand behind, and colour them red or green as a
+              judgement on top. */}
+          {TaskForceAPI.isRingfenced(selectedMember.tier) ? (
+            <div className="mb-6 p-6 bg-purple-50 border-2 border-purple-200 rounded-lg">
+              <p className="text-sm font-semibold text-purple-900 mb-2">
+                Funding breakdown withheld
+              </p>
+              <p className="text-sm text-purple-800">
+                We can&apos;t make our figures for this campaign agree with the FEC&apos;s own
+                filing, so we&apos;re not publishing a funding breakdown we can&apos;t stand behind.
+                This is a problem with our data, not something we&apos;ve found out about this
+                member.
+              </p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
               <div
-                className={`text-2xl font-bold ${selectedMember.grassrootsPercent <= 15 ? 'text-red-600' : 'text-green-600'}`}
+                className={`p-4 rounded-lg ${selectedMember.grassrootsPercent <= 15 ? 'bg-red-50' : 'bg-green-50'}`}
               >
-                {selectedMember.grassrootsPercent}%
-                {selectedMember.hasEnhancedData && selectedMember.grassrootsPACTypes && (
+                <div className="flex items-center space-x-2 mb-2">
+                  <TrendingUp
+                    className={`w-5 h-5 ${selectedMember.grassrootsPercent <= 15 ? 'text-red-600' : 'text-green-600'}`}
+                  />
                   <span
-                    className={`text-sm font-normal ${selectedMember.grassrootsPercent <= 15 ? 'text-red-600' : 'text-green-600'}`}
+                    className={`font-semibold text-xs ${selectedMember.grassrootsPercent <= 15 ? 'text-red-800' : 'text-green-800'}`}
                   >
-                    *
+                    Grassroots (&lt;$200)
                   </span>
+                </div>
+                <div
+                  className={`text-2xl font-bold ${selectedMember.grassrootsPercent <= 15 ? 'text-red-600' : 'text-green-600'}`}
+                >
+                  {selectedMember.grassrootsPercent}%
+                  {selectedMember.hasEnhancedData && selectedMember.grassrootsPACTypes && (
+                    <span
+                      className={`text-sm font-normal ${selectedMember.grassrootsPercent <= 15 ? 'text-red-600' : 'text-green-600'}`}
+                    >
+                      *
+                    </span>
+                  )}
+                </div>
+                <div
+                  className={`text-sm ${selectedMember.grassrootsPercent <= 15 ? 'text-red-700' : 'text-green-700'}`}
+                >
+                  {TaskForceAPI.formatCurrency(selectedMember.grassrootsDonations)}
+                </div>
+                {selectedMember.hasEnhancedData && selectedMember.grassrootsPACTypes && (
+                  <div
+                    className={`text-xs mt-1 ${selectedMember.grassrootsPercent <= 15 ? 'text-red-600' : 'text-green-600'}`}
+                  >
+                    *includes {selectedMember.grassrootsPACTypes.join(', ')}
+                  </div>
                 )}
               </div>
-              <div
-                className={`text-sm ${selectedMember.grassrootsPercent <= 15 ? 'text-red-700' : 'text-green-700'}`}
-              >
-                {TaskForceAPI.formatCurrency(selectedMember.grassrootsDonations)}
-              </div>
-              {selectedMember.hasEnhancedData && selectedMember.grassrootsPACTypes && (
-                <div
-                  className={`text-xs mt-1 ${selectedMember.grassrootsPercent <= 15 ? 'text-red-600' : 'text-green-600'}`}
-                >
-                  *includes {selectedMember.grassrootsPACTypes.join(', ')}
+
+              <div className="bg-orange-50 p-4 rounded-lg">
+                <div className="flex items-center space-x-2 mb-2">
+                  <DollarSign className="w-5 h-5 text-orange-600" />
+                  <span className="font-semibold text-xs text-orange-800">
+                    Large Donors (&gt;$200)
+                  </span>
                 </div>
-              )}
-            </div>
+                <div className="text-2xl font-bold text-orange-600">
+                  {selectedMember.totalRaised > 0 &&
+                  Number.isFinite(selectedMember.largeDonorDonations)
+                    ? `${((selectedMember.largeDonorDonations / selectedMember.totalRaised) * 100).toFixed(1)}%`
+                    : '—'}
+                </div>
+                <div className="text-sm text-orange-700">
+                  {Number.isFinite(selectedMember.largeDonorDonations)
+                    ? TaskForceAPI.formatCurrency(selectedMember.largeDonorDonations)
+                    : 'not yet fetched'}
+                </div>
+              </div>
 
-            <div className="bg-orange-50 p-4 rounded-lg">
-              <div className="flex items-center space-x-2 mb-2">
-                <DollarSign className="w-5 h-5 text-orange-600" />
-                <span className="font-semibold text-xs text-orange-800">
-                  Large Donors (&gt;$200)
-                </span>
+              <div className="bg-red-50 p-4 rounded-lg">
+                <div className="flex items-center space-x-2 mb-2">
+                  <DollarSign className="w-5 h-5 text-red-600" />
+                  <span className="font-semibold text-xs text-red-800">PAC Money</span>
+                </div>
+                <div className="text-2xl font-bold text-red-600">
+                  {selectedMember.totalRaised > 0
+                    ? `${((selectedMember.pacMoney / selectedMember.totalRaised) * 100).toFixed(1)}%`
+                    : '0%'}
+                </div>
+                <div className="text-sm text-red-700">
+                  {TaskForceAPI.formatCurrency(selectedMember.pacMoney)}
+                </div>
               </div>
-              <div className="text-2xl font-bold text-orange-600">
-                {selectedMember.totalRaised > 0 &&
-                Number.isFinite(selectedMember.largeDonorDonations)
-                  ? `${((selectedMember.largeDonorDonations / selectedMember.totalRaised) * 100).toFixed(1)}%`
-                  : '—'}
-              </div>
-              <div className="text-sm text-orange-700">
-                {Number.isFinite(selectedMember.largeDonorDonations)
-                  ? TaskForceAPI.formatCurrency(selectedMember.largeDonorDonations)
-                  : 'not yet fetched'}
-              </div>
-            </div>
 
-            <div className="bg-red-50 p-4 rounded-lg">
-              <div className="flex items-center space-x-2 mb-2">
-                <DollarSign className="w-5 h-5 text-red-600" />
-                <span className="font-semibold text-xs text-red-800">PAC Money</span>
-              </div>
-              <div className="text-2xl font-bold text-red-600">
-                {selectedMember.totalRaised > 0
-                  ? `${((selectedMember.pacMoney / selectedMember.totalRaised) * 100).toFixed(1)}%`
-                  : '0%'}
-              </div>
-              <div className="text-sm text-red-700">
-                {TaskForceAPI.formatCurrency(selectedMember.pacMoney)}
-              </div>
-            </div>
-
-            <div className="bg-purple-50 p-4 rounded-lg">
-              <div className="flex items-center space-x-2 mb-2">
-                <Eye className="w-5 h-5 text-purple-600" />
-                <span className="font-semibold text-xs text-purple-800">Total Raised</span>
-              </div>
-              <div className="text-2xl font-bold text-purple-600">
-                {TaskForceAPI.formatCurrency(selectedMember.totalRaised)}
-              </div>
-              <div className="text-sm text-purple-700">
-                {selectedMember.dataCycle || 2024} Election Cycle
+              <div className="bg-purple-50 p-4 rounded-lg">
+                <div className="flex items-center space-x-2 mb-2">
+                  <Eye className="w-5 h-5 text-purple-600" />
+                  <span className="font-semibold text-xs text-purple-800">Total Raised</span>
+                </div>
+                <div className="text-2xl font-bold text-purple-600">
+                  {TaskForceAPI.formatCurrency(selectedMember.totalRaised)}
+                </div>
+                <div className="text-sm text-purple-700">
+                  {selectedMember.dataCycle || 2024} Election Cycle
+                </div>
               </div>
             </div>
-          </div>
+          )}
 
           {/* Funding Breakdown Explanation */}
           {selectedMember.totalRaised > 0 && (
@@ -978,6 +995,15 @@ export default function MembersList() {
                   <div>
                     <div className="text-sm sm:text-lg font-bold text-gray-400">No Data</div>
                     <div className="text-[10px] sm:text-sm text-gray-400">Filings</div>
+                  </div>
+                ) : TaskForceAPI.isRingfenced(member.tier) ? (
+                  // No figure at all. The `?? member.grassrootsPercent` this
+                  // replaces defeated the scorer's own withholding: it sets
+                  // individualFundingPercent to null precisely so no number is
+                  // published, and the fallback printed one anyway.
+                  <div>
+                    <div className="text-sm sm:text-lg font-bold text-purple-700">Under review</div>
+                    <div className="text-[10px] sm:text-sm text-gray-400">Our data</div>
                   </div>
                 ) : (
                   <div>
