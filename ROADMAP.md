@@ -95,9 +95,13 @@ funding routes visible, behavior included. Same rules for all 537.
   conduit coverage. Remaining slices: `connected_organization_name`
   lookups for generically-named PACs, sector taxonomy, lucide sector
   icons on member cards (design note on the issue).
-- **C2. Leadership PAC / JFC visibility (#32)** — funding-side, goes INTO
-  tier math. Gate any threshold change behind a full-Congress before/after
-  simulation (pattern from the July 2026 tier fix).
+- **C2. Leadership PAC / JFC visibility (#32)** — **IN PROGRESS, top
+  priority** (opened 2026-07-12; trial 2026-08-07; stalled until
+  2026-09-26). Attribution built and trialled on branch `person-funding`
+  (see IMPLEMENTATION_STATUS "In flight"). Remaining, in order: owner
+  decision on joint-fund attribution → itemized worker collects donors from
+  all of a member's committees → full-Congress simulation together with the
+  Step 4 fix (#42) → one deploy.
 - **C3. STOCK Act trading composite (#31)** — needs committee data (#18)
   and **historical tier tracking** (new: store tier snapshots per recalc;
   design the KV/D1 shape against write budget before starting).

@@ -1,38 +1,109 @@
 # Task Force Purple - Implementation Status
 
-**Last Updated**: 2026-07-12
+**Last Updated**: 2026-09-26
 
 ---
 
-## Current System Status
+## Current System Status (measured 2026-09-26)
 
-1. **Data Pipeline** (taskforce-purple-api)
-   - Smart batch processing every 20 minutes
-   - Daily Congress member sync (adds new/removes departed members)
-   - Dynamic trust anchor tier calculations (see `GRASSROOTS_CALCULATION_GUIDE.md`)
-   - Tier math extracted to `workers/tier-calculation.js` with unit tests (`npm test`)
-   - ~112 members stranded at `totalRaised: 0` are being backfilled after the
-     July 2026 silent-skip fix (see below); expect N/A count to fall to just
-     the true non-filers (delegates) over a few days of cron runs
+1. **Data pipeline** (`taskforce-purple-api`, cron */20): 539 members synced
+   daily from Congress.gov. FEC identity from the crosswalk: 498 verified,
+   25 shown as "Checking" while being refetched (one per Phase 1 run), 15
+   N/A (non-filers). Tiers: S 11 · A 18 · B 20 · C 22 · D 54 · E 70 · F 304.
+   **The grades still come from the July 2026 penalty model, which flattens
+   145 members to exactly 0% — fix built, not deployed (see In flight).**
+2. **Itemized analysis** (`taskforce-purple-itemized-analysis`, cron */20):
+   518 analyses stored, 23 queued. Was stalled from ~Sep 9 until 2026-09-26
+   by its own D1 budget reserve (fixed, see below). Collects each member's
+   **campaign committee only** — joint funds and leadership PACs are not
+   collected yet (#32).
+3. **D1 write budget**: metered, 85k/day self-cap, ledger tracks Cloudflare's
+   own count to within ~10 rows. `donor_aggregates` frozen (unread).
+4. **Frontend** (taskforce-purple.pages.dev): auto-deploys on push to main.
+   List rows show the FEC small-donor share; ringfenced members show "?".
+5. **Open question**: `processing_status` was not written between 10:21 and
+   20:00 UTC on 2026-09-26 (old code). Writing normally since the 20:02
+   deploy; cause unknown — `wrangler tail` only shows live logs.
 
-2. **Itemized Donor Concentration Analysis** (itemized-analysis)
-   - Queue-based processing, 1 member per 20-minute cron run
-   - 502/537 complete as of 2026-07-12; the remaining ~35 cycle in the queue
-     (mostly members without FEC committees yet)
-   - Known gap: D1 `collection_metadata` has only 89 rows vs 502 KV analyses —
-     D1 write errors are caught and logged but not retried
+---
 
-3. **Frontend** (taskforce-purple.pages.dev / taskforcepurple.com)
-   - Tier display for all 537 members; member cards show donor concentration
-     (Nakamoto stat + badge) and bundled-donation conduits where data exists
-   - Auto-deploys on push to main — verified working again 2026-07-13 after
-     six months of silent build failures (see dated entry below); check
-     `npx wrangler pages deployment list --project-name=taskforce-purple`
-     after frontend pushes
+## In flight — built and simulated, NOT deployed
+
+Both branches are pushed to origin. Nothing here is live.
+
+### Branch `fix-step4-penalty` — the 145 zeros (#42) — ready
+
+The July 2026 penalty measured excess itemized share in points of
+_individual_ money, squared it, and subtracted it from a share of _total_
+money. The units mismatch produced 200–390-point penalties; the 40-point cap
+and zero floor added then put 145 members on an identical 0. The fix keeps
+the settled design and applies it in consistent units: itemized money above
+the concentration anchor stops counting as people-funding.
+Simulated on all 496 graded members (`scripts/simulations/penalty-model-sim.mjs`):
+zeros 145 → 0; AOC S 98, Sanders S 95, Pelosi A 90, Jeffries B 73 unchanged;
+broad itemized bases up (13 F→D), concentrated ones down (Whitehouse, Clyde
+D→F; Thanedar A→F). F 302 → 187. 121 tests pass.
+**Held back** so every grade changes once, together with the branch below.
+
+### Branch `person-funding` — every committee a member runs (#32) — not ready
+
+`workers/person-funding.js` finds a member's campaign(s), joint fundraising
+funds and leadership PACs from their crosswalk IDs, **finds unregistered
+joint funds from the transfers they send in** (Schedule A line 12, committee
+senders — e.g. "TEAM SCALISE" $5.9M, "JOSH HAWLEY VICTORY COMMITTEE" $1.45M,
+neither registered under the member), nets money moved between the member's
+own committees, and apportions money from other joint funds by that fund's
+own donor mix. Trial on 10 members (`scripts/trials/person-funding-trial.mjs`),
+invariants pass:
+
+| Member       | Campaign committee only     | All committees                                                            |
+| ------------ | --------------------------- | ------------------------------------------------------------------------- |
+| Pelosi       | 29% of her money; small 57% | $8.3M; small 46%; Victory Fund: 152 donors, 8 hold half, largest $315,100 |
+| Mike Johnson | one committee               | +$6.9M via joint funds; itemized $8.4M → $14.4M                           |
+| Scalise      | PAC $171k                   | $19.1M; PAC $3.9M                                                         |
+| Thune        | —                           | PAC 45% via two leadership PACs                                           |
+| AOC, Sanders | —                           | unchanged (controls)                                                      |
+
+**Before this can deploy:**
+
+1. **Owner decision pending**: when a member's joint fund passes money to
+   other committees, is it counted in full, or in proportion to what the
+   member received (recommended — no dollar counted for two members; the
+   fund's donors still enter the member's concentration analysis in full;
+   the card discloses the fund's full take)?
+2. The itemized worker must collect donors from **all** of a member's
+   committees into one pool, so concentration sees joint-fund donors
+   (without it Pelosi stays A 85 and Hawley would jump F→A 76 unexamined).
+3. Full-Congress simulation of both branches together, then one deploy.
+
+### Discarded on 2026-09-26 — do not revive
+
+A "three bucket" rule (small / large / PAC, worst-of-three) that scored all
+itemized money as bad. Simulated: no S tier, AOC and Sanders S→B. It threw
+away the settled ballroom principle. See CLAUDE.md "Settled decisions".
 
 ---
 
 ## Recent Major Updates
+
+### 2026-09-26: Itemized queue stalled by its own budget reserve (fixed, `fe22b95`)
+
+**Symptom**: D1 ledger frozen all day at 70,435 rows; itemized queue stuck
+at 23 with the same member at its head. **Cause**: the 2026-09-09 budget
+guard reserved room to write a D1 row per donor at completion. A member
+with 7,169 donors needed 14,338 rows with 14,565 left, so every run paused
+at zero pages _without deferring_ — holding the queue head. For the largest
+members the reserve exceeds the whole daily budget: they could never finish.
+**Fix**: `donor_aggregates` is no longer written — nothing ever read it (the
+grade uses the KV analysis) and it cost ~⅓ of the daily budget. Verified:
+the stalled member paged immediately after deploy.
+
+### 2026-09-26: "0% Grassroots" was false for 145 members (label fixed, `aab3589`)
+
+The list row printed the penalised score under the word "Grassroots" — one
+senator read "0% Grassroots" against an FEC small-donor share of 4%. The row
+now shows the FEC figure, labelled "Small donors". The flattening itself is
+the Step 4 fix under In flight.
 
 ### 2026-09-26: 35 members were showing another person's money (post-mortem, #41)
 

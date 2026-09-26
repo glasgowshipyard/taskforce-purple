@@ -60,6 +60,26 @@ curl -X POST "https://taskforce-purple-api.dev-a4b.workers.dev/api/recalculate-t
 Frontend deploys automatically when main is pushed to GitHub (Pages
 integration) — there is no manual frontend deploy step.
 
+## Settled decisions — do not re-derive
+
+The owner has spent months settling these. Sessions that "rediscovered" and
+redesigned them wasted days and, twice, proposed breaking them. Build on them.
+
+- **Ballroom principle (settled Jan 2026).** Itemized (>$200) money counts as
+  _individual support_. It is penalised only when the donor base is
+  _concentrated_ (trust anchor from donor concentration). Never redesign
+  scoring as "itemized = bad" — that drops AOC from S (simulated 2026-09-26).
+- **The person is the unit (agreed 2026-09-26, #41/#32).** A member's money
+  is everything raised across their campaign(s), joint fundraising funds and
+  leadership PACs, counted once. Scoring only the campaign committee grades
+  some members on under a third of their money.
+- **Identity is looked up, never inferred** (`workers/fec-crosswalk.js`). No
+  surname search anywhere — it tied 35 members to other people.
+- **No grade on figures we can't reconcile to source** — ringfence instead
+  (DISPUTED / UNVERIFIED). Simulate every scoring change across all members,
+  with named reference members, before deploying.
+- **Free tier only.** Never propose paid plans.
+
 ## Constraints and gotchas
 
 - **Cloudflare free tier**: ~1,000 KV writes/day total across both workers is
