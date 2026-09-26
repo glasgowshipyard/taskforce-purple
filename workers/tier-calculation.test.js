@@ -18,6 +18,7 @@ import {
 const bernie = {
   bioguideId: 'S000033',
   totalRaised: 19012074,
+  fecIdentityVerified: true,
   grassrootsDonations: 14700000,
   largeDonorDonations: 3695847,
   grassrootsPercent: 77,
@@ -32,6 +33,7 @@ const bernieConcentration = {
 const pelosi = {
   bioguideId: 'P000197',
   totalRaised: 2132913,
+  fecIdentityVerified: true,
   grassrootsDonations: 1300000,
   largeDonorDonations: 699871,
   grassrootsPercent: 60,
@@ -142,6 +144,7 @@ describe('calculateTransparencyPenalty', () => {
   it('counts only above-baseline weighted money, capped at 30', () => {
     const member = {
       totalRaised: 1000000,
+      fecIdentityVerified: true,
       pacContributions: [
         { amount: 100000, committee_type: 'O' }, // 2x -> 200k weighted
         { amount: 50000, committee_type: 'P', designation: 'P' }, // discounted, ignored
@@ -151,6 +154,7 @@ describe('calculateTransparencyPenalty', () => {
 
     const captured = {
       totalRaised: 1000000,
+      fecIdentityVerified: true,
       pacContributions: [{ amount: 400000, committee_type: 'O', designation: 'B' }],
     };
     expect(calculateTransparencyPenalty(captured)).toBe(30); // 120% -> capped
@@ -187,6 +191,7 @@ describe('calculateEnhancedTier', () => {
     // Modeled on the live worst case (Shreve: -167% under legacy math)
     const shreveish = {
       totalRaised: 5000000,
+      fecIdentityVerified: true,
       grassrootsDonations: 20000,
       largeDonorDonations: 2000000,
       grassrootsPercent: 0,
@@ -200,6 +205,7 @@ describe('calculateEnhancedTier', () => {
   it('legacy options reproduce the negative-score bug (regression documentation)', () => {
     const shreveish = {
       totalRaised: 5000000,
+      fecIdentityVerified: true,
       grassrootsDonations: 20000,
       largeDonorDonations: 2000000,
       grassrootsPercent: 0,
@@ -217,6 +223,7 @@ describe('calculateEnhancedTier', () => {
   it('does not let unreliable zero-donor concentration trigger the harshest anchor', () => {
     const member = {
       totalRaised: 2000000,
+      fecIdentityVerified: true,
       grassrootsDonations: 100000,
       largeDonorDonations: 900000,
       grassrootsPercent: 5,
@@ -232,6 +239,7 @@ describe('calculateEnhancedTier', () => {
   it('disputes unreconciled figures instead of guessing a tier - the Cramer case', () => {
     const cramer = {
       totalRaised: 1139407,
+      fecIdentityVerified: true,
       grassrootsDonations: 514887,
       largeDonorDonations: 1882643, // assembled from two cycles
       grassrootsPercent: 45,
@@ -257,6 +265,7 @@ describe('calculateEnhancedTier', () => {
     // Refunds make gross exceed net; the filing is real, so publish it.
     const thanedar = {
       totalRaised: 390276,
+      fecIdentityVerified: true,
       grassrootsDonations: 18989,
       largeDonorDonations: 600204,
       grassrootsPercent: 5,
@@ -287,6 +296,7 @@ describe('calculateEnhancedTier', () => {
   it('handles missing grassrootsDonations without NaN', () => {
     const member = {
       totalRaised: 1000000,
+      fecIdentityVerified: true,
       largeDonorDonations: 400000,
       grassrootsPercent: 0,
       pacContributions: [{ amount: 5000, committee_type: 'Q', designation: 'U' }],
@@ -294,5 +304,40 @@ describe('calculateEnhancedTier', () => {
     const result = calculateEnhancedTier(member, null);
     expect(Number.isFinite(result.individualFundingPercent)).toBe(true);
     expect(result.tier).toMatch(/^[SABCDEF]$/);
+  });
+});
+
+describe('FEC identity guard (issue #41)', () => {
+  // A wrong-person record is internally consistent - small itemized, small
+  // total, no contradiction - so nothing but identity can catch it.
+  const wrongPerson = {
+    bioguideId: 'R000614',
+    totalRaised: 1550,
+    grassrootsDonations: 0,
+    largeDonorDonations: 0,
+    grassrootsPercent: 0,
+    fecIdentityVerified: false,
+  };
+
+  it('withholds the grade when the figures belong to an unverified identity', () => {
+    const result = calculateEnhancedTier(wrongPerson, null);
+    expect(result.tier).toBe('UNVERIFIED');
+    expect(result.individualFundingPercent).toBeNull();
+    expect(result.disputeReason).toBe('fec-identity-not-verified');
+  });
+
+  it('fails closed on a record that was never stamped', () => {
+    const unstamped = { ...wrongPerson };
+    delete unstamped.fecIdentityVerified;
+    expect(calculateEnhancedTier(unstamped, null).tier).toBe('UNVERIFIED');
+  });
+
+  it('withholds even when the unverified figures would have earned a good grade', () => {
+    const flattering = { ...bernie, fecIdentityVerified: false };
+    expect(calculateEnhancedTier(flattering, bernieConcentration).tier).toBe('UNVERIFIED');
+  });
+
+  it('leaves members with no money at N/A rather than UNVERIFIED', () => {
+    expect(calculateEnhancedTier({ totalRaised: 0 }).tier).toBe('N/A');
   });
 });

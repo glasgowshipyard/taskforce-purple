@@ -15,8 +15,21 @@ const API_BASE_URL = 'https://taskforce-purple-api.dev-a4b.workers.dev/api';
 // percentage derived from those same figures contradicts the sentence sitting
 // next to it on the card.
 //
+// UNVERIFIED goes further: we could not confirm the figures on file belong to
+// this member at all (issue #41 - 35 members were showing another person's
+// campaign money). Everything derived from that record is suspect, including
+// the bundler, foreign-agent and concentration analyses, so those are hidden
+// too. DISPUTED hides less: its bundler and concentration analyses come from
+// the member's own itemized records and remain sound (issue #40).
+//
 // Add any future withholding tier here and every suppression site follows.
-const RINGFENCED_TIERS = ['DISPUTED'];
+const RINGFENCED_TIERS = ['DISPUTED', 'UNVERIFIED'];
+const IDENTITY_UNVERIFIED_TIERS = ['UNVERIFIED'];
+
+// What goes inside the round tier badge. The badge is a fixed-size circle
+// sized for one letter; rendering a word there overflowed it (issue #36).
+// Non-letter tiers get a mark, and the words go in the description beside it.
+const TIER_BADGE_LABELS = { DISPUTED: '?', UNVERIFIED: '?' };
 
 export class TaskForceAPI {
   static async fetchMembers() {
@@ -82,6 +95,19 @@ export class TaskForceAPI {
     return RINGFENCED_TIERS.includes(tier);
   }
 
+  /**
+   * True when we could not confirm the record belongs to this member, so NO
+   * analysis derived from it may be shown - not just the headline figures.
+   */
+  static isIdentityUnverified(tier) {
+    return IDENTITY_UNVERIFIED_TIERS.includes(tier);
+  }
+
+  /** Text for the round badge: the letter, or a short mark for word tiers. */
+  static getTierBadgeLabel(tier) {
+    return TIER_BADGE_LABELS[tier] ?? tier;
+  }
+
   static getTierColor(tier) {
     const colors = {
       S: 'bg-green-500 text-white',
@@ -95,6 +121,8 @@ export class TaskForceAPI {
       // Our figures don't reconcile to the FEC filing - not a judgement
       // about the member, so it must not look like a bad grade
       DISPUTED: 'bg-purple-200 text-purple-900',
+      // We're checking whose money this is - also not a judgement
+      UNVERIFIED: 'bg-slate-200 text-slate-800',
     };
     return colors[tier] || 'bg-gray-500 text-white';
   }
@@ -110,6 +138,7 @@ export class TaskForceAPI {
       F: 'Owned (0-14%)',
       'N/A': 'No Financial Data Available',
       DISPUTED: 'Figures Under Review',
+      UNVERIFIED: 'Checking Our Records',
     };
     return descriptions[tier] || 'Unknown';
   }
@@ -127,6 +156,8 @@ export class TaskForceAPI {
         "No recent financial data available. This could mean they're not up for re-election or we haven't found their committee records yet.",
       DISPUTED:
         "Our figures for this campaign don't add up against the FEC's own filing, so we won't publish a grade we can't stand behind. This is a problem with our data, not a finding about this member.",
+      UNVERIFIED:
+        "We're double-checking that the campaign money on file really belongs to this member. We found we had some members matched to the wrong person's records, so until this one is confirmed we won't show a grade or any funding details. This is about our records, not about this member.",
     };
     return explanations[tier] || 'No explanation available.';
   }

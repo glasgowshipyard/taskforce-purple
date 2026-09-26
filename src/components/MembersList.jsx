@@ -160,7 +160,18 @@ export default function MembersList() {
     const sorted = [...filteredMembers].sort((a, b) => {
       // DISPUTED must have an entry: a missing key yields NaN comparators,
       // which makes Array.sort behaviour undefined for the whole list
-      const tierOrder = { S: 8, A: 7, B: 6, C: 5, D: 4, E: 3, F: 2, 'N/A': 1, DISPUTED: 0 };
+      const tierOrder = {
+        S: 8,
+        A: 7,
+        B: 6,
+        C: 5,
+        D: 4,
+        E: 3,
+        F: 2,
+        'N/A': 1,
+        DISPUTED: 0,
+        UNVERIFIED: 0,
+      };
       if (tierOrder[a.tier] !== tierOrder[b.tier]) {
         return tierOrder[b.tier] - tierOrder[a.tier];
       }
@@ -323,7 +334,7 @@ export default function MembersList() {
               <div
                 className={`w-16 h-16 flex-shrink-0 rounded-full flex items-center justify-center text-2xl font-bold ${TaskForceAPI.getTierColor(selectedMember.tier)}`}
               >
-                {selectedMember.tier}
+                {TaskForceAPI.getTierBadgeLabel(selectedMember.tier)}
               </div>
               <div>
                 <h2 className="text-2xl font-bold text-gray-900">{selectedMember.name}</h2>
@@ -359,7 +370,7 @@ export default function MembersList() {
           </div>
 
           {/* Financial data explanation for $0 amounts */}
-          {selectedMember.totalRaised === 0 && (
+          {selectedMember.totalRaised === 0 && !TaskForceAPI.isRingfenced(selectedMember.tier) && (
             <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
               <div className="flex items-start space-x-2">
                 <Info className="w-5 h-5 text-blue-600 mt-0.5 flex-shrink-0" />
@@ -410,481 +421,511 @@ export default function MembersList() {
                   <div
                     className={`w-24 h-24 rounded-full flex items-center justify-center text-3xl font-bold ${TaskForceAPI.getTierColor(selectedMember.tier)}`}
                   >
-                    {selectedMember.tier}
+                    {TaskForceAPI.getTierBadgeLabel(selectedMember.tier)}
                   </div>
                 </div>
               </div>
             )}
 
-          {/* Donor concentration - who controls the big money */}
-          {Number.isFinite(selectedMember.nakamotoCoefficient) &&
-            selectedMember.uniqueDonors >= 10 && (
-              <div className="mb-6 p-6 bg-purple-50 rounded-lg border border-purple-200">
-                <div className="flex items-center space-x-2 mb-3">
-                  <Users className="w-5 h-5 text-purple-700" />
-                  <h3 className="font-semibold text-purple-900">Donor Concentration</h3>
-                  {(() => {
-                    const n = selectedMember.nakamotoCoefficient;
-                    const pct = selectedMember.nakamotoPercent;
-                    // Red/orange flag risk; the rest stay NEUTRAL. Wide donor
-                    // spread describes large-donor structure only and must not
-                    // read as an endorsement - this badge sits on F-tier,
-                    // PAC-funded cards too.
-                    const badge =
-                      n < 50
-                        ? { text: 'Highly concentrated', cls: 'bg-red-100 text-red-800' }
-                        : pct < 5
-                          ? { text: 'Concentrated', cls: 'bg-orange-100 text-orange-800' }
-                          : pct < 10
-                            ? { text: 'Typical spread', cls: 'bg-gray-200 text-gray-700' }
-                            : { text: 'Widely spread', cls: 'bg-slate-200 text-slate-700' };
-                    return (
-                      <span className={`text-xs font-semibold px-2 py-1 rounded-full ${badge.cls}`}>
-                        {badge.text}
-                      </span>
-                    );
-                  })()}
-                </div>
-                <p className="text-sm text-gray-700">
-                  Half of all the large-donation money this campaign raised came from just{' '}
-                  <span className="font-bold text-purple-900">
-                    {selectedMember.nakamotoCoefficient.toLocaleString()}
-                  </span>{' '}
-                  of its{' '}
-                  <span className="font-semibold">
-                    {selectedMember.uniqueDonors.toLocaleString()}
-                  </span>{' '}
-                  identifiable donors. Fewer people holding half the money means those donors matter
-                  more to the campaign.
-                </p>
-
-                {selectedMember.topConduits && selectedMember.topConduits.length > 0 && (
-                  <div className="mt-4 pt-4 border-t border-purple-200">
-                    <div className="flex items-center space-x-2 mb-2">
-                      <Share2 className="w-4 h-4 text-purple-700" />
-                      <h4 className="text-sm font-semibold text-purple-900">
-                        Who bundles this campaign's money
-                      </h4>
-                    </div>
-                    {(() => {
-                      const individual =
-                        (selectedMember.grassrootsDonations || 0) +
-                        (selectedMember.largeDonorDonations || 0);
-                      const earmarked = selectedMember.earmarkedIndividualTotal || 0;
-                      const pct = individual > 0 ? Math.round((earmarked / individual) * 100) : 0;
-                      return earmarked > 0 ? (
-                        <p className="text-sm text-gray-800 mb-2">
-                          <span className="font-bold">
-                            {TaskForceAPI.formatCurrency(earmarked)}
-                          </span>{' '}
-                          of this campaign's donations from people —{' '}
-                          <span className="font-bold">{pct}%</span> — didn't arrive on their own.
-                          Organizations collected them and delivered them in blocks. Legal, and
-                          exactly how influence networks operate in plain sight:
-                        </p>
-                      ) : null;
-                    })()}
-                    <ul className="space-y-1">
-                      {selectedMember.topConduits.slice(0, 5).map(conduit => {
-                        const sector = classifyOrganization(conduit.name);
-                        const info = sectorInfo(sector);
-                        const SectorIcon = SECTOR_ICONS[info.icon] || Users;
-                        // Networks that exist to advance a particular
-                        // country's interests show that country, in their own
-                        // terms. Same rule for every country.
-                        const foreign = foreignInterestFor(conduit.name);
-                        return (
-                          <li
-                            key={conduit.name}
-                            className="flex items-center justify-between text-sm"
-                          >
-                            <span className="flex items-center gap-2 text-gray-800">
-                              {foreign ? (
-                                <span
-                                  className="flex-shrink-0 text-base leading-none"
-                                  title={`Foreign interest: ${foreign.country}`}
-                                >
-                                  {foreign.flag}
-                                </span>
-                              ) : (
-                                <SectorIcon
-                                  className={`w-4 h-4 flex-shrink-0 ${info.tone === 'flag' ? 'text-orange-600' : 'text-purple-500'}`}
-                                />
-                              )}
-                              <span>
-                                {conduit.name}
-                                <span className="ml-2 text-xs text-gray-500">
-                                  {foreign ? `${foreign.country} interest` : info.label}
-                                </span>
-                              </span>
-                            </span>
-                            <span className="font-semibold text-purple-900">
-                              {TaskForceAPI.formatCurrency(conduit.amount)}
-                            </span>
-                          </li>
-                        );
-                      })}
-                    </ul>
-                  </div>
-                )}
-              </div>
-            )}
-
-          {/* Foreign-agent connected money (DOJ FARA registry cross-reference) */}
-          {(selectedMember.faraEmployerTotal || 0) > 0 && (
-            <div className="mb-6 p-6 bg-red-50 rounded-lg border-2 border-red-300">
-              <div className="flex items-center space-x-2 mb-3">
-                <Globe className="w-5 h-5 text-red-700" />
-                <h3 className="font-semibold text-red-900">Foreign-agent connected money</h3>
-              </div>
-              <p className="text-sm text-gray-800">
-                This campaign took{' '}
-                <span className="font-bold text-red-900">
-                  {TaskForceAPI.formatCurrency(selectedMember.faraEmployerTotal)}
-                </span>{' '}
-                from people who work at firms registered with the U.S. Justice Department as agents
-                of foreign governments and foreign interests.
+          {/* Identity not confirmed (issue #41): every section below - donor
+              concentration, bundlers, foreign-agent money, the funding
+              breakdown, PAC detail and the committee itself - was built from
+              an FEC record we could not tie to this member. For 35 members it
+              was someone else's. Show none of it until the refresh confirms. */}
+          {TaskForceAPI.isIdentityUnverified(selectedMember.tier) ? (
+            <div className="mb-6 p-6 bg-slate-50 border-2 border-slate-200 rounded-lg">
+              <p className="text-sm font-semibold text-slate-900 mb-2">
+                Funding details withheld while we check our records
               </p>
-              {selectedMember.faraFirms && selectedMember.faraFirms.length > 0 && (
-                <ul className="mt-3 space-y-1">
-                  {selectedMember.faraFirms.slice(0, 6).map(firm => (
-                    <li key={firm.registrationNumber} className="flex justify-between text-sm">
-                      <span className="text-gray-800">
-                        {firm.name}
-                        {/* Deep-links to the registrant's filings on DOJ's own
-                            eFile system - verified parameterised by reg number */}
-                        <a
-                          href={`https://efile.fara.gov/ords/fara/f?p=1381:200:::NO:RP,200:P200_REG_NUMBER:${firm.registrationNumber}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="ml-2 text-xs text-red-700 underline hover:text-red-900"
-                          title="View this firm's filings on the Justice Department's FARA registry"
-                        >
-                          FARA reg. #{firm.registrationNumber} ↗
-                        </a>
-                      </span>
-                      <span className="font-semibold text-red-900">
-                        {TaskForceAPI.formatCurrency(firm.amount)}
-                      </span>
-                    </li>
-                  ))}
-                </ul>
-              )}
-              <p className="text-xs text-gray-500 mt-3">
-                Matched by donor-reported employer against the DOJ&apos;s public FARA registry
-                (fara.gov). Disclosed and legal — and now visible.
-              </p>
-            </div>
-          )}
-
-          {/* Financial breakdown. Suppressed entirely when the tier is
-              ringfenced: these panels render the same figures the scorer
-              refused to stand behind, and colour them red or green as a
-              judgement on top. */}
-          {TaskForceAPI.isRingfenced(selectedMember.tier) ? (
-            <div className="mb-6 p-6 bg-purple-50 border-2 border-purple-200 rounded-lg">
-              <p className="text-sm font-semibold text-purple-900 mb-2">
-                Funding breakdown withheld
-              </p>
-              <p className="text-sm text-purple-800">
-                We can&apos;t make our figures for this campaign agree with the FEC&apos;s own
-                filing, so we&apos;re not publishing a funding breakdown we can&apos;t stand behind.
-                This is a problem with our data, not something we&apos;ve found out about this
-                member.
+              <p className="text-sm text-slate-700">
+                We found some members matched to the wrong person&apos;s campaign records.
+                We&apos;re re-checking this one against the official list of each member&apos;s FEC
+                registrations, and we&apos;ll show their funding once it&apos;s confirmed.
               </p>
             </div>
           ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-              <div
-                className={`p-4 rounded-lg ${selectedMember.grassrootsPercent <= 15 ? 'bg-red-50' : 'bg-green-50'}`}
-              >
-                <div className="flex items-center space-x-2 mb-2">
-                  <TrendingUp
-                    className={`w-5 h-5 ${selectedMember.grassrootsPercent <= 15 ? 'text-red-600' : 'text-green-600'}`}
-                  />
-                  <span
-                    className={`font-semibold text-xs ${selectedMember.grassrootsPercent <= 15 ? 'text-red-800' : 'text-green-800'}`}
-                  >
-                    Grassroots (&lt;$200)
-                  </span>
-                </div>
-                <div
-                  className={`text-2xl font-bold ${selectedMember.grassrootsPercent <= 15 ? 'text-red-600' : 'text-green-600'}`}
-                >
-                  {selectedMember.grassrootsPercent}%
-                  {selectedMember.hasEnhancedData && selectedMember.grassrootsPACTypes && (
-                    <span
-                      className={`text-sm font-normal ${selectedMember.grassrootsPercent <= 15 ? 'text-red-600' : 'text-green-600'}`}
-                    >
-                      *
-                    </span>
-                  )}
-                </div>
-                <div
-                  className={`text-sm ${selectedMember.grassrootsPercent <= 15 ? 'text-red-700' : 'text-green-700'}`}
-                >
-                  {TaskForceAPI.formatCurrency(selectedMember.grassrootsDonations)}
-                </div>
-                {selectedMember.hasEnhancedData && selectedMember.grassrootsPACTypes && (
-                  <div
-                    className={`text-xs mt-1 ${selectedMember.grassrootsPercent <= 15 ? 'text-red-600' : 'text-green-600'}`}
-                  >
-                    *includes {selectedMember.grassrootsPACTypes.join(', ')}
-                  </div>
-                )}
-              </div>
-
-              <div className="bg-orange-50 p-4 rounded-lg">
-                <div className="flex items-center space-x-2 mb-2">
-                  <DollarSign className="w-5 h-5 text-orange-600" />
-                  <span className="font-semibold text-xs text-orange-800">
-                    Large Donors (&gt;$200)
-                  </span>
-                </div>
-                <div className="text-2xl font-bold text-orange-600">
-                  {selectedMember.totalRaised > 0 &&
-                  Number.isFinite(selectedMember.largeDonorDonations)
-                    ? `${((selectedMember.largeDonorDonations / selectedMember.totalRaised) * 100).toFixed(1)}%`
-                    : '—'}
-                </div>
-                <div className="text-sm text-orange-700">
-                  {Number.isFinite(selectedMember.largeDonorDonations)
-                    ? TaskForceAPI.formatCurrency(selectedMember.largeDonorDonations)
-                    : 'not yet fetched'}
-                </div>
-              </div>
-
-              <div className="bg-red-50 p-4 rounded-lg">
-                <div className="flex items-center space-x-2 mb-2">
-                  <DollarSign className="w-5 h-5 text-red-600" />
-                  <span className="font-semibold text-xs text-red-800">PAC Money</span>
-                </div>
-                <div className="text-2xl font-bold text-red-600">
-                  {selectedMember.totalRaised > 0
-                    ? `${((selectedMember.pacMoney / selectedMember.totalRaised) * 100).toFixed(1)}%`
-                    : '0%'}
-                </div>
-                <div className="text-sm text-red-700">
-                  {TaskForceAPI.formatCurrency(selectedMember.pacMoney)}
-                </div>
-              </div>
-
-              <div className="bg-purple-50 p-4 rounded-lg">
-                <div className="flex items-center space-x-2 mb-2">
-                  <Eye className="w-5 h-5 text-purple-600" />
-                  <span className="font-semibold text-xs text-purple-800">Total Raised</span>
-                </div>
-                <div className="text-2xl font-bold text-purple-600">
-                  {TaskForceAPI.formatCurrency(selectedMember.totalRaised)}
-                </div>
-                <div className="text-sm text-purple-700">
-                  {selectedMember.dataCycle || 2024} Election Cycle
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Funding Breakdown Explanation */}
-          {selectedMember.totalRaised > 0 && (
-            <div className="mt-4 p-4 bg-gray-50 rounded-lg border border-gray-300">
-              <h4 className="font-semibold text-gray-900 mb-3">
-                How Your Representative's Score is Calculated
-              </h4>
-              <div className="space-y-2 text-sm text-gray-700">
-                <div className="flex items-start space-x-2">
-                  <span className="font-semibold text-green-700 min-w-[120px]">Grassroots:</span>
-                  <span>
-                    All donations under $200
-                    {selectedMember.grassrootsPACTypes &&
-                      selectedMember.grassrootsPACTypes.length > 0 &&
-                      ` + ${selectedMember.grassrootsPACTypes.join(', ')} (85% discount applied)`}
-                  </span>
-                </div>
-                <div className="flex items-start space-x-2">
-                  <span className="font-semibold text-orange-700 min-w-[120px]">Large Donors:</span>
-                  <span>Individual donations over $200 (itemized contributions)</span>
-                </div>
-                <div className="flex items-start space-x-2">
-                  <span className="font-semibold text-red-700 min-w-[120px]">PAC Money:</span>
-                  <span>
-                    Corporate, union, and special interest PAC contributions (weighted by
-                    transparency: Super PACs 2.0x, Leadership/Lobbyist PACs 1.5x)
-                  </span>
-                </div>
-                {Number.isFinite(selectedMember.individualFundingPercent) && (
-                  <div className="mt-3 pt-3 border-t border-gray-300">
-                    <p className="text-xs text-gray-600">
-                      <span className="font-semibold">
-                        Individual Funding Score ({selectedMember.individualFundingPercent}%):
-                      </span>{' '}
-                      Grassroots + Large Donors, with penalties applied when few donors can
-                      coordinate to control funding (coordination risk) or concerning PAC funding
-                      patterns.
-                    </p>
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
-
-          {/* Tier Explanation */}
-          <div className="mt-4 p-4 bg-blue-50 rounded-lg border border-blue-200">
-            <h4 className="font-semibold text-blue-900 mb-2">Why This Tier?</h4>
-            <div className="text-sm text-blue-800 space-y-2">
-              <p>
-                Tiers distinguish{' '}
-                <span className="font-semibold text-green-700">individual support</span> (grassroots
-                + itemized donations) from{' '}
-                <span className="font-semibold text-red-700">institutional capture</span> (PAC
-                money).
-              </p>
-              <p className="text-xs mt-2">
-                Based on <span className="text-green-700">individual funding %</span> (grassroots
-                &lt;$200 + itemized &gt;$200), with penalties for donor coordination risk (when few
-                donors can organize to control funding) and PAC transparency weights.
-              </p>
-              <a
-                href="#how-tiers-work"
-                className="text-xs text-blue-600 hover:text-blue-800 underline inline-block mt-2"
-                onClick={e => {
-                  e.preventDefault();
-                  const footer = document.getElementById('how-tiers-work');
-                  const button = footer?.querySelector('button');
-                  footer?.scrollIntoView({ behavior: 'smooth' });
-                  // Auto-expand if collapsed
-                  setTimeout(() => {
-                    if (button && !button.textContent?.includes('▼')) {
-                      button.click();
-                    }
-                  }, 500);
-                }}
-              >
-                See how tiers are calculated →
-              </a>
-            </div>
-          </div>
-
-          {/* Advanced PAC Breakdown Section */}
-          {selectedMember.pacContributions && selectedMember.pacContributions.length > 0 && (
-            <div className="mt-6">
-              <button
-                onClick={() => setShowPACDetails(!showPACDetails)}
-                className="flex items-center space-x-2 text-sm font-medium text-purple-600 hover:text-purple-800 transition-colors"
-              >
-                {showPACDetails ? (
-                  <ChevronUp className="w-4 h-4" />
-                ) : (
-                  <ChevronDown className="w-4 h-4" />
-                )}
-                <span>
-                  {showPACDetails ? 'Hide' : 'Show'} Detailed PAC Breakdown (
-                  {selectedMember.pacContributions.length} contributions)
-                </span>
-              </button>
-
-              {showPACDetails && (
-                <div className="mt-4 p-4 bg-gray-50 rounded-lg border">
-                  <h4 className="font-semibold text-gray-900 mb-4">Top PAC Contributors</h4>
-
-                  {selectedMember.pacContributions.length > 0 ? (
-                    selectedMember.pacContributions.map((pac, index) => {
-                      const category = TaskForceAPI.categorizePACByName(pac.pacName);
-                      return (
-                        <div
-                          key={index}
-                          className="flex items-center justify-between py-3 border-b border-gray-200 last:border-b-0"
-                        >
-                          <div className="flex-1">
-                            <div className="flex items-center space-x-3">
-                              <div>
-                                <h5 className="font-medium text-gray-900">{pac.pacName}</h5>
-                                <div className="flex items-center space-x-2 mt-1">
-                                  <span
-                                    className={`text-xs px-2 py-1 rounded-full border ${category.color}`}
-                                  >
-                                    {category.industry}
-                                  </span>
-                                  <span className="text-xs text-gray-500">{pac.date}</span>
-                                </div>
-                                {/* FEC Committee Details */}
-                                {(pac.committee_id || pac.committee_type || pac.designation) && (
-                                  <div className="flex items-center space-x-2 mt-1">
-                                    {pac.committee_id && (
-                                      <span className="text-xs px-2 py-1 bg-blue-100 text-blue-800 rounded border border-blue-200 font-mono">
-                                        FEC: {pac.committee_id}
-                                      </span>
-                                    )}
-                                    {pac.committee_type && (
-                                      <span className="text-xs px-2 py-1 bg-gray-100 text-gray-700 rounded border">
-                                        Type: {pac.committee_type}
-                                      </span>
-                                    )}
-                                    {pac.designation && (
-                                      <span className="text-xs px-2 py-1 bg-gray-100 text-gray-700 rounded border">
-                                        Class: {pac.designation}
-                                      </span>
-                                    )}
-                                  </div>
-                                )}
-                              </div>
-                            </div>
-                          </div>
-                          <div className="text-right">
-                            <div className="font-semibold text-gray-900">
-                              {TaskForceAPI.formatCurrency(pac.amount)}
-                            </div>
-                            <div className="text-xs text-gray-500">
-                              {selectedMember.totalRaised > 0
-                                ? `${((pac.amount / selectedMember.totalRaised) * 100).toFixed(1)}% of total`
-                                : ''}
-                            </div>
-                          </div>
-                        </div>
-                      );
-                    })
-                  ) : (
-                    <div className="text-center py-8 text-gray-500">
-                      <p>No detailed PAC contribution data available</p>
-                      <p className="text-xs mt-1">
-                        This could mean limited PAC funding or data collection in progress
-                      </p>
+            <>
+              {/* Donor concentration - who controls the big money */}
+              {Number.isFinite(selectedMember.nakamotoCoefficient) &&
+                selectedMember.uniqueDonors >= 10 && (
+                  <div className="mb-6 p-6 bg-purple-50 rounded-lg border border-purple-200">
+                    <div className="flex items-center space-x-2 mb-3">
+                      <Users className="w-5 h-5 text-purple-700" />
+                      <h3 className="font-semibold text-purple-900">Donor Concentration</h3>
+                      {(() => {
+                        const n = selectedMember.nakamotoCoefficient;
+                        const pct = selectedMember.nakamotoPercent;
+                        // Red/orange flag risk; the rest stay NEUTRAL. Wide donor
+                        // spread describes large-donor structure only and must not
+                        // read as an endorsement - this badge sits on F-tier,
+                        // PAC-funded cards too.
+                        const badge =
+                          n < 50
+                            ? { text: 'Highly concentrated', cls: 'bg-red-100 text-red-800' }
+                            : pct < 5
+                              ? { text: 'Concentrated', cls: 'bg-orange-100 text-orange-800' }
+                              : pct < 10
+                                ? { text: 'Typical spread', cls: 'bg-gray-200 text-gray-700' }
+                                : { text: 'Widely spread', cls: 'bg-slate-200 text-slate-700' };
+                        return (
+                          <span
+                            className={`text-xs font-semibold px-2 py-1 rounded-full ${badge.cls}`}
+                          >
+                            {badge.text}
+                          </span>
+                        );
+                      })()}
                     </div>
-                  )}
-
-                  <div className="mt-4 p-3 bg-blue-50 rounded border border-blue-200">
-                    <p className="text-sm text-blue-800">
-                      <strong>Reading FEC Committee Codes:</strong>
-                      <br />
-                      <strong className="text-blue-900 mt-1 block">Types:</strong>
-                      <span className="font-mono">O</span>=Super PAC (2.0x penalty),
-                      <span className="font-mono">P</span>=Candidate Committee (85% discount),
-                      Regular PACs (1.0x penalty)
-                      <br />
-                      <strong className="text-blue-900 mt-1 block">Designations:</strong>
-                      <span className="font-mono">D</span>=Leadership PAC (1.5x penalty),
-                      <span className="font-mono">B</span>=Lobbyist PAC (1.5x penalty),
-                      <span className="font-mono">A/P</span>=Authorized (85% discount)
-                      <br />
-                      <strong className="text-blue-900 mt-1 block">Industry labels</strong>{' '}
-                      (Financial Services, Labor, etc.) are for display only - penalties use FEC
-                      codes.
+                    <p className="text-sm text-gray-700">
+                      Half of all the large-donation money this campaign raised came from just{' '}
+                      <span className="font-bold text-purple-900">
+                        {selectedMember.nakamotoCoefficient.toLocaleString()}
+                      </span>{' '}
+                      of its{' '}
+                      <span className="font-semibold">
+                        {selectedMember.uniqueDonors.toLocaleString()}
+                      </span>{' '}
+                      identifiable donors. Fewer people holding half the money means those donors
+                      matter more to the campaign.
                     </p>
+
+                    {selectedMember.topConduits && selectedMember.topConduits.length > 0 && (
+                      <div className="mt-4 pt-4 border-t border-purple-200">
+                        <div className="flex items-center space-x-2 mb-2">
+                          <Share2 className="w-4 h-4 text-purple-700" />
+                          <h4 className="text-sm font-semibold text-purple-900">
+                            Who bundles this campaign's money
+                          </h4>
+                        </div>
+                        {(() => {
+                          const individual =
+                            (selectedMember.grassrootsDonations || 0) +
+                            (selectedMember.largeDonorDonations || 0);
+                          const earmarked = selectedMember.earmarkedIndividualTotal || 0;
+                          const pct =
+                            individual > 0 ? Math.round((earmarked / individual) * 100) : 0;
+                          return earmarked > 0 ? (
+                            <p className="text-sm text-gray-800 mb-2">
+                              <span className="font-bold">
+                                {TaskForceAPI.formatCurrency(earmarked)}
+                              </span>{' '}
+                              of this campaign's donations from people —{' '}
+                              <span className="font-bold">{pct}%</span> — didn't arrive on their
+                              own. Organizations collected them and delivered them in blocks. Legal,
+                              and exactly how influence networks operate in plain sight:
+                            </p>
+                          ) : null;
+                        })()}
+                        <ul className="space-y-1">
+                          {selectedMember.topConduits.slice(0, 5).map(conduit => {
+                            const sector = classifyOrganization(conduit.name);
+                            const info = sectorInfo(sector);
+                            const SectorIcon = SECTOR_ICONS[info.icon] || Users;
+                            // Networks that exist to advance a particular
+                            // country's interests show that country, in their own
+                            // terms. Same rule for every country.
+                            const foreign = foreignInterestFor(conduit.name);
+                            return (
+                              <li
+                                key={conduit.name}
+                                className="flex items-center justify-between text-sm"
+                              >
+                                <span className="flex items-center gap-2 text-gray-800">
+                                  {foreign ? (
+                                    <span
+                                      className="flex-shrink-0 text-base leading-none"
+                                      title={`Foreign interest: ${foreign.country}`}
+                                    >
+                                      {foreign.flag}
+                                    </span>
+                                  ) : (
+                                    <SectorIcon
+                                      className={`w-4 h-4 flex-shrink-0 ${info.tone === 'flag' ? 'text-orange-600' : 'text-purple-500'}`}
+                                    />
+                                  )}
+                                  <span>
+                                    {conduit.name}
+                                    <span className="ml-2 text-xs text-gray-500">
+                                      {foreign ? `${foreign.country} interest` : info.label}
+                                    </span>
+                                  </span>
+                                </span>
+                                <span className="font-semibold text-purple-900">
+                                  {TaskForceAPI.formatCurrency(conduit.amount)}
+                                </span>
+                              </li>
+                            );
+                          })}
+                        </ul>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+              {/* Foreign-agent connected money (DOJ FARA registry cross-reference) */}
+              {(selectedMember.faraEmployerTotal || 0) > 0 && (
+                <div className="mb-6 p-6 bg-red-50 rounded-lg border-2 border-red-300">
+                  <div className="flex items-center space-x-2 mb-3">
+                    <Globe className="w-5 h-5 text-red-700" />
+                    <h3 className="font-semibold text-red-900">Foreign-agent connected money</h3>
+                  </div>
+                  <p className="text-sm text-gray-800">
+                    This campaign took{' '}
+                    <span className="font-bold text-red-900">
+                      {TaskForceAPI.formatCurrency(selectedMember.faraEmployerTotal)}
+                    </span>{' '}
+                    from people who work at firms registered with the U.S. Justice Department as
+                    agents of foreign governments and foreign interests.
+                  </p>
+                  {selectedMember.faraFirms && selectedMember.faraFirms.length > 0 && (
+                    <ul className="mt-3 space-y-1">
+                      {selectedMember.faraFirms.slice(0, 6).map(firm => (
+                        <li key={firm.registrationNumber} className="flex justify-between text-sm">
+                          <span className="text-gray-800">
+                            {firm.name}
+                            {/* Deep-links to the registrant's filings on DOJ's own
+                            eFile system - verified parameterised by reg number */}
+                            <a
+                              href={`https://efile.fara.gov/ords/fara/f?p=1381:200:::NO:RP,200:P200_REG_NUMBER:${firm.registrationNumber}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="ml-2 text-xs text-red-700 underline hover:text-red-900"
+                              title="View this firm's filings on the Justice Department's FARA registry"
+                            >
+                              FARA reg. #{firm.registrationNumber} ↗
+                            </a>
+                          </span>
+                          <span className="font-semibold text-red-900">
+                            {TaskForceAPI.formatCurrency(firm.amount)}
+                          </span>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                  <p className="text-xs text-gray-500 mt-3">
+                    Matched by donor-reported employer against the DOJ&apos;s public FARA registry
+                    (fara.gov). Disclosed and legal — and now visible.
+                  </p>
+                </div>
+              )}
+
+              {/* Financial breakdown. Suppressed entirely when the tier is
+              ringfenced: these panels render the same figures the scorer
+              refused to stand behind, and colour them red or green as a
+              judgement on top. */}
+              {TaskForceAPI.isRingfenced(selectedMember.tier) ? (
+                <div className="mb-6 p-6 bg-purple-50 border-2 border-purple-200 rounded-lg">
+                  <p className="text-sm font-semibold text-purple-900 mb-2">
+                    Funding breakdown withheld
+                  </p>
+                  <p className="text-sm text-purple-800">
+                    We can&apos;t make our figures for this campaign agree with the FEC&apos;s own
+                    filing, so we&apos;re not publishing a funding breakdown we can&apos;t stand
+                    behind. This is a problem with our data, not something we&apos;ve found out
+                    about this member.
+                  </p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+                  <div
+                    className={`p-4 rounded-lg ${selectedMember.grassrootsPercent <= 15 ? 'bg-red-50' : 'bg-green-50'}`}
+                  >
+                    <div className="flex items-center space-x-2 mb-2">
+                      <TrendingUp
+                        className={`w-5 h-5 ${selectedMember.grassrootsPercent <= 15 ? 'text-red-600' : 'text-green-600'}`}
+                      />
+                      <span
+                        className={`font-semibold text-xs ${selectedMember.grassrootsPercent <= 15 ? 'text-red-800' : 'text-green-800'}`}
+                      >
+                        Grassroots (&lt;$200)
+                      </span>
+                    </div>
+                    <div
+                      className={`text-2xl font-bold ${selectedMember.grassrootsPercent <= 15 ? 'text-red-600' : 'text-green-600'}`}
+                    >
+                      {selectedMember.grassrootsPercent}%
+                      {selectedMember.hasEnhancedData && selectedMember.grassrootsPACTypes && (
+                        <span
+                          className={`text-sm font-normal ${selectedMember.grassrootsPercent <= 15 ? 'text-red-600' : 'text-green-600'}`}
+                        >
+                          *
+                        </span>
+                      )}
+                    </div>
+                    <div
+                      className={`text-sm ${selectedMember.grassrootsPercent <= 15 ? 'text-red-700' : 'text-green-700'}`}
+                    >
+                      {TaskForceAPI.formatCurrency(selectedMember.grassrootsDonations)}
+                    </div>
+                    {selectedMember.hasEnhancedData && selectedMember.grassrootsPACTypes && (
+                      <div
+                        className={`text-xs mt-1 ${selectedMember.grassrootsPercent <= 15 ? 'text-red-600' : 'text-green-600'}`}
+                      >
+                        *includes {selectedMember.grassrootsPACTypes.join(', ')}
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="bg-orange-50 p-4 rounded-lg">
+                    <div className="flex items-center space-x-2 mb-2">
+                      <DollarSign className="w-5 h-5 text-orange-600" />
+                      <span className="font-semibold text-xs text-orange-800">
+                        Large Donors (&gt;$200)
+                      </span>
+                    </div>
+                    <div className="text-2xl font-bold text-orange-600">
+                      {selectedMember.totalRaised > 0 &&
+                      Number.isFinite(selectedMember.largeDonorDonations)
+                        ? `${((selectedMember.largeDonorDonations / selectedMember.totalRaised) * 100).toFixed(1)}%`
+                        : '—'}
+                    </div>
+                    <div className="text-sm text-orange-700">
+                      {Number.isFinite(selectedMember.largeDonorDonations)
+                        ? TaskForceAPI.formatCurrency(selectedMember.largeDonorDonations)
+                        : 'not yet fetched'}
+                    </div>
+                  </div>
+
+                  <div className="bg-red-50 p-4 rounded-lg">
+                    <div className="flex items-center space-x-2 mb-2">
+                      <DollarSign className="w-5 h-5 text-red-600" />
+                      <span className="font-semibold text-xs text-red-800">PAC Money</span>
+                    </div>
+                    <div className="text-2xl font-bold text-red-600">
+                      {selectedMember.totalRaised > 0
+                        ? `${((selectedMember.pacMoney / selectedMember.totalRaised) * 100).toFixed(1)}%`
+                        : '0%'}
+                    </div>
+                    <div className="text-sm text-red-700">
+                      {TaskForceAPI.formatCurrency(selectedMember.pacMoney)}
+                    </div>
+                  </div>
+
+                  <div className="bg-purple-50 p-4 rounded-lg">
+                    <div className="flex items-center space-x-2 mb-2">
+                      <Eye className="w-5 h-5 text-purple-600" />
+                      <span className="font-semibold text-xs text-purple-800">Total Raised</span>
+                    </div>
+                    <div className="text-2xl font-bold text-purple-600">
+                      {TaskForceAPI.formatCurrency(selectedMember.totalRaised)}
+                    </div>
+                    <div className="text-sm text-purple-700">
+                      {selectedMember.dataCycle || 2024} Election Cycle
+                    </div>
                   </div>
                 </div>
               )}
-            </div>
+
+              {/* Funding Breakdown Explanation */}
+              {selectedMember.totalRaised > 0 && (
+                <div className="mt-4 p-4 bg-gray-50 rounded-lg border border-gray-300">
+                  <h4 className="font-semibold text-gray-900 mb-3">
+                    How Your Representative's Score is Calculated
+                  </h4>
+                  <div className="space-y-2 text-sm text-gray-700">
+                    <div className="flex items-start space-x-2">
+                      <span className="font-semibold text-green-700 min-w-[120px]">
+                        Grassroots:
+                      </span>
+                      <span>
+                        All donations under $200
+                        {selectedMember.grassrootsPACTypes &&
+                          selectedMember.grassrootsPACTypes.length > 0 &&
+                          ` + ${selectedMember.grassrootsPACTypes.join(', ')} (85% discount applied)`}
+                      </span>
+                    </div>
+                    <div className="flex items-start space-x-2">
+                      <span className="font-semibold text-orange-700 min-w-[120px]">
+                        Large Donors:
+                      </span>
+                      <span>Individual donations over $200 (itemized contributions)</span>
+                    </div>
+                    <div className="flex items-start space-x-2">
+                      <span className="font-semibold text-red-700 min-w-[120px]">PAC Money:</span>
+                      <span>
+                        Corporate, union, and special interest PAC contributions (weighted by
+                        transparency: Super PACs 2.0x, Leadership/Lobbyist PACs 1.5x)
+                      </span>
+                    </div>
+                    {Number.isFinite(selectedMember.individualFundingPercent) && (
+                      <div className="mt-3 pt-3 border-t border-gray-300">
+                        <p className="text-xs text-gray-600">
+                          <span className="font-semibold">
+                            Individual Funding Score ({selectedMember.individualFundingPercent}%):
+                          </span>{' '}
+                          Grassroots + Large Donors, with penalties applied when few donors can
+                          coordinate to control funding (coordination risk) or concerning PAC
+                          funding patterns.
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Tier Explanation */}
+              <div className="mt-4 p-4 bg-blue-50 rounded-lg border border-blue-200">
+                <h4 className="font-semibold text-blue-900 mb-2">Why This Tier?</h4>
+                <div className="text-sm text-blue-800 space-y-2">
+                  <p>
+                    Tiers distinguish{' '}
+                    <span className="font-semibold text-green-700">individual support</span>{' '}
+                    (grassroots + itemized donations) from{' '}
+                    <span className="font-semibold text-red-700">institutional capture</span> (PAC
+                    money).
+                  </p>
+                  <p className="text-xs mt-2">
+                    Based on <span className="text-green-700">individual funding %</span>{' '}
+                    (grassroots &lt;$200 + itemized &gt;$200), with penalties for donor coordination
+                    risk (when few donors can organize to control funding) and PAC transparency
+                    weights.
+                  </p>
+                  <a
+                    href="#how-tiers-work"
+                    className="text-xs text-blue-600 hover:text-blue-800 underline inline-block mt-2"
+                    onClick={e => {
+                      e.preventDefault();
+                      const footer = document.getElementById('how-tiers-work');
+                      const button = footer?.querySelector('button');
+                      footer?.scrollIntoView({ behavior: 'smooth' });
+                      // Auto-expand if collapsed
+                      setTimeout(() => {
+                        if (button && !button.textContent?.includes('▼')) {
+                          button.click();
+                        }
+                      }, 500);
+                    }}
+                  >
+                    See how tiers are calculated →
+                  </a>
+                </div>
+              </div>
+
+              {/* Advanced PAC Breakdown Section */}
+              {selectedMember.pacContributions && selectedMember.pacContributions.length > 0 && (
+                <div className="mt-6">
+                  <button
+                    onClick={() => setShowPACDetails(!showPACDetails)}
+                    className="flex items-center space-x-2 text-sm font-medium text-purple-600 hover:text-purple-800 transition-colors"
+                  >
+                    {showPACDetails ? (
+                      <ChevronUp className="w-4 h-4" />
+                    ) : (
+                      <ChevronDown className="w-4 h-4" />
+                    )}
+                    <span>
+                      {showPACDetails ? 'Hide' : 'Show'} Detailed PAC Breakdown (
+                      {selectedMember.pacContributions.length} contributions)
+                    </span>
+                  </button>
+
+                  {showPACDetails && (
+                    <div className="mt-4 p-4 bg-gray-50 rounded-lg border">
+                      <h4 className="font-semibold text-gray-900 mb-4">Top PAC Contributors</h4>
+
+                      {selectedMember.pacContributions.length > 0 ? (
+                        selectedMember.pacContributions.map((pac, index) => {
+                          const category = TaskForceAPI.categorizePACByName(pac.pacName);
+                          return (
+                            <div
+                              key={index}
+                              className="flex items-center justify-between py-3 border-b border-gray-200 last:border-b-0"
+                            >
+                              <div className="flex-1">
+                                <div className="flex items-center space-x-3">
+                                  <div>
+                                    <h5 className="font-medium text-gray-900">{pac.pacName}</h5>
+                                    <div className="flex items-center space-x-2 mt-1">
+                                      <span
+                                        className={`text-xs px-2 py-1 rounded-full border ${category.color}`}
+                                      >
+                                        {category.industry}
+                                      </span>
+                                      <span className="text-xs text-gray-500">{pac.date}</span>
+                                    </div>
+                                    {/* FEC Committee Details */}
+                                    {(pac.committee_id ||
+                                      pac.committee_type ||
+                                      pac.designation) && (
+                                      <div className="flex items-center space-x-2 mt-1">
+                                        {pac.committee_id && (
+                                          <span className="text-xs px-2 py-1 bg-blue-100 text-blue-800 rounded border border-blue-200 font-mono">
+                                            FEC: {pac.committee_id}
+                                          </span>
+                                        )}
+                                        {pac.committee_type && (
+                                          <span className="text-xs px-2 py-1 bg-gray-100 text-gray-700 rounded border">
+                                            Type: {pac.committee_type}
+                                          </span>
+                                        )}
+                                        {pac.designation && (
+                                          <span className="text-xs px-2 py-1 bg-gray-100 text-gray-700 rounded border">
+                                            Class: {pac.designation}
+                                          </span>
+                                        )}
+                                      </div>
+                                    )}
+                                  </div>
+                                </div>
+                              </div>
+                              <div className="text-right">
+                                <div className="font-semibold text-gray-900">
+                                  {TaskForceAPI.formatCurrency(pac.amount)}
+                                </div>
+                                <div className="text-xs text-gray-500">
+                                  {selectedMember.totalRaised > 0
+                                    ? `${((pac.amount / selectedMember.totalRaised) * 100).toFixed(1)}% of total`
+                                    : ''}
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })
+                      ) : (
+                        <div className="text-center py-8 text-gray-500">
+                          <p>No detailed PAC contribution data available</p>
+                          <p className="text-xs mt-1">
+                            This could mean limited PAC funding or data collection in progress
+                          </p>
+                        </div>
+                      )}
+
+                      <div className="mt-4 p-3 bg-blue-50 rounded border border-blue-200">
+                        <p className="text-sm text-blue-800">
+                          <strong>Reading FEC Committee Codes:</strong>
+                          <br />
+                          <strong className="text-blue-900 mt-1 block">Types:</strong>
+                          <span className="font-mono">O</span>=Super PAC (2.0x penalty),
+                          <span className="font-mono">P</span>=Candidate Committee (85% discount),
+                          Regular PACs (1.0x penalty)
+                          <br />
+                          <strong className="text-blue-900 mt-1 block">Designations:</strong>
+                          <span className="font-mono">D</span>=Leadership PAC (1.5x penalty),
+                          <span className="font-mono">B</span>=Lobbyist PAC (1.5x penalty),
+                          <span className="font-mono">A/P</span>=Authorized (85% discount)
+                          <br />
+                          <strong className="text-blue-900 mt-1 block">Industry labels</strong>{' '}
+                          (Financial Services, Labor, etc.) are for display only - penalties use FEC
+                          codes.
+                        </p>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Additional member information */}
+              {selectedMember.committeeInfo && (
+                <div className="mt-6 pt-6 border-t">
+                  <h4 className="font-semibold text-gray-900 mb-2">Campaign Committee</h4>
+                  <p className="text-sm text-gray-600">{selectedMember.committeeInfo.name}</p>
+                  <p className="text-xs text-gray-500">ID: {selectedMember.committeeInfo.id}</p>
+                </div>
+              )}
+            </>
           )}
 
-          {/* Additional member information */}
-          {selectedMember.committeeInfo && (
-            <div className="mt-6 pt-6 border-t">
-              <h4 className="font-semibold text-gray-900 mb-2">Campaign Committee</h4>
-              <p className="text-sm text-gray-600">{selectedMember.committeeInfo.name}</p>
-              <p className="text-xs text-gray-500">ID: {selectedMember.committeeInfo.id}</p>
-            </div>
-          )}
-
-          {selectedMember.totalRaised === 0 && (
+          {selectedMember.totalRaised === 0 && !TaskForceAPI.isRingfenced(selectedMember.tier) && (
             <div className="mt-6 pt-6 border-t">
               <p className="text-xs text-gray-500">
                 <strong>Note:</strong> This member may be newly elected or their FEC committee data
@@ -960,7 +1001,7 @@ export default function MembersList() {
               <div
                 className={`w-10 h-10 sm:w-12 sm:h-12 flex-shrink-0 rounded-full flex items-center justify-center text-lg sm:text-xl font-bold ${TaskForceAPI.getTierColor(member.tier)}`}
               >
-                {member.tier}
+                {TaskForceAPI.getTierBadgeLabel(member.tier)}
               </div>
               <div className="min-w-0 flex-1">
                 <h3 className="font-semibold text-gray-900 text-sm sm:text-base truncate">
@@ -973,6 +1014,11 @@ export default function MembersList() {
               </div>
               {/* Quicklook: flag-worthy money networks at a glance */}
               {(() => {
+                // Not for an unverified identity: these icons summarise
+                // bundler data that may belong to someone else (issue #41)
+                if (TaskForceAPI.isIdentityUnverified(member.tier)) {
+                  return null;
+                }
                 const sectors = quicklookSectors(member);
                 return sectors.length > 0 ? (
                   <div className="flex items-center gap-1 flex-shrink-0">
@@ -991,7 +1037,10 @@ export default function MembersList() {
                 ) : null;
               })()}
               <div className="text-right flex-shrink-0">
-                {member.totalRaised === 0 ? (
+                {/* Ringfence first: a member whose figures were withheld
+                    (and possibly nulled) must read as "checking", not as a
+                    member with no filings */}
+                {!TaskForceAPI.isRingfenced(member.tier) && member.totalRaised === 0 ? (
                   <div>
                     <div className="text-sm sm:text-lg font-bold text-gray-400">No Data</div>
                     <div className="text-[10px] sm:text-sm text-gray-400">Filings</div>
@@ -1002,8 +1051,12 @@ export default function MembersList() {
                   // individualFundingPercent to null precisely so no number is
                   // published, and the fallback printed one anyway.
                   <div>
-                    <div className="text-sm sm:text-lg font-bold text-purple-700">Under review</div>
-                    <div className="text-[10px] sm:text-sm text-gray-400">Our data</div>
+                    <div className="text-sm sm:text-lg font-bold text-purple-700">
+                      {TaskForceAPI.isIdentityUnverified(member.tier) ? 'Checking' : 'Under review'}
+                    </div>
+                    <div className="text-[10px] sm:text-sm text-gray-400">
+                      {TaskForceAPI.isIdentityUnverified(member.tier) ? 'Our records' : 'Our data'}
+                    </div>
                   </div>
                 ) : (
                   <div>

@@ -38,6 +38,7 @@ export const DAILY_ROW_WRITE_BUDGET = 85000;
  *   new aggregate                        2
  *   aggregate, amount changed            1
  *   aggregate, amount unchanged          0
+ *   aggregate deleted                    1   (measured 2026-09-26)
  *
  * A transaction costs 5 rather than 4 because `itemized_transactions.id` is
  * INTEGER PRIMARY KEY AUTOINCREMENT, and AUTOINCREMENT makes SQLite update
@@ -61,6 +62,8 @@ export const WRITE_COST = {
   metadataReplace: 2,
   // A deleted row also clears its index entries (no sqlite_sequence update).
   transactionDelete: 4,
+  // Measured, not derived: deleting an aggregate costs 1, not row + PK.
+  aggregateDelete: 1,
 };
 
 /** The UTC day the cap resets on. */
@@ -69,16 +72,23 @@ export function budgetDay(now = new Date()) {
 }
 
 /**
- * @param {{transactions?: number, aggregates?: number, metadataReplaces?: number, transactionDeletes?: number}} counts
+ * @param {{transactions?: number, aggregates?: number, metadataReplaces?: number, transactionDeletes?: number, aggregateDeletes?: number}} counts
  * @returns {number} estimated row-writes, rounded up
  */
 export function estimateRowWrites(counts = {}) {
-  const { transactions = 0, aggregates = 0, metadataReplaces = 0, transactionDeletes = 0 } = counts;
+  const {
+    transactions = 0,
+    aggregates = 0,
+    metadataReplaces = 0,
+    transactionDeletes = 0,
+    aggregateDeletes = 0,
+  } = counts;
   return (
     transactions * WRITE_COST.transaction +
     aggregates * WRITE_COST.aggregate +
     metadataReplaces * WRITE_COST.metadataReplace +
-    transactionDeletes * WRITE_COST.transactionDelete
+    transactionDeletes * WRITE_COST.transactionDelete +
+    aggregateDeletes * WRITE_COST.aggregateDelete
   );
 }
 

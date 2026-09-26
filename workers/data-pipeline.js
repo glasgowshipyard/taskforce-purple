@@ -2,6 +2,7 @@
 // Cloudflare Worker to fetch and process congressional data
 
 import { STATE_ABBREVIATIONS } from './shared-constants.js';
+import { crosswalkIdsFor, isVerifiedIdentity, selectPrimaryCandidate } from './fec-identity.js';
 import {
   calculateEnhancedTier as computeEnhancedTier,
   calculateTier,
@@ -361,24 +362,45 @@ async function fetchMemberFinancials(member, env) {
           ? 'H' // If member has district, they're House
           : 'S'; // Otherwise Senate
 
-    // Check for cached FEC candidate mapping first
+    // FEC identity comes from the congress-legislators crosswalk, never a
+    // name search (issue #41). A cached mapping is trusted only if its
+    // candidate ID is one of this member's recorded IDs - the 2026-09-26 audit
+    // found 35 cached mappings pointing at other people, cached "forever" by
+    // earlier name-matching code. Those are discarded and re-resolved here.
     const cacheKey = `fec_mapping_${member.bioguideId}`;
     const cachedMapping = await env.MEMBER_DATA.get(cacheKey);
+    const crosswalkIds = crosswalkIdsFor(member.bioguideId);
 
     let candidate = null;
 
     if (cachedMapping) {
       const mapping = JSON.parse(cachedMapping);
-      console.log(`🔄 Using cached FEC mapping: ${member.name} → ${mapping.candidate_id}`);
-      candidate = {
-        candidate_id: mapping.candidate_id,
-        name: mapping.candidate_name,
-        principal_committees: mapping.principal_committees,
-      };
-    } else {
-      // First time lookup - search for the candidate by name with validation
+      if (isVerifiedIdentity(member.bioguideId, mapping.candidate_id)) {
+        candidate = {
+          candidate_id: mapping.candidate_id,
+          name: mapping.candidate_name,
+          principal_committees: mapping.principal_committees,
+        };
+      } else {
+        console.warn(
+          `🚫 Discarding cached FEC mapping for ${member.name}: ${mapping.candidate_id} (${mapping.candidate_name}) is not one of their recorded FEC IDs [${crosswalkIds.join(', ')}]`
+        );
+      }
+    }
+
+    if (!candidate) {
+      if (crosswalkIds.length === 0) {
+        // Non-filers (e.g. some delegates). Never guess.
+        console.warn(`No recorded FEC identity for ${member.name}; not guessing`);
+        return null;
+      }
+
+      // One call returns every candidate record the member holds, each with
+      // its office, active years and principal committees
+      const params = new URLSearchParams({ api_key: apiKey });
+      crosswalkIds.forEach(id => params.append('candidate_id', id));
       const searchResponse = await fetch(
-        `https://api.open.fec.gov/v1/candidates/search/?api_key=${apiKey}&q=${encodeURIComponent(member.name.split(',')[0])}&office=${office}&state=${stateAbbr}`,
+        `https://api.open.fec.gov/v1/candidates/search/?${params}`,
         {
           headers: {
             'User-Agent': 'TaskForcePurple/1.0 (Political Transparency Platform)',
@@ -387,89 +409,47 @@ async function fetchMemberFinancials(member, env) {
       );
 
       if (!searchResponse.ok) {
-        console.warn(`FEC search API error for ${member.name}: ${searchResponse.status}`);
+        console.warn(`FEC candidate lookup error for ${member.name}: ${searchResponse.status}`);
         try {
           await searchResponse.json();
         } catch {}
+        // Surface rate limits to the queue's retry logic
+        if (searchResponse.status === 429) {
+          throw new Error('429 Too Many Requests');
+        }
         return null;
       }
 
       const searchData = await searchResponse.json();
-      if (!searchData.results || searchData.results.length === 0) {
-        console.warn(`No FEC candidate record found for ${member.name}`);
-        return null;
-      }
-
-      // We are always looking up sitting members, so prefer FEC's incumbent
-      // flag. Same-name candidates in the same state+office otherwise win by
-      // list order (e.g. "Hawley, MO-S" first returns a 1993 perennial
-      // candidate, whose empty finances made the real senator N/A for months)
-      searchData.results.sort(
-        (a, b) => (b.incumbent_challenge === 'I') - (a.incumbent_challenge === 'I')
-      );
-
-      // CRITICAL FIX: Find candidate that actually matches our member's state and office
-      candidate = searchData.results.find(c => {
-        const candidateState = c.state?.toUpperCase();
-        const candidateOffice = c.office_sought?.toUpperCase();
-        const expectedState = stateAbbr?.toUpperCase();
-        const expectedOffice = office?.toUpperCase();
-
-        return candidateState === expectedState && candidateOffice === expectedOffice;
-      });
-
-      // FALLBACK: If office_sought is undefined, use committee ID pattern matching
-      if (!candidate) {
-        console.log(
-          `🔄 Primary matching failed, trying committee ID pattern fallback for ${member.name}`
-        );
-
-        candidate = searchData.results.find(c => {
-          const candidateState = c.state?.toUpperCase();
-          const expectedState = stateAbbr?.toUpperCase();
-
-          if (candidateState !== expectedState) {
-            return false;
-          }
-
-          // Check if candidate has committees that match expected chamber
-          if (c.principal_committees && c.principal_committees.length > 0) {
-            return c.principal_committees.some(committee => {
-              const committeeType = committee.committee_type;
-              const committeeId = committee.committee_id;
-              if (office === 'S' && committeeType === 'S') {
-                console.log(`✅ Committee type match: ${committeeId} (Senate) for ${member.name}`);
-                return true;
-              }
-              if (office === 'H' && committeeType === 'H') {
-                console.log(`✅ Committee type match: ${committeeId} (House) for ${member.name}`);
-                return true;
-              }
-              return false;
-            });
-          }
-          return false;
-        });
-      }
+      // Belt and braces: keep only records whose ID is on the member's list
+      const records = (searchData.results || []).filter(c => crosswalkIds.includes(c.candidate_id));
+      candidate = selectPrimaryCandidate(records, office);
 
       if (!candidate) {
         console.warn(
-          `❌ No matching FEC candidate for ${member.name} (${stateAbbr}-${office}). Found candidates: ${searchData.results.map(c => `${c.name} (${c.state}-${c.office_sought})`).join(', ')}`
+          `❌ FEC returned no records for ${member.name}'s recorded IDs [${crosswalkIds.join(', ')}]`
         );
         return null;
       }
 
       console.log(
-        `✅ Found validated FEC candidate: ${candidate.name} (ID: ${candidate.candidate_id}) for ${member.name} (${stateAbbr}-${office})`
+        `✅ FEC identity for ${member.name}: ${candidate.name} (${candidate.candidate_id}) via crosswalk`
       );
 
-      // Cache the validated mapping for future use
       const mappingToCache = {
         candidate_id: candidate.candidate_id,
         candidate_name: candidate.name,
         principal_committees: candidate.principal_committees,
+        // Every campaign the person has run, for person-level aggregation
+        candidates: records.map(c => ({
+          candidate_id: c.candidate_id,
+          candidate_name: c.name,
+          office: c.office,
+          active_through: c.active_through,
+          principal_committees: c.principal_committees,
+        })),
         verified_date: new Date().toISOString(),
-        verification_method: 'auto_validated',
+        verification_method: 'crosswalk',
         member_state: stateAbbr,
         member_office: office,
       };
@@ -550,6 +530,7 @@ async function fetchMemberFinancials(member, env) {
               partyMoney: latestTotal.political_party_committee_contributions || 0,
               committeeId: committeeId,
               committeeName: candidate.name,
+              fecCandidateId: candidate.candidate_id,
               dataCycle: usedCycle, // Track which cycle the data is from
             };
           }
@@ -697,6 +678,7 @@ async function fetchMemberFinancials(member, env) {
                       partyMoney: latestTotal.political_party_committee_contributions || 0,
                       committeeId: primaryCommittee.committee_id,
                       committeeName: primaryCommittee.name,
+                      fecCandidateId: candidate.candidate_id,
                       dataCycle: usedCycle, // Track which cycle the data is from
                     };
                   }
@@ -774,6 +756,7 @@ async function fetchMemberFinancials(member, env) {
       partyMoney: latestTotal.political_party_committee_contributions || 0,
       committeeId: latestTotal.committee_id || null, // Fallback path: use committee_id from totals response if available
       committeeName: candidate.name,
+      fecCandidateId: candidate.candidate_id,
       dataCycle: await getElectionCycle(), // Generic fallback uses current cycle
     };
   } catch (error) {
@@ -1146,6 +1129,22 @@ async function calculateEnhancedTier(member, _allMembers = [], env = null) {
     }
   }
 
+  // An analysis describes the committee it was collected from. If that is no
+  // longer the member's committee - their FEC identity was corrected (issue
+  // #41) - the analysis is someone else's donors, bundlers and foreign-agent
+  // matches. Reject it and tell the caller to clear what it previously merged.
+  let concentrationRejected = false;
+  // A member with no committee on record cannot vouch for any analysis: the
+  // itemized worker used to name-search its own committee in that case, which
+  // is the same defect again.
+  if (concentration && concentration.committeeId !== member.committeeInfo?.id) {
+    console.warn(
+      `🚫 ${member.bioguideId}: ignoring itemized analysis from ${concentration.committeeId}; member's committee is ${member.committeeInfo?.id ?? 'unknown'}`
+    );
+    concentration = null;
+    concentrationRejected = true;
+  }
+
   const result = computeEnhancedTier(member, concentration);
 
   if (result.detail?.path === 'enhanced') {
@@ -1159,7 +1158,7 @@ async function calculateEnhancedTier(member, _allMembers = [], env = null) {
   // Expose the loaded concentration so callers (tier recalculation) can merge
   // it into members:all - the API serves from there instead of doing a
   // per-member KV lookup on every request
-  return { ...result, concentration };
+  return { ...result, concentration, concentrationRejected };
 }
 
 // Process and enrich member data with TWO-CALL STRATEGY
@@ -2033,6 +2032,7 @@ async function performTierRecalculation(env) {
         tier: newTier,
         individualFundingPercent,
         concentration,
+        concentrationRejected,
       } = await calculateEnhancedTier(member, members, env);
       member.individualFundingPercent = individualFundingPercent;
 
@@ -2040,6 +2040,19 @@ async function performTierRecalculation(env) {
       // can serve them from members:all (one KV read) instead of 537
       // per-member lookups per request. Never wipe previously merged data
       // on a transient KV miss.
+      if (concentrationRejected) {
+        // Deliberate wipe, unlike a transient miss: these fields were merged
+        // from another committee's records (issue #41). The itemized worker
+        // re-collects against the corrected committee and repopulates them.
+        member.nakamotoCoefficient = null;
+        member.uniqueDonors = null;
+        member.top10Concentration = null;
+        member.nakamotoPercent = null;
+        member.topConduits = null;
+        member.earmarkedIndividualTotal = null;
+        member.faraFirms = null;
+        member.faraEmployerTotal = null;
+      }
       if (concentration) {
         member.nakamotoCoefficient = concentration.nakamotoCoefficient ?? null;
         member.uniqueDonors = concentration.uniqueDonors ?? null;
@@ -3427,6 +3440,11 @@ async function updateMemberWithPhase1Data(member, financials, env) {
         // "the filing says this" from "we assembled this wrong" (2026-07-24)
         financialsVerified: true,
         financialsVerifiedCycle: financials?.dataCycle || currentCycle,
+        // Identity stamp: the scorer withholds a grade unless the figures came
+        // from one of the member's recorded FEC IDs (issue #41)
+        fecCandidateId: financials?.fecCandidateId || null,
+        fecIdentityVerified: isVerifiedIdentity(member.bioguideId, financials?.fecCandidateId),
+        fecLookupExhausted: null,
         pacContributions: [],
         tier: calculateTier(financials?.grassrootsPercent || 0, financials?.totalRaised || 0),
         lastUpdated: new Date().toISOString(),
@@ -3450,6 +3468,11 @@ async function updateMemberWithPhase1Data(member, financials, env) {
         // "the filing says this" from "we assembled this wrong" (2026-07-24)
         financialsVerified: true,
         financialsVerifiedCycle: financials?.dataCycle || currentCycle,
+        // Identity stamp: the scorer withholds a grade unless the figures came
+        // from one of the member's recorded FEC IDs (issue #41)
+        fecCandidateId: financials?.fecCandidateId || null,
+        fecIdentityVerified: isVerifiedIdentity(member.bioguideId, financials?.fecCandidateId),
+        fecLookupExhausted: null,
         tier: calculateTier(financials?.grassrootsPercent || 0, financials?.totalRaised || 0),
         lastUpdated: new Date().toISOString(),
         committeeInfo: financials?.committeeId ? { id: financials.committeeId } : null,

@@ -158,3 +158,11 @@ describe('canAfford', () => {
     expect(canAfford({ remaining: 0 }, 0, 1)).toBe(false);
   });
 });
+
+describe('aggregate deletes', () => {
+  it('charges the measured cost of 1 per deleted aggregate', () => {
+    // Measured on production D1 2026-09-26: deleting 3 rows wrote 3
+    expect(WRITE_COST.aggregateDelete).toBe(1);
+    expect(estimateRowWrites({ aggregateDeletes: 3 })).toBe(3);
+  });
+});

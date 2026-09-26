@@ -5,10 +5,32 @@ import { TaskForceAPI } from './api.js';
 // are silent failures: getTierColor falls back to grey, and a tier absent
 // from MembersList's tierOrder makes the sort comparator return NaN, which
 // leaves Array.sort behaviour undefined for the entire list (2026-07-24).
-const TIERS_EMITTED_BY_SCORER = ['S', 'A', 'B', 'C', 'D', 'E', 'F', 'N/A', 'DISPUTED'];
+const TIERS_EMITTED_BY_SCORER = [
+  'S',
+  'A',
+  'B',
+  'C',
+  'D',
+  'E',
+  'F',
+  'N/A',
+  'DISPUTED',
+  'UNVERIFIED',
+];
 
 // Mirrors the map in src/components/MembersList.jsx
-const tierOrder = { S: 8, A: 7, B: 6, C: 5, D: 4, E: 3, F: 2, 'N/A': 1, DISPUTED: 0 };
+const tierOrder = {
+  S: 8,
+  A: 7,
+  B: 6,
+  C: 5,
+  D: 4,
+  E: 3,
+  F: 2,
+  'N/A': 1,
+  DISPUTED: 0,
+  UNVERIFIED: 0,
+};
 
 describe('tier display coverage', () => {
   it('every emitted tier has a distinct colour, not the grey fallback', () => {
@@ -43,8 +65,18 @@ describe('tier display coverage', () => {
 });
 
 describe('ringfenced tiers withhold figures', () => {
-  it('DISPUTED is ringfenced', () => {
+  it('DISPUTED and UNVERIFIED are ringfenced', () => {
     expect(TaskForceAPI.isRingfenced('DISPUTED')).toBe(true);
+    expect(TaskForceAPI.isRingfenced('UNVERIFIED')).toBe(true);
+  });
+
+  it('only UNVERIFIED hides the derived analyses too', () => {
+    // DISPUTED's bundler/concentration analyses come from the member's own
+    // itemized records and stay (issue #40); UNVERIFIED's may be another
+    // person's (issue #41)
+    expect(TaskForceAPI.isIdentityUnverified('UNVERIFIED')).toBe(true);
+    expect(TaskForceAPI.isIdentityUnverified('DISPUTED')).toBe(false);
+    expect(TaskForceAPI.isIdentityUnverified('F')).toBe(false);
   });
 
   it('every real letter grade publishes its figures', () => {
@@ -68,6 +100,25 @@ describe('ringfenced tiers withhold figures', () => {
       expect(TaskForceAPI.getTierDescription(tier)).not.toBe('Unknown');
       expect(TaskForceAPI.getTierExplanation(tier)).not.toBe('No explanation available.');
       expect(typeof tierOrder[tier]).toBe('number');
+    }
+  });
+});
+
+describe('tier badge', () => {
+  // The badge is a fixed-size circle sized for one character. Rendering the
+  // word DISPUTED there spilled over the member's name on the live site
+  // (issue #36), and the coverage tests above could not see it. This one can.
+  it('every emitted tier has a badge label that fits the circle', () => {
+    for (const tier of TIERS_EMITTED_BY_SCORER) {
+      const label = TaskForceAPI.getTierBadgeLabel(tier);
+      expect(label, `badge label missing for ${tier}`).toBeTruthy();
+      expect(label.length, `badge label for ${tier} is "${label}"`).toBeLessThanOrEqual(3);
+    }
+  });
+
+  it('letter grades show their letter', () => {
+    for (const tier of ['S', 'A', 'B', 'C', 'D', 'E', 'F']) {
+      expect(TaskForceAPI.getTierBadgeLabel(tier)).toBe(tier);
     }
   });
 });

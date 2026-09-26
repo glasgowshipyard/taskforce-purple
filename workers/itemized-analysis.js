@@ -15,7 +15,6 @@
  * GRASSROOTS_CALCULATION_GUIDE.md for how the output feeds tier calculation.
  */
 
-import { STATE_ABBREVIATIONS } from './shared-constants.js';
 import { cycleForYear } from './tier-calculation.js';
 import { classifyScheduleARow, normalizeConduitName, topConduits } from './schedule-a-classify.js';
 import {
@@ -43,6 +42,17 @@ export function isAnalysisFresh(analysis, nowMs = Date.now()) {
     return false;
   }
   return nowMs - new Date(completedAt).getTime() < ANALYSIS_STALENESS_DAYS * 24 * 60 * 60 * 1000;
+}
+
+// An analysis is "current" if it is fresh AND was collected from the
+// committee now on the member's record. A fresh analysis of the wrong
+// committee is someone else's donors (issue #41) and must be re-collected.
+export function isAnalysisCurrent(analysis, memberCommitteeId, nowMs = Date.now()) {
+  return (
+    Boolean(memberCommitteeId) &&
+    analysis?.committeeId === memberCommitteeId &&
+    isAnalysisFresh(analysis, nowMs)
+  );
 }
 
 export default {
@@ -126,7 +136,9 @@ async function rebuildQueue(env, log) {
   }
 
   const members = JSON.parse(membersData);
-  const collectable = members.filter(m => m.committeeInfo?.id);
+  // Collectable = a verified FEC identity with a committee on record
+  // (issue #41). Unverified members wait for the pipeline to resolve them.
+  const collectable = members.filter(m => m.committeeInfo?.id && m.fecIdentityVerified === true);
   log(`🔁 Rebuilding queue: checking ${collectable.length} collectable members for staleness...`);
 
   const now = Date.now();
@@ -137,7 +149,7 @@ async function rebuildQueue(env, log) {
       const data = await env.MEMBER_DATA.get(`itemized_analysis_v2:${member.bioguideId}`);
       if (data) {
         const analysis = JSON.parse(data);
-        if (isAnalysisFresh(analysis, now)) {
+        if (isAnalysisCurrent(analysis, member.committeeInfo.id, now)) {
           continue;
         }
         const completedAt = analysis.collectionCompletedAt || analysis.lastUpdated;
@@ -339,7 +351,12 @@ async function analyzeMembers(env, pagesPerRun = PAGES_PER_RUN_HTTP) {
   } catch {
     parsedAnalysis = null;
   }
-  const memberComplete = isAnalysisFresh(parsedAnalysis);
+  // Complete = an analysis that is fresh AND from the member's current
+  // committee. A fresh analysis of the wrong committee must not end the
+  // member's turn in the queue after one chunk (issue #41).
+  const memberComplete =
+    results[member.bioguideId]?.complete === true &&
+    isAnalysisCurrent(parsedAnalysis, results[member.bioguideId]?.committeeId);
 
   if (memberComplete) {
     queue.shift();
@@ -439,22 +456,54 @@ async function fetchAndAggregateChunk(
   const progressKey = `itemized_progress_v2:${bioguideId}`;
   const analysisKey = `itemized_analysis_v2:${bioguideId}`;
 
-  // Fresh analysis -> nothing to do. A STALE analysis does NOT short-circuit:
-  // the refresh policy re-collects it, and the stale analysis keeps serving
-  // tiers until the new one atomically replaces it at completion.
+  // The committee comes only from the data pipeline, which resolves it from
+  // the FEC crosswalk and stamps the member's identity as verified (issue
+  // #41). This worker used to name-search FEC itself when no committee was on
+  // record - the same defect that tied 35 members to other people - so it no
+  // longer does. No verified committee yet = nothing to collect; the queue
+  // defers the member and a later rebuild picks them up.
+  const membersData = await env.MEMBER_DATA.get('members:all');
+  if (!membersData) {
+    throw new Error('Members dataset not found in KV');
+  }
+  const memberRecord = JSON.parse(membersData).find(m => m.bioguideId === bioguideId);
+  if (!memberRecord) {
+    throw new Error(`Member not found in dataset: ${bioguideId}`);
+  }
+  if (memberRecord.fecIdentityVerified !== true) {
+    throw new Error(`FEC identity not verified yet for ${memberRecord.name}`);
+  }
+  const memberCommitteeId = memberRecord.committeeInfo?.id || null;
+  if (!memberCommitteeId) {
+    throw new Error(`No committee on record for ${memberRecord.name} yet`);
+  }
+
+  // Current analysis -> nothing to do. A STALE analysis of the RIGHT
+  // committee does not short-circuit either: it keeps serving tiers until the
+  // new one atomically replaces it at completion. An analysis of a DIFFERENT
+  // committee is not served at all (the pipeline rejects it).
   const existingAnalysis = await env.MEMBER_DATA.get(analysisKey);
+  let replacesCommitteeId = null;
   if (existingAnalysis) {
     const analysis = JSON.parse(existingAnalysis);
-    if (isAnalysisFresh(analysis)) {
-      log(`  ✅ Already complete (fresh)`);
+    if (isAnalysisCurrent(analysis, memberCommitteeId)) {
+      log(`  ✅ Already complete (fresh, committee ${memberCommitteeId})`);
       return {
         complete: true,
+        committeeId: memberCommitteeId,
         totalTransactions: analysis.totalTransactions,
         uniqueDonors: analysis.uniqueDonors,
         pagesProcessedThisRun: 0,
       };
     }
-    log(`  🔄 Stale analysis (${analysis.collectionCompletedAt || 'undated'}) - re-collecting`);
+    if (analysis.committeeId !== memberCommitteeId) {
+      replacesCommitteeId = analysis.committeeId || null;
+      log(
+        `  🔀 Existing analysis is for committee ${analysis.committeeId}, member's is ${memberCommitteeId} - re-collecting from scratch`
+      );
+    } else {
+      log(`  🔄 Stale analysis (${analysis.collectionCompletedAt || 'undated'}) - re-collecting`);
+    }
   }
 
   // Check for existing progress
@@ -463,7 +512,18 @@ async function fetchAndAggregateChunk(
 
   if (existingProgressData) {
     progress = JSON.parse(existingProgressData);
+    if (progress.committeeId !== memberCommitteeId) {
+      // Part-collected from a committee that is no longer the member's.
+      // Nothing in it can be kept.
+      log(
+        `  🔀 Discarding in-progress collection from ${progress.committeeId}; member's committee is ${memberCommitteeId}`
+      );
+      await env.MEMBER_DATA.delete(progressKey);
+      progress = null;
+    }
+  }
 
+  if (progress) {
     // Initialize fields that may not exist in old progress data
     if (!progress.donorTotals) {
       progress.donorTotals = {};
@@ -488,40 +548,8 @@ async function fetchAndAggregateChunk(
     log(`  📂 Resuming: ${progress.totalTransactions || 0} transactions aggregated so far`);
     log(`  👥 Current unique donors: ${Object.keys(progress.donorTotals).length}`);
   } else {
-    // Starting fresh - need to get committee ID
-    // Fetch member info dynamically from members:all dataset
-    const membersData = await env.MEMBER_DATA.get('members:all');
-    if (!membersData) {
-      throw new Error('Members dataset not found in KV');
-    }
-
-    const members = JSON.parse(membersData);
-    const memberRecord = members.find(m => m.bioguideId === bioguideId);
-
-    if (!memberRecord) {
-      throw new Error(`Member not found in dataset: ${bioguideId}`);
-    }
-
-    // Prefer the committee the data pipeline's Phase 1 already discovered -
-    // re-searching by last name picked wrong same-name candidates (the
-    // pipeline had the identical bug, fixed 2026-07-13 via incumbent sort)
-    let committeeId = memberRecord.committeeInfo?.id || null;
-
-    if (committeeId) {
-      log(`  💼 Using committee from member record: ${committeeId}`);
-    } else {
-      const lastName = memberRecord.name.split(',')[0].trim(); // "Heinrich, Martin" → "Heinrich"
-      const office = memberRecord.chamber === 'Senate' ? 'S' : 'H';
-      const stateAbbr = STATE_ABBREVIATIONS[memberRecord.state] || memberRecord.state;
-
-      log(`  🔍 Searching FEC for ${lastName} (${office}-${stateAbbr})...`);
-      committeeId = await searchCommitteeId(lastName, office, stateAbbr, apiKey);
-    }
-
-    if (!committeeId) {
-      throw new Error(`No committee found for ${memberRecord.name}`);
-    }
-
+    // Starting fresh, from the verified committee loaded above
+    const committeeId = memberCommitteeId;
     log(`  💼 Committee ID: ${committeeId}`);
 
     const currentYear = new Date().getFullYear();
@@ -554,6 +582,9 @@ async function fetchAndAggregateChunk(
       earmarkedTotal: 0, // individual money that arrived pre-bundled via a conduit
       earmarkedCount: 0,
       startedAt: new Date().toISOString(),
+      // Set when this collection replaces an analysis of a different
+      // committee; completion then clears that committee's D1 rows
+      replacesCommitteeId,
     };
   }
 
@@ -850,15 +881,38 @@ async function fetchAndAggregateChunk(
         // scans every NULL entry in the table (382,016 of them) for each
         // member, which would re-blow the read cap. Forcing idx_bioguide
         // reads only this member's rows. Verified with EXPLAIN QUERY PLAN.
-        const delLegacy = await env.DONOR_DB.prepare(
-          'DELETE FROM itemized_transactions INDEXED BY idx_bioguide WHERE bioguide_id = ? AND cycle = ? AND sub_id IS NULL'
+        //
+        // The same scan also removes this member's rows from any OTHER
+        // committee. Those are another person's transactions, left behind when
+        // a member's FEC identity was corrected (issue #41); the FARA join
+        // selects by bioguide_id, so leaving them would keep matching the
+        // wrong person's donors to this member. One statement, one scan.
+        const delSuperseded = await env.DONOR_DB.prepare(
+          'DELETE FROM itemized_transactions INDEXED BY idx_bioguide WHERE bioguide_id = ? AND cycle = ? AND (sub_id IS NULL OR committee_id != ?)'
         )
-          .bind(bioguideId, cycle)
+          .bind(bioguideId, cycle, committeeId)
           .run();
-        const removed = delLegacy.meta?.changes ?? 0;
+        const removed = delSuperseded.meta?.changes ?? 0;
         meter.spent += estimateRowWrites({ transactionDeletes: removed });
         if (removed > 0) {
-          log(`  🗑️ Cleared ${removed} superseded legacy transactions (no sub_id)`);
+          log(`  🗑️ Cleared ${removed} superseded transactions (legacy or other committee)`);
+        }
+
+        // donor_aggregates carry no committee column, so a replaced
+        // committee's donors can only be removed wholesale. Done only when this
+        // collection replaced another committee's analysis; ordinary refreshes
+        // keep the zero-cost upsert below.
+        if (progress.replacesCommitteeId && progress.replacesCommitteeId !== committeeId) {
+          const delAgg = await env.DONOR_DB.prepare(
+            'DELETE FROM donor_aggregates WHERE bioguide_id = ? AND cycle = ?'
+          )
+            .bind(bioguideId, cycle)
+            .run();
+          const aggRemoved = delAgg.meta?.changes ?? 0;
+          meter.spent += estimateRowWrites({ aggregateDeletes: aggRemoved });
+          log(
+            `  🗑️ Cleared ${aggRemoved} donor aggregates built from ${progress.replacesCommitteeId}`
+          );
         }
         // donor_aggregates are NOT deleted first. Their primary key is
         // (bioguide_id, cycle, donor_key) and the rewrite below uses
@@ -966,6 +1020,7 @@ async function fetchAndAggregateChunk(
 
     return {
       complete: true,
+      committeeId,
       totalTransactions: analysis.totalTransactions,
       uniqueDonors: analysis.uniqueDonors,
       totalAmount: analysis.totalAmount,
@@ -1137,43 +1192,6 @@ async function reconcileWithFEC(committeeId, cycle, analysis, apiKey, log) {
   } catch (error) {
     log(`  ⚠️ Could not fetch FEC totals for reconciliation: ${error.message}`);
   }
-}
-
-async function searchCommitteeId(name, office, state, apiKey) {
-  const searchUrl = `https://api.open.fec.gov/v1/candidates/search/?api_key=${apiKey}&name=${encodeURIComponent(name)}&office=${office}&state=${state}`;
-
-  const response = await fetch(searchUrl, {
-    headers: { 'User-Agent': 'TaskForcePurple/1.0 (Political Transparency Platform)' },
-  });
-
-  if (!response.ok) {
-    throw new Error(`FEC candidate search failed: ${response.status}`);
-  }
-
-  const data = await response.json();
-  const candidates = data.results || [];
-
-  if (candidates.length === 0) {
-    throw new Error('No candidates found in search');
-  }
-
-  // We only look up sitting members - prefer the incumbent among same-name
-  // candidates (same fix as the data pipeline, 2026-07-13)
-  candidates.sort((a, b) => (b.incumbent_challenge === 'I') - (a.incumbent_challenge === 'I'));
-  const candidate = candidates[0];
-  const committees = candidate.principal_committees || [];
-
-  if (committees.length === 0) {
-    throw new Error('No principal committee found');
-  }
-
-  const currentYear = new Date().getFullYear();
-  const cycle = cycleForYear(currentYear);
-
-  const recentCommittee =
-    committees.find(c => c.cycles && c.cycles.includes(cycle)) || committees[0];
-
-  return recentCommittee.committee_id;
 }
 
 function sleep(ms) {

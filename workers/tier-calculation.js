@@ -220,6 +220,22 @@ export function calculateEnhancedTier(member, concentration = null, options = DE
     return { tier: 'N/A', individualFundingPercent: 0, detail: null };
   }
 
+  // Whose money is this? Figures are graded only when they came from one of
+  // the member's recorded FEC candidate IDs (issue #41). On 2026-09-26, 35
+  // members were showing another person's campaign finances - a sitting
+  // senator's, a parent's, a namesake's from the 1980s - and 25 of them
+  // carried a letter grade for it. Fails closed: a record that was never
+  // stamped is not assumed to be right.
+  if (member.fecIdentityVerified !== true) {
+    return {
+      tier: 'UNVERIFIED',
+      disputed: true,
+      disputeReason: 'fec-identity-not-verified',
+      individualFundingPercent: null,
+      detail: { path: 'unverified-identity' },
+    };
+  }
+
   const hasEnhancedPACData =
     member.pacContributions &&
     member.pacContributions.length > 0 &&

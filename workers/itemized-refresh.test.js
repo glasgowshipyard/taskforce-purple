@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { ANALYSIS_STALENESS_DAYS, isAnalysisFresh } from './itemized-analysis.js';
+import {
+  ANALYSIS_STALENESS_DAYS,
+  isAnalysisFresh,
+  isAnalysisCurrent,
+} from './itemized-analysis.js';
 
 const DAY = 24 * 60 * 60 * 1000;
 const NOW = Date.parse('2026-07-15T00:00:00Z');
@@ -37,5 +41,28 @@ describe('isAnalysisFresh (refresh policy gate)', () => {
 
   it('January-era production snapshots read as stale (the whole point)', () => {
     expect(isAnalysisFresh({ collectionCompletedAt: '2026-01-16T16:00:00.000Z' }, NOW)).toBe(false);
+  });
+});
+
+describe('isAnalysisCurrent (issue #41)', () => {
+  const now = Date.parse('2026-09-26T12:00:00Z');
+  const fresh = { committeeId: 'C00000001', collectionCompletedAt: '2026-09-20T00:00:00Z' };
+
+  it("accepts a fresh analysis of the member's own committee", () => {
+    expect(isAnalysisCurrent(fresh, 'C00000001', now)).toBe(true);
+  });
+
+  it("rejects a fresh analysis of a different committee - someone else's donors", () => {
+    expect(isAnalysisCurrent(fresh, 'C00000002', now)).toBe(false);
+  });
+
+  it('rejects everything when the member has no committee on record', () => {
+    expect(isAnalysisCurrent(fresh, null, now)).toBe(false);
+    expect(isAnalysisCurrent(fresh, undefined, now)).toBe(false);
+  });
+
+  it('still requires freshness', () => {
+    const old = { ...fresh, collectionCompletedAt: '2026-06-01T00:00:00Z' };
+    expect(isAnalysisCurrent(old, 'C00000001', now)).toBe(false);
   });
 });
