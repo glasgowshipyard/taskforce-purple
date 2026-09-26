@@ -5,7 +5,9 @@ import {
   calculateTier,
   calculateTransparencyPenalty,
   cycleForYear,
+  CAPPED_QUADRATIC_OPTIONS,
   DEFAULT_OPTIONS,
+  EXCESS_MONEY_OPTIONS,
   getAdjustedThresholds,
   getPACTransparencyWeight,
   getTrustAnchor,
@@ -124,10 +126,18 @@ describe('calculateItemizationPenalty', () => {
     expect(calculateItemizationPenalty(40, 40)).toBe(0);
   });
 
-  it('is capped so a bad ratio cannot nuke a score to negative territory', () => {
+  it('July 2026 model: capped so a bad ratio cannot nuke a score to negative territory', () => {
     // 95% itemized vs 10% anchor: legacy penalty would be 85^2/20 = 361
-    const penalty = calculateItemizationPenalty(95, 10);
-    expect(penalty).toBe(DEFAULT_OPTIONS.penaltyCap);
+    const penalty = calculateItemizationPenalty(95, 10, CAPPED_QUADRATIC_OPTIONS);
+    expect(penalty).toBe(CAPPED_QUADRATIC_OPTIONS.penaltyCap);
+  });
+
+  it('default model: the penalty can never exceed the individual money it discounts', () => {
+    // 95% itemized vs 10% anchor, individual money = 60% of total raised:
+    // at most the 85% excess of that 60% can be removed = 51 points
+    const penalty = calculateItemizationPenalty(95, 10, DEFAULT_OPTIONS, 60);
+    expect(penalty).toBeCloseTo(51);
+    expect(penalty).toBeLessThan(60);
   });
 
   it('legacy options reproduce the old unbounded curve', () => {
@@ -339,5 +349,83 @@ describe('FEC identity guard (issue #41)', () => {
 
   it('leaves members with no money at N/A rather than UNVERIFIED', () => {
     expect(calculateEnhancedTier({ totalRaised: 0 }).tier).toBe('N/A');
+  });
+});
+
+describe('Step 4 corrected: excess-money penalty (issue #42)', () => {
+  const opts = EXCESS_MONEY_OPTIONS;
+  // A member whose individual money is mostly itemized - the shape that
+  // the capped quadratic flattened to exactly 0 for 145 members
+  const mostlyItemized = (extra = {}) => ({
+    totalRaised: 1000000,
+    fecIdentityVerified: true,
+    grassrootsDonations: 40000, // 4% small donors
+    largeDonorDonations: 280000, // 87.5% of individual money is itemized
+    grassrootsPercent: 4,
+    pacContributions: [{ amount: 1000, committee_type: 'Q', designation: 'U' }],
+    ...extra,
+  });
+
+  it('does not flatten: the same member scores above zero where the old model gave 0', () => {
+    expect(
+      calculateEnhancedTier(mostlyItemized(), null, CAPPED_QUADRATIC_OPTIONS)
+        .individualFundingPercent
+    ).toBe(0);
+    expect(
+      calculateEnhancedTier(mostlyItemized(), null, opts).individualFundingPercent
+    ).toBeGreaterThan(0);
+  });
+
+  it('never scores below the small-donor share, with no floor needed', () => {
+    const dinnerParty = { nakamotoCoefficient: 5, uniqueDonors: 200, totalAmount: 280000 };
+    const r = calculateEnhancedTier(mostlyItemized(), dinnerParty, opts);
+    expect(r.individualFundingPercent).toBeGreaterThanOrEqual(4);
+  });
+
+  it('keeps the ballroom principle: a broad donor base keeps more credit than a dinner party', () => {
+    const movement = { nakamotoCoefficient: 900, uniqueDonors: 6000, totalAmount: 280000 };
+    const dinnerParty = { nakamotoCoefficient: 5, uniqueDonors: 200, totalAmount: 280000 };
+    const broad = calculateEnhancedTier(mostlyItemized(), movement, opts);
+    const narrow = calculateEnhancedTier(mostlyItemized(), dinnerParty, opts);
+    expect(broad.detail.trustAnchorBasis).toBe('movement');
+    expect(narrow.detail.trustAnchorBasis).toBe('dinner-party');
+    expect(broad.individualFundingPercent).toBeGreaterThan(narrow.individualFundingPercent);
+  });
+
+  it('removes exactly the itemized money above the anchor', () => {
+    // individual 32% of total; itemized share 87.5%; default anchor 40
+    // excess 47.5 points of the individual pool = 0.475 x 32 = 15.2 points
+    const r = calculateEnhancedTier(mostlyItemized(), null, opts);
+    expect(r.detail.itemizationPenalty).toBeCloseTo(15.2, 1);
+    expect(r.individualFundingPercent).toBe(17);
+  });
+
+  it('leaves members within their anchor untouched - the reference cases do not move', () => {
+    expect(calculateEnhancedTier(bernie, bernieConcentration, opts).tier).toBe(
+      calculateEnhancedTier(bernie, bernieConcentration, CAPPED_QUADRATIC_OPTIONS).tier
+    );
+    expect(calculateEnhancedTier(pelosi, pelosiConcentration, opts).tier).toBe(
+      calculateEnhancedTier(pelosi, pelosiConcentration, CAPPED_QUADRATIC_OPTIONS).tier
+    );
+  });
+
+  it('no longer lets a cap launder a verified >100% filing into a top grade', () => {
+    // The 2026-09-26 live case: raw 159%, 97% itemized, dinner-party base
+    const verifiedOver = {
+      totalRaised: 390276,
+      fecIdentityVerified: true,
+      financialsVerified: true,
+      dataCycle: 2026,
+      financialsVerifiedCycle: 2026,
+      grassrootsDonations: 18989,
+      largeDonorDonations: 600204,
+      grassrootsPercent: 5,
+      pacContributions: [{ amount: 1000, committee_type: 'Q', designation: 'U' }],
+    };
+    const dinnerParty = { nakamotoCoefficient: 1, uniqueDonors: 377, totalAmount: 600204 };
+    expect(calculateEnhancedTier(verifiedOver, dinnerParty, CAPPED_QUADRATIC_OPTIONS).tier).toBe(
+      'S'
+    );
+    expect(['E', 'F']).toContain(calculateEnhancedTier(verifiedOver, dinnerParty, opts).tier);
   });
 });
