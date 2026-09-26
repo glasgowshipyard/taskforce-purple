@@ -34,6 +34,56 @@
 
 ## Recent Major Updates
 
+### 2026-09-26: 35 members were showing another person's money (post-mortem, #41)
+
+**Status**: ✅ DEPLOYED (pipeline `c1e32360`, itemized `ac74d6a3`, frontend `de9a6d9`); refetch of affected members in progress
+
+**Symptom**: 6 members "stuck" on 2022/2024 data for months. Checking their
+cached `fec_mapping_*` found other people: a House member mapped to a sitting
+senator, another to his father's Senate committee, a senator to her father, one
+to a 1982 namesake. An audit of all 531 cached mappings against the
+[congress-legislators](https://github.com/unitedstates/congress-legislators)
+crosswalk: **489 correct, 35 wrong person, 6 right person / other office.** 25 of
+the 35 carried a published letter grade (18 of them F).
+
+**Root cause**: identity by surname search, cached forever. The matcher searched
+FEC by surname only, trusted `incumbent_challenge` (describes each candidate's
+_last_ race), and matched on `office_sought` — a field the API does not return,
+so the primary match never fired. Re-running it live on 10 bad cases fixed 5
+and re-broke 5; purging the cache would not have worked. The itemized worker
+inherited the wrong committee (so its bundler/FARA/concentration analyses were
+also someone else's) and had its own surname-search fallback.
+
+**Fix**:
+
+- `scripts/build-fec-crosswalk.mjs` → `workers/fec-crosswalk.js` (bioguide →
+  FEC IDs, 21 KB, regenerate when membership changes). `workers/fec-identity.js`
+  resolves/validates; one FEC call per member. Name search deleted everywhere.
+- Every member write stamps `fecCandidateId` + `fecIdentityVerified`. The scorer
+  returns tier **UNVERIFIED** unless `fecIdentityVerified === true` (fails closed).
+- An itemized analysis counts only if fresh **and** from the member's current
+  committee; mismatches are rejected and cleared from the card; completion
+  deletes the member's other-committee D1 rows (same indexed scan as the legacy
+  cleanup) and resets `donor_aggregates` when replacing another committee.
+- Frontend: UNVERIFIED hides every funding section; word tiers render a short
+  badge mark (fixes #36) with a test that every badge label fits the circle.
+- Migration `scripts/migrations/2026-09-26-stamp-fec-identity.mjs` (applied
+  20:01 UTC): 495 verified, 27 members' figures and analyses **removed from the
+  public API** (not just hidden), 4 mismatched analyses cleared, 43 re-queued.
+
+**Verified**: all 539 records stamped; no UNVERIFIED member carries money,
+committee or analysis fields; first recalculation on new code changed 0 of 495
+verified members; mismatch rejection fired for the 2 expected members.
+
+**Known limits**: the crosswalk lags FEC for brand-new registrations (Hinson,
+Downing, Haridopolos had their _own_ Senate IDs cached, which the crosswalk
+does not yet list — they are refetched under their House ID). Person-level
+aggregation across a member's House + Senate campaigns (agreed rule on #41) is
+the next build.
+
+**Also found, not fixed**: 145 members score exactly 0% because a flat 40-point
+penalty is floored at zero, and the row labels that score "Grassroots" (#42).
+
 ### 2026-09-09: D1 write cap breached three days running (post-mortem)
 
 **Status**: ✅ METERED AND ENFORCED (analysis worker `c27def85`)

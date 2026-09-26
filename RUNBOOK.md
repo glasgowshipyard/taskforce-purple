@@ -80,6 +80,19 @@ Nonzero = data corruption (see IMPLEMENTATION_STATUS 2026-07-18 post-mortem
 for the last occurrence and the repair procedure: re-fetch affected members
 via `/api/process-candidate`, then recalculate).
 
+### Identity: is every member's money actually theirs? (added 2026-09-26)
+
+```bash
+curl -s "https://taskforce-purple-api.dev-a4b.workers.dev/api/members" | jq '{verified: ([.members[] | select(.fecIdentityVerified == true)] | length), unverified: ([.members[] | select(.fecIdentityVerified == false)] | length), unstamped: ([.members[] | select(has("fecIdentityVerified") | not)] | length), shownAsChecking: ([.members[] | select(.tier == "UNVERIFIED")] | length)}'
+```
+
+`unstamped` must be 0. `shownAsChecking` should shrink toward 0 as the
+pipeline refetches members under their correct FEC identity (one per Phase 1
+run). A member stuck there for days has no FEC record under their crosswalk IDs
+— check `workers/fec-crosswalk.js` and regenerate it
+(`node scripts/build-fec-crosswalk.mjs`) if Congress membership changed. See
+IMPLEMENTATION_STATUS 2026-09-26 for why identity is never inferred from names.
+
 ## 6. Budgets (free-tier meters)
 
 ```bash
