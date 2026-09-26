@@ -1060,10 +1060,15 @@ export default function MembersList() {
                   </div>
                 ) : (
                   <div>
-                    <div className="text-base sm:text-lg font-bold text-green-600">
-                      {member.individualFundingPercent ?? member.grassrootsPercent}%
+                    {/* The FEC's own figure: share of receipts from donors
+                        giving under $200. This used to print the penalised
+                        tier score under the word "Grassroots" - 145 members
+                        read "0% Grassroots" whatever the FEC said (#42).
+                        Neutral colour: this is a fact, the badge is the verdict. */}
+                    <div className="text-base sm:text-lg font-bold text-gray-900">
+                      {member.grassrootsPercent ?? 0}%
                     </div>
-                    <div className="text-[10px] sm:text-sm text-gray-500">Grassroots</div>
+                    <div className="text-[10px] sm:text-sm text-gray-500">Small donors</div>
                   </div>
                 )}
               </div>
