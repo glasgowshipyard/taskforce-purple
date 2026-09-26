@@ -88,3 +88,6 @@ temp/
 # Claude reference docs (keep internal - contain operational secrets)
 .claude-reference.md
 .CLAUDE_CONTEXT.md
+
+# Local trial outputs (raw donor records, resumable state)
+scripts/trials/output/

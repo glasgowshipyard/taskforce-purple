@@ -11,7 +11,8 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "format": "prettier --write \"**/*.{js,jsx,ts,tsx,json,css,md}\"",
-    "prepare": "node -e \"try{require('husky')}catch{process.exit(0)}\""
+    "prepare": "node -e \"try{require('husky')}catch{process.exit(0)}\"",
+    "trial:pool": "node scripts/trials/pool-donors.mjs"
   },
   "dependencies": {
     "lucide-react": "^0.263.1",
