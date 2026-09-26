@@ -609,10 +609,12 @@ async function fetchAndAggregateChunk(
     // this member's aggregates, so reserve for both rather than paging up to
     // the line and then failing on the write that matters.
     const pageCost = estimateRowWrites({ transactions: perPage });
-    const completionReserve = estimateRowWrites({
-      aggregates: Object.keys(progress.donorTotals || {}).length,
-      metadataReplaces: 1,
-    });
+    // Completion writes one collection_metadata row. It used to reserve
+    // room for a D1 row per donor as well, which for any member with more
+    // donors than a day's budget could cover (7,169 donors needed 14,338 of
+    // the 14,565 rows left) paused the member at the queue head every run
+    // and stalled the whole queue behind them (found 2026-09-26).
+    const completionReserve = estimateRowWrites({ metadataReplaces: 1 });
     if (!canAfford(budget, meter.spent, pageCost + completionReserve)) {
       log(
         `  🧾 Pausing after ${pagesProcessed} pages: next page would exceed the daily D1 write budget`
@@ -897,88 +899,20 @@ async function fetchAndAggregateChunk(
         if (removed > 0) {
           log(`  🗑️ Cleared ${removed} superseded transactions (legacy or other committee)`);
         }
-
-        // donor_aggregates carry no committee column, so a replaced
-        // committee's donors can only be removed wholesale. Done only when this
-        // collection replaced another committee's analysis; ordinary refreshes
-        // keep the zero-cost upsert below.
-        if (progress.replacesCommitteeId && progress.replacesCommitteeId !== committeeId) {
-          const delAgg = await env.DONOR_DB.prepare(
-            'DELETE FROM donor_aggregates WHERE bioguide_id = ? AND cycle = ?'
-          )
-            .bind(bioguideId, cycle)
-            .run();
-          const aggRemoved = delAgg.meta?.changes ?? 0;
-          meter.spent += estimateRowWrites({ aggregateDeletes: aggRemoved });
-          log(
-            `  🗑️ Cleared ${aggRemoved} donor aggregates built from ${progress.replacesCommitteeId}`
-          );
-        }
-        // donor_aggregates are NOT deleted first. Their primary key is
-        // (bioguide_id, cycle, donor_key) and the rewrite below uses
-        // INSERT OR REPLACE, so every row this run produces overwrites its
-        // predecessor. Deleting first doubled the write cost of every
-        // completion for no benefit (~21k row-writes/day of the 109k that
-        // breached the cap on 2026-09-07).
-        //
-        // Residual: a donor present in a previous collection but absent from
-        // this one leaves a stale row. That needs an FEC correction to
-        // happen and this table is an analytical mirror, rebuildable from
-        // itemized_transactions with a GROUP BY (as done in July 2026).
       } catch (error) {
         log(`  ⚠️ D1 cleanup failed (continuing): ${error.message}`);
       }
     }
 
-    // Write donor aggregates to D1 (for analytical queries)
+    // donor_aggregates is no longer written (2026-09-26). Nothing in the
+    // system ever read it - the per-donor totals the grade uses live in the
+    // KV analysis - so it cost roughly a third of the D1 write budget for
+    // nothing, and reserving budget for it stalled the queue (see the
+    // completion reserve above). If it is ever wanted, it can be rebuilt from
+    // itemized_transactions with a GROUP BY, as done in July 2026.
     if (env.DONOR_DB) {
-      try {
-        log(`  💾 Writing ${Object.keys(progress.donorTotals).length} donor aggregates to D1...`);
-        const donorAggregates = Object.entries(progress.donorTotals).map(([key, amount]) => {
-          const [firstName, lastName, state, zip] = key.split('|');
-          return { key, firstName, lastName, state, zip, amount };
-        });
-
-        // D1 has a low per-statement bound-parameter limit: one row per
-        // statement, batched via the D1 batch API (same pattern as the
-        // transaction insert above). The old 100-row multi-VALUES insert
-        // (800 params) failed for any member with >12 donors and silently
-        // took the metadata write down with it.
-        const BATCH_SIZE = 100; // statements per batch call (8 params each)
-        for (let i = 0; i < donorAggregates.length; i += BATCH_SIZE) {
-          const batch = donorAggregates.slice(i, i + BATCH_SIZE);
-          // Upsert, NOT `INSERT OR REPLACE`. REPLACE is a delete followed by
-          // an insert, so it cost 4 row-writes (table + PK index, twice) for
-          // every donor on every re-collection even when the amount was
-          // identical - ~57k of the 117k row-writes that breached the free
-          // tier's 100k cap on 2026-09-09. DO UPDATE touches no indexed
-          // column, so it costs 1; the WHERE makes an unchanged donor cost 0.
-          const statements = batch.map(d =>
-            env.DONOR_DB.prepare(
-              `INSERT INTO donor_aggregates
-               (bioguide_id, cycle, donor_key, first_name, last_name, state, zip, total_amount, transaction_count)
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1)
-               ON CONFLICT(bioguide_id, cycle, donor_key) DO UPDATE SET
-                 first_name = excluded.first_name,
-                 last_name = excluded.last_name,
-                 state = excluded.state,
-                 zip = excluded.zip,
-                 total_amount = excluded.total_amount,
-                 updated_at = CURRENT_TIMESTAMP
-               WHERE donor_aggregates.total_amount IS NOT excluded.total_amount`
-            ).bind(bioguideId, cycle, d.key, d.firstName, d.lastName, d.state, d.zip, d.amount)
-          );
-          await env.DONOR_DB.batch(statements);
-          meter.spent += estimateRowWrites({ aggregates: batch.length });
-        }
-
-        log(`  ✅ D1 donor aggregates written`);
-      } catch (error) {
-        log(`  ⚠️ D1 aggregate write failed: ${error.message}`);
-      }
-
-      // Collection metadata gets its own try/catch: an aggregates failure
-      // must never block the completion record
+      // Collection metadata gets its own try/catch so a D1 failure here is
+      // logged without failing the completion
       try {
         await env.DONOR_DB.prepare(
           `INSERT OR REPLACE INTO collection_metadata

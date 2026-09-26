@@ -35,7 +35,10 @@ CREATE INDEX IF NOT EXISTS idx_bioguide ON itemized_transactions(bioguide_id);
 -- Unique on sub_id for dedup/idempotent inserts (SQLite allows multiple NULLs, so legacy rows are unaffected)
 CREATE UNIQUE INDEX IF NOT EXISTS idx_sub_id ON itemized_transactions(sub_id);
 
--- Pre-aggregated donor totals (for fast Gini/concentration queries)
+-- Pre-aggregated donor totals. FROZEN since 2026-09-26: no longer written,
+-- because nothing ever read it (per-donor totals live in the KV analysis) and
+-- it consumed ~1/3 of the D1 write budget. Rows here are stale. Rebuildable
+-- from itemized_transactions with a GROUP BY if ever needed.
 CREATE TABLE IF NOT EXISTS donor_aggregates (
   bioguide_id TEXT NOT NULL,
   cycle INTEGER NOT NULL,
