@@ -105,6 +105,26 @@ export class TaskForceAPI {
     return response.json();
   }
 
+  /**
+   * The money figures a member's grade was computed on: all their committees
+   * once their person-level analysis is complete (#32), otherwise their
+   * campaign committee. Every figure on a card goes through this so the card
+   * never contradicts its own grade.
+   */
+  static displayFigures(member) {
+    const all = member.gradeBasis === 'all-committees' && member.personFigures;
+    const f = all ? member.personFigures : member;
+    return {
+      allCommittees: Boolean(all),
+      totalRaised: f.totalRaised || 0,
+      grassrootsDonations: f.grassrootsDonations || 0,
+      largeDonorDonations: f.largeDonorDonations,
+      pacMoney: f.pacMoney || 0,
+      grassrootsPercent: f.grassrootsPercent ?? 0,
+      scope: all ? 'across all their committees' : 'to their campaign committee',
+    };
+  }
+
   static isRingfenced(tier) {
     return RINGFENCED_TIERS.includes(tier);
   }

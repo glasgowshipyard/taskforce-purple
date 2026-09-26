@@ -1170,6 +1170,16 @@ async function calculateEnhancedTier(member, _allMembers = [], env = null) {
 
   const result = computeEnhancedTier(scored, concentration);
   result.gradeBasis = personLevel ? 'all-committees' : 'campaign-committee';
+  result.personFigures = personLevel
+    ? {
+        totalRaised: pf.totalRaised,
+        grassrootsDonations: pf.grassrootsDonations,
+        largeDonorDonations: pf.largeDonorDonations,
+        pacMoney: pf.pacMoney,
+        partyMoney: pf.partyMoney,
+        grassrootsPercent: pf.grassrootsPercent,
+      }
+    : null;
 
   if (result.detail?.path === 'enhanced') {
     console.log(
@@ -2106,8 +2116,13 @@ async function performTierRecalculation(env) {
         concentration,
         concentrationRejected,
         gradeBasis,
+        personFigures,
       } = await calculateEnhancedTier(member, members, env);
       member.gradeBasis = gradeBasis;
+      // The figures the grade was computed on, when that is all committees,
+      // so every number on the card matches the grade (campaign-only figures
+      // stay in the member's own fields, refreshed by Phase 1)
+      member.personFigures = personFigures;
       member.individualFundingPercent = individualFundingPercent;
 
       // Merge concentration metrics into the member record so /api/members

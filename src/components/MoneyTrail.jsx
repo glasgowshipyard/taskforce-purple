@@ -6,21 +6,21 @@ import { TaskForceAPI } from '../lib/api.js';
 // not need to know FEC jargon to see what each one is for.
 function describe(c) {
   if (c.role === 'campaign') {
-    return 'Their campaign committee — pays for their own election.';
+    return 'Pays for their own election.';
   }
   if (c.role === 'leadership') {
-    return "Leadership PAC — money they hand out to other politicians' campaigns, which builds loyalty and influence.";
+    return "Money they hand out to other politicians' campaigns, which builds loyalty and influence.";
   }
   if (c.ownFund) {
-    return 'Joint fundraising fund in their name — lets one donor write a single cheque far above the legal limit for a candidate, which is then split across several committees. Legal.';
+    return 'Their own fund: lets one donor write a single cheque far above the legal limit for a candidate, which is then split across several committees. Legal.';
   }
-  return 'Shared joint fundraising fund — raises for several politicians and party committees at once. Counted here only for what it sent them.';
+  return 'Shared with other politicians and party committees. Counted here only for what it sent them.';
 }
 
 const ROLE_LABEL = {
   campaign: 'Campaign',
   leadership: 'Leadership PAC',
-  joint: 'Joint fund',
+  joint: 'Joint fundraising fund',
 };
 
 const usd = n => TaskForceAPI.formatCurrency(Math.round(n || 0));

@@ -122,3 +122,47 @@ describe('tier badge', () => {
     }
   });
 });
+
+describe('displayFigures - the card never contradicts its grade (#32)', () => {
+  const member = {
+    totalRaised: 2465830,
+    grassrootsDonations: 1411327,
+    largeDonorDonations: 808796,
+    pacMoney: 33000,
+    grassrootsPercent: 57,
+  };
+  const personFigures = {
+    totalRaised: 5925907,
+    grassrootsDonations: 3827846,
+    largeDonorDonations: 1967754,
+    pacMoney: 47715,
+    grassrootsPercent: 64,
+  };
+
+  it('shows campaign figures while the grade is on the campaign basis', () => {
+    const f = TaskForceAPI.displayFigures({
+      ...member,
+      gradeBasis: 'campaign-committee',
+      personFigures: null,
+    });
+    expect(f.allCommittees).toBe(false);
+    expect(f.grassrootsPercent).toBe(57);
+  });
+
+  it('shows all-committee figures once the grade uses them', () => {
+    const f = TaskForceAPI.displayFigures({
+      ...member,
+      gradeBasis: 'all-committees',
+      personFigures,
+    });
+    expect(f.allCommittees).toBe(true);
+    expect(f.grassrootsPercent).toBe(64);
+    expect(f.totalRaised).toBe(5925907);
+  });
+
+  it('falls back to campaign figures if the basis says all but the figures are missing', () => {
+    expect(
+      TaskForceAPI.displayFigures({ ...member, gradeBasis: 'all-committees' }).allCommittees
+    ).toBe(false);
+  });
+});

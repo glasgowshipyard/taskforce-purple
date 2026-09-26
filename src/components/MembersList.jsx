@@ -215,6 +215,10 @@ export default function MembersList() {
     setDisplayedCount(ITEMS_PER_PAGE);
   }, [searchTerm]);
 
+  // Figures matching the member's grade basis - all committees once their
+  // person-level analysis is complete (#32), else the campaign committee
+  const fig = selectedMember ? TaskForceAPI.displayFigures(selectedMember) : null;
+
   if (loading) {
     return (
       <div className="flex items-center justify-center py-12">
@@ -401,18 +405,11 @@ export default function MembersList() {
                     </p>
                     <p className="text-sm text-gray-600 mt-2">
                       People power from{' '}
-                      <span className="font-semibold">
-                        {selectedMember.grassrootsPercent}% grassroots
-                      </span>{' '}
-                      +{' '}
+                      <span className="font-semibold">{fig.grassrootsPercent}% grassroots</span> +{' '}
                       <span className="font-semibold">
                         {/* null itemized = not yet fetched, which is NOT 0% */}
-                        {selectedMember.totalRaised > 0 &&
-                        Number.isFinite(selectedMember.largeDonorDonations)
-                          ? `${(
-                              (selectedMember.largeDonorDonations / selectedMember.totalRaised) *
-                              100
-                            ).toFixed(0)}%`
+                        {fig.totalRaised > 0 && Number.isFinite(fig.largeDonorDonations)
+                          ? `${((fig.largeDonorDonations / fig.totalRaised) * 100).toFixed(0)}%`
                           : 'unfetched'}{' '}
                         itemized
                       </span>{' '}
@@ -447,7 +444,7 @@ export default function MembersList() {
           ) : (
             <>
               {/* Every committee the member runs, and who funds them (#32) */}
-              {selectedMember.totalRaised > 0 && <MoneyTrail member={selectedMember} />}
+              {fig.totalRaised > 0 && <MoneyTrail member={selectedMember} />}
 
               {/* Donor concentration - who controls the big money */}
               {Number.isFinite(selectedMember.nakamotoCoefficient) &&
@@ -481,11 +478,15 @@ export default function MembersList() {
                       })()}
                     </div>
                     <p className="text-sm text-gray-700">
-                      Half of all the large-donation money this campaign raised came from just{' '}
+                      Half of all the large-donation money{' '}
+                      {fig.allCommittees
+                        ? 'raised across all their committees'
+                        : 'this campaign raised'}{' '}
+                      came from just{' '}
                       <span className="font-bold text-purple-900">
                         {selectedMember.nakamotoCoefficient.toLocaleString()}
                       </span>{' '}
-                      of its{' '}
+                      of {fig.allCommittees ? 'their' : 'its'}{' '}
                       <span className="font-semibold">
                         {selectedMember.uniqueDonors.toLocaleString()}
                       </span>{' '}
@@ -498,13 +499,12 @@ export default function MembersList() {
                         <div className="flex items-center space-x-2 mb-2">
                           <Share2 className="w-4 h-4 text-purple-700" />
                           <h4 className="text-sm font-semibold text-purple-900">
-                            Who bundles this campaign's money
+                            Who bundles {fig.allCommittees ? 'their' : "this campaign's"} money
                           </h4>
                         </div>
                         {(() => {
                           const individual =
-                            (selectedMember.grassrootsDonations || 0) +
-                            (selectedMember.largeDonorDonations || 0);
+                            (fig.grassrootsDonations || 0) + (fig.largeDonorDonations || 0);
                           const earmarked = selectedMember.earmarkedIndividualTotal || 0;
                           const pct =
                             individual > 0 ? Math.round((earmarked / individual) * 100) : 0;
@@ -513,10 +513,10 @@ export default function MembersList() {
                               <span className="font-bold">
                                 {TaskForceAPI.formatCurrency(earmarked)}
                               </span>{' '}
-                              of this campaign's donations from people —{' '}
-                              <span className="font-bold">{pct}%</span> — didn't arrive on their
-                              own. Organizations collected them and delivered them in blocks. Legal,
-                              and exactly how influence networks operate in plain sight:
+                              of {fig.allCommittees ? 'their' : "this campaign's"} donations from
+                              people — <span className="font-bold">{pct}%</span> — didn't arrive on
+                              their own. Organizations collected them and delivered them in blocks.
+                              Legal, and exactly how influence networks operate in plain sight:
                             </p>
                           ) : null;
                         })()}
@@ -632,38 +632,38 @@ export default function MembersList() {
               ) : (
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
                   <div
-                    className={`p-4 rounded-lg ${selectedMember.grassrootsPercent <= 15 ? 'bg-red-50' : 'bg-green-50'}`}
+                    className={`p-4 rounded-lg ${fig.grassrootsPercent <= 15 ? 'bg-red-50' : 'bg-green-50'}`}
                   >
                     <div className="flex items-center space-x-2 mb-2">
                       <TrendingUp
-                        className={`w-5 h-5 ${selectedMember.grassrootsPercent <= 15 ? 'text-red-600' : 'text-green-600'}`}
+                        className={`w-5 h-5 ${fig.grassrootsPercent <= 15 ? 'text-red-600' : 'text-green-600'}`}
                       />
                       <span
-                        className={`font-semibold text-xs ${selectedMember.grassrootsPercent <= 15 ? 'text-red-800' : 'text-green-800'}`}
+                        className={`font-semibold text-xs ${fig.grassrootsPercent <= 15 ? 'text-red-800' : 'text-green-800'}`}
                       >
                         Grassroots (&lt;$200)
                       </span>
                     </div>
                     <div
-                      className={`text-2xl font-bold ${selectedMember.grassrootsPercent <= 15 ? 'text-red-600' : 'text-green-600'}`}
+                      className={`text-2xl font-bold ${fig.grassrootsPercent <= 15 ? 'text-red-600' : 'text-green-600'}`}
                     >
-                      {selectedMember.grassrootsPercent}%
+                      {fig.grassrootsPercent}%
                       {selectedMember.hasEnhancedData && selectedMember.grassrootsPACTypes && (
                         <span
-                          className={`text-sm font-normal ${selectedMember.grassrootsPercent <= 15 ? 'text-red-600' : 'text-green-600'}`}
+                          className={`text-sm font-normal ${fig.grassrootsPercent <= 15 ? 'text-red-600' : 'text-green-600'}`}
                         >
                           *
                         </span>
                       )}
                     </div>
                     <div
-                      className={`text-sm ${selectedMember.grassrootsPercent <= 15 ? 'text-red-700' : 'text-green-700'}`}
+                      className={`text-sm ${fig.grassrootsPercent <= 15 ? 'text-red-700' : 'text-green-700'}`}
                     >
-                      {TaskForceAPI.formatCurrency(selectedMember.grassrootsDonations)}
+                      {TaskForceAPI.formatCurrency(fig.grassrootsDonations)}
                     </div>
                     {selectedMember.hasEnhancedData && selectedMember.grassrootsPACTypes && (
                       <div
-                        className={`text-xs mt-1 ${selectedMember.grassrootsPercent <= 15 ? 'text-red-600' : 'text-green-600'}`}
+                        className={`text-xs mt-1 ${fig.grassrootsPercent <= 15 ? 'text-red-600' : 'text-green-600'}`}
                       >
                         *includes {selectedMember.grassrootsPACTypes.join(', ')}
                       </div>
@@ -678,14 +678,13 @@ export default function MembersList() {
                       </span>
                     </div>
                     <div className="text-2xl font-bold text-orange-600">
-                      {selectedMember.totalRaised > 0 &&
-                      Number.isFinite(selectedMember.largeDonorDonations)
-                        ? `${((selectedMember.largeDonorDonations / selectedMember.totalRaised) * 100).toFixed(1)}%`
+                      {fig.totalRaised > 0 && Number.isFinite(fig.largeDonorDonations)
+                        ? `${((fig.largeDonorDonations / fig.totalRaised) * 100).toFixed(1)}%`
                         : '—'}
                     </div>
                     <div className="text-sm text-orange-700">
-                      {Number.isFinite(selectedMember.largeDonorDonations)
-                        ? TaskForceAPI.formatCurrency(selectedMember.largeDonorDonations)
+                      {Number.isFinite(fig.largeDonorDonations)
+                        ? TaskForceAPI.formatCurrency(fig.largeDonorDonations)
                         : 'not yet fetched'}
                     </div>
                   </div>
@@ -696,22 +695,24 @@ export default function MembersList() {
                       <span className="font-semibold text-xs text-red-800">PAC Money</span>
                     </div>
                     <div className="text-2xl font-bold text-red-600">
-                      {selectedMember.totalRaised > 0
-                        ? `${((selectedMember.pacMoney / selectedMember.totalRaised) * 100).toFixed(1)}%`
+                      {fig.totalRaised > 0
+                        ? `${((fig.pacMoney / fig.totalRaised) * 100).toFixed(1)}%`
                         : '0%'}
                     </div>
                     <div className="text-sm text-red-700">
-                      {TaskForceAPI.formatCurrency(selectedMember.pacMoney)}
+                      {TaskForceAPI.formatCurrency(fig.pacMoney)}
                     </div>
                   </div>
 
                   <div className="bg-purple-50 p-4 rounded-lg">
                     <div className="flex items-center space-x-2 mb-2">
                       <Eye className="w-5 h-5 text-purple-600" />
-                      <span className="font-semibold text-xs text-purple-800">Total Raised</span>
+                      <span className="font-semibold text-xs text-purple-800">
+                        {fig.allCommittees ? 'Total received (all committees)' : 'Total Raised'}
+                      </span>
                     </div>
                     <div className="text-2xl font-bold text-purple-600">
-                      {TaskForceAPI.formatCurrency(selectedMember.totalRaised)}
+                      {TaskForceAPI.formatCurrency(fig.totalRaised)}
                     </div>
                     <div className="text-sm text-purple-700">
                       {selectedMember.dataCycle || 2024} Election Cycle
@@ -1070,7 +1071,7 @@ export default function MembersList() {
                         read "0% Grassroots" whatever the FEC said (#42).
                         Neutral colour: this is a fact, the badge is the verdict. */}
                     <div className="text-base sm:text-lg font-bold text-gray-900">
-                      {member.grassrootsPercent ?? 0}%
+                      {TaskForceAPI.displayFigures(member).grassrootsPercent}%
                     </div>
                     <div className="text-[10px] sm:text-sm text-gray-500">Small donors</div>
                   </div>
