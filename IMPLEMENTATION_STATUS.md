@@ -45,36 +45,72 @@ broad itemized bases up (13 F→D), concentrated ones down (Whitehouse, Clyde
 D→F; Thanedar A→F). F 302 → 187. 121 tests pass.
 **Held back** so every grade changes once, together with the branch below.
 
-### Branch `person-funding` — every committee a member runs (#32) — not ready
+### Branch `person-funding` — every committee a member runs (#32) — built, NOT deployed, paused 2026-09-26 ~22:15 UTC
 
-`workers/person-funding.js` finds a member's campaign(s), joint fundraising
-funds and leadership PACs from their crosswalk IDs, **finds unregistered
-joint funds from the transfers they send in** (Schedule A line 12, committee
-senders — e.g. "TEAM SCALISE" $5.9M, "JOSH HAWLEY VICTORY COMMITTEE" $1.45M,
-neither registered under the member), nets money moved between the member's
-own committees, and apportions money from other joint funds by that fund's
-own donor mix. Trial on 10 members (`scripts/trials/person-funding-trial.mjs`),
-invariants pass:
+Contains the Step 4 fix too (branch `fix-step4-penalty` is superseded). 138
+tests pass; lint and build clean. Pushed to origin.
 
-| Member       | Campaign committee only     | All committees                                                            |
-| ------------ | --------------------------- | ------------------------------------------------------------------------- |
-| Pelosi       | 29% of her money; small 57% | $8.3M; small 46%; Victory Fund: 152 donors, 8 hold half, largest $315,100 |
-| Mike Johnson | one committee               | +$6.9M via joint funds; itemized $8.4M → $14.4M                           |
-| Scalise      | PAC $171k                   | $19.1M; PAC $3.9M                                                         |
-| Thune        | —                           | PAC 45% via two leadership PACs                                           |
-| AOC, Sanders | —                           | unchanged (controls)                                                      |
+**Agreed rule (owner, 2026-09-26):** show everything raised in the member's
+name in full; grade on what the member _received_; put the donors of the
+member's _own_ joint funds into their concentration test in full.
 
-**Before this can deploy:**
+- Received = campaign(s) + leadership PAC + money any joint fund transferred
+  in, split by that fund's own donor mix (every fund alike: no dollar is
+  credited to two members).
+- Own fund = registered under the member's candidacy, or the member's
+  committees are its largest candidate recipient (Schedule B; party
+  committees excluded). Leaders' funds send most to the party, so "received
+  most of it" was wrong — e.g. GROW THE MAJORITY: $95.8M raised, $5.0M to the
+  Speaker, $74.8M passed on.
 
-1. **Owner decision pending**: when a member's joint fund passes money to
-   other committees, is it counted in full, or in proportion to what the
-   member received (recommended — no dollar counted for two members; the
-   fund's donors still enter the member's concentration analysis in full;
-   the card discloses the fund's full take)?
-2. The itemized worker must collect donors from **all** of a member's
-   committees into one pool, so concentration sees joint-fund donors
-   (without it Pelosi stays A 85 and Hawley would jump F→A 76 unexamined).
-3. Full-Congress simulation of both branches together, then one deploy.
+**What is built:**
+
+- `workers/person-funding.js`: discovery from crosswalk IDs; unregistered
+  joint funds found by the transfers they send (line 12, committee senders,
+  designation J); netting of transfers between own committees; FEC size
+  breakdowns that don't reconcile are withheld; request-budget wrapper.
+- Itemized worker: a discovery run per member (<=40 FEC calls, 1 s apart),
+  then donor collection across every committee in the pool into one total
+  per person; analyses marked `personLevel`; hourly discovery sweep (:10
+  run) so money trails publish within ~3 weeks; cron moved to :10/:30/:50;
+  donor key uses 5-digit zip.
+- Pipeline: grades on all committees only once a member's analysis is
+  person-level (otherwise campaign basis, stated on the card); stores
+  `gradeBasis` + `personFigures`; `/api/member-detail` serves the money trail
+  per profile (the list payload is already ~3.5 MB).
+- Frontend: `MoneyTrail` panel — every committee in plain English with FEC
+  links, raised, $2,000+ share, sent to member, passed on; largest donors;
+  grade basis stated. Every card figure follows the grade basis. Verified
+  visually with Pelosi's real trial data (panel only; endpoint not live).
+
+**Trial (7–10 members, live FEC, invariants pass):** raised in name —
+Mike Johnson $127.8M, Scalise $48.7M, Jeffries $31.5M, Pelosi $8.3M (her
+campaign handles 30%); AOC/Sanders essentially unchanged.
+
+**Not done — resume here:**
+
+1. Pelosi's pooled-donor grade (the owner's reference question). Script:
+   scratchpad `pool.mjs` pulling Schedule A for C00492421, C00344234,
+   C00213512 (~260 calls); stopped by 429s. Run it **off-peak and slower
+   than 1/s** — see rate-limit note below.
+2. Owner approval to deploy. Deploy order: merge to main (frontend), deploy
+   both workers. Effects: Step 4 grades change at once (simulated); each
+   member's grade may change again when their person-level collection
+   completes (weeks, as the queue cycles) — owner to confirm that is
+   acceptable versus holding Step 4.
+3. After deploy: RUNBOOK entries for the sweep and `/api/member-detail`.
+
+**Found today, not fixed:**
+
+- **FEC key limit is 60 requests per MINUTE** (response header
+  `x-ratelimit-limit: 60`), shared by the live pipeline, the itemized
+  worker and any local script. Local trials at 4/s tripped it repeatedly;
+  a script at ~1/s still collides with the workers' cron minutes.
+- D1 holds none of Pelosi's campaign transactions although her analysis
+  counted 23,087 (Aug 17) — the D1 mirror has gaps. Grades don't use D1;
+  the FARA join does, so FARA matches may be incomplete for such members.
+- `processing_status` not written 10:21–20:00 UTC on 2026-09-26 (old code);
+  normal since the 20:02 deploy; cause unknown.
 
 ### Discarded on 2026-09-26 — do not revive
 

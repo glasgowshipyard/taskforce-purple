@@ -91,6 +91,9 @@ redesigned them wasted days and, twice, proposed breaking them. Build on them.
 estimateRowWrites({...})`) — an unmetered path silently reopens the hole.
   Its per-row costs are measured against production, not derived from the
   index count; re-measure rather than reason about them (RUNBOOK §6).
+- **FEC rate limit: 60 requests per minute per key**, shared by both
+  workers and any local script. Space calls >= 1 s and avoid the workers'
+  cron minutes when running trials.
 - **D1 bound-parameter limit**: batch inserts at ~10 rows/statement (see the
   transactions insert in itemized-analysis.js). Larger batches fail silently
   if wrapped in catch blocks — this already bit us once.
