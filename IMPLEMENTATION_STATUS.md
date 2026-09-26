@@ -89,10 +89,22 @@ campaign handles 30%); AOC/Sanders essentially unchanged.
 
 **Not done — resume here:**
 
-1. Pelosi's pooled-donor grade (the owner's reference question). Script:
-   scratchpad `pool.mjs` pulling Schedule A for C00492421, C00344234,
-   C00213512 (~260 calls); stopped by 429s. Run it **off-peak and slower
-   than 1/s** — see rate-limit note below.
+1. Pelosi's pooled-donor grade (the owner's reference question). Run it
+   yourself, unattended — read-only, resumable, no AI needed:
+
+   ```bash
+   git switch person-funding
+   caffeinate -i npm run trial:pool -- P000197
+   ```
+
+   `caffeinate -i` stops the Mac sleeping mid-run. Watch it with
+   `tail -f scripts/trials/output/P000197/log.txt`; the result lands in
+   `scripts/trials/output/P000197/summary.md`, which starts by saying
+   whether the figures reconcile with the FEC's own. If it stops for any
+   reason, run the same command again and it resumes. Real size (measured
+   2026-09-26): campaign 46,389 records, PAC to the Future 49,266, Victory
+   Fund 346 — about 960 requests, roughly an hour at the safe pace.
+
 2. Owner approval to deploy. Deploy order: merge to main (frontend), deploy
    both workers. Effects: Step 4 grades change at once (simulated); each
    member's grade may change again when their person-level collection
