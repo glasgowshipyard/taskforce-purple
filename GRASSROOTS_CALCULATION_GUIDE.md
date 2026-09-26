@@ -61,19 +61,30 @@ if it has ≥10 unique donors AND its collected total covers ≥50% of the
 member's FEC-reported itemized contributions. Early-cycle partial snapshots
 previously read as "tiny donor base" and wrongly triggered the 10% anchor.
 
-### Step 4: Itemization penalty (capped quadratic)
+### Step 4: Itemization penalty (excess money)
 
 ```
-excess  = max(0, itemizedShare − anchor)
-penalty = min(excess² / 20, 40)
+excess  = max(0, itemizedShare − anchor)          // points of INDIVIDUAL money
+penalty = excess / 100 × rawIndividualFundingPercent   // same money, as points of TOTAL
 individualFundingPercent −= penalty
-individualFundingPercent = max(0, individualFundingPercent)   // floor
 ```
 
-The quadratic punishes structural capture harder than minor slips. The **cap
-(40 points)** and **floor (0)** were added in July 2026: without them, typical
-members with mostly-itemized individual funding took penalties of 200–390
-points and 292 members had negative scores.
+Itemized money above the anchor stops counting as people-funding. That is
+the whole rule: a broad donor base (movement anchor, 50%) keeps credit for
+more of its itemized money than a dinner party (10%). A score can never fall
+below the member's small-donor share, so no cap or floor is needed.
+
+**Why it changed (September 2026, #42).** From July to September the penalty
+was `min(excess² / 20, 40)`, floored at 0. It measured the excess in points of
+individual money, squared it, and subtracted it from a share of total money —
+two different denominators — so raw penalties reached 200–390 points. A cap
+of 40 and a floor at 0 were bolted on to stop negative scores, and together
+they put **145 members on an identical 0**, erasing every difference below
+40%. The cap also _limited_ the penalty for the most concentrated donor
+bases, letting them sit a tier or more above where their filings put them.
+Simulated on live data before deploying (`scripts/simulations/penalty-model-sim.mjs`):
+zeros 145 → 0; top of the table unchanged (the reference S/A members carry no
+penalty under either model).
 
 ### Step 5: PAC transparency penalty (threshold shift)
 

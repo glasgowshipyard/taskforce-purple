@@ -15,9 +15,10 @@
  *                       measured against thresholds shifted by PAC penalties
  */
 
-// Penalty tuning. `legacy: false` is the recalibrated curve; LEGACY_OPTIONS
-// reproduces the pre-July-2026 behavior for comparison/simulation.
-export const DEFAULT_OPTIONS = {
+// The July 2026 model: capped quadratic with a floor. Superseded by the
+// excess-money model below (#42); kept for simulation and comparison.
+export const CAPPED_QUADRATIC_OPTIONS = {
+  penaltyModel: 'capped-quadratic',
   quadraticDivisor: 20, // penalty = excess^2 / divisor (original curve)
   penaltyCap: 40, // max points a concentration penalty can remove
   floorAtZero: true, // individualFundingPercent never goes negative
@@ -28,7 +29,31 @@ export const DEFAULT_OPTIONS = {
   minUniqueDonors: 10,
 };
 
+// Step 4 corrected (issue #42). The capped quadratic measures the excess in
+// points of INDIVIDUAL money, squares it, and subtracts it from a share of
+// TOTAL money - two different denominators. That mismatch is why raw
+// penalties reached 200-390 points, which is why a 40-point cap and a floor
+// at zero were bolted on in July 2026, which is why 145 members ended up on
+// an identical 0.
+//
+// 'excess-money' keeps the settled design - itemized money counts as
+// individual support, up to an anchor set by how concentrated the donor base
+// is - and applies it in money: itemized money ABOVE the anchor stops
+// counting as people-funding. Same units throughout, so no divisor, cap or
+// floor is needed; a score can never fall below the small-donor share.
+export const EXCESS_MONEY_OPTIONS = {
+  penaltyModel: 'excess-money',
+  floorAtZero: false, // cannot go negative by construction
+  minConcentrationCoverage: 0.5,
+  minUniqueDonors: 10,
+};
+
+// What production uses.
+export const DEFAULT_OPTIONS = EXCESS_MONEY_OPTIONS;
+
+// Pre-July-2026: uncapped quadratic, no floor (produced negative scores).
 export const LEGACY_OPTIONS = {
+  penaltyModel: 'capped-quadratic',
   quadraticDivisor: 20,
   penaltyCap: Infinity,
   floorAtZero: false,
@@ -167,11 +192,24 @@ export function getTrustAnchor(member, concentration, options = DEFAULT_OPTIONS)
   return { anchor: 50, basis: 'movement', nakamotoPercent };
 }
 
-// Capped quadratic penalty on itemized share exceeding the trust anchor
-export function calculateItemizationPenalty(itemizedPercent, anchor, options = DEFAULT_OPTIONS) {
+// Points removed from individualFundingPercent for itemized money beyond
+// the trust anchor.
+//   capped-quadratic: min(excess^2 / divisor, cap)      (July 2026)
+//   excess-money:     the excess itemized money itself, as a share of total
+//                     raised - excess% of the individual pool x the pool's
+//                     share of total                    (#42)
+export function calculateItemizationPenalty(
+  itemizedPercent,
+  anchor,
+  options = DEFAULT_OPTIONS,
+  rawIndividualFundingPercent = 0
+) {
   const excess = Math.max(0, itemizedPercent - anchor);
   if (excess === 0) {
     return 0;
+  }
+  if (options.penaltyModel === 'excess-money') {
+    return (excess / 100) * rawIndividualFundingPercent;
   }
   return Math.min((excess * excess) / options.quadraticDivisor, options.penaltyCap);
 }
@@ -295,7 +333,12 @@ export function calculateEnhancedTier(member, concentration = null, options = DE
   let individualFundingPercent = rawIndividualFundingPercent;
 
   const { anchor, basis, nakamotoPercent } = getTrustAnchor(member, concentration, options);
-  const itemizationPenalty = calculateItemizationPenalty(itemizedPercent, anchor, options);
+  const itemizationPenalty = calculateItemizationPenalty(
+    itemizedPercent,
+    anchor,
+    options,
+    rawIndividualFundingPercent
+  );
   individualFundingPercent -= itemizationPenalty;
 
   if (options.floorAtZero) {
