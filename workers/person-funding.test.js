@@ -3,19 +3,32 @@ import {
   selectVehicles,
   classifyTransfers,
   combineVehicleTotals,
-  vehicleSignature,
+  isMembersOwnFund,
+  largestCandidateRecipient,
+  donorCommitteeIds,
+  committeeSignature,
 } from './person-funding.js';
 
-// Shapes from live FEC responses, 2026 cycle (#32 trial, 2026-09-26)
-const campaign = { committee_id: 'C1', designation: 'P', cycles: [2024, 2026], name: 'CAMPAIGN' };
-const jfc = { committee_id: 'C2', designation: 'J', cycles: [2026], name: 'VICTORY FUND' };
-const oldJfc = { committee_id: 'C3', designation: 'J', cycles: [2010], name: 'OLD FUND' };
-const leadership = { committee_id: 'C4', designation: 'D', cycles: [2026], name: 'LEADERSHIP PAC' };
-const unrelated = { committee_id: 'C5', designation: 'U', cycles: [2026], name: 'OTHER' };
+const t = (receipts, unitem, item, pac = 0, out = 0) => ({
+  receipts,
+  individual_unitemized_contributions: unitem,
+  individual_itemized_contributions: item,
+  other_political_committee_contributions: pac,
+  transfers_to_affiliated_committee: out,
+});
 
 describe('selectVehicles', () => {
-  it('keeps the member own campaign, JFC and leadership PAC active this cycle', () => {
-    const v = selectVehicles([campaign, jfc, oldJfc, leadership, unrelated, campaign], 2026);
+  it("keeps the member's campaign, joint fund and leadership PAC active this cycle", () => {
+    const v = selectVehicles(
+      [
+        { committee_id: 'C1', designation: 'P', cycles: [2026] },
+        { committee_id: 'C2', designation: 'J', cycles: [2026] },
+        { committee_id: 'C3', designation: 'J', cycles: [2010] },
+        { committee_id: 'C4', designation: 'D', cycles: [2026] },
+        { committee_id: 'C5', designation: 'U', cycles: [2026] },
+      ],
+      2026
+    );
     expect(v.map(x => [x.committeeId, x.role])).toEqual([
       ['C1', 'campaign'],
       ['C2', 'joint'],
@@ -25,95 +38,146 @@ describe('selectVehicles', () => {
 });
 
 describe('classifyTransfers', () => {
-  const vehicles = [{ committeeId: 'C1' }, { committeeId: 'C2' }, { committeeId: 'C4' }];
-  const row = (sender, amount, extra = {}) => ({
+  const money = [{ committeeId: 'C1' }, { committeeId: 'C4' }];
+  const row = (sender, amount, designation = 'J', extra = {}) => ({
     contributor_id: sender,
     contribution_receipt_amount: amount,
-    contributor: { designation: 'J', name: sender },
+    contributor: { designation, name: sender },
     ...extra,
   });
 
-  it('nets transfers between the member own committees', () => {
-    const t = classifyTransfers(vehicles, [row('C2', 139554), row('C2', 110871)]);
-    expect(t.internal).toBeCloseTo(250425);
-    expect(t.externalJfcs).toEqual([]);
+  it('nets transfers between the member own money vehicles', () => {
+    expect(classifyTransfers(money, [row('C4', 5000, 'D')]).internal).toBe(5000);
   });
 
-  it('surfaces a joint fund that is not registered under the member (found by its transfers)', () => {
-    const t = classifyTransfers(vehicles, [row('C9', 5000000), row('C9', 905327)]);
-    expect(t.internal).toBe(0);
-    expect(t.externalJfcs).toEqual([{ committeeId: 'C9', name: 'C9', amount: 5905327 }]);
+  it('treats every joint fund alike - registered or not - as money received', () => {
+    const r = classifyTransfers(money, [row('C2', 139554), row('C9', 1449000), row('C9', 1467)]);
+    expect(r.internal).toBe(0);
+    expect(r.jfcs).toEqual([
+      { committeeId: 'C2', name: 'C2', received: 139554 },
+      { committeeId: 'C9', name: 'C9', received: 1450467 },
+    ]);
   });
 
   it('ignores memo rows and non-JFC senders such as party committees', () => {
-    const t = classifyTransfers(vehicles, [
-      row('C2', 999, { memo_code: 'X' }),
-      row('NRCC', 5000, { contributor: { designation: 'U' } }),
+    const r = classifyTransfers(money, [
+      row('C2', 99, 'J', { memo_code: 'X' }),
+      row('NRCC', 5000, 'U'),
     ]);
-    expect(t.internal).toBe(0);
-    expect(t.externalJfcs).toEqual([]);
+    expect(r).toEqual({ internal: 0, jfcs: [] });
+  });
+});
+
+describe('isMembersOwnFund', () => {
+  it('a fund registered under the member is theirs, whatever it passed on', () => {
+    expect(isMembersOwnFund({ registered: true, received: 1, totals: t(1, 0, 0, 0, 100) })).toBe(
+      true
+    );
+  });
+  it("a leader's fund is theirs when they are its largest candidate recipient, even at 6% of its transfers", () => {
+    // GROW THE MAJORITY: $79.8M passed on, $5.0M to the Speaker, rest to the party
+    const fund = {
+      received: 5033964,
+      largestCandidateRecipient: 'C1',
+      totals: t(95770596, 0, 0, 0, 79837455),
+    };
+    expect(isMembersOwnFund(fund, ['C1'])).toBe(true);
+    expect(isMembersOwnFund({ ...fund, largestCandidateRecipient: 'C77' }, ['C1'])).toBe(false);
+  });
+  it('without disbursement data, falls back to receiving at least half', () => {
+    expect(isMembersOwnFund({ received: 1450467, totals: t(5e6, 0, 0, 0, 1500419) })).toBe(true);
+    expect(isMembersOwnFund({ received: 21200, totals: t(5e6, 0, 0, 0, 900000) })).toBe(false);
+  });
+});
+
+describe('largestCandidateRecipient', () => {
+  it('ignores party committees and memo rows', () => {
+    const row = (id, amount, type = 'H', extra = {}) => ({
+      recipient_committee_id: id,
+      disbursement_amount: amount,
+      recipient_committee: { committee_type: type },
+      ...extra,
+    });
+    expect(
+      largestCandidateRecipient([
+        row('NRCC', 70000000, 'Y'),
+        row('C1', 5000000),
+        row('C2', 1000000),
+        row('C3', 9000000, 'H', { memo_code: 'X' }),
+      ])
+    ).toBe('C1');
   });
 });
 
 describe('combineVehicleTotals', () => {
-  const totals = (receipts, unitem, item, pac = 0) => ({
-    receipts,
-    individual_unitemized_contributions: unitem,
-    individual_itemized_contributions: item,
-    other_political_committee_contributions: pac,
-  });
-
-  it('counts each dollar once: sums donor buckets, nets internal transfers from receipts', () => {
+  it('grades on what the member received: a fund counts by its transfers, split by its mix', () => {
     const r = combineVehicleTotals(
       [
         {
           committeeId: 'C1',
           role: 'campaign',
           name: 'C',
-          totals: totals(2465830, 1411327, 808796, 33000),
+          totals: t(2465830, 1411327, 808796, 33000),
         },
-        { committeeId: 'C2', role: 'joint', name: 'J', totals: totals(2614409, 0, 2582517) },
       ],
-      { internal: 250425, externalJfcs: [] }
-    );
-    expect(r.totalRaised).toBeCloseTo(2465830 + 2614409 - 250425);
-    expect(r.largeDonorDonations).toBeCloseTo(808796 + 2582517);
-    expect(r.invariantsHold).toBe(true);
-  });
-
-  it('apportions money from an external JFC by that fund own composition', () => {
-    const r = combineVehicleTotals(
-      [{ committeeId: 'C1', role: 'campaign', name: 'C', totals: totals(1000000, 0, 0) }],
       {
         internal: 0,
-        externalJfcs: [
+        jfcs: [
           {
-            committeeId: 'C9',
-            name: 'F',
-            amount: 400000,
-            totals: totals(2000000, 1000000, 800000, 200000),
+            committeeId: 'C2',
+            name: 'VICTORY FUND',
+            registered: true,
+            received: 250000,
+            totals: t(2614409, 0, 2582517, 0, 2156831),
           },
         ],
       }
     );
-    // 400k received from a fund that was 50% small, 40% itemized, 10% PAC
-    expect(r.grassrootsDonations).toBeCloseTo(200000);
-    expect(r.largeDonorDonations).toBeCloseTo(160000);
-    expect(r.pacMoney).toBeCloseTo(40000);
-    expect(r.totalRaised).toBe(1000000); // already inside the campaign's receipts
+    // the fund's money is already inside the campaign's receipts
+    expect(r.totalRaised).toBe(2465830);
+    expect(r.largeDonorDonations).toBeCloseTo(808796 + 250000 * (2582517 / 2614409));
+    const fund = r.committees.find(c => c.committeeId === 'C2');
+    expect(fund.passedElsewhere).toBeCloseTo(2156831 - 250000);
+    expect(fund.ownFund).toBe(true);
+    // disclosure: everything raised in the member's name
+    expect(r.raisedInName).toBeCloseTo(2465830 + (2614409 - 250000));
+    expect(r.invariantsHold).toBe(true);
+  });
+
+  it('nets money moved between the member own vehicles', () => {
+    const r = combineVehicleTotals(
+      [
+        { committeeId: 'C1', role: 'campaign', name: 'A', totals: t(6511960, 0, 0) },
+        { committeeId: 'C6', role: 'campaign', name: 'B', totals: t(897390, 0, 0) },
+      ],
+      { internal: 730000, jfcs: [] }
+    );
+    expect(r.totalRaised).toBe(6511960 + 897390 - 730000);
   });
 
   it('can never net more money than was raised', () => {
     const r = combineVehicleTotals(
-      [{ committeeId: 'C1', role: 'campaign', name: 'C', totals: totals(100, 50, 50) }],
-      { internal: 1e9, externalJfcs: [] }
+      [{ committeeId: 'C1', role: 'campaign', name: 'A', totals: t(100, 50, 50) }],
+      {
+        internal: 1e9,
+        jfcs: [],
+      }
     );
     expect(r.totalRaised).toBeGreaterThanOrEqual(0);
   });
 });
 
-describe('vehicleSignature', () => {
-  it('is order-independent', () => {
-    expect(vehicleSignature([{ committeeId: 'C2' }, { committeeId: 'C1' }])).toBe('C1,C2');
+describe('donorCommitteeIds', () => {
+  it('pools donors from money vehicles and the member own funds, not shared funds', () => {
+    const ids = donorCommitteeIds({
+      committees: [
+        { committeeId: 'C1', role: 'campaign' },
+        { committeeId: 'C2', role: 'joint', ownFund: true },
+        { committeeId: 'C8', role: 'joint', ownFund: false },
+        { committeeId: 'C4', role: 'leadership' },
+      ],
+    });
+    expect(ids).toEqual(['C1', 'C2', 'C4']);
+    expect(committeeSignature(['C4', 'C1'])).toBe('C1,C4');
   });
 });

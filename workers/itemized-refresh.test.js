@@ -3,6 +3,7 @@ import {
   ANALYSIS_STALENESS_DAYS,
   isAnalysisFresh,
   isAnalysisCurrent,
+  donorPool,
 } from './itemized-analysis.js';
 
 const DAY = 24 * 60 * 60 * 1000;
@@ -46,7 +47,11 @@ describe('isAnalysisFresh (refresh policy gate)', () => {
 
 describe('isAnalysisCurrent (issue #41)', () => {
   const now = Date.parse('2026-09-26T12:00:00Z');
-  const fresh = { committeeId: 'C00000001', collectionCompletedAt: '2026-09-20T00:00:00Z' };
+  const fresh = {
+    committeeId: 'C00000001',
+    personLevel: true,
+    collectionCompletedAt: '2026-09-20T00:00:00Z',
+  };
 
   it("accepts a fresh analysis of the member's own committee", () => {
     expect(isAnalysisCurrent(fresh, 'C00000001', now)).toBe(true);
@@ -64,5 +69,21 @@ describe('isAnalysisCurrent (issue #41)', () => {
   it('still requires freshness', () => {
     const old = { ...fresh, collectionCompletedAt: '2026-06-01T00:00:00Z' };
     expect(isAnalysisCurrent(old, 'C00000001', now)).toBe(false);
+  });
+});
+
+describe('person-level analyses (#32)', () => {
+  const now = Date.parse('2026-09-26T12:00:00Z');
+  const campaignOnly = { committeeId: 'C1', collectionCompletedAt: '2026-09-20T00:00:00Z' };
+
+  it('a fresh campaign-only analysis is no longer current - it is re-collected person-level', () => {
+    expect(isAnalysisCurrent(campaignOnly, 'C1', now)).toBe(false);
+    expect(isAnalysisCurrent({ ...campaignOnly, personLevel: true }, 'C1', now)).toBe(true);
+  });
+
+  it('the donor pool is the discovered committees plus the campaign on record', () => {
+    expect(donorPool({ donorCommitteeIds: ['C3', 'C2'] }, 'C1')).toEqual(['C1', 'C2', 'C3']);
+    expect(donorPool(null, 'C1')).toEqual(['C1']);
+    expect(donorPool({ failed: true, donorCommitteeIds: [] }, 'C1')).toEqual(['C1']);
   });
 });

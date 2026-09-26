@@ -16,6 +16,8 @@
  */
 
 import { cycleForYear } from './tier-calculation.js';
+import { FEC_CROSSWALK } from './fec-crosswalk.js';
+import { fetchPersonFunding, withRequestBudget, committeeSignature } from './person-funding.js';
 import { classifyScheduleARow, normalizeConduitName, topConduits } from './schedule-a-classify.js';
 import {
   readBudget,
@@ -47,12 +49,116 @@ export function isAnalysisFresh(analysis, nowMs = Date.now()) {
 // An analysis is "current" if it is fresh AND was collected from the
 // committee now on the member's record. A fresh analysis of the wrong
 // committee is someone else's donors (issue #41) and must be re-collected.
+//
+// Since #32 it must also be PERSON-LEVEL: collected over every committee the
+// member runs (campaign, own joint funds, leadership PAC), not just the
+// campaign. Campaign-only analyses keep serving the grade on the campaign
+// basis until their person-level replacement completes.
 export function isAnalysisCurrent(analysis, memberCommitteeId, nowMs = Date.now()) {
   return (
     Boolean(memberCommitteeId) &&
     analysis?.committeeId === memberCommitteeId &&
+    analysis?.personLevel === true &&
     isAnalysisFresh(analysis, nowMs)
   );
+}
+
+// Committees whose donors form the member's pool: the person-level list, and
+// always the campaign committee on the member's record.
+export function donorPool(personFunding, memberCommitteeId) {
+  const ids = new Set(personFunding?.donorCommitteeIds || []);
+  ids.add(memberCommitteeId);
+  return [...ids].sort();
+}
+
+// Committee discovery reuses the analysis staleness window: refreshed on the
+// same 30-day cycle as the donor collection itself.
+function isPersonFundingFresh(pf, nowMs = Date.now()) {
+  return (
+    Boolean(pf?.fetchedAt) &&
+    nowMs - new Date(pf.fetchedAt).getTime() < ANALYSIS_STALENESS_DAYS * 24 * 60 * 60 * 1000
+  );
+}
+
+// Find every committee the member runs (#32). One run's work: Cloudflare's
+// free plan allows 50 outbound requests per invocation, so discovery gets 40
+// and does nothing else. Failure is not fatal - the member is collected on
+// their campaign committee alone and discovery is retried next cycle.
+async function discoverCommittees(memberRecord, cycle, apiKey, log) {
+  const ids = FEC_CROSSWALK[memberRecord.bioguideId] || [];
+  const fec = withRequestBudget(async (path, params = {}) => {
+    const qs = new URLSearchParams({ api_key: apiKey });
+    for (const [k, v] of Object.entries(params)) {
+      qs.set(k, String(v));
+    }
+    const res = await fetch(`https://api.open.fec.gov/v1${path}?${qs}`, {
+      headers: { 'User-Agent': 'TaskForcePurple/1.0 (Political Transparency Platform)' },
+    });
+    if (!res.ok) {
+      throw new Error(`FEC ${res.status} on ${path}`);
+    }
+    // FEC allows 60 requests per minute per key; 40 calls at >=1s spacing
+    // cannot trip it even if another run shares the minute
+    await sleep(1000);
+    return res.json();
+  }, 40);
+  try {
+    const pf = await fetchPersonFunding(fec, ids, cycle);
+    if (!pf.invariantsHold) {
+      throw new Error('attribution invariants failed');
+    }
+    log(
+      `  🧭 Committees found (${fec.used()} FEC calls): ${pf.committees
+        .map(c => `${c.role}:${c.committeeId}`)
+        .join(', ')} | donor pool ${pf.donorCommitteeIds.join(',')}`
+    );
+    return { ...pf, fetchedAt: new Date().toISOString(), cycle };
+  } catch (error) {
+    // A rate limit is temporary: fail the run so the queue retries soon,
+    // rather than settling for campaign-only for a whole refresh cycle
+    if (/\b429\b/.test(error.message)) {
+      throw error;
+    }
+    log(`  ⚠️ Committee discovery failed (${error.message}); collecting campaign committee only`);
+    return {
+      fetchedAt: new Date().toISOString(),
+      cycle,
+      failed: true,
+      error: error.message,
+      donorCommitteeIds: [],
+      committees: [],
+    };
+  }
+}
+
+function newProgress({ bioguideId, memberCommitteeId, cycle, personFunding, replacesCommitteeId }) {
+  const committeeIds = donorPool(personFunding, memberCommitteeId);
+  return {
+    bioguideId,
+    committeeId: memberCommitteeId, // the campaign on the member's record
+    committeeIds, // every committee whose donors are collected (#32)
+    committeeSignature: committeeSignature(committeeIds),
+    committeeIndex: 0,
+    personFunding,
+    cycle,
+    totalTransactions: 0,
+    totalAmount: 0,
+    rawRowCount: 0, // every fetched row incl. memos - compared to FEC's pagination count
+    fecTotalCount: 0,
+    countedCommittees: [],
+    runsCompleted: 0,
+    lastIndex: null,
+    lastContributionReceiptDate: null,
+    donorTotals: {}, // "FIRST|LAST|STATE|ZIP" -> total across ALL the member's committees
+    allAmounts: [],
+    conduitTotals: {},
+    earmarkedTotal: 0,
+    earmarkedCount: 0,
+    startedAt: new Date().toISOString(),
+    // Set when this collection replaces an analysis of a different
+    // campaign committee (identity correction, #41)
+    replacesCommitteeId,
+  };
 }
 
 export default {
@@ -79,6 +185,20 @@ export default {
     // Cron trigger - process next chunk automatically
     console.log('🕐 Cron trigger fired:', new Date().toISOString());
 
+    // The :10 run each hour finds committees for one member (#32) so every
+    // card's money trail is published within ~3 weeks rather than waiting
+    // for that member to reach the head of the collection queue. The :30
+    // and :50 runs collect donors as before. (Cron is offset from the data
+    // pipeline's - see wrangler-itemized-analysis.toml.)
+    if (new Date(event.scheduledTime || Date.now()).getUTCMinutes() < 20) {
+      try {
+        await runDiscoverySweep(env);
+      } catch (error) {
+        console.error('❌ Discovery sweep failed:', error.message);
+      }
+      return;
+    }
+
     try {
       const result = await analyzeMembers(env, PAGES_PER_RUN_CRON);
       const data = await result.json();
@@ -92,6 +212,54 @@ export default {
     }
   },
 };
+
+// Discover one member's committees and attach them to their existing
+// analysis, so the money trail is disclosed before the person-level donor
+// collection reaches them. Walks members:all in bioguide order from a saved
+// cursor; members with no analysis yet are skipped (their collection does
+// discovery itself). Costs per run: <=40 FEC calls, <=30 KV reads, 2 KV writes.
+async function runDiscoverySweep(env) {
+  const apiKey = env.FEC_API_KEY || 'zVpKDAacmPcazWQxhl5fhodhB9wNUH0urLCLkkV9';
+  const log = msg => console.log(msg);
+  const membersData = await env.MEMBER_DATA.get('members:all');
+  if (!membersData) {
+    return;
+  }
+  const eligible = JSON.parse(membersData)
+    .filter(m => m.fecIdentityVerified === true && m.committeeInfo?.id)
+    .sort((a, b) => a.bioguideId.localeCompare(b.bioguideId));
+  if (eligible.length === 0) {
+    return;
+  }
+  const cursor = parseInt((await env.MEMBER_DATA.get('discovery_sweep_cursor')) || '0', 10) || 0;
+  for (let step = 0; step < 30; step++) {
+    const idx = (cursor + step) % eligible.length;
+    const member = eligible[idx];
+    const key = `itemized_analysis_v2:${member.bioguideId}`;
+    const raw = await env.MEMBER_DATA.get(key);
+    if (!raw) {
+      continue;
+    }
+    const analysis = JSON.parse(raw);
+    if (analysis.committeeId !== member.committeeInfo.id) {
+      continue;
+    }
+    if (analysis.personFunding && isPersonFundingFresh(analysis.personFunding)) {
+      continue;
+    }
+    log(`🧭 Discovery sweep: ${member.name} (${member.bioguideId})`);
+    const cycle = cycleForYear(new Date().getFullYear());
+    const pf = await discoverCommittees(member, cycle, apiKey, log);
+    if (!pf.failed) {
+      analysis.personFunding = pf;
+      await env.MEMBER_DATA.put(key, JSON.stringify(analysis));
+    }
+    await env.MEMBER_DATA.put('discovery_sweep_cursor', String((idx + 1) % eligible.length));
+    return;
+  }
+  // Nothing needed in this window - move the cursor on
+  await env.MEMBER_DATA.put('discovery_sweep_cursor', String((cursor + 30) % eligible.length));
+}
 
 async function getStatus(env) {
   // Real counts, not hardcoded guesses: member total from members:all,
@@ -478,117 +646,89 @@ async function fetchAndAggregateChunk(
     throw new Error(`No committee on record for ${memberRecord.name} yet`);
   }
 
-  // Current analysis -> nothing to do. A STALE analysis of the RIGHT
-  // committee does not short-circuit either: it keeps serving tiers until the
-  // new one atomically replaces it at completion. An analysis of a DIFFERENT
-  // committee is not served at all (the pipeline rejects it).
-  const existingAnalysis = await env.MEMBER_DATA.get(analysisKey);
-  let replacesCommitteeId = null;
-  if (existingAnalysis) {
-    const analysis = JSON.parse(existingAnalysis);
-    if (isAnalysisCurrent(analysis, memberCommitteeId)) {
-      log(`  ✅ Already complete (fresh, committee ${memberCommitteeId})`);
-      return {
-        complete: true,
-        committeeId: memberCommitteeId,
-        totalTransactions: analysis.totalTransactions,
-        uniqueDonors: analysis.uniqueDonors,
-        pagesProcessedThisRun: 0,
-      };
-    }
-    if (analysis.committeeId !== memberCommitteeId) {
-      replacesCommitteeId = analysis.committeeId || null;
-      log(
-        `  🔀 Existing analysis is for committee ${analysis.committeeId}, member's is ${memberCommitteeId} - re-collecting from scratch`
-      );
-    } else {
-      log(`  🔄 Stale analysis (${analysis.collectionCompletedAt || 'undated'}) - re-collecting`);
-    }
+  // Current analysis -> nothing to do. A stale or campaign-only analysis
+  // keeps serving tiers until its replacement atomically takes over at
+  // completion; one for a DIFFERENT campaign committee is not served at all.
+  const existingAnalysisData = await env.MEMBER_DATA.get(analysisKey);
+  const existingAnalysis = existingAnalysisData ? JSON.parse(existingAnalysisData) : null;
+  if (isAnalysisCurrent(existingAnalysis, memberCommitteeId)) {
+    log(`  ✅ Already complete (fresh, person-level)`);
+    return {
+      complete: true,
+      committeeId: memberCommitteeId,
+      totalTransactions: existingAnalysis.totalTransactions,
+      uniqueDonors: existingAnalysis.uniqueDonors,
+      pagesProcessedThisRun: 0,
+    };
   }
+  const replacesCommitteeId =
+    existingAnalysis && existingAnalysis.committeeId !== memberCommitteeId
+      ? existingAnalysis.committeeId || null
+      : null;
 
-  // Check for existing progress
   const existingProgressData = await env.MEMBER_DATA.get(progressKey);
-  let progress;
+  let progress = existingProgressData ? JSON.parse(existingProgressData) : null;
 
-  if (existingProgressData) {
-    progress = JSON.parse(existingProgressData);
-    if (progress.committeeId !== memberCommitteeId) {
-      // Part-collected from a committee that is no longer the member's.
-      // Nothing in it can be kept.
+  // Step 1 - which committees? A collection in progress carries its own
+  // list; otherwise (or when that list is stale) this run discovers it and
+  // stops. Campaign-only collections from before #32 carry no list and are
+  // restarted person-level.
+  if (!progress?.personFunding || !isPersonFundingFresh(progress.personFunding)) {
+    if (progress) {
       log(
-        `  🔀 Discarding in-progress collection from ${progress.committeeId}; member's committee is ${memberCommitteeId}`
+        `  🔀 Restarting ${progress.totalTransactions || 0}-transaction collection person-level (#32)`
       );
-      await env.MEMBER_DATA.delete(progressKey);
-      progress = null;
     }
-  }
-
-  if (progress) {
-    // Initialize fields that may not exist in old progress data
-    if (!progress.donorTotals) {
-      progress.donorTotals = {};
-    }
-    if (!progress.allAmounts) {
-      progress.allAmounts = [];
-    }
-    if (progress.totalAmount === undefined || progress.totalAmount === null) {
-      progress.totalAmount = 0;
-    }
-    if (!progress.runsCompleted) {
-      progress.runsCompleted = 0;
-    }
-    if (!progress.conduitTotals) {
-      progress.conduitTotals = {};
-    }
-    if (progress.earmarkedTotal === undefined) {
-      progress.earmarkedTotal = 0;
-      progress.earmarkedCount = 0;
-    }
-
-    log(`  📂 Resuming: ${progress.totalTransactions || 0} transactions aggregated so far`);
-    log(`  👥 Current unique donors: ${Object.keys(progress.donorTotals).length}`);
-  } else {
-    // Starting fresh, from the verified committee loaded above
-    const committeeId = memberCommitteeId;
-    log(`  💼 Committee ID: ${committeeId}`);
-
-    const currentYear = new Date().getFullYear();
-    const cycle = cycleForYear(currentYear);
-    log(`  📅 Election cycle: ${cycle}`);
-
-    // NOTE: nothing is deleted here. Re-collection used to clear the member's
-    // rows up front, which meant re-inserting every transaction we already
-    // held on every refresh - ~24,500 row inserts a day, each costing about
-    // six row-writes across the indexes, which is what blew the D1 write cap
-    // in September 2026. INSERT OR IGNORE on sub_id already makes collection
-    // idempotent for the 442 members holding dedup keys, so a refresh now
-    // writes only genuinely new transactions. Legacy rows without a sub_id
-    // (17 members) are cleared at COMPLETION, once their replacements have
-    // landed - see the completion block below.
-
-    progress = {
+    const cycle = cycleForYear(new Date().getFullYear());
+    const personFunding = await discoverCommittees(memberRecord, cycle, apiKey, log);
+    progress = newProgress({
       bioguideId,
-      committeeId,
+      memberCommitteeId,
       cycle,
-      totalTransactions: 0,
-      totalAmount: 0,
-      rawRowCount: 0, // every fetched row incl. memos - compared to FEC's pagination count
-      runsCompleted: 0,
-      lastIndex: null,
-      lastContributionReceiptDate: null,
-      donorTotals: {}, // Map: "FIRST|LAST|STATE|ZIP" → total amount
-      allAmounts: [], // Array of all amounts for median calculation
-      conduitTotals: {}, // Map: normalized conduit name → { amount, count }
-      earmarkedTotal: 0, // individual money that arrived pre-bundled via a conduit
-      earmarkedCount: 0,
-      startedAt: new Date().toISOString(),
-      // Set when this collection replaces an analysis of a different
-      // committee; completion then clears that committee's D1 rows
+      personFunding,
       replacesCommitteeId,
+    });
+    await env.MEMBER_DATA.put(progressKey, JSON.stringify(progress));
+    // Publish the disclosure straight away on the member's existing analysis;
+    // the grade basis only changes when the person-level collection completes
+    if (
+      existingAnalysis &&
+      existingAnalysis.committeeId === memberCommitteeId &&
+      !personFunding.failed
+    ) {
+      existingAnalysis.personFunding = personFunding;
+      await env.MEMBER_DATA.put(analysisKey, JSON.stringify(existingAnalysis));
+    }
+    return {
+      complete: false,
+      discovery: true,
+      committeeId: memberCommitteeId,
+      totalTransactions: 0,
+      pagesProcessedThisRun: 0,
+      runsCompleted: 0,
     };
   }
 
-  const committeeId = progress.committeeId;
+  // Step 2 - the collection in progress must be for exactly this pool. A
+  // corrected campaign committee (#41) changes the pool and restarts it.
+  const pool = donorPool(progress.personFunding, memberCommitteeId);
+  if (progress.committeeSignature !== committeeSignature(pool)) {
+    log(
+      `  🔀 Committee pool changed (${progress.committeeSignature} -> ${committeeSignature(pool)}); restarting`
+    );
+    progress = newProgress({
+      bioguideId,
+      memberCommitteeId,
+      cycle: progress.cycle,
+      personFunding: progress.personFunding,
+      replacesCommitteeId,
+    });
+  }
+  log(
+    `  📂 Collecting ${progress.committeeIds.length} committee(s) [${progress.committeeIndex + 1}/${progress.committeeIds.length}]: ${progress.totalTransactions || 0} transactions, ${Object.keys(progress.donorTotals).length} donors so far`
+  );
+
+  let committeeId = progress.committeeIds[progress.committeeIndex];
   const cycle = progress.cycle;
 
   // Fetch transactions using cursor-based pagination
@@ -655,15 +795,25 @@ async function fetchAndAggregateChunk(
     const transactions = data.results || [];
 
     if (transactions.length === 0) {
-      log(`  ✅ No more transactions (API returned empty results)`);
+      if (progress.committeeIndex < progress.committeeIds.length - 1) {
+        // This committee is done; move to the member's next one
+        progress.committeeIndex++;
+        committeeId = progress.committeeIds[progress.committeeIndex];
+        progress.lastIndex = null;
+        progress.lastContributionReceiptDate = null;
+        log(`  ➡️ Next committee: ${committeeId}`);
+        continue;
+      }
+      log(`  ✅ No more transactions (all ${progress.committeeIds.length} committees done)`);
       reachedEnd = true;
       break;
     }
 
-    // Store FEC's total count for validation (first page only)
-    if (pagesProcessed === 0 && data.pagination?.count && !progress.fecTotalCount) {
-      progress.fecTotalCount = data.pagination.count;
-      log(`  📊 FEC reports ${progress.fecTotalCount} total transactions`);
+    // FEC's row count per committee, summed, for validation at completion
+    if (data.pagination?.count && !progress.countedCommittees.includes(committeeId)) {
+      progress.fecTotalCount += data.pagination.count;
+      progress.countedCommittees.push(committeeId);
+      log(`  📊 FEC reports ${data.pagination.count} rows for ${committeeId}`);
     }
 
     // **KEY CHANGE: Update aggregates in-memory AND write to D1**
@@ -701,7 +851,10 @@ async function fetchAndAggregateChunk(
       const firstName = (tx.contributor_first_name || '').toUpperCase().trim();
       const lastName = (tx.contributor_last_name || '').toUpperCase().trim();
       const state = (tx.contributor_state || '').toUpperCase().trim();
-      const zip = (tx.contributor_zip || '').trim();
+      // 5-digit zip: filings mix "20001" and "20001-1234" for the same
+      // person, which split one donor into two and understated
+      // concentration - more so once donors are pooled across committees (#32)
+      const zip = (tx.contributor_zip || '').trim().slice(0, 5);
       const compositeKey = `${firstName}|${lastName}|${state}|${zip}`;
 
       // Aggregate by donor (running total per unique donor)
@@ -829,7 +982,7 @@ async function fetchAndAggregateChunk(
     const analysis = calculateMetricsFromAggregates(progress, log);
 
     // Reconcile with FEC totals
-    await reconcileWithFEC(committeeId, cycle, analysis, apiKey, log);
+    await reconcileWithFEC(progress.committeeIds, cycle, analysis, apiKey, log);
 
     // FARA cross-reference (issue #34): donations from employees of firms
     // registered as foreign agents. fara_employer_matches maps exact
@@ -889,10 +1042,11 @@ async function fetchAndAggregateChunk(
         // a member's FEC identity was corrected (issue #41); the FARA join
         // selects by bioguide_id, so leaving them would keep matching the
         // wrong person's donors to this member. One statement, one scan.
+        const placeholders = progress.committeeIds.map(() => '?').join(', ');
         const delSuperseded = await env.DONOR_DB.prepare(
-          'DELETE FROM itemized_transactions INDEXED BY idx_bioguide WHERE bioguide_id = ? AND cycle = ? AND (sub_id IS NULL OR committee_id != ?)'
+          `DELETE FROM itemized_transactions INDEXED BY idx_bioguide WHERE bioguide_id = ? AND cycle = ? AND (sub_id IS NULL OR committee_id NOT IN (${placeholders}))`
         )
-          .bind(bioguideId, cycle, committeeId)
+          .bind(bioguideId, cycle, ...progress.committeeIds)
           .run();
         const removed = delSuperseded.meta?.changes ?? 0;
         meter.spent += estimateRowWrites({ transactionDeletes: removed });
@@ -922,7 +1076,7 @@ async function fetchAndAggregateChunk(
         )
           .bind(
             bioguideId,
-            committeeId,
+            progress.committeeId,
             cycle,
             'complete',
             analysis.totalTransactions,
@@ -954,7 +1108,7 @@ async function fetchAndAggregateChunk(
 
     return {
       complete: true,
-      committeeId,
+      committeeId: progress.committeeId,
       totalTransactions: analysis.totalTransactions,
       uniqueDonors: analysis.uniqueDonors,
       totalAmount: analysis.totalAmount,
@@ -1037,6 +1191,12 @@ function calculateMetricsFromAggregates(progress, log) {
   const analysis = {
     bioguideId: progress.bioguideId,
     committeeId: progress.committeeId,
+    // #32: the committees whose donors are pooled here, and the discovery
+    // result they came from (disclosure + person-level grade basis)
+    committeeIds: progress.committeeIds || [progress.committeeId],
+    committeeSignature: progress.committeeSignature || progress.committeeId,
+    personLevel: Boolean(progress.personFunding),
+    personFunding: progress.personFunding || null,
     cycle: progress.cycle,
     uniqueDonors: sortedDonors.length,
     totalTransactions: progress.totalTransactions,
@@ -1076,21 +1236,31 @@ function calculateMetricsFromAggregates(progress, log) {
   return analysis;
 }
 
-async function reconcileWithFEC(committeeId, cycle, analysis, apiKey, log) {
+// Our collected itemized total vs the FEC's, summed over every committee in
+// the member's donor pool.
+async function reconcileWithFEC(committeeIds, cycle, analysis, apiKey, log) {
   log(`  🔍 Fetching FEC financial totals for reconciliation...`);
 
   try {
-    const fecTotalsUrl = `https://api.open.fec.gov/v1/committee/${committeeId}/totals/?api_key=${apiKey}&cycle=${cycle}`;
-    const fecTotalsResponse = await fetch(fecTotalsUrl, {
-      headers: { 'User-Agent': 'TaskForcePurple/1.0 (Political Transparency Platform)' },
-    });
+    let fecItemizedSum = 0;
+    let found = 0;
+    for (const committeeId of committeeIds) {
+      const res = await fetch(
+        `https://api.open.fec.gov/v1/committee/${committeeId}/totals/?api_key=${apiKey}&cycle=${cycle}`,
+        { headers: { 'User-Agent': 'TaskForcePurple/1.0 (Political Transparency Platform)' } }
+      );
+      if (res.ok) {
+        const t = (await res.json()).results?.[0];
+        if (t) {
+          fecItemizedSum += t.individual_itemized_contributions || 0;
+          found++;
+        }
+      }
+    }
 
-    if (fecTotalsResponse.ok) {
-      const fecTotalsData = await fecTotalsResponse.json();
-      const fecTotal = fecTotalsData.results?.[0];
-
-      if (fecTotal) {
-        const fecItemizedTotal = fecTotal.individual_itemized_contributions || 0;
+    if (found > 0) {
+      {
+        const fecItemizedTotal = fecItemizedSum;
         const ourCalculatedTotal = analysis.totalAmount;
         const difference = Math.abs(fecItemizedTotal - ourCalculatedTotal);
         const percentDiff = fecItemizedTotal > 0 ? (difference / fecItemizedTotal) * 100 : 0;

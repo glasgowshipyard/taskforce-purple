@@ -19,6 +19,7 @@ import {
   Briefcase,
 } from 'lucide-react';
 import { TaskForceAPI, mockCongressData } from '../lib/api.js';
+import MoneyTrail from './MoneyTrail.jsx';
 import {
   classifyOrganization,
   sectorInfo,
@@ -445,6 +446,9 @@ export default function MembersList() {
             </div>
           ) : (
             <>
+              {/* Every committee the member runs, and who funds them (#32) */}
+              {selectedMember.totalRaised > 0 && <MoneyTrail member={selectedMember} />}
+
               {/* Donor concentration - who controls the big money */}
               {Number.isFinite(selectedMember.nakamotoCoefficient) &&
                 selectedMember.uniqueDonors >= 10 && (

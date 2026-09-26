@@ -30,6 +30,8 @@ export default {
       switch (url.pathname) {
         case '/api/members':
           return await handleMembers(env, corsHeaders);
+        case '/api/member-detail':
+          return await handleMemberDetail(env, corsHeaders, url);
         case '/api/update-data':
           return await handleDataUpdate(env, corsHeaders, request);
         case '/api/update-fec-batch':
@@ -1145,7 +1147,29 @@ async function calculateEnhancedTier(member, _allMembers = [], env = null) {
     concentrationRejected = true;
   }
 
-  const result = computeEnhancedTier(member, concentration);
+  // Grade basis (#32). Once a member's analysis pools donors from every
+  // committee they run, grade on everything they received - campaign(s),
+  // leadership PAC, and money transferred in from joint funds - so the
+  // concentration test and the money it tests describe the same thing.
+  // Until then, grade on the campaign committee: switching the money to
+  // all committees while concentration still saw only the campaign's donors
+  // would grade big-cheque joint-fund money unexamined.
+  const pf = concentration?.personLevel ? concentration.personFunding : null;
+  const personLevel = Boolean(pf && !pf.failed && pf.totalRaised > 0 && pf.invariantsHold);
+  const scored = personLevel
+    ? {
+        ...member,
+        totalRaised: pf.totalRaised,
+        grassrootsDonations: pf.grassrootsDonations,
+        largeDonorDonations: pf.largeDonorDonations,
+        grassrootsPercent: pf.grassrootsPercent,
+        pacMoney: pf.pacMoney,
+        partyMoney: pf.partyMoney,
+      }
+    : member;
+
+  const result = computeEnhancedTier(scored, concentration);
+  result.gradeBasis = personLevel ? 'all-committees' : 'campaign-committee';
 
   if (result.detail?.path === 'enhanced') {
     console.log(
@@ -1463,6 +1487,54 @@ async function handleSingleMember(env, corsHeaders, url) {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   }
+}
+
+// One member's money trail (#32): every committee they run, what each
+// raised, where joint-fund money went, and the largest donors across all of
+// them. Served per profile view (one KV read) rather than inside
+// /api/members, which every visitor downloads - that payload is already
+// ~3.5 MB and would grow by a megabyte for data only a profile needs.
+async function handleMemberDetail(env, corsHeaders, url) {
+  const bioguideId = url.searchParams.get('bioguideId') || '';
+  if (!/^[A-Z][0-9]{6}$/.test(bioguideId)) {
+    return new Response(JSON.stringify({ error: 'bioguideId required' }), {
+      status: 400,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    });
+  }
+  const raw = await env.MEMBER_DATA.get(`itemized_analysis_v2:${bioguideId}`);
+  const a = raw ? JSON.parse(raw) : null;
+  const pf = a?.personFunding && !a.personFunding.failed ? a.personFunding : null;
+  const body = {
+    bioguideId,
+    // Donor-level figures come from the committees this analysis pooled
+    donorPoolCommitteeIds: a?.committeeIds || (a?.committeeId ? [a.committeeId] : []),
+    personLevel: Boolean(a?.personLevel),
+    collectedAt: a?.collectionCompletedAt || null,
+    topDonors: a?.topDonors || [],
+    uniqueDonors: a?.uniqueDonors ?? null,
+    nakamotoCoefficient: a?.nakamotoCoefficient ?? null,
+    moneyTrail: pf
+      ? {
+          fetchedAt: pf.fetchedAt,
+          cycle: pf.cycle,
+          received: pf.totalRaised,
+          raisedInName: pf.raisedInName,
+          smallDonors: pf.grassrootsDonations,
+          itemized: pf.largeDonorDonations,
+          pac: pf.pacMoney,
+          party: pf.partyMoney,
+          committees: pf.committees,
+        }
+      : null,
+  };
+  return new Response(JSON.stringify(body), {
+    headers: {
+      ...corsHeaders,
+      'Content-Type': 'application/json',
+      'Cache-Control': 'public, max-age=900',
+    },
+  });
 }
 
 async function handleMembers(env, corsHeaders) {
@@ -2033,7 +2105,9 @@ async function performTierRecalculation(env) {
         individualFundingPercent,
         concentration,
         concentrationRejected,
+        gradeBasis,
       } = await calculateEnhancedTier(member, members, env);
+      member.gradeBasis = gradeBasis;
       member.individualFundingPercent = individualFundingPercent;
 
       // Merge concentration metrics into the member record so /api/members

@@ -91,6 +91,20 @@ export class TaskForceAPI {
    * True when the tier withholds a grade, so no funding figures derived from
    * the same record may be displayed. See RINGFENCED_TIERS.
    */
+  /**
+   * One member's money trail (#32): every committee they run, what each
+   * raised, and their largest donors. Fetched per profile, not with the list.
+   */
+  static async fetchMemberDetail(bioguideId) {
+    const response = await fetch(
+      `${API_BASE_URL}/member-detail?bioguideId=${encodeURIComponent(bioguideId)}`
+    );
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}`);
+    }
+    return response.json();
+  }
+
   static isRingfenced(tier) {
     return RINGFENCED_TIERS.includes(tier);
   }
