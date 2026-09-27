@@ -29,6 +29,7 @@ import {
   chargeBudget,
   canAfford,
   estimateRowWrites,
+  transactionBatchCost,
   DAILY_ROW_WRITE_BUDGET,
 } from './d1-write-budget.js';
 
@@ -957,8 +958,10 @@ async function fetchAndAggregateChunk(
             )
           );
 
-          await env.DONOR_DB.batch(statements);
-          meter.spent += estimateRowWrites({ transactions: batch.length });
+          const results = await env.DONOR_DB.batch(statements);
+          // Charged by what D1 says it actually did: new rows at 5,
+          // ignored duplicates at 1 (both measured)
+          meter.spent += transactionBatchCost(results, statements.length);
         }
 
         log(`  💾 Wrote ${d1Inserts.length} transactions to D1 (${batches.length} batches)`);

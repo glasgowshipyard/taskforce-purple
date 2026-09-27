@@ -8,6 +8,7 @@ import {
   readBudget,
   chargeBudget,
   canAfford,
+  transactionBatchCost,
 } from './d1-write-budget.js';
 
 describe('budget constants', () => {
@@ -164,5 +165,26 @@ describe('aggregate deletes', () => {
     // Measured on production D1 2026-09-26: deleting 3 rows wrote 3
     expect(WRITE_COST.aggregateDelete).toBe(1);
     expect(estimateRowWrites({ aggregateDeletes: 3 })).toBe(3);
+  });
+});
+
+describe('transactionBatchCost - charge what D1 actually did', () => {
+  const inserted = { meta: { changes: 1 } };
+  const ignored = { meta: { changes: 0 } };
+
+  it('charges new rows at 5 and ignored duplicates at 1 (both measured)', () => {
+    expect(transactionBatchCost([inserted, inserted, ignored], 3)).toBe(5 + 5 + 1);
+  });
+
+  it('a re-collection of rows already held costs a fifth of the old estimate', () => {
+    const tenDuplicates = Array(10).fill(ignored);
+    expect(transactionBatchCost(tenDuplicates, 10)).toBe(10);
+    expect(estimateRowWrites({ transactions: 10 })).toBe(50);
+  });
+
+  it('charges any statement without a result as an insert - never under-counts', () => {
+    expect(transactionBatchCost([inserted], 3)).toBe(15);
+    expect(transactionBatchCost(undefined, 2)).toBe(10);
+    expect(transactionBatchCost([{ meta: {} }, ignored], 2)).toBe(5 + 1);
   });
 });

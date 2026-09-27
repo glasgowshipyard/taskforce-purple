@@ -64,7 +64,37 @@ export const WRITE_COST = {
   transactionDelete: 4,
   // Measured, not derived: deleting an aggregate costs 1, not row + PK.
   aggregateDelete: 1,
+  // Measured 2026-09-09: an INSERT OR IGNORE that hits an existing sub_id
+  // writes 1 row, not 5. Re-collections are mostly these - charging them at
+  // the insert price over-stated spend ~5x and stopped collection each day
+  // after a fifth of the safe work (found 2026-09-27).
+  duplicateTransaction: 1,
 };
+
+/**
+ * Row-writes for a batch of INSERT OR IGNORE transaction statements, from
+ * D1's own per-statement result. `meta.changes` is 1 for an inserted row and
+ * 0 for an ignored duplicate. A result without it is charged as an insert,
+ * so the meter can only ever over-count, never under-count.
+ */
+export function transactionBatchCost(results, statementCount) {
+  const list = Array.isArray(results) ? results : [];
+  let inserted = 0;
+  let known = 0;
+  for (const r of list) {
+    const changes = r?.meta?.changes;
+    if (Number.isFinite(changes)) {
+      known++;
+      inserted += changes > 0 ? 1 : 0;
+    }
+  }
+  const unknown = Math.max(0, statementCount - known);
+  inserted += unknown;
+  return estimateRowWrites({
+    transactions: inserted,
+    duplicateTransactions: statementCount - inserted,
+  });
+}
 
 /** The UTC day the cap resets on. */
 export function budgetDay(now = new Date()) {
@@ -72,7 +102,7 @@ export function budgetDay(now = new Date()) {
 }
 
 /**
- * @param {{transactions?: number, aggregates?: number, metadataReplaces?: number, transactionDeletes?: number, aggregateDeletes?: number}} counts
+ * @param {{transactions?: number, duplicateTransactions?: number, aggregates?: number, metadataReplaces?: number, transactionDeletes?: number, aggregateDeletes?: number}} counts
  * @returns {number} estimated row-writes, rounded up
  */
 export function estimateRowWrites(counts = {}) {
@@ -82,13 +112,15 @@ export function estimateRowWrites(counts = {}) {
     metadataReplaces = 0,
     transactionDeletes = 0,
     aggregateDeletes = 0,
+    duplicateTransactions = 0,
   } = counts;
   return (
     transactions * WRITE_COST.transaction +
     aggregates * WRITE_COST.aggregate +
     metadataReplaces * WRITE_COST.metadataReplace +
     transactionDeletes * WRITE_COST.transactionDelete +
-    aggregateDeletes * WRITE_COST.aggregateDelete
+    aggregateDeletes * WRITE_COST.aggregateDelete +
+    duplicateTransactions * WRITE_COST.duplicateTransaction
   );
 }
 
