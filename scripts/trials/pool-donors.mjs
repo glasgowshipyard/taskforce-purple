@@ -47,6 +47,7 @@ const KEY =
 const [bioguide, ...flags] = process.argv.slice(2);
 const ESTIMATE = flags.includes('--estimate');
 const FRESH = flags.includes('--fresh');
+const AUDIT = (flags.find(f => f.startsWith('--audit=')) || '').slice('--audit='.length);
 const CYCLE = 2026;
 const SPACING_MS = 2000;
 const API = 'https://taskforce-purple-api.dev-a4b.workers.dev/api/members';
@@ -111,7 +112,98 @@ async function fec(path, params = {}) {
   }
 }
 
+// ---- per-committee ledger ------------------------------------------------------
+// Every record is either counted as an itemized individual donation or
+// skipped for a stated reason, and the amounts are kept per FEC line number,
+// so any difference from the FEC's own totals can be traced to specific
+// records instead of being waved through by a tolerance.
+function ledgerAdd(ledger, t) {
+  const amount = t.contribution_receipt_amount || 0;
+  const line = t.line_number || '?';
+  let bucket;
+  if (t.memo_code === 'X') {
+    bucket = `skipped: memo entry (line ${line}, ${t.entity_type || '?'})`;
+  } else if (t.entity_type !== 'IND') {
+    bucket = `skipped: not filed as an individual (line ${line}, ${t.entity_type || '?'})`;
+  } else {
+    bucket = `counted: individual (line ${line})`;
+  }
+  const b = (ledger[bucket] ||= { rows: 0, amount: 0, examples: [] });
+  b.rows++;
+  b.amount += amount;
+  if (b.examples.length < 3) {
+    b.examples.push(t.sub_id);
+  }
+  return bucket.startsWith('counted');
+}
+const countedTotal = ledger =>
+  Object.entries(ledger || {})
+    .filter(([k]) => k.startsWith('counted'))
+    .reduce((s, [, v]) => s + v.amount, 0);
+
 // ---- state (resumable) -----------------------------------------------------
+if (AUDIT) {
+  // Read-only ledger for named committees; does not touch state.json, the
+  // donor pool or the grade.
+  const out = [];
+  for (const committeeId of AUDIT.split(',').filter(Boolean)) {
+    log(`AUDIT ${committeeId}: reading every record`);
+    const ledger = {};
+    let rows = 0;
+    let cursor = {};
+    let count = null;
+    let exact = false;
+    for (;;) {
+      const d = await fec('/schedules/schedule_a/', {
+        committee_id: committeeId,
+        two_year_transaction_period: CYCLE,
+        per_page: 100,
+        ...cursor,
+      });
+      if (count === null) {
+        count = d.pagination?.count ?? 0;
+        exact = d.pagination?.is_count_exact === true;
+      }
+      for (const t of d.results || []) {
+        rows++;
+        ledgerAdd(ledger, t);
+      }
+      const li = d.pagination?.last_indexes;
+      if (!li || !(d.results || []).length) {
+        break;
+      }
+      cursor = { ...li };
+      if (rows % 5000 < 100) {
+        log(`   ${rows.toLocaleString()} / ${count.toLocaleString()} records`);
+      }
+    }
+    const t = (await fec(`/committee/${committeeId}/totals/`, { cycle: CYCLE })).results?.[0] || {};
+    const fecItemized = t.individual_itemized_contributions || 0;
+    const ours = countedTotal(ledger);
+    const diff = ours - fecItemized;
+    out.push({
+      committeeId,
+      rows,
+      count,
+      exact,
+      fecItemized,
+      ours,
+      diff,
+      ledger,
+      coverage: [t.coverage_start_date, t.coverage_end_date],
+    });
+    log(
+      `   ${committeeId}: ${rows}/${count} records${exact ? ' (exact)' : ''}; counted ${usd(ours)} vs FEC ${usd(fecItemized)} -> difference ${usd(diff)}`
+    );
+    for (const [k, v] of Object.entries(ledger)) {
+      log(`      ${k}: ${v.rows} records, ${usd(v.amount)}  e.g. ${v.examples.join(', ')}`);
+    }
+  }
+  writeFileSync(new URL('audit.json', dir), JSON.stringify(out, null, 2));
+  log(`AUDIT done: scripts/trials/output/${bioguide}/audit.json`);
+  process.exit(0);
+}
+
 let state = !FRESH && existsSync(STATE) ? JSON.parse(readFileSync(STATE, 'utf8')) : null;
 const save = () => writeFileSync(STATE, JSON.stringify(state));
 
@@ -204,8 +296,10 @@ for (const q of state.queue) {
     const page = d.results || [];
     for (const t of page) {
       q.rows++;
-      // Same rule as the itemized worker: individuals only, memo rows skipped
-      if (t.memo_code === 'X' || t.entity_type !== 'IND') {
+      // Same rule as the itemized worker: individuals only, memo rows
+      // skipped - and the ledger records what was skipped and why
+      q.ledger ||= {};
+      if (!ledgerAdd(q.ledger, t)) {
         continue;
       }
       state.individualRows++;
@@ -250,6 +344,8 @@ for (const q of state.queue) {
     fecRecordCount: q.fecCount,
     countExact: q.countExact === true,
     fecItemizedIndividuals: t.individual_itemized_contributions || 0,
+    counted: q.ledger ? countedTotal(q.ledger) : null,
+    ledger: q.ledger || null,
   });
 }
 const donors = Object.values(state.donors).sort((a, b) => b.amount - a.amount);
@@ -267,9 +363,15 @@ const fecItemizedSum = checks.reduce((s, c) => s + c.fecItemizedIndividuals, 0);
 // Complete = every committee's collected records equal the FEC's count AND
 // the FEC marks that count exact (an estimate proves nothing)
 const recordsMatch = checks.every(c => c.countExact && c.recordsCollected === c.fecRecordCount);
+// No tolerance: each committee's counted donations must equal the FEC's
+// itemized-individual total to within $1 (rounding). A committee collected
+// before the ledger existed cannot be checked and so is not verified.
+const moneyReconciles = checks.every(
+  c => c.counted !== null && Math.abs(c.counted - c.fecItemizedIndividuals) <= 1
+);
 const itemizedDiff =
   fecItemizedSum > 0 ? Math.abs(pooledTotal - fecItemizedSum) / fecItemizedSum : 1;
-const trustworthy = recordsMatch && itemizedDiff <= 0.05;
+const trustworthy = recordsMatch && moneyReconciles;
 
 const members = (await (await fetch(API)).json()).members;
 const member = members.find(m => m.bioguideId === bioguide);
@@ -313,7 +415,10 @@ Generated ${new Date().toISOString()} by \`scripts/trials/pool-donors.mjs\`. Rea
 
 **${trustworthy ? 'Yes' : 'NO - do not rely on the grade below'}.**
 ${checks.map(c => `- ${c.committeeId}: collected ${c.recordsCollected.toLocaleString()} records, FEC reports ${c.fecRecordCount.toLocaleString()} ${!c.countExact ? '(FEC count is an estimate - NOT VERIFIED)' : c.recordsCollected === c.fecRecordCount ? '(exact match)' : '(MISMATCH)'}`).join('\n')}
-- Itemized money from individuals: we collected ${usd(pooledTotal)}; the FEC's totals for these committees say ${usd(fecItemizedSum)} (${(itemizedDiff * 100).toFixed(1)}% apart; must be within 5%)
+- Itemized money from individuals, all committees: we counted ${usd(pooledTotal)}; the FEC's totals say ${usd(fecItemizedSum)} (difference ${usd(pooledTotal - fecItemizedSum)}; ${(itemizedDiff * 100).toFixed(2)}%)
+${checks.map(c => (c.counted === null ? `- ${c.committeeId}: money NOT CHECKED - collected before per-committee accounting; re-run with --fresh or audit with --audit=${c.committeeId}` : `- ${c.committeeId}: counted ${usd(c.counted)} vs FEC ${usd(c.fecItemizedIndividuals)} ${Math.abs(c.counted - c.fecItemizedIndividuals) <= 1 ? '(reconciles)' : `(UNEXPLAINED ${usd(c.counted - c.fecItemizedIndividuals)})`}`)).join('\n')}
+
+Every committee must reconcile to within $1 - there is no percentage tolerance.
 
 ## Grade
 
