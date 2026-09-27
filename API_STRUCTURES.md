@@ -409,3 +409,9 @@ const ELECTION_CYCLE = (() => {
 - **Automatic updates**: No manual intervention needed each election cycle
 - **Performance**: Calculated once per worker cold start, not per API call
 - **Accuracy**: Always pulls data from the correct election cycle
+
+## Itemized worker `/health` (added 2026-09-27)
+
+`GET https://taskforce-purple-itemized-analysis.dev-a4b.workers.dev/health` - public, read-only.
+Returns `{ ok, problems: [{id, message}], notes: [], checkedAt }`. Read hourly by the Health alert
+GitHub Action (RUNBOOK §10). Cost per call: 5 KV reads, 1 D1 read, no writes.

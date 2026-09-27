@@ -235,6 +235,47 @@ curl -X POST "https://taskforce-purple-api.dev-a4b.workers.dev/api/clear-fec-map
 | Collection stopped mid-day, no errors     | D1 write budget spent (by design)                                  | §6 ledger; resumes 00:00 UTC                                  |
 | `d1 info` writes >> ledger `rows_written` | An unmetered D1 write path                                         | §6; every D1 write must charge the meter                      |
 
+## 10. Alerts (automatic — you get a GitHub notification)
+
+Every hour (at :25) the **Health alert** GitHub Action reads the live
+verdict and, if anything is wrong, opens an issue labelled `system-alert`
+that @mentions you. It comments again only if the set of problems changes,
+and closes the issue itself once every check passes. Delivery is by
+GitHub's own notifications (email and/or the mobile app, depending on
+your GitHub notification settings).
+
+What it checks (`workers/health.js`, with tests):
+
+| Alert                  | Means                                                                                        |
+| ---------------------- | -------------------------------------------------------------------------------------------- |
+| `pipeline-not-running` | Main data worker hasn't run for 60+ min (should be every 20)                                 |
+| `itemized-not-running` | Donor-analysis worker hasn't run for 90+ min (should be hourly)                              |
+| `collection-stuck`     | The member at the head of the donor queue hasn't gained a page in 30 h; shows last FEC error |
+| `members-failing`      | A member got a strike in the last 24 h, with the reason (3 strikes = dropped)                |
+| `members-dropped`      | A member was dropped from donor analysis in the last 48 h, with the reason                   |
+| `d1-over-budget`       | 95k+ D1 row-writes today — something is writing without charging the meter                   |
+| `d1-unreadable`        | The D1 write ledger can't be read                                                            |
+| `health-unreachable`   | The health page itself didn't answer — the worker may be down                                |
+
+```bash
+# The raw verdict, any time
+curl -s "https://taskforce-purple-itemized-analysis.dev-a4b.workers.dev/health" | jq .
+```
+
+```bash
+# Run the check now instead of waiting for :25
+gh workflow run health-alert.yml
+```
+
+```bash
+# See what it would do without touching GitHub
+DRY_RUN=1 bash scripts/health-alert.sh
+```
+
+Caveats: GitHub can start scheduled jobs late at busy times, and it
+pauses scheduled workflows after 60 days without a commit to the repo (it
+emails a warning first; re-enable in the Actions tab).
+
 ## Related docs
 
 - `IMPLEMENTATION_STATUS.md` — what's true now + dated history of every fix

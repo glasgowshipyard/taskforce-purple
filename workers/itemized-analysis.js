@@ -17,6 +17,7 @@
 
 import { cycleForYear } from './tier-calculation.js';
 import { FEC_CROSSWALK } from './fec-crosswalk.js';
+import { evaluateHealth } from './health.js';
 import { fetchPersonFunding, withRequestBudget, committeeSignature } from './person-funding.js';
 import {
   classifyScheduleARow,
@@ -36,6 +37,13 @@ import {
 // Credentials come ONLY from Cloudflare Worker secrets (wrangler secret put).
 // There are no hardcoded fallbacks: the repo is public, and a fallback both
 // leaks the key and hides a missing secret. A missing secret fails loudly.
+// Failure reasons are served publicly by /health: never let a key through
+function redactKey(message) {
+  return String(message || 'unknown')
+    .replace(/api_key=[^&\s]+/g, 'api_key=REDACTED')
+    .slice(0, 200);
+}
+
 function requireSecret(env, name) {
   const value = env?.[name];
   if (!value) {
@@ -193,6 +201,10 @@ export default {
       return getStatus(env);
     }
 
+    if (url.pathname === '/health') {
+      return getHealth(env);
+    }
+
     return new Response(
       'Itemized Donor Concentration Analysis\n\nEndpoints:\n  /analyze - Trigger processing\n  /status - View progress',
       {
@@ -274,11 +286,49 @@ async function runDiscoverySweep(env) {
       analysis.personFunding = pf;
       await env.MEMBER_DATA.put(key, JSON.stringify(analysis));
     }
-    await env.MEMBER_DATA.put('discovery_sweep_cursor', String((idx + 1) % eligible.length));
+    await env.MEMBER_DATA.put('discovery_sweep_cursor', String((idx + 1) % eligible.length), {
+      metadata: { ranAt: new Date().toISOString() },
+    });
     return;
   }
   // Nothing needed in this window - move the cursor on
-  await env.MEMBER_DATA.put('discovery_sweep_cursor', String((cursor + 30) % eligible.length));
+  // The cursor write doubles as this worker's heartbeat for /health: the
+  // sweep runs every hour and, unlike collection, never stands down
+  await env.MEMBER_DATA.put('discovery_sweep_cursor', String((cursor + 30) % eligible.length), {
+    metadata: { ranAt: new Date().toISOString() },
+  });
+}
+
+async function getHealth(env) {
+  const [statusRaw, sweep, queueRaw, droppedRaw, budget] = await Promise.all([
+    env.MEMBER_DATA.get('processing_status'),
+    env.MEMBER_DATA.getWithMetadata('discovery_sweep_cursor'),
+    env.MEMBER_DATA.get('itemized_processing_queue'),
+    env.MEMBER_DATA.get('itemized_dropped'),
+    readBudget(env.DONOR_DB),
+  ]);
+  const queue = queueRaw ? JSON.parse(queueRaw) : [];
+  const headRaw = queue[0]
+    ? await env.MEMBER_DATA.get(`itemized_progress_v2:${queue[0].bioguideId}`)
+    : null;
+  const head = headRaw ? JSON.parse(headRaw) : null;
+  const verdict = evaluateHealth({
+    pipelineLastRun: statusRaw ? JSON.parse(statusRaw).lastRun : null,
+    sweepRanAt: sweep?.metadata?.ranAt || null,
+    queue,
+    headProgress: head && {
+      startedAt: head.startedAt,
+      lastAdvancedAt: head.lastAdvancedAt,
+      lastFecStop: head.lastFecStop,
+    },
+    d1RowsToday: budget.spent,
+    d1Error: budget.degraded ? 'ledger unreadable' : null,
+    dropped: droppedRaw ? JSON.parse(droppedRaw) : [],
+  });
+  return new Response(
+    JSON.stringify({ ...verdict, checkedAt: new Date().toISOString() }, null, 2),
+    { headers: { 'Content-Type': 'application/json' } }
+  );
 }
 
 async function getStatus(env) {
@@ -562,9 +612,7 @@ async function analyzeMembers(env, pagesPerRun = PAGES_PER_RUN_HTTP) {
       queue.push({
         ...member,
         failCount,
-        lastError: String(results[member.bioguideId]?.error || 'unknown')
-          .replace(/api_key=[^&\s]+/g, 'api_key=REDACTED')
-          .slice(0, 200),
+        lastError: redactKey(results[member.bioguideId]?.error),
         lastFailedAt: new Date().toISOString(),
       });
       log(
@@ -574,6 +622,16 @@ async function analyzeMembers(env, pagesPerRun = PAGES_PER_RUN_HTTP) {
       log(
         `🚫 ${member.name} dropped after ${failCount} failures; next queue rebuild retries if collectable`
       );
+      // Kept for /health so a drop raises an alert. Rare, so the extra KV
+      // write is affordable; only the latest 20 are kept.
+      const dropped = JSON.parse((await env.MEMBER_DATA.get('itemized_dropped')) || '[]');
+      dropped.unshift({
+        bioguideId: member.bioguideId,
+        name: member.name,
+        lastError: redactKey(results[member.bioguideId]?.error),
+        droppedAt: new Date().toISOString(),
+      });
+      await env.MEMBER_DATA.put('itemized_dropped', JSON.stringify(dropped.slice(0, 20)));
     }
     await env.MEMBER_DATA.put(queueKey, JSON.stringify(queue));
   } else {
@@ -1030,6 +1088,14 @@ export async function fetchAndAggregateChunk(
   // A member the FEC refuses on every run must still leave the queue head:
   // only runs that got nothing at all count, and three in a row is a failure
   progress.stalledRuns = fecStop && !fetchedAny ? (progress.stalledRuns || 0) + 1 : 0;
+  // For /health: when this collection last moved forward, and the last FEC
+  // error that cut a run short
+  if (fetchedAny) {
+    progress.lastAdvancedAt = progress.lastUpdated;
+  }
+  if (fecStop) {
+    progress.lastFecStop = { status: fecStop, at: progress.lastUpdated };
+  }
 
   // Check if complete
   // A run halted by the write budget is paused, not finished: `reachedEnd`

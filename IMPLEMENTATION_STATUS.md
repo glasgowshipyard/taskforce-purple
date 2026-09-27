@@ -27,6 +27,28 @@
 
 ---
 
+## 2026-09-27: automatic alerts (itemized `dbe93b21`)
+
+Until now, failures showed up only in live logs nobody was watching; AOC
+sat stuck for three months unnoticed. Now `/health` on the itemized worker
+checks the things that have actually gone wrong: workers not running, the
+donor queue stuck, members failing or being dropped (with the reason), and
+D1 writes escaping the meter. An hourly GitHub Action opens an issue that
+@mentions the owner when anything fails, comments only when the problems
+change, and closes the issue on recovery. RUNBOOK §10 has the details.
+
+Zero-cost heartbeats: the itemized worker's heartbeat is metadata on a
+write it already made. Progress records now carry `lastAdvancedAt` and
+`lastFecStop`, saved on the write that already happens every run. The
+only new KV write is `itemized_dropped`, and that happens only when a
+member is dropped.
+
+The alert script's issue-open, no-repeat, comment-on-change and
+close-on-recovery paths were tested locally with a stand-in `gh`. The
+live workflow's first scheduled run is at the next :25 after deploy.
+
+---
+
 ## 2026-09-27: large campaigns never finished — one FEC hiccup threw away the run (#44)
 
 **What was wrong.** When the FEC returned a temporary error (rate limit,

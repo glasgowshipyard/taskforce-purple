@@ -114,6 +114,11 @@ estimateRowWrites({...})`) — an unmetered path silently reopens the hole.
   trusted forever. A wrong cached match pins a member to the wrong candidate
   (and their zeros) until cleared via `/api/clear-fec-mapping?bioguideId=X`.
   If a member has implausible zeros, suspect this cache first.
+- **Alerts:** `workers/health.js` (served at itemized `/health`, checked
+  hourly by `.github/workflows/health-alert.yml`, which opens a GitHub issue
+  for the owner). When you add a way for the system to fail quietly, add a
+  check there — a failure nobody is told about is how AOC sat stuck for
+  three months.
 - `.claude/settings.local.json` is local-only and gitignored — never commit.
 
 ## Conventions

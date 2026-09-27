@@ -1,0 +1,28 @@
+name: Health alert
+
+# Hourly check of the live system. Opens a GitHub issue (which notifies the
+# owner) when something is wrong, and closes it when things recover.
+# See scripts/health-alert.sh and RUNBOOK.md §10.
+on:
+  schedule:
+    - cron: '25 * * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: health-alert
+  cancel-in-progress: false
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check health and alert
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: bash scripts/health-alert.sh

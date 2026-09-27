@@ -69,6 +69,15 @@ wrangler kv key get "members:all" --namespace-id=8318226115e2423ab5d141adfa5419f
 
 **`itemized_processing_queue`** - Queue of members needing itemized analysis
 
+Entries are `{bioguideId, name, failCount?, lastError?, lastFailedAt?}`. The last two have been
+recorded since 2026-09-27 (API key redacted; served publicly by `/health`).
+
+**`itemized_dropped`** - The last 20 members dropped after 3 failures (`{bioguideId, name,
+lastError, droppedAt}`); read by `/health`. Written only when a member is dropped.
+
+**`discovery_sweep_cursor`** - The discovery sweep's position. Its KV metadata `{ranAt}` is the
+itemized worker's heartbeat for `/health` (same write, no extra cost).
+
 ```bash
 # Check queue status
 wrangler kv key get "itemized_processing_queue" --namespace-id=8318226115e2423ab5d141adfa5419f9 --remote | jq 'length'
