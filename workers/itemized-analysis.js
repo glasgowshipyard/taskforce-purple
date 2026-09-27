@@ -557,7 +557,16 @@ async function analyzeMembers(env, pagesPerRun = PAGES_PER_RUN_HTTP) {
     queue.shift();
     const failCount = (member.failCount || 0) + 1;
     if (failCount < 3) {
-      queue.push({ ...member, failCount });
+      // Why and when, kept on the entry: the queue is written here anyway,
+      // and without it a failure left no trace anywhere (#44)
+      queue.push({
+        ...member,
+        failCount,
+        lastError: String(results[member.bioguideId]?.error || 'unknown')
+          .replace(/api_key=[^&\s]+/g, 'api_key=REDACTED')
+          .slice(0, 200),
+        lastFailedAt: new Date().toISOString(),
+      });
       log(
         `⏭️ ${member.name} deferred (attempt ${failCount}/3): ${results[member.bioguideId]?.error}`
       );
@@ -632,7 +641,7 @@ async function checkAllComplete(env, members) {
   return true;
 }
 
-async function fetchAndAggregateChunk(
+export async function fetchAndAggregateChunk(
   bioguideId,
   env,
   log,
@@ -762,6 +771,8 @@ async function fetchAndAggregateChunk(
   let reachedEnd = false;
 
   let budgetStopped = false;
+  let fecStop = null;
+  let fetchedAny = false;
 
   while (pagesProcessed < maxPagesToFetch) {
     // Stop before spending an FEC call we cannot store the result of. A page
@@ -808,8 +819,21 @@ async function fetchAndAggregateChunk(
     });
 
     if (!response.ok) {
-      throw new Error(`FEC API error: ${response.status} ${response.statusText}`);
+      // A temporary FEC error (rate limit, timeout, server error) used to
+      // throw here, discarding every page already fetched and written this
+      // run and counting a failure against the member - three and they were
+      // dropped. Large campaigns hit one on most runs and never finished
+      // (AOC's collection has not advanced since June; #44). Keep the pages
+      // already processed - their state is complete - and stop cleanly.
+      const temporary = response.status === 429 || response.status >= 500;
+      if (!temporary) {
+        throw new Error(`FEC API error: ${response.status} ${response.statusText}`);
+      }
+      fecStop = `FEC ${response.status} ${response.statusText}`.trim();
+      log(`  ⚠️ ${fecStop} after ${pagesProcessed} pages; keeping them, stopping this run`);
+      break;
     }
+    fetchedAny = true;
 
     const data = await response.json();
     const transactions = data.results || [];
@@ -1003,6 +1027,9 @@ async function fetchAndAggregateChunk(
   // Update progress
   progress.runsCompleted++;
   progress.lastUpdated = new Date().toISOString();
+  // A member the FEC refuses on every run must still leave the queue head:
+  // only runs that got nothing at all count, and three in a row is a failure
+  progress.stalledRuns = fecStop && !fetchedAny ? (progress.stalledRuns || 0) + 1 : 0;
 
   // Check if complete
   // A run halted by the write budget is paused, not finished: `reachedEnd`
@@ -1171,6 +1198,9 @@ async function fetchAndAggregateChunk(
     log(
       `  💾 Saved progress: ${Object.keys(progress.donorTotals).length} unique donors, ${progress.allAmounts.length} amounts`
     );
+    if (progress.stalledRuns >= 3) {
+      throw new Error(`${fecStop} on ${progress.stalledRuns} runs in a row with no progress`);
+    }
 
     return {
       complete: false,

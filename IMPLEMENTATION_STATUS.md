@@ -27,6 +27,42 @@
 
 ---
 
+## 2026-09-27: large campaigns never finished — one FEC hiccup threw away the run (#44)
+
+**What was wrong.** When the FEC returned a temporary error (rate limit,
+timeout, server error) on any page, the itemized worker threw. That
+discarded every page already fetched in that run (their D1 rows were
+written, but the progress record wasn't saved) and counted a strike
+against the member; three strikes and they were dropped from the queue.
+Big campaigns need hundreds of pages, so they hit one sooner or later and
+never finished. The code has been like this since the worker was written.
+
+**AOC, the evidence.** Her progress record last saved on 2026-06-24
+(55 runs, 26,436 of the FEC's 100,899 rows). D1 holds 29,570 of her rows,
+the last written 2026-06-29. The 3,134 rows beyond the saved progress are
+the signature of this bug: pages written, then the run threw before
+saving. She has not advanced since. The exact FEC status codes weren't
+recorded anywhere, because the worker never stored a failure reason.
+Nothing changed on 2026-09-26/27 caused it; the queue was then paused on
+the D1 budget, and she wasn't attempted.
+
+**Her S tier.** It comes from the FEC totals: 66% small donors, $28k PAC,
+32.6% itemized. With no completed donor analysis, the concentration check
+uses the default anchor of 40, so the itemized share draws no penalty. The
+grade is consistent with the settled model, but it has not yet been tested
+against her donor concentration.
+
+**Fix.** A temporary FEC error now keeps the pages already processed and
+ends the run cleanly, with no strike. Only a run that gets nothing at all
+counts, and three such runs in a row is a failure, so a member the FEC
+refuses on every run still can't hold the queue head. Any other error (a
+4xx) still fails at once. Queue entries now carry `lastError` and
+`lastFailedAt` (no extra KV writes; the queue is written anyway), with the
+API key redacted. Tests: `workers/itemized-fec-errors.test.js`. 3 of its 4
+tests fail on the previous code.
+
+---
+
 ## 2026-09-27 18:09 UTC: hardcoded credentials removed and rotated (pipeline `6433b25b`, itemized `8d78343d`)
 
 An api.data.gov key (the Congress.gov key, also used for every FEC call)

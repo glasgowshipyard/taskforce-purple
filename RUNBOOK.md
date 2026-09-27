@@ -64,6 +64,13 @@ npx wrangler kv key get "processing_queue_phase1" --namespace-id=8318226115e2423
 ```
 
 ```bash
+# Donor-analysis queue: who is waiting, how many strikes, and why/when the
+# last one failed (dropped at 3 strikes; lastError/lastFailedAt recorded
+# from 2026-09-27 on - older strikes have no reason on record)
+npx wrangler kv key get "itemized_processing_queue" --namespace-id=8318226115e2423ab5d141adfa5419f9 --remote | jq -r '.[] | [.name, (.failCount // 0), (.lastFailedAt // "-"), (.lastError // "-")] | @tsv'
+```
+
+```bash
 # Any one member's full record
 curl -s "https://taskforce-purple-api.dev-a4b.workers.dev/api/members" | jq '.members[] | select(.name | test("Cramer"))'
 ```
@@ -217,16 +224,16 @@ curl -X POST "https://taskforce-purple-api.dev-a4b.workers.dev/api/clear-fec-map
 
 ## 9. Known failure signatures
 
-| Symptom                                   | Likely cause                      | First move                                                            |
-| ----------------------------------------- | --------------------------------- | --------------------------------------------------------------------- |
-| Member with implausible zeros             | Stale/wrong `fec_mapping_*` cache | Clear mapping (§8), reprocess                                         |
-| Score >100% or itemized > total           | Cross-cycle record corruption     | §5 check, reprocess affected, recalc                                  |
-| Card data much older than analysis data   | Financial refresh stalled         | §4 queue length; tail the api worker                                  |
-| Queue frozen on same member for hours     | Failure-defer not advancing       | Tail the worker; see the queue-stall pattern in IMPLEMENTATION_STATUS |
-| Frontend changes not visible              | Pages build failed                | §7 deployment list; check the build log link it prints                |
-| Everything frozen, no logs at all         | Cloudflare incident               | `curl -s https://www.cloudflarestatus.com/api/v2/status.json`         |
-| Collection stopped mid-day, no errors     | D1 write budget spent (by design) | §6 ledger; resumes 00:00 UTC                                          |
-| `d1 info` writes >> ledger `rows_written` | An unmetered D1 write path        | §6; every D1 write must charge the meter                              |
+| Symptom                                   | Likely cause                                                       | First move                                                    |
+| ----------------------------------------- | ------------------------------------------------------------------ | ------------------------------------------------------------- |
+| Member with implausible zeros             | Stale/wrong `fec_mapping_*` cache                                  | Clear mapping (§8), reprocess                                 |
+| Score >100% or itemized > total           | Cross-cycle record corruption                                      | §5 check, reprocess affected, recalc                          |
+| Card data much older than analysis data   | Financial refresh stalled                                          | §4 queue length; tail the api worker                          |
+| Queue frozen on same member for hours     | Usually the daily D1 budget (§6); else failure-defer not advancing | §6 ledger; queue command in §4 (strikes + last error)         |
+| Frontend changes not visible              | Pages build failed                                                 | §7 deployment list; check the build log link it prints        |
+| Everything frozen, no logs at all         | Cloudflare incident                                                | `curl -s https://www.cloudflarestatus.com/api/v2/status.json` |
+| Collection stopped mid-day, no errors     | D1 write budget spent (by design)                                  | §6 ledger; resumes 00:00 UTC                                  |
+| `d1 info` writes >> ledger `rows_written` | An unmetered D1 write path                                         | §6; every D1 write must charge the meter                      |
 
 ## Related docs
 
