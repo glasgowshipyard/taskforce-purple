@@ -93,6 +93,34 @@ run). A member stuck there for days has no FEC record under their crosswalk IDs
 (`node scripts/build-fec-crosswalk.mjs`) if Congress membership changed. See
 IMPLEMENTATION_STATUS 2026-09-26 for why identity is never inferred from names.
 
+### Money trail and grade basis (added 2026-09-27, #32)
+
+```bash
+# How many members are graded on all their committees vs campaign only
+curl -s "https://taskforce-purple-api.dev-a4b.workers.dev/api/members" | jq '[.members[].gradeBasis] | group_by(.) | map({(.[0] // "none"): length}) | add'
+```
+
+`all-committees` grows as pooled collections complete and reconcile.
+`campaign-committee-rechecking` = collected but did not match the FEC to the
+dollar; a few is normal (a filing landed mid-collection), a lot is a defect.
+
+```bash
+# One member's committees, what each raised, and where joint-fund money went
+curl -s "https://taskforce-purple-api.dev-a4b.workers.dev/api/member-detail?bioguideId=P000197" | jq '{personLevel, moneyTrail: (.moneyTrail | if . then {raisedInName, committees: [.committees[] | {name, role, raised}]} else null end)}'
+```
+
+`moneyTrail: null` = the hourly discovery sweep hasn't reached them yet.
+
+**Check any member's figures against the FEC yourself** (read-only, ~1 h for
+a big member, resumable):
+
+```bash
+caffeinate -i npm run trial:pool -- P000197
+```
+
+Result: `scripts/trials/output/<id>/summary.md` — says first whether every
+count and dollar reconciles.
+
 ## 6. Budgets (free-tier meters)
 
 ```bash

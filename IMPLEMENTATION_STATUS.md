@@ -27,100 +27,37 @@
 
 ---
 
-## In flight — built and simulated, NOT deployed
+## Recent deploy — 2026-09-27 15:23 UTC (pipeline `a1ec8b8d`, itemized `2985cb40`, frontend `7e1d662`)
 
-Both branches are pushed to origin. Nothing here is live.
+**Live now:**
 
-### Branch `fix-step4-penalty` — the 145 zeros (#42) — ready
+- **Step 4 fix (#42):** members at exactly 0% went 145 → 4 (the 4 are on the
+  small-donor-only fallback path — see Known issues). Live tiers after the
+  15:40 recalc: S 10 · A 15 · B 29 · C 40 · D 85 · E 139 · F 205, matching the
+  simulation (F higher because 14 re-fetched identity members are now graded).
+  Reference members unchanged: AOC S 98, Sanders S 95, Pelosi A 90, Jeffries B 73.
+- **Every committee a member runs (#32):** the itemized worker discovers a
+  member's campaign(s), joint funds and leadership PAC, then collects donors
+  from all of them into one pool. The :10 run each hour is a discovery sweep
+  (one member, publishes their money trail ahead of collection); :30 and :50
+  collect. Cron offset from the pipeline because the FEC key allows 60
+  requests per minute.
+- **Reconciliation gate:** a member moves to the all-committee grade only
+  when every committee's records match the FEC's exact count and its itemized
+  money matches the FEC's total to the dollar. Otherwise the card says the
+  figures are being re-checked (`gradeBasis: campaign-committee-rechecking`).
+- **Itemized money counted as the FEC does:** non-memo line 11AI whatever the
+  entity type (tribal nations included), refunds netted — one classifier
+  shared by the worker and `scripts/trials/pool-donors.mjs`.
+- **Money-trail panel** on every profile, fed by `/api/member-detail`.
 
-The July 2026 penalty measured excess itemized share in points of
-_individual_ money, squared it, and subtracted it from a share of _total_
-money. The units mismatch produced 200–390-point penalties; the 40-point cap
-and zero floor added then put 145 members on an identical 0. The fix keeps
-the settled design and applies it in consistent units: itemized money above
-the concentration anchor stops counting as people-funding.
-Simulated on all 496 graded members (`scripts/simulations/penalty-model-sim.mjs`):
-zeros 145 → 0; AOC S 98, Sanders S 95, Pelosi A 90, Jeffries B 73 unchanged;
-broad itemized bases up (13 F→D), concentrated ones down (Whitehouse, Clyde
-D→F; Thanedar A→F). F 302 → 187. 121 tests pass.
-**Held back** so every grade changes once, together with the branch below.
+**Rolling out over weeks, not instantly:** money trails appear as the sweep
+reaches each member (~24/day); grades switch to all-committees member by
+member as each pooled collection completes and reconciles. Very large
+campaigns may take a long time (AOC's collection has never completed).
 
-### Branch `person-funding` — every committee a member runs (#32) — built, NOT deployed, paused 2026-09-26 ~22:15 UTC
-
-Contains the Step 4 fix too (branch `fix-step4-penalty` is superseded). 138
-tests pass; lint and build clean. Pushed to origin.
-
-**Agreed rule (owner, 2026-09-26):** show everything raised in the member's
-name in full; grade on what the member _received_; put the donors of the
-member's _own_ joint funds into their concentration test in full.
-
-- Received = campaign(s) + leadership PAC + money any joint fund transferred
-  in, split by that fund's own donor mix (every fund alike: no dollar is
-  credited to two members).
-- Own fund = registered under the member's candidacy, or the member's
-  committees are its largest candidate recipient (Schedule B; party
-  committees excluded). Leaders' funds send most to the party, so "received
-  most of it" was wrong — e.g. GROW THE MAJORITY: $95.8M raised, $5.0M to the
-  Speaker, $74.8M passed on.
-
-**What is built:**
-
-- `workers/person-funding.js`: discovery from crosswalk IDs; unregistered
-  joint funds found by the transfers they send (line 12, committee senders,
-  designation J); netting of transfers between own committees; FEC size
-  breakdowns that don't reconcile are withheld; request-budget wrapper.
-- Itemized worker: a discovery run per member (<=40 FEC calls, 1 s apart),
-  then donor collection across every committee in the pool into one total
-  per person; analyses marked `personLevel`; hourly discovery sweep (:10
-  run) so money trails publish within ~3 weeks; cron moved to :10/:30/:50;
-  donor key uses 5-digit zip.
-- Pipeline: grades on all committees only once a member's analysis is
-  person-level (otherwise campaign basis, stated on the card); stores
-  `gradeBasis` + `personFigures`; `/api/member-detail` serves the money trail
-  per profile (the list payload is already ~3.5 MB).
-- Frontend: `MoneyTrail` panel — every committee in plain English with FEC
-  links, raised, $2,000+ share, sent to member, passed on; largest donors;
-  grade basis stated. Every card figure follows the grade basis. Verified
-  visually with Pelosi's real trial data (panel only; endpoint not live).
-
-**Trial (7–10 members, live FEC, invariants pass):** raised in name —
-Mike Johnson $127.8M, Scalise $48.7M, Jeffries $31.5M, Pelosi $8.3M (her
-campaign handles 30%); AOC/Sanders essentially unchanged.
-
-**Not done — resume here:**
-
-1. ~~Pelosi's pooled-donor grade~~ **DONE 2026-09-27**
-   (`npm run trial:pool -- P000197` on branch `person-funding`; read-only).
-   Every record count matches the FEC's exact count (campaign 46,389,
-   PAC to the Future 49,266, Victory Fund 346, Pelosi Victory Committee 8)
-   and every committee's itemized-individual total matches the FEC's to the
-   dollar ($4,302,102 in all), with no tolerance. **Grade: A 90 on the
-   campaign committee → B 74 on all committees with donors pooled** — 25 of
-   4,991 donors supplied half the itemized money, nearly all via the Victory
-   Fund (largest: two donors at $315,100 each).
-   Getting there fixed two defects, both on the branch: the count check now
-   uses FEC counts flagged `is_count_exact`, and itemized individual money is
-   counted exactly as the FEC does — non-memo line 11AI whatever the entity
-   type (two tribal nations, $4,500, had been dropped), refunds netted —
-   in one classifier shared by the worker and the trial.
-2. Owner approval to deploy. Deploy order: merge to main (frontend), deploy
-   both workers. Effects: Step 4 grades change at once (simulated); each
-   member's grade may change again when their person-level collection
-   completes (weeks, as the queue cycles) — owner to confirm that is
-   acceptable versus holding Step 4.
-3. After deploy: RUNBOOK entries for the sweep and `/api/member-detail`.
-
-**Found today, not fixed:**
-
-- **FEC key limit is 60 requests per MINUTE** (response header
-  `x-ratelimit-limit: 60`), shared by the live pipeline, the itemized
-  worker and any local script. Local trials at 4/s tripped it repeatedly;
-  a script at ~1/s still collides with the workers' cron minutes.
-- D1 holds none of Pelosi's campaign transactions although her analysis
-  counted 23,087 (Aug 17) — the D1 mirror has gaps. Grades don't use D1;
-  the FARA join does, so FARA matches may be incomplete for such members.
-- `processing_status` not written 10:21–20:00 UTC on 2026-09-26 (old code);
-  normal since the 20:02 deploy; cause unknown.
+**Verified on the Pelosi trial (read-only):** every count exact, every
+dollar reconciled; all-committee grade B 74 vs A 90 campaign-only.
 
 ### Discarded on 2026-09-26 — do not revive
 
@@ -869,6 +806,14 @@ Both crons run every 20 minutes = 72 runs/day per worker.
 ---
 
 ## Known Issues & Limitations
+
+- **Fallback path grades on small donors only.** Members with no PAC details
+  and no usable donor analysis (e.g. just re-fetched under a corrected
+  identity) are scored on their small-donor share alone, ignoring itemized
+  money — 4 members read exactly 0% on 2026-09-27 this way. They move to the
+  full calculation as Phase 2 and the itemized collection reach them.
+- **D1 mirror has gaps** (e.g. none of one senior member's 46k campaign
+  transactions); grades don't use D1, but the FARA join does.
 
 ### Non-Issues (Previously Reported, Now Resolved)
 
