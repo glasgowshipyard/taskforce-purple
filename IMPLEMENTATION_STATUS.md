@@ -51,6 +51,16 @@
   shared by the worker and `scripts/trials/pool-donors.mjs`.
 - **Money-trail panel** on every profile, fed by `/api/member-detail`.
 
+**Follow-up, same day (itemized `96d37c94`):** the D1 meter charged every
+transaction at the new-row price (5), but re-collections are mostly ignored
+duplicates (1, measured) — it over-stated spend ~5x and would have stopped
+collection each day after a fifth of the safe work. It now charges from D1's
+own per-statement `meta.changes`. Verified after deploy: grades match the
+simulation; a discovery run (Yakym, 3 committees) and the first hourly sweep
+(Aderholt: campaign, leadership PAC, joint fund) both published correctly.
+Collection paused for the rest of 2026-09-27 on that day's (over-stated)
+budget; resumes 00:00 UTC.
+
 **Rolling out over weeks, not instantly:** money trails appear as the sweep
 reaches each member (~24/day); grades switch to all-committees member by
 member as each pooled collection completes and reconciles. Very large
