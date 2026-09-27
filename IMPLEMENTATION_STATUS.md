@@ -822,8 +822,15 @@ Both crons run every 20 minutes = 72 runs/day per worker.
   identity) are scored on their small-donor share alone, ignoring itemized
   money — 4 members read exactly 0% on 2026-09-27 this way. They move to the
   full calculation as Phase 2 and the itemized collection reach them.
-- **D1 mirror has gaps** (e.g. none of one senior member's 46k campaign
-  transactions); grades don't use D1, but the FARA join does.
+- **D1 is missing transactions (#43).** A failed D1 write is logged and
+  skipped, so collections can complete over holes; one member's 23,087
+  campaign transactions are absent. Grades don't use D1; the FARA join does.
+  Fix planned in the issue: fail the page on write failure, add D1 counts to
+  the completion check, backfill via the person-level re-collection.
+- **Large campaigns never finish collecting (#44).** AOC's runs are
+  _failing_ (`failCount: 2` on 2026-09-27; dropped at 3). Cause not yet
+  confirmed — capture the error first; likely progress-record size and D1
+  write volume.
 
 ### Non-Issues (Previously Reported, Now Resolved)
 
