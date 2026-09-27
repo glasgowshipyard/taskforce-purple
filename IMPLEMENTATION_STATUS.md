@@ -89,22 +89,20 @@ campaign handles 30%); AOC/Sanders essentially unchanged.
 
 **Not done — resume here:**
 
-1. Pelosi's pooled-donor grade (the owner's reference question). Run it
-   yourself, unattended — read-only, resumable, no AI needed:
-
-   ```bash
-   git switch person-funding
-   caffeinate -i npm run trial:pool -- P000197
-   ```
-
-   `caffeinate -i` stops the Mac sleeping mid-run. Watch it with
-   `tail -f scripts/trials/output/P000197/log.txt`; the result lands in
-   `scripts/trials/output/P000197/summary.md`, which starts by saying
-   whether the figures reconcile with the FEC's own. If it stops for any
-   reason, run the same command again and it resumes. Real size (measured
-   2026-09-26): campaign 46,389 records, PAC to the Future 49,266, Victory
-   Fund 346 — about 960 requests, roughly an hour at the safe pace.
-
+1. ~~Pelosi's pooled-donor grade~~ **DONE 2026-09-27**
+   (`npm run trial:pool -- P000197` on branch `person-funding`; read-only).
+   Every record count matches the FEC's exact count (campaign 46,389,
+   PAC to the Future 49,266, Victory Fund 346, Pelosi Victory Committee 8)
+   and every committee's itemized-individual total matches the FEC's to the
+   dollar ($4,302,102 in all), with no tolerance. **Grade: A 90 on the
+   campaign committee → B 74 on all committees with donors pooled** — 25 of
+   4,991 donors supplied half the itemized money, nearly all via the Victory
+   Fund (largest: two donors at $315,100 each).
+   Getting there fixed two defects, both on the branch: the count check now
+   uses FEC counts flagged `is_count_exact`, and itemized individual money is
+   counted exactly as the FEC does — non-memo line 11AI whatever the entity
+   type (two tribal nations, $4,500, had been dropped), refunds netted —
+   in one classifier shared by the worker and the trial.
 2. Owner approval to deploy. Deploy order: merge to main (frontend), deploy
    both workers. Effects: Step 4 grades change at once (simulated); each
    member's grade may change again when their person-level collection
