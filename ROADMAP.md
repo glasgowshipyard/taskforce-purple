@@ -118,9 +118,10 @@ funding routes visible, behavior included. Same rules for all 537.
 Do these together in one sitting when the project is ready for an
 audience. Do not do piecemeal (see CLAUDE.md gotchas — don't re-litigate).
 
-1. Rotate both api.data.gov keys and `UPDATE_SECRET`
-2. Remove hardcoded fallbacks in the workers (#16) — keys AND the
-   `UPDATE_SECRET ||` fallbacks on five admin endpoints
+1. ~~Rotate api.data.gov key and `UPDATE_SECRET`~~ — **done 2026-09-27**
+   (`scripts/rotate-secrets.sh`); the old api.data.gov key could not be
+   self-revoked and remains public in history, unused
+2. ~~Remove hardcoded fallbacks in the workers (#16)~~ — **done 2026-09-27**
 3. **Add auth to the itemized worker's `/analyze` endpoint** (currently
    unauthenticated — anyone can burn cron budget)
 4. Untrack remaining internal docs; decide whether git history scrubbing

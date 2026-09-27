@@ -91,19 +91,23 @@ redesigned them wasted days and, twice, proposed breaking them. Build on them.
 estimateRowWrites({...})`) — an unmetered path silently reopens the hole.
   Its per-row costs are measured against production, not derived from the
   index count; re-measure rather than reason about them (RUNBOOK §6).
-- **FEC rate limit: 60 requests per minute per key**, shared by both
-  workers and any local script. Space calls >= 1 s and avoid the workers'
-  cron minutes when running trials.
+- **FEC rate limit: 60 requests per minute per key.** Local trial scripts
+  should use their own key, not the workers' secret, and space calls >= 1 s.
 - **D1 bound-parameter limit**: batch inserts at ~10 rows/statement (see the
   transactions insert in itemized-analysis.js). Larger batches fail silently
   if wrapped in catch blocks — this already bit us once.
 - Prefer `INSERT ... ON CONFLICT DO UPDATE ... WHERE <changed>` over
   `INSERT OR REPLACE`: an unchanged row then costs zero row-writes instead of
   two. Never write a row just to restate its current value.
-- Worker secrets (`CONGRESS_API_KEY`, `FEC_API_KEY`, `UPDATE_SECRET`) are set
-  via `wrangler secret put`. Hardcoded fallbacks still exist in the workers;
-  removing them plus rotating keys is deliberately deferred until the project
-  goes public-facing (owner's call — don't re-litigate, don't add new ones).
+- **Credentials live only in Cloudflare Worker secrets** — `FEC_API_KEY`,
+  `CONGRESS_API_KEY`, `UPDATE_SECRET` on the pipeline worker; `FEC_API_KEY` on
+  the itemized worker. Code reads them with `requireSecret()` and fails loudly
+  if one is missing. **Never write a key, token or password into code** — the
+  repo is public. Until 2026-09-27 an api.data.gov key and the admin
+  `UPDATE_SECRET` sat hardcoded in the workers for a year (written by Claude);
+  both were replaced and the fallbacks removed. To rotate again:
+  `bash scripts/rotate-secrets.sh` (the owner pastes the key; Claude does not
+  handle credential values). Current values are in the gitignored API_KEYS.md.
 - Queue processing is designed to never let one failing member block a queue
   head: failures defer to the end with a retry budget. Preserve this pattern.
 - `fec_mapping_{bioguideId}` KV keys cache FEC candidate matches and are

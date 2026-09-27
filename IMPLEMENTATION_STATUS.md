@@ -27,6 +27,25 @@
 
 ---
 
+## 2026-09-27 18:09 UTC: hardcoded credentials removed and rotated (pipeline `6433b25b`, itemized `8d78343d`)
+
+An api.data.gov key (the Congress.gov key, also used for every FEC call)
+and the admin `UPDATE_SECRET` had been hardcoded in the public worker code
+since 2025-09-29/30 — written by Claude, flagged in July, left in place, and
+a further copy added on 2026-09-26. Anyone reading the repo could call the
+admin endpoints (recalculate, reprocess, clear FEC mappings, reset PAC data).
+
+- Owner issued a new api.data.gov key; `scripts/rotate-secrets.sh` set it and
+  a newly generated `UPDATE_SECRET` as Cloudflare Worker secrets (neither
+  worker had any secrets before — both ran on the hardcoded values).
+- All 10 hardcoded keys and 6 password copies removed; `requireSecret()`.
+- Verified: the old public `UPDATE_SECRET` is rejected (HTTP 401); the
+  itemized worker's 18:10 discovery sweep ran on the new key.
+- The old key could not be self-revoked; it remains in git history, unused.
+- CI: the gitleaks step had been failing with "scanned ~0 bytes" on every
+  multi-commit push (shallow checkout, exit 1 = scan error, not a leak) —
+  fixed with `fetch-depth: 0` and confirmed scanning.
+
 ## Recent deploy — 2026-09-27 15:23 UTC (pipeline `a1ec8b8d`, itemized `2985cb40`, frontend `7e1d662`)
 
 **Live now:**
