@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { classifyScheduleARow, normalizeConduitName, topConduits } from './schedule-a-classify.js';
+import {
+  classifyScheduleARow,
+  countsAsItemizedIndividual,
+  normalizeConduitName,
+  topConduits,
+} from './schedule-a-classify.js';
 
 // Fixtures modeled on real API responses (probed 2026-07-12)
 const aipacConduitLump = {
@@ -72,13 +77,65 @@ describe('classifyScheduleARow', () => {
     ).toBe('committee');
   });
 
-  it('rejects zero and negative amounts', () => {
+  it('rejects zero and unusable amounts', () => {
     expect(classifyScheduleARow({ ...ordinaryIndividual, contribution_receipt_amount: 0 })).toBe(
       'invalid'
     );
-    expect(classifyScheduleARow({ ...ordinaryIndividual, contribution_receipt_amount: -50 })).toBe(
-      'invalid'
+    expect(
+      classifyScheduleARow({ ...ordinaryIndividual, contribution_receipt_amount: undefined })
+    ).toBe('invalid');
+  });
+
+  // 2026-09-26: the FEC's itemized-individual total is exactly non-memo
+  // line 11AI. Counting by entity type instead disagreed with it.
+  it('counts a refund or correction on 11AI as a netting adjustment, as the FEC does', () => {
+    expect(classifyScheduleARow({ ...ordinaryIndividual, contribution_receipt_amount: -250 })).toBe(
+      'individual-adjustment'
     );
+  });
+
+  it('counts a non-person the FEC files as an individual contribution (a tribal nation on 11AI)', () => {
+    const tribe = {
+      contribution_receipt_amount: 3500,
+      entity_type: 'ORG',
+      line_number: '11AI',
+      contributor_name: 'PECHANGA BAND OF INDIANS',
+      memoed_subtotal: false,
+    };
+    expect(classifyScheduleARow(tribe)).toBe('individual');
+  });
+
+  it('does not count individual-looking rows on other lines (JFC transfers, other receipts)', () => {
+    expect(classifyScheduleARow({ ...ordinaryIndividual, line_number: '12' })).toBe('committee');
+    expect(classifyScheduleARow({ ...ordinaryIndividual, line_number: '15' })).toBe('committee');
+  });
+
+  it('treats either FEC memo flag as a memo', () => {
+    expect(classifyScheduleARow({ ...ordinaryIndividual, memo_code: 'X' })).toBe('memo');
+    expect(classifyScheduleARow({ ...ordinaryIndividual, memoed_subtotal: true })).toBe('memo');
+  });
+
+  it('falls back to entity type when a row has no line number', () => {
+    expect(
+      classifyScheduleARow({
+        contribution_receipt_amount: 5000,
+        memoed_subtotal: false,
+        entity_type: 'PAC',
+        contributor_name: 'SOME INDUSTRY PAC',
+      })
+    ).toBe('committee');
+    expect(classifyScheduleARow({ ...ordinaryIndividual, line_number: undefined })).toBe(
+      'individual'
+    );
+  });
+
+  it('knows which classes count toward itemized individual money', () => {
+    for (const c of ['individual', 'individual-earmarked', 'individual-adjustment']) {
+      expect(countsAsItemizedIndividual(c)).toBe(true);
+    }
+    for (const c of ['invalid', 'memo', 'conduit-memo', 'committee']) {
+      expect(countsAsItemizedIndividual(c)).toBe(false);
+    }
   });
 
   it('memo conduit rows without a contributor name are skipped, not attributed', () => {

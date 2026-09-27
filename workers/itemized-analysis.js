@@ -860,6 +860,12 @@ async function fetchAndAggregateChunk(
       // Aggregate by donor (running total per unique donor)
       progress.donorTotals[compositeKey] =
         (progress.donorTotals[compositeKey] || 0) + tx.contribution_receipt_amount;
+      if (rowClass === 'individual-adjustment') {
+        // A refund or correction nets against the donor and the total, as in
+        // the FEC's own figure, but is not a gift for per-gift statistics
+        progress.totalAmount += tx.contribution_receipt_amount;
+        continue;
+      }
 
       // Track all amounts for median calculation
       progress.allAmounts.push(tx.contribution_receipt_amount);

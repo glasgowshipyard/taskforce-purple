@@ -19,39 +19,69 @@
 // Committee-ish entity types that can act as a conduit/bundler
 const CONDUIT_ENTITY_TYPES = new Set(['PAC', 'ORG', 'COM', 'CCM', 'PTY']);
 
+// FEC marks memo entries two ways; either one makes a row a memo
+const isMemo = tx => tx.memoed_subtotal === true || tx.memo_code === 'X';
+
 /**
  * Classify a Schedule A transaction row (from an UNFILTERED fetch - the
  * worker no longer passes contributor_type=individual, because that filter
  * drops the PAC-entity memo rows that name conduits).
  *
+ * Counting follows the FEC's own definition (2026-09-26). The FEC's
+ * "itemized individual contributions" total is exactly the non-memo rows on
+ * LINE 11AI - "contributions from individuals/persons other than political
+ * committees". That line includes non-people that may legally give to a
+ * campaign, such as tribal nations filed as organisations, and negative
+ * refund/correction rows that net against a donor. The old rule went by
+ * entity type and dropped both, so our totals disagreed with the FEC's (one
+ * campaign: two tribal contributions, $4,500). Rows without a line number
+ * fall back to the entity-type rule.
+ *
  * Returns one of:
- *  - 'invalid'              - zero/negative amount, unusable
- *  - 'conduit-memo'         - memo lump naming a conduit; aggregate for
- *                             attribution, exclude from money totals
- *  - 'memo'                 - other memo row; skip entirely
- *  - 'committee'            - non-memo committee/org row (PAC contributions
- *                             etc.); skip here, the data pipeline's Phase 2
- *                             handles committee money
- *  - 'individual-earmarked' - countable individual row that arrived
- *                             pre-bundled through some conduit
- *  - 'individual'           - ordinary countable individual row
+ *  - 'invalid'               - zero or unusable amount
+ *  - 'conduit-memo'          - memo lump naming a conduit; aggregate for
+ *                              attribution, exclude from money totals
+ *  - 'memo'                  - other memo row; skip entirely
+ *  - 'committee'             - not an itemized individual contribution
+ *                              (other lines: PAC money, transfers, other
+ *                              receipts); skip here
+ *  - 'individual-adjustment' - negative 11AI row (refund/correction): nets
+ *                              against the donor and the total
+ *  - 'individual-earmarked'  - countable row that arrived pre-bundled
+ *                              through some conduit
+ *  - 'individual'            - ordinary countable row
  */
 export function classifyScheduleARow(tx) {
-  if (!tx.contribution_receipt_amount || tx.contribution_receipt_amount <= 0) {
+  const amount = tx.contribution_receipt_amount;
+  if (!Number.isFinite(amount) || amount === 0) {
     return 'invalid';
   }
 
   const entityType = (tx.entity_type || '').toUpperCase();
+  const line = (tx.line_number || '').toUpperCase();
 
-  if (tx.memoed_subtotal === true) {
-    if (tx.line_number === '11AI' && CONDUIT_ENTITY_TYPES.has(entityType) && tx.contributor_name) {
+  if (isMemo(tx)) {
+    if (
+      amount > 0 &&
+      line === '11AI' &&
+      CONDUIT_ENTITY_TYPES.has(entityType) &&
+      tx.contributor_name
+    ) {
       return 'conduit-memo';
     }
     return 'memo';
   }
 
-  if (CONDUIT_ENTITY_TYPES.has(entityType)) {
+  if (line) {
+    if (line !== '11AI') {
+      return 'committee';
+    }
+  } else if (CONDUIT_ENTITY_TYPES.has(entityType)) {
     return 'committee';
+  }
+
+  if (amount < 0) {
+    return 'individual-adjustment';
   }
 
   if (/earmark/i.test(tx.memo_text || '')) {
@@ -59,6 +89,15 @@ export function classifyScheduleARow(tx) {
   }
 
   return 'individual';
+}
+
+/** Does this class count toward itemized individual money? */
+export function countsAsItemizedIndividual(rowClass) {
+  return (
+    rowClass === 'individual' ||
+    rowClass === 'individual-earmarked' ||
+    rowClass === 'individual-adjustment'
+  );
 }
 
 // Normalize a conduit's reported name so filing variations aggregate

@@ -30,6 +30,10 @@
 import { mkdirSync, existsSync, readFileSync, writeFileSync, appendFileSync } from 'node:fs';
 import { FEC_CROSSWALK } from '../../workers/fec-crosswalk.js';
 import { fetchPersonFunding } from '../../workers/person-funding.js';
+import {
+  classifyScheduleARow,
+  countsAsItemizedIndividual,
+} from '../../workers/schedule-a-classify.js';
 import { calculateEnhancedTier, CAPPED_QUADRATIC_OPTIONS } from '../../workers/tier-calculation.js';
 
 // FEC key from the environment, else from the gitignored local API_KEYS.md
@@ -117,24 +121,19 @@ async function fec(path, params = {}) {
 // skipped for a stated reason, and the amounts are kept per FEC line number,
 // so any difference from the FEC's own totals can be traced to specific
 // records instead of being waved through by a tolerance.
+// Uses the itemized worker's own classifier, so the trial and production
+// apply exactly the same rule (non-memo FEC line 11AI, refunds netted).
 function ledgerAdd(ledger, t) {
-  const amount = t.contribution_receipt_amount || 0;
-  const line = t.line_number || '?';
-  let bucket;
-  if (t.memo_code === 'X') {
-    bucket = `skipped: memo entry (line ${line}, ${t.entity_type || '?'})`;
-  } else if (t.entity_type !== 'IND') {
-    bucket = `skipped: not filed as an individual (line ${line}, ${t.entity_type || '?'})`;
-  } else {
-    bucket = `counted: individual (line ${line})`;
-  }
+  const rowClass = classifyScheduleARow(t);
+  const counted = countsAsItemizedIndividual(rowClass);
+  const bucket = `${counted ? 'counted' : 'skipped'}: ${rowClass} (line ${t.line_number || '?'}, ${t.entity_type || '?'})`;
   const b = (ledger[bucket] ||= { rows: 0, amount: 0, examples: [] });
   b.rows++;
-  b.amount += amount;
+  b.amount += t.contribution_receipt_amount || 0;
   if (b.examples.length < 3) {
     b.examples.push(t.sub_id);
   }
-  return bucket.startsWith('counted');
+  return counted;
 }
 const countedTotal = ledger =>
   Object.entries(ledger || {})
@@ -296,8 +295,8 @@ for (const q of state.queue) {
     const page = d.results || [];
     for (const t of page) {
       q.rows++;
-      // Same rule as the itemized worker: individuals only, memo rows
-      // skipped - and the ledger records what was skipped and why
+      // The itemized worker's rule (shared classifier) - and the ledger
+      // records what was skipped and why
       q.ledger ||= {};
       if (!ledgerAdd(q.ledger, t)) {
         continue;
