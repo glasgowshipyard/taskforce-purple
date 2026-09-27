@@ -149,26 +149,32 @@ if (!state) {
 log("Step 2/4: the FEC's own record count for each committee in the pool");
 let totalRows = 0;
 for (const q of state.queue) {
-  if (q.fecCount === null) {
+  // The FEC's own record count for the same query the collection makes
+  // (100 per page). A 1-record query timed out on the FEC's side for small
+  // committees, so it is not used. The count is only proof of completeness
+  // when the FEC marks it exact - for big queries it may be an estimate.
+  if (typeof q.fecCount !== 'number' || q.countExact !== true) {
     try {
       const d = await fec('/schedules/schedule_a/', {
         committee_id: q.committeeId,
         two_year_transaction_period: CYCLE,
-        per_page: 1,
+        per_page: 100,
       });
       q.fecCount = d.pagination?.count ?? 0;
+      q.countExact = d.pagination?.is_count_exact === true;
     } catch (error) {
-      // The FEC's count query sometimes times out; don't let it block the
-      // collection. The final check reports this committee as unconfirmed.
       q.fecCount = 'unknown';
-      log(`   ${q.committeeId}: FEC would not give a count (${error.message}) - collecting anyway`);
+      q.countExact = false;
+      log(`   ${q.committeeId}: FEC count request failed (${error.message})`);
     }
     save();
   }
   if (typeof q.fecCount === 'number') {
     totalRows += q.fecCount;
   }
-  log(`   ${q.committeeId}: ${q.fecCount.toLocaleString()} records`);
+  log(
+    `   ${q.committeeId}: ${q.fecCount.toLocaleString()} records ${q.countExact ? '(exact)' : typeof q.fecCount === 'number' ? '(FEC estimate - cannot prove completeness)' : '(count unavailable)'}`
+  );
 }
 const pagesLeft = state.queue.reduce(
   (s, q) =>
@@ -242,6 +248,7 @@ for (const q of state.queue) {
     committeeId: q.committeeId,
     recordsCollected: q.rows,
     fecRecordCount: q.fecCount,
+    countExact: q.countExact === true,
     fecItemizedIndividuals: t.individual_itemized_contributions || 0,
   });
 }
@@ -257,7 +264,9 @@ for (const d of donors) {
   }
 }
 const fecItemizedSum = checks.reduce((s, c) => s + c.fecItemizedIndividuals, 0);
-const recordsMatch = checks.every(c => c.recordsCollected === c.fecRecordCount);
+// Complete = every committee's collected records equal the FEC's count AND
+// the FEC marks that count exact (an estimate proves nothing)
+const recordsMatch = checks.every(c => c.countExact && c.recordsCollected === c.fecRecordCount);
 const itemizedDiff =
   fecItemizedSum > 0 ? Math.abs(pooledTotal - fecItemizedSum) / fecItemizedSum : 1;
 const trustworthy = recordsMatch && itemizedDiff <= 0.05;
@@ -303,7 +312,7 @@ Generated ${new Date().toISOString()} by \`scripts/trials/pool-donors.mjs\`. Rea
 ## Can these figures be trusted?
 
 **${trustworthy ? 'Yes' : 'NO - do not rely on the grade below'}.**
-${checks.map(c => `- ${c.committeeId}: collected ${c.recordsCollected.toLocaleString()} records, FEC reports ${c.fecRecordCount.toLocaleString()} ${c.recordsCollected === c.fecRecordCount ? '(match)' : '(MISMATCH)'}`).join('\n')}
+${checks.map(c => `- ${c.committeeId}: collected ${c.recordsCollected.toLocaleString()} records, FEC reports ${c.fecRecordCount.toLocaleString()} ${!c.countExact ? '(FEC count is an estimate - NOT VERIFIED)' : c.recordsCollected === c.fecRecordCount ? '(exact match)' : '(MISMATCH)'}`).join('\n')}
 - Itemized money from individuals: we collected ${usd(pooledTotal)}; the FEC's totals for these committees say ${usd(fecItemizedSum)} (${(itemizedDiff * 100).toFixed(1)}% apart; must be within 5%)
 
 ## Grade
