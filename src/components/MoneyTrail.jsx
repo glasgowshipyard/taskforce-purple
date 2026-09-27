@@ -184,7 +184,9 @@ export default function MoneyTrail({ member }) {
           <span className="font-semibold">This grade counts </span>
           {gradeAll
             ? 'money from all of these committees.'
-            : 'only their campaign committee for now. The donors of their other committees are still being collected; the grade updates when that finishes.'}
+            : member.gradeBasis === 'campaign-committee-rechecking'
+              ? "only their campaign committee for now. We've collected the donors of all their committees, but our totals don't yet match the FEC's own to the dollar, so we won't grade on them until they do."
+              : 'only their campaign committee for now. The donors of their other committees are still being collected; the grade updates when that finishes.'}
         </p>
         <p>
           <span className="font-semibold">How we count: </span>

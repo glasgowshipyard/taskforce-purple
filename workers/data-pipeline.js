@@ -1154,8 +1154,13 @@ async function calculateEnhancedTier(member, _allMembers = [], env = null) {
   // Until then, grade on the campaign committee: switching the money to
   // all committees while concentration still saw only the campaign's donors
   // would grade big-cheque joint-fund money unexamined.
+  // ...and only when every committee's records and money reconciled with the
+  // FEC's own figures at completion (exact counts, money to the dollar).
   const pf = concentration?.personLevel ? concentration.personFunding : null;
-  const personLevel = Boolean(pf && !pf.failed && pf.totalRaised > 0 && pf.invariantsHold);
+  const reconciled = concentration?.reconciliation?.ok === true;
+  const personLevel = Boolean(
+    pf && !pf.failed && pf.totalRaised > 0 && pf.invariantsHold && reconciled
+  );
   const scored = personLevel
     ? {
         ...member,
@@ -1169,7 +1174,11 @@ async function calculateEnhancedTier(member, _allMembers = [], env = null) {
     : member;
 
   const result = computeEnhancedTier(scored, concentration);
-  result.gradeBasis = personLevel ? 'all-committees' : 'campaign-committee';
+  result.gradeBasis = personLevel
+    ? 'all-committees'
+    : pf && !pf.failed && !reconciled
+      ? 'campaign-committee-rechecking'
+      : 'campaign-committee';
   result.personFigures = personLevel
     ? {
         totalRaised: pf.totalRaised,

@@ -4,6 +4,7 @@ import {
   isAnalysisFresh,
   isAnalysisCurrent,
   donorPool,
+  reconcileCommittees,
 } from './itemized-analysis.js';
 
 const DAY = 24 * 60 * 60 * 1000;
@@ -85,5 +86,39 @@ describe('person-level analyses (#32)', () => {
     expect(donorPool({ donorCommitteeIds: ['C3', 'C2'] }, 'C1')).toEqual(['C1', 'C2', 'C3']);
     expect(donorPool(null, 'C1')).toEqual(['C1']);
     expect(donorPool({ failed: true, donorCommitteeIds: [] }, 'C1')).toEqual(['C1']);
+  });
+});
+
+describe('reconcileCommittees - the gate for the all-committee grade', () => {
+  // Figures from the Pelosi trial that reconciled to the dollar, 2026-09-27
+  const perCommittee = {
+    C00213512: { rows: 46389, fecCount: 46389, countExact: true, counted: 808796.43 },
+    C00492421: { rows: 346, fecCount: 346, countExact: true, counted: 2582517 },
+  };
+  const totals = {
+    C00213512: { individual_itemized_contributions: 808796.43 },
+    C00492421: { individual_itemized_contributions: 2582517 },
+  };
+
+  it('passes when every committee matches the FEC exactly', () => {
+    expect(reconcileCommittees(perCommittee, ['C00213512', 'C00492421'], totals).ok).toBe(true);
+  });
+
+  it('fails on a $4,500 gap - there is no percentage tolerance', () => {
+    const short = { ...perCommittee, C00213512: { ...perCommittee.C00213512, counted: 804296.43 } };
+    const r = reconcileCommittees(short, ['C00213512', 'C00492421'], totals);
+    expect(r.ok).toBe(false);
+    expect(r.committees[0].moneyOk).toBe(false);
+  });
+
+  it('fails when the FEC count is only an estimate, even if the numbers agree', () => {
+    const est = { ...perCommittee, C00492421: { ...perCommittee.C00492421, countExact: false } };
+    expect(reconcileCommittees(est, ['C00213512', 'C00492421'], totals).ok).toBe(false);
+  });
+
+  it('fails when a committee was never collected or its FEC totals are missing', () => {
+    expect(reconcileCommittees(perCommittee, ['C00213512', 'C99999999'], totals).ok).toBe(false);
+    expect(reconcileCommittees(perCommittee, ['C00213512'], {}).ok).toBe(false);
+    expect(reconcileCommittees({}, [], {}).ok).toBe(false);
   });
 });

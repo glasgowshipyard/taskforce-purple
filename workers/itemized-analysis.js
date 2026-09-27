@@ -18,7 +18,12 @@
 import { cycleForYear } from './tier-calculation.js';
 import { FEC_CROSSWALK } from './fec-crosswalk.js';
 import { fetchPersonFunding, withRequestBudget, committeeSignature } from './person-funding.js';
-import { classifyScheduleARow, normalizeConduitName, topConduits } from './schedule-a-classify.js';
+import {
+  classifyScheduleARow,
+  countsAsItemizedIndividual,
+  normalizeConduitName,
+  topConduits,
+} from './schedule-a-classify.js';
 import {
   readBudget,
   chargeBudget,
@@ -146,6 +151,9 @@ function newProgress({ bioguideId, memberCommitteeId, cycle, personFunding, repl
     rawRowCount: 0, // every fetched row incl. memos - compared to FEC's pagination count
     fecTotalCount: 0,
     countedCommittees: [],
+    // Per committee: records seen, itemized money counted, and the FEC's own
+    // record count for the same query - checked at completion (reconcile)
+    perCommittee: {},
     runsCompleted: 0,
     lastIndex: null,
     lastContributionReceiptDate: null,
@@ -794,6 +802,21 @@ async function fetchAndAggregateChunk(
     const data = await response.json();
     const transactions = data.results || [];
 
+    // The FEC's record count for this committee, from the first page - taken
+    // before the end-of-results check so a committee with no records is
+    // still accounted for
+    progress.perCommittee ||= {};
+    const pc = (progress.perCommittee[committeeId] ||= {
+      rows: 0,
+      counted: 0,
+      fecCount: null,
+      countExact: false,
+    });
+    if (pc.fecCount === null && data.pagination) {
+      pc.fecCount = data.pagination.count ?? 0;
+      pc.countExact = data.pagination.is_count_exact === true;
+    }
+
     if (transactions.length === 0) {
       if (progress.committeeIndex < progress.committeeIds.length - 1) {
         // This committee is done; move to the member's next one
@@ -820,8 +843,12 @@ async function fetchAndAggregateChunk(
     const d1Inserts = [];
     for (const tx of transactions) {
       progress.rawRowCount = (progress.rawRowCount || 0) + 1;
+      pc.rows++;
 
       const rowClass = classifyScheduleARow(tx);
+      if (countsAsItemizedIndividual(rowClass)) {
+        pc.counted += tx.contribution_receipt_amount;
+      }
 
       if (rowClass === 'invalid' || rowClass === 'memo' || rowClass === 'committee') {
         // memos double-count; committee money is Phase 2's job
@@ -988,7 +1015,7 @@ async function fetchAndAggregateChunk(
     const analysis = calculateMetricsFromAggregates(progress, log);
 
     // Reconcile with FEC totals
-    await reconcileWithFEC(progress.committeeIds, cycle, analysis, apiKey, log);
+    await reconcileWithFEC(progress, cycle, analysis, apiKey, log);
 
     // FARA cross-reference (issue #34): donations from employees of firms
     // registered as foreign agents. fara_employer_matches maps exact
@@ -1242,15 +1269,47 @@ function calculateMetricsFromAggregates(progress, log) {
   return analysis;
 }
 
-// Our collected itemized total vs the FEC's, summed over every committee in
-// the member's donor pool.
-async function reconcileWithFEC(committeeIds, cycle, analysis, apiKey, log) {
-  log(`  🔍 Fetching FEC financial totals for reconciliation...`);
+/**
+ * Did we collect every record and every dollar, committee by committee?
+ * Pure; used at completion. A committee passes only if the records we saw
+ * equal the FEC's count for the same query AND the FEC marks that count
+ * exact (it can be an estimate for large queries), AND the itemized money
+ * we counted equals the FEC's itemized-individual total to within $1.
+ * There is no percentage tolerance. The member moves to the all-committee
+ * grade only if every committee passes (the rule proven on the Pelosi
+ * trial, 2026-09-27).
+ */
+export function reconcileCommittees(perCommittee, committeeIds, fecTotalsById) {
+  const committees = (committeeIds || []).map(id => {
+    const pc = perCommittee?.[id];
+    const t = fecTotalsById?.[id];
+    const fecItemized = t ? t.individual_itemized_contributions || 0 : null;
+    const countOk = Boolean(pc && pc.countExact && pc.rows === pc.fecCount);
+    const moneyOk = Boolean(pc && fecItemized !== null && Math.abs(pc.counted - fecItemized) <= 1);
+    return {
+      committeeId: id,
+      rows: pc?.rows ?? null,
+      fecCount: pc?.fecCount ?? null,
+      countExact: Boolean(pc?.countExact),
+      counted: pc ? Math.round(pc.counted * 100) / 100 : null,
+      fecItemized,
+      countOk,
+      moneyOk,
+    };
+  });
+  return {
+    ok: committees.length > 0 && committees.every(c => c.countOk && c.moneyOk),
+    checkedAt: new Date().toISOString(),
+    committees,
+  };
+}
 
-  try {
-    let fecItemizedSum = 0;
-    let found = 0;
-    for (const committeeId of committeeIds) {
+async function reconcileWithFEC(progress, cycle, analysis, apiKey, log) {
+  log(`  🔍 Reconciling every committee with the FEC's own figures...`);
+  const committeeIds = progress.committeeIds || [progress.committeeId];
+  const totalsById = {};
+  for (const committeeId of committeeIds) {
+    try {
       const res = await fetch(
         `https://api.open.fec.gov/v1/committee/${committeeId}/totals/?api_key=${apiKey}&cycle=${cycle}`,
         { headers: { 'User-Agent': 'TaskForcePurple/1.0 (Political Transparency Platform)' } }
@@ -1258,50 +1317,36 @@ async function reconcileWithFEC(committeeIds, cycle, analysis, apiKey, log) {
       if (res.ok) {
         const t = (await res.json()).results?.[0];
         if (t) {
-          fecItemizedSum += t.individual_itemized_contributions || 0;
-          found++;
+          totalsById[committeeId] = t;
         }
       }
+    } catch (error) {
+      log(`  ⚠️ Could not fetch FEC totals for ${committeeId}: ${error.message}`);
     }
-
-    if (found > 0) {
-      {
-        const fecItemizedTotal = fecItemizedSum;
-        const ourCalculatedTotal = analysis.totalAmount;
-        const difference = Math.abs(fecItemizedTotal - ourCalculatedTotal);
-        const percentDiff = fecItemizedTotal > 0 ? (difference / fecItemizedTotal) * 100 : 0;
-
-        log(`  📊 FEC Reconciliation:`);
-        log(
-          `     FEC reported itemized total: $${fecItemizedTotal.toLocaleString('en-US', { minimumFractionDigits: 2 })}`
-        );
-        log(
-          `     Our calculated total:        $${ourCalculatedTotal.toLocaleString('en-US', { minimumFractionDigits: 2 })}`
-        );
-        log(
-          `     Difference:                  $${difference.toLocaleString('en-US', { minimumFractionDigits: 2 })} (${percentDiff.toFixed(2)}%)`
-        );
-
-        if (percentDiff > 1) {
-          log(
-            `  ⚠️ WARNING: Totals differ by more than 1%! May indicate joint fundraising or data quality issue.`
-          );
-        } else {
-          log(`  ✅ Totals match within 1% tolerance`);
-        }
-
-        // Store reconciliation info
-        analysis.fecReconciliation = {
-          fecReportedTotal: fecItemizedTotal,
-          ourCalculatedTotal,
-          difference,
-          percentDifference: percentDiff,
-        };
-      }
-    }
-  } catch (error) {
-    log(`  ⚠️ Could not fetch FEC totals for reconciliation: ${error.message}`);
   }
+
+  const r = reconcileCommittees(progress.perCommittee, committeeIds, totalsById);
+  analysis.reconciliation = r;
+  for (const c of r.committees) {
+    log(
+      `     ${c.committeeId}: records ${c.rows}/${c.fecCount}${c.countExact ? ' (exact)' : ' (FEC estimate)'} ${c.countOk ? 'OK' : 'FAIL'} | itemized counted $${c.counted?.toLocaleString('en-US')} vs FEC $${c.fecItemized?.toLocaleString('en-US')} ${c.moneyOk ? 'OK' : 'FAIL'}`
+    );
+  }
+  log(
+    r.ok
+      ? `  ✅ Every committee reconciles - eligible for the all-committee grade`
+      : `  ⚠️ Not every committee reconciles - the grade stays on the campaign committee`
+  );
+
+  // Kept for collection_metadata: the sum across committees
+  const ours = r.committees.reduce((s, c) => s + (c.counted || 0), 0);
+  const fec = r.committees.reduce((s, c) => s + (c.fecItemized || 0), 0);
+  analysis.fecReconciliation = {
+    fecReportedTotal: fec,
+    ourCalculatedTotal: ours,
+    difference: Math.abs(fec - ours),
+    percentDifference: fec > 0 ? (Math.abs(fec - ours) / fec) * 100 : 0,
+  };
 }
 
 function sleep(ms) {
