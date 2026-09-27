@@ -33,6 +33,17 @@ import {
   DAILY_ROW_WRITE_BUDGET,
 } from './d1-write-budget.js';
 
+// Credentials come ONLY from Cloudflare Worker secrets (wrangler secret put).
+// There are no hardcoded fallbacks: the repo is public, and a fallback both
+// leaks the key and hides a missing secret. A missing secret fails loudly.
+function requireSecret(env, name) {
+  const value = env?.[name];
+  if (!value) {
+    throw new Error(`Worker secret ${name} is not set (wrangler secret put ${name})`);
+  }
+  return value;
+}
+
 // HTTP-triggered runs must fit the 30s wall-clock limit; cron-triggered
 // runs get 15 minutes, so they can take much larger bites (ROADMAP A1)
 const PAGES_PER_RUN_HTTP = 5;
@@ -228,7 +239,7 @@ export default {
 // cursor; members with no analysis yet are skipped (their collection does
 // discovery itself). Costs per run: <=40 FEC calls, <=30 KV reads, 2 KV writes.
 async function runDiscoverySweep(env) {
-  const apiKey = env.FEC_API_KEY || 'zVpKDAacmPcazWQxhl5fhodhB9wNUH0urLCLkkV9';
+  const apiKey = requireSecret(env, 'FEC_API_KEY');
   const log = msg => console.log(msg);
   const membersData = await env.MEMBER_DATA.get('members:all');
   if (!membersData) {
@@ -629,7 +640,7 @@ async function fetchAndAggregateChunk(
   budget = { remaining: Infinity, degraded: false },
   meter = { spent: 0 }
 ) {
-  const apiKey = env.FEC_API_KEY || 'zVpKDAacmPcazWQxhl5fhodhB9wNUH0urLCLkkV9';
+  const apiKey = requireSecret(env, 'FEC_API_KEY');
   const progressKey = `itemized_progress_v2:${bioguideId}`;
   const analysisKey = `itemized_analysis_v2:${bioguideId}`;
 

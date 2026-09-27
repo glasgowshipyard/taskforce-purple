@@ -11,6 +11,17 @@ import {
   getPACTransparencyWeight,
 } from './tier-calculation.js';
 
+// Credentials come ONLY from Cloudflare Worker secrets (wrangler secret put).
+// There are no hardcoded fallbacks: the repo is public, and a fallback both
+// leaks the key and hides a missing secret. A missing secret fails loudly.
+function requireSecret(env, name) {
+  const value = env?.[name];
+  if (!value) {
+    throw new Error(`Worker secret ${name} is not set (wrangler secret put ${name})`);
+  }
+  return value;
+}
+
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
@@ -169,7 +180,7 @@ async function getElectionCycle() {
 
 // Fetch current Congress members from Congress.gov API (with pagination)
 async function fetchCongressMembers(env) {
-  const apiKey = env.CONGRESS_API_KEY || 'zVpKDAacmPcazWQxhl5fhodhB9wNUH0urLCLkkV9'; // Temporary fallback
+  const apiKey = requireSecret(env, 'CONGRESS_API_KEY');
 
   console.log('📊 Fetching current 119th Congress members...');
 
@@ -237,7 +248,7 @@ async function fetchCongressMembers(env) {
 // Returns: { committee, usedCycle }
 // eslint-disable-next-line no-unused-vars
 async function selectCurrentCommittee(candidateId, env, office = null) {
-  const apiKey = env.FEC_API_KEY || 'zVpKDAacmPcazWQxhl5fhodhB9wNUH0urLCLkkV9';
+  const apiKey = requireSecret(env, 'FEC_API_KEY');
 
   try {
     // Fetch all committees for this candidate (without cycle filter)
@@ -332,7 +343,7 @@ async function selectCurrentCommittee(candidateId, env, office = null) {
 
 // Fetch financial data from OpenFEC API using correct endpoints
 async function fetchMemberFinancials(member, env) {
-  const apiKey = env.FEC_API_KEY || 'zVpKDAacmPcazWQxhl5fhodhB9wNUH0urLCLkkV9'; // Temporary fallback
+  const apiKey = requireSecret(env, 'FEC_API_KEY');
 
   try {
     console.log(`🔍 Looking up financial data for: ${member.name} (${member.state})`);
@@ -769,7 +780,7 @@ async function fetchMemberFinancials(member, env) {
 
 // Fetch detailed PAC contributions using Schedule A endpoint
 async function fetchPACDetails(committeeId, env) {
-  const apiKey = env.FEC_API_KEY || 'zVpKDAacmPcazWQxhl5fhodhB9wNUH0urLCLkkV9';
+  const apiKey = requireSecret(env, 'FEC_API_KEY');
 
   try {
     console.log(`📊 Fetching PAC details for committee: ${committeeId}`);
@@ -937,7 +948,7 @@ async function fetchPACDetails(committeeId, env) {
 
 // NEW: Fetch committee metadata for transparency weighting
 async function fetchCommitteeMetadata(committeeId, env) {
-  const apiKey = env.FEC_API_KEY || 'zVpKDAacmPcazWQxhl5fhodhB9wNUH0urLCLkkV9';
+  const apiKey = requireSecret(env, 'FEC_API_KEY');
 
   try {
     const response = await fetch(
@@ -977,7 +988,7 @@ async function fetchCommitteeMetadata(committeeId, env) {
 
 // NEW: Search for committee by name to get ID and metadata
 async function searchCommitteeByName(committeeName, env) {
-  const apiKey = env.FEC_API_KEY || 'zVpKDAacmPcazWQxhl5fhodhB9wNUH0urLCLkkV9';
+  const apiKey = requireSecret(env, 'FEC_API_KEY');
   try {
     console.log(`🔍 Searching for committee by name: ${committeeName}`);
 
@@ -2057,7 +2068,7 @@ async function handleSmartBatch(env, corsHeaders, request) {
   try {
     // Check for authorization
     const authHeader = request.headers.get('Authorization');
-    const expectedAuth = `Bearer ${env.UPDATE_SECRET || 'taskforce_purple_2025_update'}`;
+    const expectedAuth = env.UPDATE_SECRET ? `Bearer ${env.UPDATE_SECRET}` : null;
 
     if (!authHeader || authHeader !== expectedAuth) {
       return new Response(JSON.stringify({ error: 'Unauthorized' }), {
@@ -2235,7 +2246,7 @@ async function handleRecalculateTiers(env, corsHeaders, request) {
   try {
     // Check for authorization
     const authHeader = request.headers.get('Authorization');
-    const expectedAuth = `Bearer ${env.UPDATE_SECRET || 'taskforce_purple_2025_update'}`;
+    const expectedAuth = env.UPDATE_SECRET ? `Bearer ${env.UPDATE_SECRET}` : null;
 
     if (!authHeader || authHeader !== expectedAuth) {
       return new Response(JSON.stringify({ error: 'Unauthorized' }), {
@@ -2812,11 +2823,7 @@ async function handleRefreshSocialHandles(env, corsHeaders, request) {
   try {
     // Check authorization
     const authHeader = request.headers.get('Authorization');
-    if (
-      !authHeader ||
-      !authHeader.startsWith('Bearer ') ||
-      authHeader.slice(7) !== 'taskforce_purple_2025_update'
-    ) {
+    if (!authHeader || !env.UPDATE_SECRET || authHeader !== `Bearer ${env.UPDATE_SECRET}`) {
       return new Response(
         JSON.stringify({
           error: 'Unauthorized',
@@ -3673,7 +3680,7 @@ async function handleResetPACData(env, corsHeaders, request) {
   try {
     // Check for authorization
     const authHeader = request.headers.get('Authorization');
-    const expectedAuth = `Bearer ${env.UPDATE_SECRET || 'taskforce_purple_2025_update'}`;
+    const expectedAuth = env.UPDATE_SECRET ? `Bearer ${env.UPDATE_SECRET}` : null;
 
     if (!authHeader || authHeader !== expectedAuth) {
       return new Response(JSON.stringify({ error: 'Unauthorized' }), {
@@ -3751,7 +3758,7 @@ async function handleClearFECMapping(env, corsHeaders, request) {
   try {
     // Check for authorization
     const authHeader = request.headers.get('Authorization');
-    const expectedAuth = `Bearer ${env.UPDATE_SECRET || 'taskforce_purple_2025_update'}`;
+    const expectedAuth = env.UPDATE_SECRET ? `Bearer ${env.UPDATE_SECRET}` : null;
 
     if (!authHeader || authHeader !== expectedAuth) {
       return new Response(JSON.stringify({ error: 'Unauthorized' }), {
@@ -3933,7 +3940,7 @@ async function handleRefreshCongressMetadata(env, corsHeaders, request) {
   try {
     // Check for authorization
     const authHeader = request.headers.get('Authorization');
-    const expectedAuth = `Bearer ${env.UPDATE_SECRET || 'taskforce_purple_2025_update'}`;
+    const expectedAuth = env.UPDATE_SECRET ? `Bearer ${env.UPDATE_SECRET}` : null;
 
     if (!authHeader || authHeader !== expectedAuth) {
       return new Response(JSON.stringify({ error: 'Unauthorized' }), {
@@ -3944,7 +3951,7 @@ async function handleRefreshCongressMetadata(env, corsHeaders, request) {
 
     console.log('🏛️ Refreshing Congress.gov metadata for all members...');
 
-    const apiKey = env.CONGRESS_API_KEY || 'zVpKDAacmPcazWQxhl5fhodhB9wNUH0urLCLkkV9';
+    const apiKey = requireSecret(env, 'CONGRESS_API_KEY');
 
     // Fetch all current members from Congress.gov
     let allCongressMembers = [];
@@ -4113,7 +4120,7 @@ async function processPriorityQueue(env) {
 
 // Sync Congress member list - add new members, remove departed members
 async function syncCongressMembers(env) {
-  const apiKey = env.CONGRESS_API_KEY || 'zVpKDAacmPcazWQxhl5fhodhB9wNUH0urLCLkkV9';
+  const apiKey = requireSecret(env, 'CONGRESS_API_KEY');
 
   // Step 1: Fetch all current Congress members from Congress.gov
   let allCongressMembers = [];
