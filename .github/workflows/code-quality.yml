@@ -64,6 +64,12 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          # gitleaks scans the range <first pushed commit>^..<last>. With the
+          # default shallow checkout that parent is missing, git errors, and
+          # the step fails having scanned 0 bytes - so every multi-commit push
+          # went unscanned (found 2026-09-27). Full history fixes the range.
+          fetch-depth: 0
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
