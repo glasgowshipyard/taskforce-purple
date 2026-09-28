@@ -75,6 +75,9 @@ recorded since 2026-09-27 (API key redacted; served publicly by `/health`).
 **`itemized_dropped`** - The last 20 members dropped after 3 failures (`{bioguideId, name,
 lastError, droppedAt}`); read by `/health`. Written only when a member is dropped.
 
+**`itemized_unreconciled`** - The last 20 finished collections that didn't match the FEC's own counts (`{bioguideId,
+failed, at}`); read by `/health`. Written only on such a completion.
+
 **`discovery_sweep_cursor`** - The discovery sweep's position. Its KV metadata `{ranAt}` is the
 itemized worker's heartbeat for `/health` (same write, no extra cost).
 

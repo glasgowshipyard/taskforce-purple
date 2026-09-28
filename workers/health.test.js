@@ -87,6 +87,20 @@ describe('evaluateHealth', () => {
     expect(result.problems[0].message).toMatch(/1 member.*Member E/);
   });
 
+  it('flags recently finished collections that do not match the FEC', () => {
+    const s = {
+      ...healthy(),
+      unreconciled: [
+        { bioguideId: 'Y1', failed: 'C1 records 10880/10919', at: hoursAgo(3) },
+        { bioguideId: 'Z1', failed: 'old', at: hoursAgo(80) },
+      ],
+    };
+    const result = evaluateHealth(s, NOW);
+    expect(result.problems.map(p => p.id)).toEqual(['collection-mismatch']);
+    expect(result.problems[0].message).toMatch(/Y1 \(C1 records 10880\/10919\)/);
+    expect(result.problems[0].message).not.toMatch(/Z1/);
+  });
+
   it('flags D1 writes escaping the meter, and an unreadable ledger', () => {
     expect(ids({ ...healthy(), d1RowsToday: 96000 })).toEqual(['d1-over-budget']);
     expect(ids({ ...healthy(), d1Error: 'ledger unreadable' })).toEqual(['d1-unreadable']);

@@ -253,6 +253,7 @@ What it checks (`workers/health.js`, with tests):
 | `collection-stuck`     | The member at the head of the donor queue hasn't gained a page in 30 h; shows last FEC error |
 | `members-failing`      | A member got a strike in the last 24 h, with the reason (3 strikes = dropped)                |
 | `members-dropped`      | A member was dropped from donor analysis in the last 48 h, with the reason                   |
+| `collection-mismatch`  | A finished donor collection doesn't match the FEC's own count, so it's kept off the grade    |
 | `d1-over-budget`       | 95k+ D1 row-writes today — something is writing without charging the meter                   |
 | `d1-unreadable`        | The D1 write ledger can't be read                                                            |
 | `health-unreachable`   | The health page itself didn't answer — the worker may be down                                |

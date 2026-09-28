@@ -38,6 +38,7 @@ const olderThan = (nowMs, iso, ms) => !iso || !(nowMs - Date.parse(iso) < ms);
  * @param {number|null} s.d1RowsToday       d1_write_budget row for today
  * @param {string|null} s.d1Error           set if the ledger could not be read
  * @param {Array} s.dropped                 itemized_dropped entries
+ * @param {Array} s.unreconciled            itemized_unreconciled entries
  */
 export function evaluateHealth(s, nowMs = Date.now()) {
   const problems = [];
@@ -104,6 +105,17 @@ export function evaluateHealth(s, nowMs = Date.now()) {
       'members-dropped',
       `${recentDrops.length} member(s) dropped from donor analysis after 3 failures: ` +
         recentDrops.map(d => `${d.name}: ${d.lastError || 'no reason recorded'}`).join('; ')
+    );
+  }
+
+  const recentMismatches = (s.unreconciled || []).filter(
+    u => u.at && nowMs - Date.parse(u.at) < RECENT_DROP_MS
+  );
+  if (recentMismatches.length > 0) {
+    problem(
+      'collection-mismatch',
+      `${recentMismatches.length} finished donor collection(s) don't match the FEC's own count, so they are kept off the grade: ` +
+        recentMismatches.map(u => `${u.bioguideId} (${u.failed})`).join('; ')
     );
   }
 

@@ -300,11 +300,12 @@ async function runDiscoverySweep(env) {
 }
 
 async function getHealth(env) {
-  const [statusRaw, sweep, queueRaw, droppedRaw, budget] = await Promise.all([
+  const [statusRaw, sweep, queueRaw, droppedRaw, unreconciledRaw, budget] = await Promise.all([
     env.MEMBER_DATA.get('processing_status'),
     env.MEMBER_DATA.getWithMetadata('discovery_sweep_cursor'),
     env.MEMBER_DATA.get('itemized_processing_queue'),
     env.MEMBER_DATA.get('itemized_dropped'),
+    env.MEMBER_DATA.get('itemized_unreconciled'),
     readBudget(env.DONOR_DB),
   ]);
   const queue = queueRaw ? JSON.parse(queueRaw) : [];
@@ -324,6 +325,7 @@ async function getHealth(env) {
     d1RowsToday: budget.spent,
     d1Error: budget.degraded ? 'ledger unreadable' : null,
     dropped: droppedRaw ? JSON.parse(droppedRaw) : [],
+    unreconciled: unreconciledRaw ? JSON.parse(unreconciledRaw) : [],
   });
   return new Response(
     JSON.stringify({ ...verdict, checkedAt: new Date().toISOString() }, null, 2),
@@ -869,7 +871,16 @@ export async function fetchAndAggregateChunk(
       url += `&last_index=${progress.lastIndex}`;
     }
     if (progress.lastContributionReceiptDate) {
-      url += `&last_contribution_receipt_date=${progress.lastContributionReceiptDate}`;
+      // max_date restates what the cursor already implies (pages run newest
+      // first, so everything after the cursor is on or before its date) but
+      // lets the FEC's database answer: deep into a big committee the bare
+      // cursor query times out (504) every time, while the same query with
+      // max_date returns in ~1 s (Yakym at row 44,000 of 54,880, 2026-09-28).
+      // If it ever dropped rows (e.g. undated ones), the per-committee
+      // count check at completion fails and raises an alert.
+      url +=
+        `&last_contribution_receipt_date=${progress.lastContributionReceiptDate}` +
+        `&max_date=${progress.lastContributionReceiptDate}`;
     }
 
     const response = await fetch(url, {
@@ -1123,6 +1134,17 @@ export async function fetchAndAggregateChunk(
 
     // Reconcile with FEC totals
     await reconcileWithFEC(progress, cycle, analysis, apiKey, log);
+    if (!analysis.reconciliation.ok) {
+      // A collection that doesn't match the FEC is kept off the grade; make
+      // it raise an alert too (/health). Once per completion, so rare.
+      const failed = analysis.reconciliation.committees
+        .filter(c => !(c.countOk && c.moneyOk))
+        .map(c => `${c.committeeId} records ${c.rows}/${c.fecCount}`)
+        .join(', ');
+      const list = JSON.parse((await env.MEMBER_DATA.get('itemized_unreconciled')) || '[]');
+      list.unshift({ bioguideId, failed, at: new Date().toISOString() });
+      await env.MEMBER_DATA.put('itemized_unreconciled', JSON.stringify(list.slice(0, 20)));
+    }
 
     // FARA cross-reference (issue #34): donations from employees of firms
     // registered as foreign agents. fara_employer_matches maps exact

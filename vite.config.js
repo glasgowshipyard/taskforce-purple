@@ -11,4 +11,9 @@ export default defineConfig({
   server: {
     port: 3000,
   },
+  test: {
+    // Other Claude sessions keep git worktrees under .claude/worktrees;
+    // without this, their copies of the tests run (and pass or fail) here
+    exclude: ['**/node_modules/**', '**/dist/**', '.claude/**'],
+  },
 });

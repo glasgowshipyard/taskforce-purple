@@ -27,6 +27,28 @@
 
 ---
 
+## 2026-09-28: first alert (#45) — the FEC times out deep into big committees
+
+The first automatic alert (#45) reported Yakym failing with "FEC 504 on 3
+runs in a row". The collection was at row 44,000 of 54,880 for C00822767,
+and the FEC timed out (504 after 30 s) on the next-page query at any page
+size. Reproduced by hand. The same query with `max_date` set to the
+cursor's date returns in ~1 s, with 10,919 rows remaining. Pages run
+newest first, so every row after the cursor is already on or before that
+date; the filter only helps the FEC's database find them. Collection
+queries now always send it.
+
+Risk: if any row has no receipt date, the date filter could skip it. The
+FEC ignores `sort_null_only`, so this couldn't be ruled out. The per-committee
+count check at completion would catch it, so a collection that doesn't
+match the FEC now raises an alert (`collection-mismatch`) as well as being
+kept off the grade.
+
+Same alert, second item ("main data worker last ran 99 min ago"): see the
+next entry.
+
+---
+
 ## 2026-09-27: automatic alerts (itemized `dbe93b21`)
 
 Until now, failures showed up only in live logs nobody was watching; AOC
