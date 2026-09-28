@@ -100,8 +100,8 @@ estimateRowWrites({...})`) — an unmetered path silently reopens the hole.
   `INSERT OR REPLACE`: an unchanged row then costs zero row-writes instead of
   two. Never write a row just to restate its current value.
 - **Credentials live only in Cloudflare Worker secrets** — `FEC_API_KEY`,
-  `CONGRESS_API_KEY`, `UPDATE_SECRET` on the pipeline worker; `FEC_API_KEY` on
-  the itemized worker. Code reads them with `requireSecret()` and fails loudly
+  `CONGRESS_API_KEY`, `UPDATE_SECRET` on the pipeline worker; `FEC_API_KEY`,
+  `UPDATE_SECRET` on the itemized worker (it guards `/analyze`). Code reads them with `requireSecret()` and fails loudly
   if one is missing. **Never write a key, token or password into code** — the
   repo is public. Until 2026-09-27 an api.data.gov key and the admin
   `UPDATE_SECRET` sat hardcoded in the workers for a year (written by Claude);

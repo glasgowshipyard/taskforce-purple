@@ -410,6 +410,21 @@ const ELECTION_CYCLE = (() => {
 - **Performance**: Calculated once per worker cold start, not per API call
 - **Accuracy**: Always pulls data from the correct election cycle
 
+## Itemized worker `/analyze` (auth required since 2026-09-28)
+
+`GET https://taskforce-purple-itemized-analysis.dev-a4b.workers.dev/analyze` - runs one
+collection pass (5 FEC pages), the same work the cron does every 20 minutes. It spends
+requests on the shared api.data.gov key and D1 row-writes from the daily budget, so it
+requires the admin token. `/status` and `/health` stay public.
+
+```bash
+curl -s "https://taskforce-purple-itemized-analysis.dev-a4b.workers.dev/analyze" \
+  -H "Authorization: Bearer $UPDATE_SECRET"
+```
+
+Missing or wrong token → `401 {"error":"Unauthorized"}`. If the worker has no
+`UPDATE_SECRET` secret set, every request gets 401.
+
 ## Itemized worker `/health` (added 2026-09-27)
 
 `GET https://taskforce-purple-itemized-analysis.dev-a4b.workers.dev/health` - public, read-only.

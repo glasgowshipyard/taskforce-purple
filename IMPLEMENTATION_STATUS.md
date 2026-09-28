@@ -1,6 +1,6 @@
 # Task Force Purple - Implementation Status
 
-**Last Updated**: 2026-09-26
+**Last Updated**: 2026-09-28
 
 ---
 
@@ -24,6 +24,23 @@
 5. **Open question**: `processing_status` was not written between 10:21 and
    20:00 UTC on 2026-09-26 (old code). Writing normally since the 20:02
    deploy; cause unknown — `wrangler tail` only shows live logs.
+
+---
+
+## 2026-09-28: `/analyze` requires the admin token (ROADMAP D3)
+
+The itemized worker's `/analyze` endpoint ran a collection pass for anyone
+who called it. Each call spends requests on the shared api.data.gov key
+(60/min) and D1 row-writes from the 85k/day budget, so a stranger calling
+it in a loop could starve the cron. It now needs
+`Authorization: Bearer $UPDATE_SECRET`, the same token as the pipeline's
+admin endpoints, and refuses every request if the worker has no
+`UPDATE_SECRET` secret set. `/status` and `/health` stay public. The cron
+is unaffected; it never went through `/analyze`.
+
+The itemized worker now needs `UPDATE_SECRET` as a secret too.
+`scripts/rotate-secrets.sh` sets it on both workers. Phase D item 3 was
+done on its own, ahead of the rest of Phase D, with the owner's approval.
 
 ---
 

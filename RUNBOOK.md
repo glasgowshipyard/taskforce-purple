@@ -149,8 +149,11 @@ One row, today's UTC date, against a self-imposed budget of 85,000 (15% under
 Cloudflare's 100k). At 00:00 UTC the day rolls and the row is replaced.
 
 ```bash
-# What the worker itself reports - the same number, from its own mouth
-curl -s "https://taskforce-purple-itemized-analysis.dev-a4b.workers.dev/analyze" | jq '.d1Budget // {budgetExhausted, budget}'
+# What the worker itself reports - the same number, from its own mouth.
+# This runs one real collection pass (FEC requests + D1 writes), so it needs
+# the admin token; without it you get 401 and nothing runs.
+curl -s "https://taskforce-purple-itemized-analysis.dev-a4b.workers.dev/analyze" \
+  -H "Authorization: Bearer $UPDATE_SECRET" | jq '.d1Budget // {budgetExhausted, budget}'
 ```
 
 Reading `"budgetExhausted": true` is the system **working**, not failing: it

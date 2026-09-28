@@ -6,7 +6,8 @@
 #   - generates a new random UPDATE_SECRET (the token that guards the API's
 #     admin endpoints; the old one is public in the repo's history)
 #   - sets FEC_API_KEY, CONGRESS_API_KEY and UPDATE_SECRET on the pipeline
-#     worker, and FEC_API_KEY on the itemized worker
+#     worker, and FEC_API_KEY and UPDATE_SECRET on the itemized worker (its
+#     /analyze endpoint refuses every request without UPDATE_SECRET)
 #   - records the new values in your local, gitignored API_KEYS.md
 #   - checks both workers now list the secrets
 #
@@ -42,6 +43,7 @@ put "" FEC_API_KEY "$NEW_KEY"
 put "" CONGRESS_API_KEY "$NEW_KEY"
 put "" UPDATE_SECRET "$NEW_UPDATE_SECRET"
 put itemized FEC_API_KEY "$NEW_KEY"
+put itemized UPDATE_SECRET "$NEW_UPDATE_SECRET"
 
 {
   echo
@@ -60,7 +62,9 @@ ok=1
 for n in FEC_API_KEY CONGRESS_API_KEY UPDATE_SECRET; do
   if grep -q "\"$n\"" <<<"$p"; then echo "  pipeline: $n present"; else echo "  pipeline: $n MISSING"; ok=0; fi
 done
-if grep -q '"FEC_API_KEY"' <<<"$i"; then echo "  itemized: FEC_API_KEY present"; else echo "  itemized: FEC_API_KEY MISSING"; ok=0; fi
+for n in FEC_API_KEY UPDATE_SECRET; do
+  if grep -q "\"$n\"" <<<"$i"; then echo "  itemized: $n present"; else echo "  itemized: $n MISSING"; ok=0; fi
+done
 
 unset NEW_KEY NEW_UPDATE_SECRET
 if [ "$ok" = 1 ]; then

@@ -122,8 +122,8 @@ audience. Do not do piecemeal (see CLAUDE.md gotchas — don't re-litigate).
    (`scripts/rotate-secrets.sh`); the old api.data.gov key could not be
    self-revoked and remains public in history, unused
 2. ~~Remove hardcoded fallbacks in the workers (#16)~~ — **done 2026-09-27**
-3. **Add auth to the itemized worker's `/analyze` endpoint** (currently
-   unauthenticated — anyone can burn cron budget)
+3. ~~Add auth to the itemized worker's `/analyze` endpoint~~ — **done
+   2026-09-28** (owner approved doing it ahead of the rest of Phase D)
 4. Untrack remaining internal docs; decide whether git history scrubbing
    is worth it post-rotation
 5. Route the API through the custom domain (taskforcepurple.com) to get

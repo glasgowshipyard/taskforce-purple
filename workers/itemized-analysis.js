@@ -194,6 +194,16 @@ export default {
     const url = new URL(request.url);
 
     if (url.pathname === '/analyze') {
+      // Each run spends shared FEC requests and D1 row-writes, so only the
+      // owner may trigger one. No secret set means nobody can.
+      const authHeader = request.headers.get('Authorization');
+      const expectedAuth = env.UPDATE_SECRET ? `Bearer ${env.UPDATE_SECRET}` : null;
+      if (!authHeader || authHeader !== expectedAuth) {
+        return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+          status: 401,
+          headers: { 'Content-Type': 'application/json' },
+        });
+      }
       return analyzeMembers(env, PAGES_PER_RUN_HTTP);
     }
 
@@ -206,7 +216,7 @@ export default {
     }
 
     return new Response(
-      'Itemized Donor Concentration Analysis\n\nEndpoints:\n  /analyze - Trigger processing\n  /status - View progress',
+      'Itemized Donor Concentration Analysis\n\nEndpoints:\n  /analyze - Trigger processing (needs Authorization: Bearer <UPDATE_SECRET>)\n  /status - View progress\n  /health - Health check',
       {
         headers: { 'Content-Type': 'text/plain' },
       }
