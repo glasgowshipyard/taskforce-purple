@@ -44,6 +44,25 @@ done on its own, ahead of the rest of Phase D, with the owner's approval.
 
 ---
 
+## 2026-09-28: the main worker is killed by Cloudflare for hours most days (#46, open)
+
+The alert's "main data worker last ran 99 min ago" wasn't a one-off.
+Cloudflare's analytics show that the pipeline's successful runs use about
+400 ms of CPU on a plan that allows about 10 ms. Cloudflare tolerates it,
+then kills every invocation (`exceededResources`) for hours at a time.
+The site's `/api/members` requests die with it, so the site's data has
+been intermittently unavailable. Every day in the retrievable four weeks
+has kills; on some days more than half of invocations were killed. The
+2026-09-26 `processing_status` gap was this too.
+
+Measured causes: `members:all` is 3.5 MB (88% PAC donation lists that
+only the detail popup shows). Every pipeline run re-grades all 528
+members (added 2026-07-17; it changed 0 grades when measured), and every
+page view parses and re-serialises the whole blob. The fix plan is in
+#46. It changes no scoring, and grades must come out identical.
+
+---
+
 ## 2026-09-28: first alert (#45) — the FEC times out deep into big committees
 
 The first automatic alert (#45) reported Yakym failing with "FEC 504 on 3
@@ -61,8 +80,8 @@ count check at completion would catch it, so a collection that doesn't
 match the FEC now raises an alert (`collection-mismatch`) as well as being
 kept off the grade.
 
-Same alert, second item ("main data worker last ran 99 min ago"): see the
-next entry.
+Same alert, second item ("main data worker last ran 99 min ago"): see #46
+above.
 
 ---
 
