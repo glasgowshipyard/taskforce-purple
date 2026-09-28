@@ -7,6 +7,10 @@ live in `API_KEYS.md` and `.claude-reference.md` (both gitignored).
 
 ## Start here
 
+0. `REBUILD_SPEC.md` — DRAFT rebuild of collection, storage and grading
+   publication around the person (#47). Until it is approved and built, do
+   not patch the old collection/storage paths except to stop active harm;
+   read it before touching `members:all`, the itemized queue or D1.
 1. `IMPLEMENTATION_STATUS.md` — current system state, dated change log,
    known limitations. Read this first; it is kept accurate.
 2. `RUNBOOK.md` — self-serve health/log/progress checks from a terminal.
