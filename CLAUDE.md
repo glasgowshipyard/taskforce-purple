@@ -79,6 +79,14 @@ redesigned them wasted days and, twice, proposed breaking them. Build on them.
   (DISPUTED / UNVERIFIED). Simulate every scoring change across all members,
   with named reference members, before deploying.
 - **Free tier only.** Never propose paid plans.
+- **Lean, targeted updates — always.** Change only the record that changed,
+  and only if its value actually differs. Never read-modify-write a whole
+  dataset to update one member, and never redo work (re-grading, re-writing)
+  for members whose inputs did not change. `members:all` as one 3.5 MB KV
+  value, rewritten every run and re-graded in full every run, got the workers
+  killed by Cloudflare for hours most days (#46); it was never flagged to the
+  owner, who would not have allowed it. If a design needs a whole-dataset
+  write, say so and get the owner's approval first.
 
 ## Constraints and gotchas
 
