@@ -430,3 +430,28 @@ Missing or wrong token → `401 {"error":"Unauthorized"}`. If the worker has no
 `GET https://taskforce-purple-itemized-analysis.dev-a4b.workers.dev/health` - public, read-only.
 Returns `{ ok, problems: [{id, message}], notes: [], checkedAt }`. Read hourly by the Health alert
 GitHub Action (RUNBOOK §10). Cost per call: 5 KV reads, 1 D1 read, no writes.
+
+## Stage 1 changes (2026-10-03, REBUILD_SPEC.md)
+
+- **`GET /api/members`** returns the stored `members:list` body as-is (header
+  `X-TFP-Source: members:list`): `{members, lastUpdated, total,
+adaptiveThresholds}`. Each entry has only list fields: `bioguideId, name,
+party, state, district, chamber, tier, totalRaised, grassrootsPercent,
+rawFECGrassrootsPercent, grassrootsDonations, largeDonorDonations, pacMoney,
+individualFundingPercent, gradeBasis, personFigures, fecIdentityVerified,
+nakamotoCoefficient, faraEmployerTotal, pacDetailsStatus, lastUpdated`, plus
+  `quicklook` (the row's warning-icon sectors) and `conduitCount`.
+  `lastUpdated` is when the list's data last changed (#38).
+- **`GET /api/member-detail?bioguideId=`** adds `member`: the member's full
+  served record (PAC donations, FARA firms, conduits and so on).
+- **`POST /api/recalculate-tiers?offset=&limit=`** re-grades one slice (10
+  members by default, 50 at most) and returns `stats.nextOffset`;
+  `scripts/recalculate-all.sh` walks every slice. Writes only members that
+  change.
+- **`POST /api/process-candidate`** now requires the admin secret.
+- **`/api/remove-member/{id}`** also clears that member's `fec_mapping_*` (#14).
+- **Retired (HTTP 410):** `/api/update-data`, `/api/update-fec-batch`,
+  `/api/smart-batch`, `/api/test-member`, `/api/reset-pac-data`,
+  `/api/refresh-congress-metadata`, and the scheduled (cron) handler. Each
+  rewrote every member to change one. The refresh job (Stage 2) replaces
+  them. The sections above that describe them are historical.

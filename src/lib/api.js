@@ -31,6 +31,8 @@ const IDENTITY_UNVERIFIED_TIERS = ['UNVERIFIED'];
 // Non-letter tiers get a mark, and the words go in the description beside it.
 const TIER_BADGE_LABELS = { DISPUTED: '?', UNVERIFIED: '?' };
 
+const detailRequests = new Map();
+
 export class TaskForceAPI {
   static async fetchMembers() {
     try {
@@ -95,14 +97,22 @@ export class TaskForceAPI {
    * One member's money trail (#32): every committee they run, what each
    * raised, and their largest donors. Fetched per profile, not with the list.
    */
-  static async fetchMemberDetail(bioguideId) {
-    const response = await fetch(
-      `${API_BASE_URL}/member-detail?bioguideId=${encodeURIComponent(bioguideId)}`
-    );
-    if (!response.ok) {
-      throw new Error(`HTTP ${response.status}`);
+  static fetchMemberDetail(bioguideId) {
+    // One request per member per page load: the profile and its money-trail
+    // panel both ask for it. A failed request is forgotten so it can be retried.
+    if (!detailRequests.has(bioguideId)) {
+      const request = fetch(
+        `${API_BASE_URL}/member-detail?bioguideId=${encodeURIComponent(bioguideId)}`
+      ).then(response => {
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}`);
+        }
+        return response.json();
+      });
+      request.catch(() => detailRequests.delete(bioguideId));
+      detailRequests.set(bioguideId, request);
     }
-    return response.json();
+    return detailRequests.get(bioguideId);
   }
 
   /**

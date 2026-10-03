@@ -36,6 +36,9 @@ export default function MembersList() {
   const [error, setError] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedMember, setSelectedMember] = useState(null);
+  // The list carries only what its rows show; a profile's full record (PAC
+  // donations, bundlers, foreign-agent firms) is fetched when it opens
+  const [detail, setDetail] = useState({ id: null, status: 'idle' });
   const [lastUpdated, setLastUpdated] = useState(null);
   const [useMockData, setUseMockData] = useState(false);
   const [focusedTier, setFocusedTier] = useState('S'); // Default to S tier
@@ -61,7 +64,10 @@ export default function MembersList() {
         }
       }, 100);
     }
-  }, [selectedMember]);
+    // Keyed on the member, not the object: merging the fetched profile in
+    // must not re-scroll or re-collapse the PAC details
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedMember?.bioguideId]);
 
   // Load data on component mount
   useEffect(() => {
@@ -94,6 +100,23 @@ export default function MembersList() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const selectMember = member => {
+    setSelectedMember(member);
+    setDetail({ id: member.bioguideId, status: 'loading' });
+    TaskForceAPI.fetchMemberDetail(member.bioguideId)
+      .then(d => {
+        setSelectedMember(current =>
+          current && current.bioguideId === member.bioguideId
+            ? { ...current, ...(d.member || {}) }
+            : current
+        );
+        setDetail(cur => (cur.id === member.bioguideId ? { ...cur, status: 'ready' } : cur));
+      })
+      .catch(() =>
+        setDetail(cur => (cur.id === member.bioguideId ? { ...cur, status: 'error' } : cur))
+      );
   };
 
   const handleRefresh = async () => {
@@ -443,6 +466,15 @@ export default function MembersList() {
             </div>
           ) : (
             <>
+              {detail.id === selectedMember.bioguideId && detail.status === 'loading' && (
+                <p className="mb-4 text-sm text-gray-500">Loading the full funding breakdown…</p>
+              )}
+              {detail.id === selectedMember.bioguideId && detail.status === 'error' && (
+                <p className="mb-4 text-sm text-red-700">
+                  We couldn&apos;t load the full funding breakdown. Close this and try again in a
+                  moment.
+                </p>
+              )}
               {/* Every committee the member runs, and who funds them (#32) */}
               {fig.totalRaised > 0 && <MoneyTrail member={selectedMember} />}
 
@@ -1001,7 +1033,7 @@ export default function MembersList() {
             <div
               key={member.bioguideId}
               className="flex items-center space-x-3 sm:space-x-4 p-3 sm:p-4 bg-gray-50 rounded-lg hover:bg-gray-100 cursor-pointer transition-colors"
-              onClick={() => setSelectedMember(member)}
+              onClick={() => selectMember(member)}
             >
               <div
                 className={`w-10 h-10 sm:w-12 sm:h-12 flex-shrink-0 rounded-full flex items-center justify-center text-lg sm:text-xl font-bold ${TaskForceAPI.getTierColor(member.tier)}`}
@@ -1024,7 +1056,9 @@ export default function MembersList() {
                 if (TaskForceAPI.isIdentityUnverified(member.tier)) {
                   return null;
                 }
-                const sectors = quicklookSectors(member);
+                // Precomputed on the list entry (Stage 1); computed here only
+                // from a full record (the pre-migration API)
+                const sectors = member.quicklook ?? quicklookSectors(member);
                 return sectors.length > 0 ? (
                   <div className="flex items-center gap-1 flex-shrink-0">
                     {sectors.slice(0, 4).map(sector => {

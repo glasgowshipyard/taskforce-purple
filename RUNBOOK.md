@@ -55,7 +55,7 @@ is not firing → check deploy status (§7).
 
 ```bash
 # How much of Congress has conduit (bundling) data and FARA data
-curl -s "https://taskforce-purple-api.dev-a4b.workers.dev/api/members" | jq '{withConduits: ([.members[] | select(.topConduits != null and (.topConduits|length) > 0)] | length), withFara: ([.members[] | select(.faraEmployerTotal != null and .faraEmployerTotal > 0)] | length), withNakamoto: ([.members[] | select(.nakamotoCoefficient != null)] | length)}'
+curl -s "https://taskforce-purple-api.dev-a4b.workers.dev/api/members" | jq '{withConduits: ([.members[] | select((.conduitCount // 0) > 0)] | length), withFara: ([.members[] | select(.faraEmployerTotal != null and .faraEmployerTotal > 0)] | length), withNakamoto: ([.members[] | select(.nakamotoCoefficient != null)] | length)}'
 ```
 
 ```bash
@@ -71,8 +71,10 @@ npx wrangler kv key get "itemized_processing_queue" --namespace-id=8318226115e24
 ```
 
 ```bash
-# Any one member's full record
-curl -s "https://taskforce-purple-api.dev-a4b.workers.dev/api/members" | jq '.members[] | select(.name | test("Cramer"))'
+# Any one member's full record (the list carries only what its rows show;
+# the full record is per member since Stage 1). Find the ID, then fetch it:
+curl -s "https://taskforce-purple-api.dev-a4b.workers.dev/api/members" | jq -r '.members[] | select(.name | test("Cramer")) | .bioguideId'
+curl -s "https://taskforce-purple-api.dev-a4b.workers.dev/api/member-detail?bioguideId=C001096" | jq '.member'
 ```
 
 ## 5. Data-quality invariants (the Cramer check)
@@ -210,12 +212,15 @@ curl -s "https://taskforce-purple.pages.dev" | grep -o 'assets/index-[A-Za-z0-9_
 ## 8. Manual interventions (auth required)
 
 ```bash
-# Force full tier recalculation (safe, idempotent)
-curl -X POST "https://taskforce-purple-api.dev-a4b.workers.dev/api/recalculate-tiers" -H "Authorization: Bearer $UPDATE_SECRET"
+# Re-grade every member (safe, idempotent; writes only members that change).
+# The API does 10 members per call to stay inside Cloudflare's 10 ms CPU
+# limit; this script walks every slice. UPDATE_SECRET is in API_KEYS.md.
+UPDATE_SECRET=... bash scripts/recalculate-all.sh
 ```
 
 ```bash
-# Re-fetch one member end-to-end (use after fixing bad data)
+# Re-fetch one member end-to-end (use after fixing bad data). Needs the
+# secret: until 2026-10-03 this endpoint wrongly accepted anyone.
 curl -X POST "https://taskforce-purple-api.dev-a4b.workers.dev/api/process-candidate?bioguideId=C001096" -H "Authorization: Bearer $UPDATE_SECRET"
 ```
 

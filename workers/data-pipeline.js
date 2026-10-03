@@ -5,11 +5,187 @@ import { STATE_ABBREVIATIONS } from './shared-constants.js';
 import { crosswalkIdsFor, isVerifiedIdentity, selectPrimaryCandidate } from './fec-identity.js';
 import {
   calculateEnhancedTier as computeEnhancedTier,
-  calculateTier,
   cycleForYear,
   getCommitteeCategory,
   getPACTransparencyWeight,
 } from './tier-calculation.js';
+import { LIST_KEY, MemberWriter, getListBody, getMember, servedMember } from './member-store.js';
+
+// Endpoints of the old batch engine, retired in Stage 1 (REBUILD_SPEC §7-8):
+// each one rewrote the whole member list. The refresh job (Stage 2) replaces
+// them. They answer 410 so a script calling one fails visibly.
+function retiredEndpoint(corsHeaders, path) {
+  return new Response(
+    JSON.stringify({
+      error: `${path} is retired: it rewrote every member to change one. The refresh job replaces it (REBUILD_SPEC.md Stage 2).`,
+    }),
+    { status: 410, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+  );
+}
+
+// Admin endpoints accept the UPDATE_SECRET as a Bearer header (or ?key=, as
+// they always have). Returns a 401 response, or null when authorised.
+function requireAdmin(request, env, corsHeaders) {
+  const url = new URL(request.url);
+  const supplied =
+    request.headers.get('Authorization')?.replace('Bearer ', '') || url.searchParams.get('key');
+  if (env.UPDATE_SECRET && supplied === env.UPDATE_SECRET) {
+    return null;
+  }
+  return new Response(JSON.stringify({ error: 'Unauthorized - valid API key required' }), {
+    status: 401,
+    headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+  });
+}
+
+/**
+ * One member's re-grade: exactly what the old every-run recalculation did for
+ * each member, as a function of that member alone. Returns a new record; the
+ * input is not modified. Members without financial data come back unchanged.
+ */
+async function regradeMember(input, env) {
+  const member = structuredClone(input);
+  if (!member.totalRaised || member.totalRaised === 0) {
+    return member;
+  }
+  const oldTier = member.tier;
+  const {
+    tier: newTier,
+    individualFundingPercent,
+    concentration,
+    concentrationRejected,
+    gradeBasis,
+    personFigures,
+  } = await calculateEnhancedTier(member, [], env);
+  member.gradeBasis = gradeBasis;
+  // The figures the grade was computed on, when that is all committees
+  member.personFigures = personFigures;
+  member.individualFundingPercent = individualFundingPercent;
+
+  if (concentrationRejected) {
+    // Merged from another committee's records (issue #41): wipe deliberately
+    member.nakamotoCoefficient = null;
+    member.uniqueDonors = null;
+    member.top10Concentration = null;
+    member.nakamotoPercent = null;
+    member.topConduits = null;
+    member.earmarkedIndividualTotal = null;
+    member.faraFirms = null;
+    member.faraEmployerTotal = null;
+  }
+  if (concentration) {
+    member.nakamotoCoefficient = concentration.nakamotoCoefficient ?? null;
+    member.uniqueDonors = concentration.uniqueDonors ?? null;
+    member.top10Concentration = concentration.top10Concentration ?? null;
+    member.nakamotoPercent =
+      concentration.uniqueDonors > 0
+        ? parseFloat(
+            ((concentration.nakamotoCoefficient / concentration.uniqueDonors) * 100).toFixed(1)
+          )
+        : null;
+    // Network attribution (#33), present only on analyses after 2026-07-12
+    if (concentration.conduits !== undefined) {
+      member.topConduits = concentration.conduits;
+      member.earmarkedIndividualTotal = concentration.earmarkedTotal ?? null;
+    }
+    // FARA cross-reference (#34), analyses after 2026-07-17
+    if (concentration.faraFirms !== undefined) {
+      member.faraFirms = concentration.faraFirms;
+      member.faraEmployerTotal = concentration.faraEmployerTotal ?? null;
+    }
+  }
+
+  const newGrassrootsPercent =
+    member.grassrootsDonations !== undefined && member.totalRaised > 0
+      ? Math.round((member.grassrootsDonations / member.totalRaised) * 100)
+      : member.grassrootsPercent || 0;
+  const staleCycle = member.dataCycle === 1970 || !member.dataCycle;
+
+  if (oldTier !== newTier || member.grassrootsPercent !== newGrassrootsPercent) {
+    return {
+      ...member,
+      tier: newTier,
+      grassrootsPercent: newGrassrootsPercent,
+      // Issue #15: never leave a stale 1970 cycle
+      dataCycle: staleCycle ? await getElectionCycle() : member.dataCycle,
+      lastTierRecalculated: new Date().toISOString(),
+    };
+  }
+  if (staleCycle) {
+    return {
+      ...member,
+      dataCycle: await getElectionCycle(),
+      lastTierRecalculated: new Date().toISOString(),
+    };
+  }
+  return member;
+}
+
+/**
+ * Re-grade a slice of members, in list order. One call handles `limit`
+ * members (default 10): reading every member and analysis in one call would
+ * exceed the 1,000-calls-per-invocation limit and the 10 ms CPU limit.
+ * Only members whose record actually changes are written.
+ */
+async function recalculateTierChunk(env, offset, limit) {
+  const body = await getListBody(env);
+  if (!body) {
+    throw new Error('members:list does not exist yet: run the Stage 1 migration first');
+  }
+  const ids = body.members.map(e => e.bioguideId);
+  const slice = ids.slice(offset, offset + limit);
+  const writer = new MemberWriter(env);
+  let changed = 0;
+  let unchanged = 0;
+  let errors = 0;
+  for (const id of slice) {
+    try {
+      const before = await getMember(env, id);
+      if (!before) {
+        errors++;
+        continue;
+      }
+      const after = await regradeMember(before, env);
+      if (await writer.save(before, after)) {
+        changed++;
+      } else {
+        unchanged++;
+      }
+    } catch (error) {
+      console.error(`Re-grade failed for ${id}:`, error);
+      errors++;
+    }
+  }
+  await writer.flush();
+  const next = offset + slice.length;
+  return {
+    totalMembers: ids.length,
+    offset,
+    processed: slice.length,
+    changed,
+    unchanged,
+    errors,
+    listWritten: writer.stats.listWrites > 0,
+    nextOffset: next < ids.length ? next : null,
+  };
+}
+
+/** Resolve a member from ?bioguideId= or ?name= (name matched on the list). */
+async function findMemberId(env, { bioguideId, name }) {
+  if (bioguideId) {
+    return bioguideId;
+  }
+  const body = await getListBody(env);
+  const list = body ? body.members : JSON.parse((await env.MEMBER_DATA.get('members:all')) || '[]');
+  const q = name.toLowerCase();
+  const hit = list.find(
+    m =>
+      m.name.toLowerCase() === q ||
+      m.name.toLowerCase().includes(q) ||
+      q.includes(m.name.toLowerCase().split(',')[0])
+  );
+  return hit ? hit.bioguideId : null;
+}
 
 // Credentials come ONLY from Cloudflare Worker secrets (wrangler secret put).
 // There are no hardcoded fallbacks: the repo is public, and a fallback both
@@ -44,13 +220,13 @@ export default {
         case '/api/member-detail':
           return await handleMemberDetail(env, corsHeaders, url);
         case '/api/update-data':
-          return await handleDataUpdate(env, corsHeaders, request);
+          return retiredEndpoint(corsHeaders, '/api/update-data');
         case '/api/update-fec-batch':
-          return await handleFECBatchUpdate(env, corsHeaders, request);
+          return retiredEndpoint(corsHeaders, '/api/update-fec-batch');
         case '/api/status':
           return await handleStatus(env, corsHeaders);
         case '/api/test-member':
-          return await handleTestMember(env, corsHeaders, request);
+          return retiredEndpoint(corsHeaders, '/api/test-member');
         case '/api/recalculate-tiers':
           return await handleRecalculateTiers(env, corsHeaders, request);
         case '/api/process-candidate':
@@ -60,13 +236,13 @@ export default {
         case '/api/refresh-social-handles':
           return await handleRefreshSocialHandles(env, corsHeaders, request);
         case '/api/smart-batch':
-          return await handleSmartBatch(env, corsHeaders, request);
+          return retiredEndpoint(corsHeaders, '/api/smart-batch');
         case '/api/clear-fec-mapping':
           return await handleClearFECMapping(env, corsHeaders, request);
         case '/api/reset-pac-data':
-          return await handleResetPACData(env, corsHeaders, request);
+          return retiredEndpoint(corsHeaders, '/api/reset-pac-data');
         case '/api/refresh-congress-metadata':
-          return await handleRefreshCongressMetadata(env, corsHeaders, request);
+          return retiredEndpoint(corsHeaders, '/api/refresh-congress-metadata');
         case '/api/debug-kv': {
           const queueData = await env.MEMBER_DATA.get('priority_missing_queue');
           const allKeys = await env.MEMBER_DATA.list();
@@ -107,56 +283,11 @@ export default {
   },
 
   // Smart batch processing - rate-limited progressive updates
-  async scheduled(event, env, _ctx) {
-    // Check if daily Congress sync is due (runs once per day)
-    const lastSyncData = await env.MEMBER_DATA.get('last_congress_sync');
-    const lastSync = lastSyncData ? new Date(lastSyncData) : null;
-    const hoursSinceSync = lastSync ? (Date.now() - lastSync.getTime()) / (1000 * 60 * 60) : 999;
-
-    if (hoursSinceSync >= 24) {
-      console.log('🏛️ Running daily Congress member sync...');
-      try {
-        const result = await syncCongressMembers(env);
-        await env.MEMBER_DATA.put('last_congress_sync', new Date().toISOString());
-        console.log(
-          `✅ Congress sync complete: +${result.added} new members, -${result.removed} departed members`
-        );
-      } catch (error) {
-        console.error('❌ Congress sync failed:', error);
-        // Continue with normal processing even if sync fails
-      }
-    }
-
-    // Check for priority queue (missing largeDonorDonations) first
-    const priorityQueue = await env.MEMBER_DATA.get('priority_missing_queue');
-    console.log(`🔍 Priority queue check: ${priorityQueue ? 'FOUND' : 'NOT FOUND'}`);
-
-    if (priorityQueue) {
-      console.log('🔄 Processing priority queue (missing largeDonorDonations)...');
-      try {
-        const result = await processPriorityQueue(env);
-        console.log(
-          `✅ Priority batch: ${result.processed} members, ${result.remaining} remaining`
-        );
-        if (result.remaining === 0) {
-          console.log('🎉 Priority queue complete! Resuming normal batch processing.');
-        }
-        return;
-      } catch (error) {
-        console.error('❌ Priority batch failed:', error);
-      }
-    }
-
-    // Normal batch processing
-    console.log('🔄 Starting smart batch processing...');
-    try {
-      const result = await processSmartBatch(env);
-      console.log(
-        `✅ Smart batch completed: ${result.callsUsed}/15 API calls, ${result.membersProcessed} members`
-      );
-    } catch (error) {
-      console.error('❌ Smart batch processing failed:', error);
-    }
+  // Retired in Stage 1 (REBUILD_SPEC §8): the old batch engine rewrote the
+  // whole member list on every run. Cron triggers are removed; if one is ever
+  // re-added, this does nothing. The refresh job (Stage 2) replaces it.
+  async scheduled() {
+    console.log('Scheduled run ignored: the batch engine is retired (REBUILD_SPEC Stage 1)');
   },
 };
 
@@ -176,169 +307,6 @@ async function getCurrentYear() {
 async function getElectionCycle() {
   const currentYear = await getCurrentYear();
   return cycleForYear(currentYear);
-}
-
-// Fetch current Congress members from Congress.gov API (with pagination)
-async function fetchCongressMembers(env) {
-  const apiKey = requireSecret(env, 'CONGRESS_API_KEY');
-
-  console.log('📊 Fetching current 119th Congress members...');
-
-  let allMembers = [];
-  const limit = 250;
-
-  // First, get total count to determine pagination strategy
-  const firstResponse = await fetch(
-    `https://api.congress.gov/v3/member/congress/119?currentMember=true&offset=0&limit=1&api_key=${apiKey}`,
-    {
-      headers: {
-        'User-Agent': 'TaskForcePurple/1.0 (Political Transparency Platform)',
-      },
-    }
-  );
-
-  if (!firstResponse.ok) {
-    throw new Error(`Congress API error: ${firstResponse.status} ${firstResponse.statusText}`);
-  }
-
-  const firstData = await firstResponse.json();
-  const totalCount = firstData.pagination?.count || 0;
-  console.log(`📊 Total members available: ${totalCount}`);
-
-  // Calculate pages to fetch in reverse order (oldest first)
-  const totalPages = Math.ceil(totalCount / limit);
-
-  for (let page = totalPages - 1; page >= 0; page--) {
-    const currentOffset = page * limit;
-
-    console.log(
-      `📥 Fetching page ${page + 1}/${totalPages} (offset ${currentOffset}) - ${page === totalPages - 1 ? 'ESTABLISHED' : page === 0 ? 'NEWEST' : 'MID-TENURE'} members`
-    );
-
-    const response = await fetch(
-      `https://api.congress.gov/v3/member/congress/119?currentMember=true&offset=${currentOffset}&limit=${limit}&api_key=${apiKey}`,
-      {
-        headers: {
-          'User-Agent': 'TaskForcePurple/1.0 (Political Transparency Platform)',
-        },
-      }
-    );
-
-    if (!response.ok) {
-      throw new Error(`Congress API error: ${response.status} ${response.statusText}`);
-    }
-
-    const data = await response.json();
-    const members = data.members || [];
-    allMembers = allMembers.concat(members);
-
-    console.log(`📈 Fetched ${members.length} members, total so far: ${allMembers.length}`);
-
-    // Small delay between paginated requests (except for last page)
-    if (page > 0) {
-      await new Promise(resolve => setTimeout(resolve, 1000));
-    }
-  }
-
-  console.log(`✅ Total members fetched: ${allMembers.length}`);
-  return allMembers;
-}
-
-// Select current committee using proper cycle and designation filtering
-// Returns: { committee, usedCycle }
-// eslint-disable-next-line no-unused-vars
-async function selectCurrentCommittee(candidateId, env, office = null) {
-  const apiKey = requireSecret(env, 'FEC_API_KEY');
-
-  try {
-    // Fetch all committees for this candidate (without cycle filter)
-    // We'll filter by cycle in code since FEC returns committees with cycles[] array
-    const response = await fetch(
-      `https://api.open.fec.gov/v1/candidate/${candidateId}/committees/?api_key=${apiKey}`,
-      {
-        headers: {
-          'User-Agent': 'TaskForcePurple/1.0 (Political Transparency Platform)',
-        },
-      }
-    );
-
-    if (!response.ok) {
-      throw new Error(`Committee lookup failed: ${response.status}`);
-    }
-
-    const data = await response.json();
-
-    if (!data.results || data.results.length === 0) {
-      throw new Error(`No committees found for candidate ${candidateId}`);
-    }
-
-    // Chamber-aware fallback strategy:
-    // House (2-year terms): Try current cycle, then -2 (one cycle back)
-    // Senate (6-year terms): Try current cycle, then -2, -4, -6, -8 (four cycles back = 10 years)
-    const runtimeCycle = await getElectionCycle();
-    const cyclesToTry =
-      office === 'H'
-        ? [runtimeCycle, runtimeCycle - 2]
-        : [runtimeCycle, runtimeCycle - 2, runtimeCycle - 4, runtimeCycle - 6, runtimeCycle - 8];
-
-    // Find committee with the most recent cycle from our priority list
-    let usedCycle = null;
-    for (const cycle of cyclesToTry) {
-      // Check if any committee has this cycle
-      const hasCommitteeInCycle = data.results.some(c => c.cycles && c.cycles.includes(cycle));
-      if (hasCommitteeInCycle) {
-        usedCycle = cycle;
-        const currentCycle = await getElectionCycle();
-        if (cycle !== currentCycle) {
-          console.log(
-            `🔄 Using committee data from previous cycle ${cycle} for ${candidateId} (${office || 'unknown chamber'})`
-          );
-        }
-        break;
-      }
-    }
-
-    if (!usedCycle) {
-      throw new Error(`No committees found for candidate ${candidateId} in any recent cycle`);
-    }
-
-    // Filter by designation (P = Principal, A = Authorized) AND cycle availability
-    const campaignCommittees = data.results.filter(
-      c =>
-        (c.designation === 'P' || c.designation === 'A') && c.cycles && c.cycles.includes(usedCycle)
-    );
-
-    if (campaignCommittees.length === 0) {
-      // Fallback: use most recent committee
-      console.log(`⚠️ No P/A committees found for ${candidateId}, using most recent committee`);
-      return data.results.sort(
-        (a, b) =>
-          new Date(b.last_file_date || '1900-01-01') - new Date(a.last_file_date || '1900-01-01')
-      )[0];
-    }
-
-    // Prefer Principal (P), fallback to most recent Authorized (A)
-    const principal = campaignCommittees.find(c => c.designation === 'P');
-    if (principal) {
-      console.log(
-        `✅ Selected Principal committee: ${principal.name} (${principal.committee_id}) - cycle ${usedCycle}`
-      );
-      return { committee: principal, usedCycle };
-    }
-
-    const mostRecentAuthorized = campaignCommittees.sort(
-      (a, b) =>
-        new Date(b.last_file_date || '1900-01-01') - new Date(a.last_file_date || '1900-01-01')
-    )[0];
-
-    console.log(
-      `✅ Selected Authorized committee: ${mostRecentAuthorized.name} (${mostRecentAuthorized.committee_id}) - cycle ${usedCycle}`
-    );
-    return { committee: mostRecentAuthorized, usedCycle };
-  } catch (error) {
-    console.error(`❌ Committee selection failed for ${candidateId}:`, error.message);
-    throw error;
-  }
 }
 
 // Fetch financial data from OpenFEC API using correct endpoints
@@ -1215,300 +1183,22 @@ async function calculateEnhancedTier(member, _allMembers = [], env = null) {
   return { ...result, concentration, concentrationRejected };
 }
 
-// Process and enrich member data with TWO-CALL STRATEGY
-// First call: Basic tier data (fast), Second call: Detailed PAC data (slower)
-//
-// TESTING PARAMETER: Add ?limit=N to process only first N members for testing
-// Example: POST /api/update-data?limit=5 processes only 5 members
-// Default: undefined (processes all members)
-// eslint-disable-next-line no-unused-vars
-async function processMembers(congressMembers, env, testLimit = undefined) {
-  console.log('🔄 Processing member data with two-call strategy...');
-
-  // Load existing data to append to
-  let existingMembers = [];
-  try {
-    const existingData = await env.MEMBER_DATA.get('members:all');
-    if (existingData) {
-      existingMembers = JSON.parse(existingData);
-      console.log(`📊 Found ${existingMembers.length} existing members in storage`);
-    }
-  } catch (error) {
-    console.log('No existing data found, starting fresh');
-  }
-
-  // PHASE 1: Basic tier data (fast population)
-  console.log('🚀 PHASE 1: Fetching basic tier data for all members...');
-  const basicProcessedMembers = [];
-  let basicProcessed = 0;
-  const BASIC_BATCH_SIZE = 50;
-
-  // Apply test limit if specified (for testing small batches)
-  const membersToProcess = testLimit ? congressMembers.slice(0, testLimit) : congressMembers;
-  if (testLimit) {
-    console.log(
-      `🧪 TEST MODE: Processing only first ${testLimit} members (of ${congressMembers.length} total)`
-    );
-  }
-
-  for (const member of membersToProcess) {
-    try {
-      // Get basic financial data only (no PAC details)
-      const financials = await fetchMemberFinancials(member, env);
-      const currentCycle = await getElectionCycle();
-
-      const basicMember = {
-        bioguideId: member.bioguideId,
-        name: member.name,
-        party: member.partyName,
-        state: member.state,
-        district: member.district,
-        chamber: (() => {
-          // Get most recent term (last item in array, since Congress.gov sorts oldest-first)
-          const terms = member.terms?.item;
-          if (!terms || terms.length === 0) {
-            return 'Unknown';
-          }
-          const currentTerm = terms[terms.length - 1];
-          return currentTerm.chamber === 'House of Representatives'
-            ? 'House'
-            : currentTerm.chamber === 'Senate'
-              ? 'Senate'
-              : 'Unknown';
-        })(),
-
-        // Basic financial data
-        totalRaised: financials?.totalRaised || 0,
-        grassrootsDonations: financials?.grassrootsDonations || 0,
-        grassrootsPercent: financials?.grassrootsPercent || 0,
-        pacMoney: financials?.pacMoney || 0,
-        partyMoney: financials?.partyMoney || 0,
-        dataCycle: financials?.dataCycle || currentCycle,
-
-        // Empty PAC details initially (will be filled in Phase 2)
-        pacContributions: [],
-
-        // Calculated tier (available immediately)
-        tier: calculateTier(financials?.grassrootsPercent || 0, financials?.totalRaised || 0),
-
-        // Metadata
-        lastUpdated: new Date().toISOString(),
-        pacDetailsStatus: 'pending', // Track PAC detail status
-        committeeInfo: financials
-          ? {
-              id: financials.committeeId,
-              name: financials.committeeName,
-            }
-          : null,
-      };
-
-      basicProcessedMembers.push(basicMember);
-      basicProcessed++;
-
-      // Incremental update every BASIC_BATCH_SIZE members
-      if (basicProcessed % BASIC_BATCH_SIZE === 0) {
-        console.log(`📊 Basic batch update: ${basicProcessed}/${congressMembers.length} members`);
-
-        // Merge with existing data (remove duplicates by bioguideId)
-        const existingIds = new Set(existingMembers.map(m => m.bioguideId));
-        const newMembers = basicProcessedMembers.filter(m => !existingIds.has(m.bioguideId));
-        const updatedMembers = [...existingMembers, ...newMembers];
-
-        // Store incremental basic update
-        await env.MEMBER_DATA.put('members:all', JSON.stringify(updatedMembers));
-        // Update existing for next batch
-        existingMembers = updatedMembers;
-        console.log(`💾 Basic data saved: ${updatedMembers.length} total members`);
-      }
-
-      if (basicProcessed % 5 === 0) {
-        console.log(`📊 Basic processing: ${basicProcessed}/${membersToProcess.length} members`);
-      }
-
-      // Rate limiting - 4 second delay to stay under FEC 16.67/minute limit (target 15/minute)
-      await new Promise(resolve => setTimeout(resolve, 4000));
-    } catch (error) {
-      console.warn(`Error processing basic data for ${member.name}:`, error.message);
-    }
-  }
-
-  // Final basic update with any remaining members
-  if (basicProcessed % BASIC_BATCH_SIZE !== 0) {
-    const existingIds = new Set(existingMembers.map(m => m.bioguideId));
-    const newMembers = basicProcessedMembers.filter(m => !existingIds.has(m.bioguideId));
-    const finalBasicMembers = [...existingMembers, ...newMembers];
-    await env.MEMBER_DATA.put('members:all', JSON.stringify(finalBasicMembers));
-    console.log(`💾 Final basic data saved: ${finalBasicMembers.length} total members`);
-    existingMembers = finalBasicMembers;
-  }
-
-  console.log(`✅ PHASE 1 COMPLETE: Basic tier data for ${basicProcessedMembers.length} members`);
-
-  // PHASE 2: Detailed PAC data (progressive enhancement)
-  console.log('🔍 PHASE 2: Fetching detailed PAC data progressively...');
-  let pacDetailsProcessed = 0;
-  const PAC_BATCH_SIZE = 25; // Increased batch size for PAC details
-
-  for (const basicMember of basicProcessedMembers) {
-    try {
-      // Only fetch PAC details for members with committee info
-      if (basicMember.committeeInfo?.id) {
-        console.log(`🔍 Fetching PAC details for ${basicMember.name}...`);
-        const pacDetails = await fetchPACDetails(basicMember.committeeInfo.id, env);
-
-        // Update the member in storage with PAC details
-        const currentData = await env.MEMBER_DATA.get('members:all');
-        if (currentData) {
-          const currentMembers = JSON.parse(currentData);
-          const memberIndex = currentMembers.findIndex(
-            m => m.bioguideId === basicMember.bioguideId
-          );
-
-          if (memberIndex !== -1) {
-            currentMembers[memberIndex].pacContributions = pacDetails;
-            currentMembers[memberIndex].pacDetailsStatus = 'complete';
-            currentMembers[memberIndex].lastUpdated = new Date().toISOString();
-            // BUGFIX: Always refresh dataCycle to prevent stale 1970 values (Issue #15)
-            const currentCycle = await getElectionCycle();
-            currentMembers[memberIndex].dataCycle = currentCycle;
-            // NEW: Recalculate tier with enhanced transparency weighting
-            const { tier, individualFundingPercent } = await calculateEnhancedTier(
-              currentMembers[memberIndex],
-              currentMembers,
-              env
-            );
-            currentMembers[memberIndex].tier = tier;
-            currentMembers[memberIndex].individualFundingPercent = individualFundingPercent;
-
-            await env.MEMBER_DATA.put('members:all', JSON.stringify(currentMembers));
-            console.log(
-              `✅ PAC details updated for ${basicMember.name}: ${pacDetails.length} contributions`
-            );
-          }
-        }
-      } else {
-        console.log(`⚠️ No committee info for ${basicMember.name}, skipping PAC details`);
-      }
-
-      pacDetailsProcessed++;
-
-      // Progress update every few members
-      if (pacDetailsProcessed % PAC_BATCH_SIZE === 0) {
-        console.log(
-          `📊 PAC details: ${pacDetailsProcessed}/${basicProcessedMembers.length} members processed`
-        );
-      }
-
-      // Rate limiting - same 4 second delay for PAC API calls
-      await new Promise(resolve => setTimeout(resolve, 4000));
-    } catch (error) {
-      console.warn(`Error fetching PAC details for ${basicMember.name}:`, error.message);
-    }
-  }
-
-  console.log(`✅ PHASE 2 COMPLETE: PAC details for ${pacDetailsProcessed} members`);
-  console.log(
-    `🎉 TWO-CALL STRATEGY COMPLETE: ${basicProcessedMembers.length} members with basic data, ${pacDetailsProcessed} with detailed PAC data`
-  );
-
-  return basicProcessedMembers;
-}
-
-// Main data update function
-async function updateCongressionalData(env, _testLimit = undefined) {
-  console.log('🚀 Starting smart batch processing update...');
-
-  // Use smart batch processing instead of bulk processing
-  const result = await processSmartBatch(env);
-
-  // Update final timestamp
-  await env.MEMBER_DATA.put('last_updated', new Date().toISOString());
-
-  return {
-    smartBatch: true,
-    callsUsed: result.callsUsed,
-    membersProcessed: result.membersProcessed,
-    executionTime: result.executionTime,
-    lastUpdated: new Date().toISOString(),
-  };
-}
-
 // Calculate enhanced grassroots percentage for display
-function calculateEnhancedGrassrootsPercent(member) {
-  if (!member.totalRaised || member.totalRaised === 0) {
-    return member.grassrootsPercent || 0;
-  }
-
-  // If we have grassrootsDonations field (individual_unitemized_contributions <$200), use it
-  if (member.grassrootsDonations !== undefined) {
-    return Math.round((member.grassrootsDonations / member.totalRaised) * 100);
-  }
-
-  // Fallback to stored FEC grassroots percentage
-  return member.grassrootsPercent || 0;
-}
 
 // Get grassroots-friendly PAC types summary for display
-function getGrassrootsPACTypesSummary(member) {
-  if (!member.pacContributions?.length) {
-    return null;
-  }
-
-  const grassrootsFriendlyTypes = new Set();
-
-  for (const pac of member.pacContributions) {
-    const weight =
-      pac.committee_type || pac.designation
-        ? getPACTransparencyWeight(pac.committee_type, pac.designation)
-        : 1.0;
-
-    // Only include PAC types that are grassroots-friendly (weight < 1.0)
-    if (weight < 1.0) {
-      const category = getCommitteeCategory(pac.committee_type, pac.designation);
-      grassrootsFriendlyTypes.add(category);
-    }
-  }
-
-  return grassrootsFriendlyTypes.size > 0 ? Array.from(grassrootsFriendlyTypes) : null;
-}
 
 // API handlers
 async function handleSingleMember(env, corsHeaders, url) {
   try {
     const bioguideId = url.pathname.split('/').pop();
-    const membersData = await env.MEMBER_DATA.get('members:all');
-
-    if (!membersData) {
-      return new Response(JSON.stringify({ error: 'No data available' }), {
-        status: 404,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
-    }
-
-    const members = JSON.parse(membersData);
-    const member = members.find(m => m.bioguideId === bioguideId);
-
+    const member = await getMember(env, bioguideId);
     if (!member) {
       return new Response(JSON.stringify({ error: 'Member not found' }), {
         status: 404,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
-
-    // Enhance grassroots data for this member
-    const grassrootsPACTypes = getGrassrootsPACTypesSummary(member);
-    const enhancedMember = {
-      ...member,
-      grassrootsPercent: calculateEnhancedGrassrootsPercent(member),
-      rawFECGrassrootsPercent: member.grassrootsPercent,
-      hasEnhancedData:
-        member.pacContributions &&
-        member.pacContributions.length > 0 &&
-        member.pacContributions.some(pac => pac.committee_type || pac.designation),
-      grassrootsPACTypes: grassrootsPACTypes,
-    };
-
-    return new Response(JSON.stringify(enhancedMember), {
+    return new Response(JSON.stringify(servedMember(member)), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   } catch (error) {
@@ -1532,11 +1222,17 @@ async function handleMemberDetail(env, corsHeaders, url) {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   }
-  const raw = await env.MEMBER_DATA.get(`itemized_analysis_v2:${bioguideId}`);
+  const [raw, record] = await Promise.all([
+    env.MEMBER_DATA.get(`itemized_analysis_v2:${bioguideId}`),
+    getMember(env, bioguideId),
+  ]);
   const a = raw ? JSON.parse(raw) : null;
   const pf = a?.personFunding && !a.personFunding.failed ? a.personFunding : null;
   const body = {
     bioguideId,
+    // The member's full served record: the profile's heavy fields (PAC
+    // donations, FARA firms, conduits) live here, not in the list (Stage 1)
+    member: record ? servedMember(record) : null,
     // Donor-level figures come from the committees this analysis pooled
     donorPoolCommitteeIds: a?.committeeIds || (a?.committeeId ? [a.committeeId] : []),
     personLevel: Boolean(a?.personLevel),
@@ -1568,120 +1264,57 @@ async function handleMemberDetail(env, corsHeaders, url) {
 }
 
 async function handleMembers(env, corsHeaders) {
+  const headers = {
+    ...corsHeaders,
+    'Content-Type': 'application/json',
+    'Cache-Control': 'public, max-age=300',
+  };
+  // Stage 1 (REBUILD_SPEC §7): the response body is stored as members:list and
+  // served exactly as stored - no parse, no transform, one KV read
+  const stored = await env.MEMBER_DATA.get(LIST_KEY);
+  if (stored) {
+    return new Response(stored, { headers: { ...headers, 'X-TFP-Source': 'members:list' } });
+  }
+
+  // Before the migration: the old path, through the same transform
   try {
     const membersData = await env.MEMBER_DATA.get('members:all');
     const lastUpdated = await env.MEMBER_DATA.get('last_updated');
-
     if (!membersData) {
       return new Response(
-        JSON.stringify({
-          error: 'No data available. Run data update first.',
-          members: [],
-        }),
-        {
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        }
+        JSON.stringify({ error: 'No data available. Run data update first.', members: [] }),
+        { headers }
       );
     }
-
     const members = JSON.parse(membersData);
-
-    // Concentration metrics (nakamotoCoefficient etc.) are merged into
-    // members:all by performTierRecalculation at write time - no per-member
-    // KV lookups here. This endpoint costs 3 KV reads total, not ~540.
-    const enhancedMembers = members.map(member => ({
-      ...member,
-      grassrootsPercent: calculateEnhancedGrassrootsPercent(member),
-      rawFECGrassrootsPercent: member.grassrootsPercent, // Keep original for reference
-      hasEnhancedData:
-        member.pacContributions &&
-        member.pacContributions.length > 0 &&
-        member.pacContributions.some(pac => pac.committee_type || pac.designation),
-      grassrootsPACTypes: getGrassrootsPACTypesSummary(member),
-      nakamotoCoefficient: member.nakamotoCoefficient ?? null,
-      nakamotoPercent: member.nakamotoPercent ?? null,
-      uniqueDonors: member.uniqueDonors ?? null,
-      top10Concentration: member.top10Concentration ?? null,
-    }));
-
-    // Get adaptive thresholds (cached quarterly) for tier explanations
     const adaptiveThresholds = await getAdaptiveThresholds(env, members);
-
     return new Response(
       JSON.stringify({
-        members: enhancedMembers,
+        members: members.map(servedMember),
         lastUpdated,
-        total: enhancedMembers.length,
-        adaptiveThresholds, // Include current thresholds for UI display
+        total: members.length,
+        adaptiveThresholds,
       }),
-      {
-        headers: {
-          ...corsHeaders,
-          'Content-Type': 'application/json',
-          // Data changes at most every 20 minutes (cron); let browsers cache
-          'Cache-Control': 'public, max-age=300',
-        },
-      }
+      { headers: { ...headers, 'X-TFP-Source': 'members:all' } }
     );
   } catch (error) {
     throw new Error(`Failed to retrieve members: ${error.message}`);
   }
 }
 
-async function handleDataUpdate(env, corsHeaders, request) {
-  try {
-    // Check for authentication
-    const url = new URL(request.url);
-    const authKey =
-      url.searchParams.get('key') || request.headers.get('Authorization')?.replace('Bearer ', '');
-    const expectedKey = env.UPDATE_SECRET;
-
-    if (!expectedKey) {
-      throw new Error('UPDATE_SECRET not configured');
-    }
-
-    if (!authKey || authKey !== expectedKey) {
-      return new Response(
-        JSON.stringify({
-          error: 'Unauthorized - valid API key required',
-        }),
-        {
-          status: 401,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        }
-      );
-    }
-
-    console.log('🔄 Manual data update triggered via API');
-
-    // Parse optional limit parameter for testing small batches
-    const limitParam = url.searchParams.get('limit');
-    const testLimit = limitParam ? parseInt(limitParam, 10) : undefined;
-
-    const result = await updateCongressionalData(env, testLimit);
-
-    return new Response(
-      JSON.stringify({
-        success: true,
-        message: 'Data update completed',
-        ...result,
-      }),
-      {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      }
-    );
-  } catch (error) {
-    throw new Error(`Data update failed: ${error.message}`);
-  }
-}
-
 // Status endpoint for monitoring Worker progress
 async function handleStatus(env, corsHeaders) {
   try {
-    const membersData = await env.MEMBER_DATA.get('members:all');
-    const lastUpdated = await env.MEMBER_DATA.get('last_updated');
-
-    if (!membersData) {
+    // Reads the slim list (Stage 1); before the migration, the old blob
+    const body = await getListBody(env);
+    let members = body?.members;
+    let lastUpdated = body?.lastUpdated ?? null;
+    if (!members) {
+      const membersData = await env.MEMBER_DATA.get('members:all');
+      lastUpdated = await env.MEMBER_DATA.get('last_updated');
+      members = membersData ? JSON.parse(membersData) : null;
+    }
+    if (!members) {
       return new Response(
         JSON.stringify({
           status: 'no_data',
@@ -1689,17 +1322,15 @@ async function handleStatus(env, corsHeaders) {
           lastUpdated: null,
           progress: { total: 0, withFinancialData: 0, withPACDetails: 0 },
         }),
-        {
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        }
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    const members = JSON.parse(membersData);
+    // List entries carry the served grassrootsPercent; status always reported
+    // the stored FEC figure, kept on the entry as rawFECGrassrootsPercent
+    const fecGrassroots = m => (body ? m.rawFECGrassrootsPercent : m.grassrootsPercent);
     const withFinancialData = members.filter(m => m.totalRaised > 0);
     const withPACDetails = members.filter(m => m.pacDetailsStatus === 'complete');
-
-    // Tier breakdown
     const tierCounts = {
       S: members.filter(m => m.tier === 'S').length,
       A: members.filter(m => m.tier === 'A').length,
@@ -1708,15 +1339,13 @@ async function handleStatus(env, corsHeaders) {
       D: members.filter(m => m.tier === 'D').length,
       'N/A': members.filter(m => m.tier === 'N/A').length,
     };
-
-    // Recent updates (last 10 members with financial data by lastUpdated)
     const recentUpdates = withFinancialData
       .sort((a, b) => new Date(b.lastUpdated) - new Date(a.lastUpdated))
       .slice(0, 10)
       .map(m => ({
         name: m.name,
         tier: m.tier,
-        grassrootsPercent: m.grassrootsPercent,
+        grassrootsPercent: fecGrassroots(m),
         lastUpdated: m.lastUpdated,
       }));
 
@@ -1737,718 +1366,132 @@ async function handleStatus(env, corsHeaders) {
           phase2Progress: `${withPACDetails.length}/${withFinancialData.length} complete`,
         },
       }),
-      {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      }
+      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   } catch (error) {
     throw new Error(`Failed to get status: ${error.message}`);
   }
 }
 
-// NEW: Batch FEC Update Handler - processes small batches without Congress.gov calls
-async function handleFECBatchUpdate(env, corsHeaders, request) {
-  try {
-    // Check for authentication
-    const url = new URL(request.url);
-    const authKey =
-      url.searchParams.get('key') || request.headers.get('Authorization')?.replace('Bearer ', '');
-    const expectedKey = env.UPDATE_SECRET;
-
-    if (!authKey || authKey !== expectedKey) {
-      return new Response(JSON.stringify({ error: 'Unauthorized' }), {
-        status: 401,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
-    }
-
-    console.log('🔄 FEC Batch update triggered via API');
-
-    // Get batch size parameter (default: 3, max: 10 for safety)
-    const batchSize = Math.min(parseInt(url.searchParams.get('batch') || '3'), 10);
-
-    // Load existing members from storage
-    const existingData = await env.MEMBER_DATA.get('members:all');
-    if (!existingData) {
-      return new Response(
-        JSON.stringify({
-          error: 'No existing member data found. Run full update first.',
-        }),
-        {
-          status: 400,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        }
-      );
-    }
-
-    const allMembers = JSON.parse(existingData);
-    console.log(`📊 Found ${allMembers.length} existing members`);
-
-    // Get or initialize progress tracking
-    let progressData = { lastProcessedIndex: -1, phase: 'financial' };
-    try {
-      const progressString = await env.MEMBER_DATA.get('batch_progress');
-      if (progressString) {
-        progressData = JSON.parse(progressString);
-      }
-    } catch (error) {
-      console.log('No progress data found, starting from beginning');
-    }
-
-    const { lastProcessedIndex, phase } = progressData;
-    let processed = 0;
-    let updated = 0;
-
-    console.log(`🔄 Resuming from index ${lastProcessedIndex + 1}, phase: ${phase}`);
-
-    if (phase === 'financial') {
-      // Phase 1: Process members without financial data
-      const membersNeedingFinancials = allMembers
-        .map((member, index) => ({ ...member, originalIndex: index }))
-        .filter(
-          (member, index) =>
-            index > lastProcessedIndex && (!member.totalRaised || member.totalRaised === 0)
-        )
-        .slice(0, batchSize);
-
-      console.log(`💰 Processing ${membersNeedingFinancials.length} members for financial data`);
-
-      for (const member of membersNeedingFinancials) {
-        try {
-          console.log(`🔍 Updating financial data for: ${member.name}`);
-
-          // Get fresh financial data
-          const financials = await fetchMemberFinancials(member, env);
-          const currentCycle = await getElectionCycle();
-
-          if (financials && financials.totalRaised > 0) {
-            // Update member with new financial data
-            allMembers[member.originalIndex] = {
-              ...allMembers[member.originalIndex],
-              totalRaised: financials.totalRaised,
-              grassrootsDonations: financials.grassrootsDonations,
-              grassrootsPercent: financials.grassrootsPercent,
-              pacMoney: financials.pacMoney,
-              partyMoney: financials.partyMoney,
-              committeeId: financials.committeeId, // NEW: Save committee ID for Phase 2
-              dataCycle: financials.dataCycle || currentCycle,
-              tier: calculateTier(financials.grassrootsPercent, financials.totalRaised),
-              lastUpdated: new Date().toISOString(),
-            };
-            updated++;
-            console.log(
-              `✅ Updated financial data for ${member.name}: $${financials.totalRaised.toLocaleString()}`
-            );
-          }
-
-          processed++;
-          progressData.lastProcessedIndex = member.originalIndex;
-
-          // Save progress incrementally
-          await env.MEMBER_DATA.put('batch_progress', JSON.stringify(progressData));
-          await env.MEMBER_DATA.put('members:all', JSON.stringify(allMembers));
-        } catch (error) {
-          console.warn(`Error updating ${member.name}:`, error.message);
-        }
-      }
-
-      // Check if we need to move to PAC phase
-      const remainingFinancial = allMembers.filter(
-        (member, index) =>
-          index > progressData.lastProcessedIndex &&
-          (!member.totalRaised || member.totalRaised === 0)
-      );
-
-      // Cycle to PAC phase either when:
-      // 1. All financial data complete, OR
-      // 2. We've processed our batch (cycle phases to respect rate limits)
-      if (remainingFinancial.length === 0 || processed >= batchSize) {
-        console.log(
-          `🔄 Cycling from financial to PAC phase (${processed} processed, ${remainingFinancial.length} remaining financial)`
-        );
-        progressData.phase = 'pac';
-        progressData.lastProcessedIndex = -1;
-        await env.MEMBER_DATA.put('batch_progress', JSON.stringify(progressData));
-      }
-    } else if (phase === 'pac') {
-      // Phase 2: Process members needing PAC details
-      const membersNeedingPAC = allMembers
-        .map((member, index) => ({ ...member, originalIndex: index }))
-        .filter(
-          (member, index) =>
-            index > lastProcessedIndex &&
-            member.totalRaised > 0 &&
-            (!member.pacDetailsStatus || member.pacDetailsStatus !== 'complete')
-        )
-        .slice(0, batchSize);
-
-      console.log(`🏛️ Processing ${membersNeedingPAC.length} members for PAC details`);
-
-      for (const member of membersNeedingPAC) {
-        try {
-          console.log(`🔍 Updating PAC details for: ${member.name}`);
-
-          // Get PAC details if member has financial data
-          if (member.committeeId) {
-            const pacDetails = await fetchPACDetails(member.committeeId, env);
-
-            if (pacDetails && pacDetails.length > 0) {
-              // Update member with PAC details
-              allMembers[member.originalIndex] = {
-                ...allMembers[member.originalIndex],
-                pacContributions: pacDetails,
-                pacDetailsStatus: 'complete',
-                lastUpdated: new Date().toISOString(),
-              };
-              // NEW: Recalculate tier with enhanced transparency weighting
-              const { tier, individualFundingPercent } = await calculateEnhancedTier(
-                allMembers[member.originalIndex],
-                allMembers,
-                env
-              );
-              allMembers[member.originalIndex].tier = tier;
-              allMembers[member.originalIndex].individualFundingPercent = individualFundingPercent;
-              updated++;
-              console.log(
-                `✅ Updated PAC details for ${member.name}: ${pacDetails.length} contributions`
-              );
-            }
-          }
-
-          processed++;
-          progressData.lastProcessedIndex = member.originalIndex;
-
-          // Save progress incrementally
-          await env.MEMBER_DATA.put('batch_progress', JSON.stringify(progressData));
-          await env.MEMBER_DATA.put('members:all', JSON.stringify(allMembers));
-        } catch (error) {
-          console.warn(`Error updating PAC details for ${member.name}:`, error.message);
-        }
-      }
-
-      // Check if PAC phase is complete
-      const remainingPAC = allMembers.filter(
-        (member, index) =>
-          index > progressData.lastProcessedIndex &&
-          member.totalRaised > 0 &&
-          (!member.pacDetailsStatus || member.pacDetailsStatus !== 'complete')
-      );
-
-      // Cycle back to financial phase either when:
-      // 1. All PAC processing complete, OR
-      // 2. We've processed our batch (cycle phases to respect rate limits)
-      if (remainingPAC.length === 0 || processed >= batchSize) {
-        console.log(
-          `🔄 Cycling from PAC to financial phase (${processed} processed, ${remainingPAC.length} remaining PAC)`
-        );
-        progressData.phase = 'financial';
-        progressData.lastProcessedIndex = -1;
-        await env.MEMBER_DATA.put('batch_progress', JSON.stringify(progressData));
-      }
-    }
-
-    // Update last updated timestamp
-    await env.MEMBER_DATA.put('last_updated', new Date().toISOString());
-
-    const response = {
-      success: true,
-      message: `FEC batch update completed`,
-      batchSize,
-      processed,
-      updated,
-      phase: progressData.phase,
-      nextIndex: progressData.lastProcessedIndex + 1,
-      totalMembers: allMembers.length,
-      lastUpdated: new Date().toISOString(),
-    };
-
-    console.log(`✅ Batch complete: ${processed} processed, ${updated} updated`);
-
-    return new Response(JSON.stringify(response), {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    });
-  } catch (error) {
-    console.error('FEC batch update failed:', error);
-    return new Response(JSON.stringify({ error: error.message }), {
-      status: 500,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    });
-  }
-}
-
-// Test endpoint to force enhanced PAC processing on specific member
-async function handleTestMember(env, corsHeaders, request) {
-  try {
-    const url = new URL(request.url);
-    const bioguideId = url.searchParams.get('bioguideId');
-
-    if (!bioguideId) {
-      return new Response(JSON.stringify({ error: 'bioguideId parameter required' }), {
-        status: 400,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
-    }
-
-    // Get current member data
-    const currentData = await env.MEMBER_DATA.get('members:all');
-    if (!currentData) {
-      return new Response(JSON.stringify({ error: 'No member data found' }), {
-        status: 404,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
-    }
-
-    const members = JSON.parse(currentData);
-    const member = members.find(m => m.bioguideId === bioguideId);
-
-    if (!member) {
-      return new Response(JSON.stringify({ error: `Member ${bioguideId} not found` }), {
-        status: 404,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
-    }
-
-    if (!member.candidateId) {
-      return new Response(JSON.stringify({ error: `Member ${bioguideId} has no candidateId` }), {
-        status: 400,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
-    }
-
-    console.log(`🧪 Testing enhanced PAC processing for ${member.name} (${bioguideId})`);
-
-    // Force enhanced PAC details processing
-    const enhancedPACDetails = await fetchPACDetails(member.candidateId, env);
-
-    // Update member with enhanced data
-    const memberIndex = members.findIndex(m => m.bioguideId === bioguideId);
-
-    // Calculate tier and individual funding percent with new PAC data
-    const memberWithPACs = { ...members[memberIndex], pacContributions: enhancedPACDetails };
-    const { tier, individualFundingPercent } = await calculateEnhancedTier(
-      memberWithPACs,
-      members,
-      env
-    );
-
-    members[memberIndex] = {
-      ...members[memberIndex],
-      pacContributions: enhancedPACDetails,
-      pacDetailsStatus: 'complete',
-      lastUpdated: new Date().toISOString(),
-      tier,
-      individualFundingPercent,
-    };
-
-    // Save updated data
-    await env.MEMBER_DATA.put('members:all', JSON.stringify(members));
-
-    return new Response(
-      JSON.stringify({
-        success: true,
-        member: members[memberIndex],
-        enhancedPACCount: enhancedPACDetails.filter(p => p.committee_type).length,
-        message: `Enhanced PAC processing completed for ${member.name}`,
-      }),
-      {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      }
-    );
-  } catch (error) {
-    console.error('Test member processing failed:', error);
-    return new Response(JSON.stringify({ error: error.message }), {
-      status: 500,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    });
-  }
-}
-
-// NEW: HTTP handler for manual smart batch testing
-async function handleSmartBatch(env, corsHeaders, request) {
-  try {
-    // Check for authorization
-    const authHeader = request.headers.get('Authorization');
-    const expectedAuth = env.UPDATE_SECRET ? `Bearer ${env.UPDATE_SECRET}` : null;
-
-    if (!authHeader || authHeader !== expectedAuth) {
-      return new Response(JSON.stringify({ error: 'Unauthorized' }), {
-        status: 401,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
-    }
-
-    console.log('🔄 Manual smart batch processing triggered...');
-    const result = await processSmartBatch(env);
-
-    return new Response(
-      JSON.stringify({
-        success: true,
-        message: 'Smart batch processing completed',
-        result,
-      }),
-      {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      }
-    );
-  } catch (error) {
-    console.error('Smart batch processing failed:', error);
-    return new Response(
-      JSON.stringify({
-        error: error.message,
-        success: false,
-      }),
-      {
-        status: 500,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      }
-    );
-  }
-}
-
-// Helper function to perform tier recalculation (without HTTP handling)
-async function performTierRecalculation(env) {
-  // Get all member data from storage
-  const currentData = await env.MEMBER_DATA.get('members:all');
-  if (!currentData) {
-    throw new Error('No member data found');
-  }
-
-  const members = JSON.parse(currentData);
-  let recalculated = 0;
-  let unchanged = 0;
-  let errors = 0;
-
-  // Process each member
-  for (let i = 0; i < members.length; i++) {
-    const member = members[i];
-
-    try {
-      // Only recalculate if member has financial data
-      if (!member.totalRaised || member.totalRaised === 0) {
-        continue;
-      }
-
-      // Calculate new tier using enhanced logic
-      const oldTier = member.tier;
-      const {
-        tier: newTier,
-        individualFundingPercent,
-        concentration,
-        concentrationRejected,
-        gradeBasis,
-        personFigures,
-      } = await calculateEnhancedTier(member, members, env);
-      member.gradeBasis = gradeBasis;
-      // The figures the grade was computed on, when that is all committees,
-      // so every number on the card matches the grade (campaign-only figures
-      // stay in the member's own fields, refreshed by Phase 1)
-      member.personFigures = personFigures;
-      member.individualFundingPercent = individualFundingPercent;
-
-      // Merge concentration metrics into the member record so /api/members
-      // can serve them from members:all (one KV read) instead of 537
-      // per-member lookups per request. Never wipe previously merged data
-      // on a transient KV miss.
-      if (concentrationRejected) {
-        // Deliberate wipe, unlike a transient miss: these fields were merged
-        // from another committee's records (issue #41). The itemized worker
-        // re-collects against the corrected committee and repopulates them.
-        member.nakamotoCoefficient = null;
-        member.uniqueDonors = null;
-        member.top10Concentration = null;
-        member.nakamotoPercent = null;
-        member.topConduits = null;
-        member.earmarkedIndividualTotal = null;
-        member.faraFirms = null;
-        member.faraEmployerTotal = null;
-      }
-      if (concentration) {
-        member.nakamotoCoefficient = concentration.nakamotoCoefficient ?? null;
-        member.uniqueDonors = concentration.uniqueDonors ?? null;
-        member.top10Concentration = concentration.top10Concentration ?? null;
-        member.nakamotoPercent =
-          concentration.uniqueDonors > 0
-            ? parseFloat(
-                ((concentration.nakamotoCoefficient / concentration.uniqueDonors) * 100).toFixed(1)
-              )
-            : null;
-        // Network attribution (issue #33) - present only on analyses
-        // collected after 2026-07-12; older snapshots keep these unset
-        if (concentration.conduits !== undefined) {
-          member.topConduits = concentration.conduits;
-          member.earmarkedIndividualTotal = concentration.earmarkedTotal ?? null;
-        }
-        // FARA cross-reference (issue #34) - analyses after 2026-07-17
-        if (concentration.faraFirms !== undefined) {
-          member.faraFirms = concentration.faraFirms;
-          member.faraEmployerTotal = concentration.faraEmployerTotal ?? null;
-        }
-      }
-
-      // Recalculate grassrootsPercent to match tier calculation
-      // Use grassrootsDonations if available, otherwise fall back to old calculation
-      let newGrassrootsPercent;
-      if (member.grassrootsDonations !== undefined && member.totalRaised > 0) {
-        newGrassrootsPercent = Math.round((member.grassrootsDonations / member.totalRaised) * 100);
-      } else {
-        newGrassrootsPercent = member.grassrootsPercent || 0;
-      }
-
-      // Update tier and/or grassrootsPercent if they changed
-      if (oldTier !== newTier || member.grassrootsPercent !== newGrassrootsPercent) {
-        // BUGFIX: Refresh dataCycle to fix stale 1970 values (Issue #15)
-        const currentCycle =
-          member.dataCycle === 1970 || !member.dataCycle
-            ? await getElectionCycle()
-            : member.dataCycle;
-        members[i] = {
-          ...member,
-          tier: newTier,
-          grassrootsPercent: newGrassrootsPercent,
-          dataCycle: currentCycle,
-          lastTierRecalculated: new Date().toISOString(),
-        };
-        recalculated++;
-      } else {
-        // BUGFIX: Always refresh dataCycle even if tier/grassroots unchanged (Issue #15)
-        if (member.dataCycle === 1970 || !member.dataCycle) {
-          const currentCycle = await getElectionCycle();
-          members[i] = {
-            ...member,
-            dataCycle: currentCycle,
-            lastTierRecalculated: new Date().toISOString(),
-          };
-          recalculated++;
-        } else {
-          unchanged++;
-        }
-      }
-    } catch (error) {
-      console.error(`❌ Error processing ${member.name} (${member.bioguideId}):`, error);
-      errors++;
-    }
-  }
-
-  // Save updated data back to storage
-  await env.MEMBER_DATA.put('members:all', JSON.stringify(members));
-
-  return {
-    totalMembers: members.length,
-    recalculated,
-    unchanged,
-    errors,
-    completedAt: new Date().toISOString(),
-  };
-}
-
 // NEW: Handler for recalculating tiers for all members with existing data
 async function handleRecalculateTiers(env, corsHeaders, request) {
+  const denied = requireAdmin(request, env, corsHeaders);
+  if (denied) {
+    return denied;
+  }
   try {
-    // Check for authorization
-    const authHeader = request.headers.get('Authorization');
-    const expectedAuth = env.UPDATE_SECRET ? `Bearer ${env.UPDATE_SECRET}` : null;
-
-    if (!authHeader || authHeader !== expectedAuth) {
-      return new Response(JSON.stringify({ error: 'Unauthorized' }), {
-        status: 401,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
-    }
-
-    console.log('🔄 Starting tier recalculation for all members...');
-
-    const stats = await performTierRecalculation(env);
-
-    const response = {
-      success: true,
-      message: 'Tier recalculation completed',
-      stats,
-    };
-
-    console.log('🎯 Tier recalculation completed:', response.stats);
-
-    return new Response(JSON.stringify(response), {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    });
-  } catch (error) {
-    console.error('Tier recalculation failed:', error);
+    const url = new URL(request.url);
+    const offset = Math.max(0, parseInt(url.searchParams.get('offset') || '0', 10) || 0);
+    // 10 per call keeps each call inside the 10 ms CPU limit (measured
+    // 2026-10-03: 9.6 ms for the slowest, cold call of 10; 15.8 ms at 50)
+    const limit = Math.min(
+      50,
+      Math.max(1, parseInt(url.searchParams.get('limit') || '10', 10) || 10)
+    );
+    const stats = await recalculateTierChunk(env, offset, limit);
     return new Response(
       JSON.stringify({
-        error: error.message,
-        success: false,
+        success: true,
+        message:
+          stats.nextOffset === null
+            ? 'Last slice re-graded'
+            : `Slice re-graded; call again with ?offset=${stats.nextOffset} (scripts/recalculate-all.sh does this)`,
+        stats,
       }),
-      {
-        status: 500,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      }
+      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
+  } catch (error) {
+    console.error('Tier recalculation failed:', error);
+    return new Response(JSON.stringify({ error: error.message, success: false }), {
+      status: 500,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    });
   }
 }
 
 // Process specific candidate by name or bioguideId
 async function handleProcessCandidate(env, corsHeaders, request) {
+  // This endpoint fetches FEC data and writes a member: it was open to anyone
+  // until 2026-10-03. The RUNBOOK always sent the secret; now it is checked.
+  const denied = requireAdmin(request, env, corsHeaders);
+  if (denied) {
+    return denied;
+  }
+  const json = (body, status = 200) =>
+    new Response(JSON.stringify(body), {
+      status,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    });
   try {
     const url = new URL(request.url);
     const name = url.searchParams.get('name');
-    const bioguideId = url.searchParams.get('bioguideId');
-
-    if (!name && !bioguideId) {
-      return new Response(
-        JSON.stringify({
-          error: 'Either name or bioguideId parameter required',
-        }),
+    const requested = url.searchParams.get('bioguideId');
+    if (!name && !requested) {
+      return json({ error: 'Either name or bioguideId parameter required' }, 400);
+    }
+    const bioguideId = await findMemberId(env, { bioguideId: requested, name });
+    const before = bioguideId ? await getMember(env, bioguideId) : null;
+    if (!before) {
+      return json(
         {
-          status: 400,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        }
-      );
-    }
-
-    console.log(`🎯 Processing specific candidate: ${name || bioguideId}`);
-
-    // Get current member data
-    const currentData = await env.MEMBER_DATA.get('members:all');
-    if (!currentData) {
-      return new Response(
-        JSON.stringify({
-          error: 'No member data found in storage',
-        }),
-        {
-          status: 404,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        }
-      );
-    }
-
-    const members = JSON.parse(currentData);
-    let targetMember = null;
-
-    // Find the member by name or bioguideId
-    if (bioguideId) {
-      targetMember = members.find(m => m.bioguideId === bioguideId);
-    } else if (name) {
-      // Try exact match first, then partial match
-      targetMember = members.find(
-        m =>
-          m.name.toLowerCase() === name.toLowerCase() ||
-          m.name.toLowerCase().includes(name.toLowerCase()) ||
-          name.toLowerCase().includes(m.name.toLowerCase().split(',')[0])
-      );
-    }
-
-    if (!targetMember) {
-      return new Response(
-        JSON.stringify({
-          error: `Member not found: ${name || bioguideId}`,
+          error: `Member not found: ${name || requested}`,
           suggestion:
             'Try searching with full name format: "LastName, FirstName" or exact bioguideId',
-        }),
-        {
-          status: 404,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        }
+        },
+        404
       );
     }
+    console.log(`🎯 Re-fetching ${before.name} (${before.bioguideId}) end to end`);
 
-    console.log(`✅ Found member: ${targetMember.name} (${targetMember.bioguideId})`);
-
-    // Get member's chamber info for FEC processing
-    // const chamberType = targetMember.chamber === 'House' ? 'House of Representatives' : 'Senate';
-
-    // Process the member through the full FEC pipeline
-    const memberIndex = members.findIndex(m => m.bioguideId === targetMember.bioguideId);
-    const originalMember = { ...targetMember };
-
-    try {
-      // Step 1: Get financial data from FEC
-      console.log(`💰 Fetching FEC financial data for ${targetMember.name}...`);
-      const financials = await fetchMemberFinancials(targetMember, env);
-      // Apply financial data to target member
-      Object.assign(targetMember, financials);
-
-      // Step 2: Get PAC details if they have financial data
-      if (targetMember.totalRaised > 0) {
-        console.log(`🏛️ Fetching PAC details for ${targetMember.name}...`);
-        await fetchPACDetails(targetMember, env);
-
-        // Step 3: Calculate enhanced tier
-        const { tier: newTier, individualFundingPercent } = await calculateEnhancedTier(
-          targetMember,
-          members,
-          env
-        );
-        targetMember.tier = newTier;
-        targetMember.individualFundingPercent = individualFundingPercent;
-        targetMember.lastProcessed = new Date().toISOString();
-        targetMember.processingStatus = 'complete';
-
-        console.log(`🎯 Updated tier for ${targetMember.name}: ${newTier}`);
-      }
-
-      // Update the member in the array
-      members[memberIndex] = targetMember;
-
-      // Save updated data
-      await env.MEMBER_DATA.put('members:all', JSON.stringify(members));
-
-      const response = {
-        success: true,
-        member: {
-          name: targetMember.name,
-          bioguideId: targetMember.bioguideId,
-          state: targetMember.state,
-          chamber: targetMember.chamber,
-          tier: targetMember.tier,
-          grassrootsPercent: targetMember.grassrootsPercent,
-          totalRaised: targetMember.totalRaised,
-          pacCount: targetMember.pacContributions?.length || 0,
-          processingStatus: targetMember.processingStatus,
-          lastProcessed: targetMember.lastProcessed,
-        },
-        changes: {
-          tierChanged: originalMember.tier !== targetMember.tier,
-          financialDataAdded: originalMember.totalRaised === 0 && targetMember.totalRaised > 0,
-          oldTier: originalMember.tier,
-          newTier: targetMember.tier,
-        },
-      };
-
-      console.log(`✅ Successfully processed ${targetMember.name}`);
-
-      return new Response(JSON.stringify(response), {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
-    } catch (processingError) {
-      console.error(`❌ Error processing ${targetMember.name}:`, processingError);
-
-      return new Response(
-        JSON.stringify({
-          error: `Processing failed for ${targetMember.name}: ${processingError.message}`,
+    // The full single-member path (financials, then PAC details by committee
+    // ID - issue #5 passed the member object here and discarded the PACs),
+    // then the same re-grade the recalculation applies
+    const updated = await updateSingleMember(structuredClone(before), env);
+    if (!updated) {
+      return json(
+        {
+          error: `Processing failed for ${before.name}: no FEC financial data found`,
           member: {
-            name: targetMember.name,
-            bioguideId: targetMember.bioguideId,
-            state: targetMember.state,
-            chamber: targetMember.chamber,
+            name: before.name,
+            bioguideId: before.bioguideId,
+            state: before.state,
+            chamber: before.chamber,
           },
-        }),
-        {
-          status: 500,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        }
+        },
+        500
       );
     }
+    const after = await regradeMember(updated, env);
+    after.lastProcessed = new Date().toISOString();
+    after.processingStatus = 'complete';
+    const writer = new MemberWriter(env);
+    await writer.save(before, after);
+    await writer.flush();
+
+    return json({
+      success: true,
+      member: {
+        name: after.name,
+        bioguideId: after.bioguideId,
+        state: after.state,
+        chamber: after.chamber,
+        tier: after.tier,
+        grassrootsPercent: after.grassrootsPercent,
+        totalRaised: after.totalRaised,
+        pacCount: after.pacContributions?.length || 0,
+        processingStatus: after.processingStatus,
+        lastProcessed: after.lastProcessed,
+      },
+      changes: {
+        tierChanged: before.tier !== after.tier,
+        financialDataAdded: !before.totalRaised && after.totalRaised > 0,
+        oldTier: before.tier,
+        newTier: after.tier,
+      },
+    });
   } catch (error) {
     console.error('Process candidate failed:', error);
-    return new Response(
-      JSON.stringify({
-        error: error.message,
-        success: false,
-      }),
-      {
-        status: 500,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      }
-    );
+    return json({ error: error.message, success: false }, 500);
   }
 }
 
@@ -2524,57 +1567,40 @@ async function handleIndividualMemberUpdate(env, corsHeaders, request) {
 
     console.log(`✅ Found bioguide ID ${bioguideId} for @${username}`);
 
-    // Get current members data
-    const membersData = await env.MEMBER_DATA.get('members:all');
-    if (!membersData) {
-      throw new Error('No members data found. Run full update first.');
-    }
-
-    const members = JSON.parse(membersData);
-    const memberIndex = members.findIndex(m => m.bioguideId === bioguideId);
-
-    if (memberIndex === -1) {
+    const member = await getMember(env, bioguideId);
+    if (!member) {
       return new Response(
         JSON.stringify({
           error: `Member with bioguide ID ${bioguideId} not found in current data`,
         }),
-        {
-          status: 404,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        }
+        { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
-
-    const member = members[memberIndex];
     console.log(`🔄 Updating ${member.name} (${member.chamber} - ${member.state})`);
 
-    // Run full pipeline on this specific member
-    const updatedMember = await updateSingleMember(member, env);
-
-    if (updatedMember) {
-      // Update the member in storage
-      members[memberIndex] = updatedMember;
-      await env.MEMBER_DATA.put('members:all', JSON.stringify(members));
-
-      console.log(`✅ Successfully updated ${updatedMember.name}`);
-
-      return new Response(
-        JSON.stringify({
-          success: true,
-          member: updatedMember,
-          message: `Successfully updated ${updatedMember.name}`,
-          tier: updatedMember.tier,
-          totalRaised: updatedMember.totalRaised,
-          grassrootsPercent: updatedMember.grassrootsPercent,
-          pacContributions: updatedMember.pacContributions?.length || 0,
-        }),
-        {
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        }
-      );
-    } else {
+    // Full single-member path, then the recalculation's re-grade
+    const fetched = await updateSingleMember(structuredClone(member), env);
+    if (!fetched) {
       throw new Error(`Failed to update member data for ${member.name}`);
     }
+    const updatedMember = await regradeMember(fetched, env);
+    const writer = new MemberWriter(env);
+    await writer.save(member, updatedMember);
+    await writer.flush();
+    console.log(`✅ Successfully updated ${updatedMember.name}`);
+
+    return new Response(
+      JSON.stringify({
+        success: true,
+        member: updatedMember,
+        message: `Successfully updated ${updatedMember.name}`,
+        tier: updatedMember.tier,
+        totalRaised: updatedMember.totalRaised,
+        grassrootsPercent: updatedMember.grassrootsPercent,
+        pacContributions: updatedMember.pacContributions?.length || 0,
+      }),
+      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    );
   } catch (error) {
     console.error('Individual member update failed:', error);
     return new Response(
@@ -2593,17 +1619,6 @@ async function handleIndividualMemberUpdate(env, corsHeaders, request) {
 // Function to update a single member through the full pipeline
 async function updateSingleMember(member, env) {
   try {
-    // Get all members for adaptive threshold calculation
-    let allMembers = [];
-    try {
-      const allMembersData = await env.MEMBER_DATA.get('members:all');
-      if (allMembersData) {
-        allMembers = JSON.parse(allMembersData);
-      }
-    } catch (err) {
-      console.warn('Could not fetch all members for adaptive threshold:', err.message);
-    }
-
     // Phase 1: Update financial data
     console.log(`💰 Phase 1: Updating financial data for ${member.name}...`);
 
@@ -2652,7 +1667,7 @@ async function updateSingleMember(member, env) {
     }
 
     // Recalculate tier with enhanced algorithm
-    const { tier, individualFundingPercent } = await calculateEnhancedTier(member, allMembers, env);
+    const { tier, individualFundingPercent } = await calculateEnhancedTier(member, [], env);
     member.tier = tier;
     member.individualFundingPercent = individualFundingPercent;
 
@@ -2952,806 +1967,9 @@ function parseCongressSocialYAML(yamlText) {
 // SMART BATCH PROCESSING SYSTEM - Rate-Limited Progressive Updates
 // =============================================================================
 
-// Main smart batch processing function
-async function processSmartBatch(env) {
-  const startTime = Date.now();
-  const callBudget = 15; // FEC limit: 1,000/hour. Our usage: 60/hour (94% under limit)
-  const maxMembersPerRun = 1; // CRITICAL: Cloudflare has ~50 subrequest limit. 1 member = ~10-15 subrequests
-  let callsUsed = 0;
-  const membersProcessed = [];
-
-  try {
-    console.log('📊 Starting smart batch processing...');
-
-    // Initialize or get existing processing queues
-    await initializeProcessingQueues(env);
-
-    // Get run counter for round-robin scheduling (define at function scope)
-    const statusData = await env.MEMBER_DATA.get('processing_status');
-    const status = statusData ? JSON.parse(statusData) : {};
-    const runCount = status.runCount || 0;
-
-    // PRIORITY: Phase 0 - Reconcile FEC mapping mismatches FIRST
-    const mismatchQueue = await getMismatchQueue(env);
-    console.log(`🔧 FEC Mismatch queue: ${mismatchQueue.length} members to reconcile`);
-
-    // Mixed batch processing: prioritize mismatches, then alternate between Phase 1 and Phase 2
-    const phase1Queue = await getPhase1Queue(env);
-    const phase2Queue = await getPhase2Queue(env);
-    console.log(`📋 Phase 1 queue: ${phase1Queue.length} members remaining`);
-    console.log(`📋 Phase 2 queue: ${phase2Queue.length} members remaining`);
-
-    // PRIORITY PROCESSING: Mismatches first, then regular phases
-    while (
-      (mismatchQueue.length > 0 || phase1Queue.length > 0 || phase2Queue.length > 0) &&
-      callsUsed < callBudget &&
-      membersProcessed.length < maxMembersPerRun
-    ) {
-      // FIRST PRIORITY: Process mismatch reconciliation (highest priority)
-      if (mismatchQueue.length > 0 && callsUsed + 3 <= callBudget) {
-        const member = mismatchQueue.shift();
-        try {
-          console.log(`🔧 Reconciling FEC mismatch: ${member.name}`);
-          await reconcileFECMismatch(member, env);
-          callsUsed += 3; // FEC lookup uses ~3 calls
-          membersProcessed.push({ name: member.name, phase: 'mismatch', status: 'reconciled' });
-          await updateMismatchQueue(env, mismatchQueue);
-        } catch (error) {
-          console.warn(`⚠️ Mismatch reconciliation failed for ${member.name}:`, error.message);
-          membersProcessed.push({ name: member.name, phase: 'mismatch', status: 'failed' });
-        }
-        continue; // Process another mismatch if budget allows
-      }
-
-      // CPU LIMIT PROTECTION: Process only ONE member per run
-      // Use round-robin: 3 Phase 1, then 1 Phase 2 (75% Phase 1, 25% Phase 2)
-      // This keeps Phase 2 progressing while prioritizing Phase 1 backlog
-      const shouldProcessPhase2 = runCount % 4 === 3 && phase2Queue.length > 0;
-
-      if (!shouldProcessPhase2 && phase1Queue.length > 0 && callsUsed + 3 <= callBudget) {
-        // PHASE 1 processing (3 out of 4 runs)
-        const member = phase1Queue.shift();
-        try {
-          console.log(`💰 Processing Phase 1: ${member.name}`);
-          const financials = await fetchMemberFinancials(member, env);
-          callsUsed += 3;
-
-          if (financials) {
-            await updateMemberWithPhase1Data(member, financials, env);
-            membersProcessed.push({ name: member.name, phase: 1, status: 'success' });
-          } else {
-            // FEC lookup found nothing. Previously this wrote zeros over the
-            // member and dropped them from the queue (issue #29). Defer with
-            // a retry budget instead.
-            const failCount = (member.failCount || 0) + 1;
-            if (failCount < 3) {
-              phase1Queue.push({ ...member, failCount });
-              console.warn(
-                `⚠️ Phase 1: no FEC data for ${member.name} (attempt ${failCount}/3), deferred to end of queue`
-              );
-              membersProcessed.push({ name: member.name, phase: 1, status: 'deferred' });
-            } else {
-              await markFECLookupExhausted(member, env);
-              console.warn(
-                `🚫 Phase 1: FEC lookup exhausted for ${member.name} after ${failCount} attempts, will retry in 90 days`
-              );
-              membersProcessed.push({ name: member.name, phase: 1, status: 'exhausted' });
-            }
-          }
-
-          // Persist queue after every outcome so failures can't stall or vanish
-          await updatePhase1Queue(env, phase1Queue);
-        } catch (error) {
-          console.warn(`⚠️ Phase 1 failed for ${member.name}:`, error.message);
-          membersProcessed.push({
-            name: member.name,
-            phase: 1,
-            status: 'failed',
-            error: error.message,
-          });
-
-          // Rate limiting: stop the batch WITHOUT persisting the queue, so
-          // the member stays at the front and is retried next run
-          const isRateLimit =
-            error.message.includes('Too many subrequests') ||
-            error.message.includes('503') ||
-            error.message.includes('Service Unavailable') ||
-            error.message.includes('rate limit') ||
-            error.message.includes('Rate limit') ||
-            error.message.includes('429') ||
-            error.message.includes('Too Many Requests');
-
-          if (isRateLimit) {
-            console.log('🛑 Rate limit detected, stopping batch processing');
-            break;
-          }
-
-          // Genuine failure: defer with a retry budget and persist, so one
-          // permanently failing member can't stall the queue head forever
-          const failCount = (member.failCount || 0) + 1;
-          if (failCount < 3) {
-            phase1Queue.push({ ...member, failCount });
-          } else {
-            await markFECLookupExhausted(member, env);
-            console.warn(`🚫 Phase 1: giving up on ${member.name} after ${failCount} attempts`);
-          }
-          await updatePhase1Queue(env, phase1Queue);
-        }
-      } else if (phase2Queue.length > 0 && callsUsed + 4 <= callBudget) {
-        // PHASE 2 processing (1 out of 4 runs, or when Phase 1 is empty)
-        const member = phase2Queue.shift();
-        try {
-          console.log(`🏛️ Processing Phase 2: ${member.name}`);
-          await enhanceMemberWithPACData(member, env);
-
-          callsUsed += 4; // Average PAC enhancement calls
-          membersProcessed.push({ name: member.name, phase: 2, status: 'success' });
-
-          // Update queue after successful processing
-          await updatePhase2Queue(env, phase2Queue);
-        } catch (error) {
-          console.warn(`⚠️ Phase 2 failed for ${member.name}:`, error.message);
-          membersProcessed.push({
-            name: member.name,
-            phase: 2,
-            status: 'failed',
-            error: error.message,
-          });
-
-          // Check for rate limiting scenarios
-          if (error.message.includes('Too many subrequests')) {
-            console.log('🛑 Cloudflare subrequest limit detected, stopping batch processing');
-            break;
-          }
-
-          // Check for 503 Service Unavailable (API rate limiting)
-          if (
-            error.message.includes('503') ||
-            error.message.includes('Service Unavailable') ||
-            error.message.includes('rate limit') ||
-            error.message.includes('Rate limit')
-          ) {
-            console.log('🛑 API rate limit (503) detected, stopping batch processing');
-            break;
-          }
-
-          // Check for 429 Too Many Requests
-          if (error.message.includes('429') || error.message.includes('Too Many Requests')) {
-            console.log('🛑 HTTP 429 rate limit detected, stopping batch processing');
-            break;
-          }
-        }
-      }
-    }
-
-    // Update processing status (increment run counter for round-robin)
-    await updateProcessingStatus(env, {
-      callsUsed,
-      membersProcessed: membersProcessed.length,
-      lastRun: new Date().toISOString(),
-      executionTime: Date.now() - startTime,
-      runCount: runCount + 1,
-    });
-
-    // Auto-recalculate tiers every run, NOT just when this pipeline
-    // processed members: the itemized worker's refresh pass produces new
-    // analysis data (concentration, conduits, FARA) continuously, and the
-    // recalc is what merges it into members:all. Gating it on
-    // membersProcessed froze all merges once the phase queues drained
-    // (found 2026-07-17 via a member card serving week-old analysis fields).
-    let tierRecalcStats = null;
-    {
-      try {
-        console.log('🔄 Auto-triggering tier recalculation after batch processing...');
-        tierRecalcStats = await performTierRecalculation(env);
-        console.log(
-          `✅ Tier recalculation complete: ${tierRecalcStats.recalculated} updated, ${tierRecalcStats.unchanged} unchanged`
-        );
-      } catch (error) {
-        console.warn('⚠️ Tier recalculation failed after batch processing:', error.message);
-      }
-    }
-
-    console.log(
-      `📊 Smart batch summary: ${callsUsed}/${callBudget} API calls, ${membersProcessed.length} members processed`
-    );
-
-    return {
-      callsUsed,
-      membersProcessed: membersProcessed.length,
-      members: membersProcessed,
-      remainingBudget: callBudget - callsUsed,
-      executionTime: Date.now() - startTime,
-      tierRecalculation: tierRecalcStats,
-    };
-  } catch (error) {
-    console.error('❌ Smart batch processing error:', error);
-    throw error;
-  }
-}
-
-// Initialize processing queues from current member data
-async function initializeProcessingQueues(env) {
-  try {
-    // Check if queues already exist
-    const existingPhase1 = await env.MEMBER_DATA.get('processing_queue_phase1');
-    const existingPhase2 = await env.MEMBER_DATA.get('processing_queue_phase2');
-
-    if (existingPhase1 && existingPhase2) {
-      const phase1 = JSON.parse(existingPhase1);
-      if (phase1.length > 0) {
-        console.log('📋 Processing queues already initialized');
-        return;
-      }
-
-      // Phase 1 queue exists but is empty. Two kinds of members need
-      // (re-)processing:
-      //  - missing data: totalRaised 0/null (failed lookups, sync-added
-      //    members) - stranded forever before the 2026-07-13 fix (issue #29)
-      //  - STALE data: financials are never refreshed once nonzero, so
-      //    members kept year-old cycle totals (and null largeDonorDonations
-      //    from the old zero-write bug) while their donor analyses were
-      //    fresh - two eras on one member card (found 2026-07-17)
-      const membersData = await env.MEMBER_DATA.get('members:all');
-      if (membersData) {
-        const members = JSON.parse(membersData);
-        const RETRY_EXHAUSTED_AFTER_MS = 90 * 24 * 60 * 60 * 1000;
-        const FINANCIAL_STALENESS_MS = 45 * 24 * 60 * 60 * 1000;
-        const missing = members.filter(m => {
-          const missingData = m.totalRaised === 0 || m.totalRaised === null;
-          const stale =
-            !missingData &&
-            (!m.lastUpdated ||
-              Date.now() - new Date(m.lastUpdated).getTime() > FINANCIAL_STALENESS_MS);
-          if (!missingData && !stale) {
-            return false;
-          }
-          if (
-            missingData &&
-            m.fecLookupExhausted &&
-            Date.now() - new Date(m.fecLookupExhausted).getTime() < RETRY_EXHAUSTED_AFTER_MS
-          ) {
-            return false;
-          }
-          return true;
-        });
-        // Oldest data first
-        missing.sort(
-          (a, b) => new Date(a.lastUpdated || 0).getTime() - new Date(b.lastUpdated || 0).getTime()
-        );
-
-        if (missing.length > 0) {
-          const requeued = missing.map(m => ({
-            bioguideId: m.bioguideId,
-            name: m.name,
-            state: m.state,
-            district: m.district,
-            party: m.party,
-          }));
-          await env.MEMBER_DATA.put('processing_queue_phase1', JSON.stringify(requeued));
-          console.log(
-            `🔁 Re-queued ${requeued.length} members with no financial data into Phase 1`
-          );
-        }
-      }
-      return;
-    }
-
-    console.log('🔄 Initializing processing queues from current data...');
-
-    // Get all current members
-    const membersData = await env.MEMBER_DATA.get('members:all');
-    if (!membersData) {
-      console.log('⚠️ No member data found, fetching from Congress API...');
-      const congressMembers = await fetchCongressMembers(env);
-
-      // Create Phase 1 queue with all members
-      const phase1Queue = congressMembers.map(member => ({
-        bioguideId: member.bioguideId,
-        name: member.name,
-        state: member.state,
-        district: member.district,
-        party: member.partyName,
-      }));
-
-      await env.MEMBER_DATA.put('processing_queue_phase1', JSON.stringify(phase1Queue));
-      await env.MEMBER_DATA.put('processing_queue_phase2', JSON.stringify([]));
-
-      console.log(`✅ Initialized queues: ${phase1Queue.length} members in Phase 1, 0 in Phase 2`);
-      return;
-    }
-
-    const members = JSON.parse(membersData);
-    const phase1Queue = [];
-    const phase2Queue = [];
-
-    for (const member of members) {
-      if (member.totalRaised === 0 || member.totalRaised === null) {
-        // Needs Phase 1 (financial data)
-        phase1Queue.push({
-          bioguideId: member.bioguideId,
-          name: member.name,
-          state: member.state,
-          district: member.district,
-          party: member.party,
-        });
-      } else if (
-        member.pacContributions.length === 0 ||
-        !member.pacContributions.some(pac => pac.committee_type)
-      ) {
-        // Has financial data but needs Phase 2 (PAC enhancement)
-        phase2Queue.push({
-          bioguideId: member.bioguideId,
-          name: member.name,
-          state: member.state,
-          district: member.district,
-          party: member.party,
-          committeeId: member.committeeInfo?.id,
-        });
-      }
-    }
-
-    await env.MEMBER_DATA.put('processing_queue_phase1', JSON.stringify(phase1Queue));
-    await env.MEMBER_DATA.put('processing_queue_phase2', JSON.stringify(phase2Queue));
-
-    console.log(
-      `✅ Initialized queues: ${phase1Queue.length} members in Phase 1, ${phase2Queue.length} in Phase 2`
-    );
-  } catch (error) {
-    console.error('❌ Error initializing processing queues:', error);
-    throw error;
-  }
-}
-
-// Get Phase 1 processing queue
-async function getPhase1Queue(env) {
-  try {
-    const queueData = await env.MEMBER_DATA.get('processing_queue_phase1');
-    return queueData ? JSON.parse(queueData) : [];
-  } catch (error) {
-    console.error('Error getting Phase 1 queue:', error);
-    return [];
-  }
-}
-
-// Get Phase 2 processing queue
-async function getPhase2Queue(env) {
-  try {
-    const queueData = await env.MEMBER_DATA.get('processing_queue_phase2');
-    return queueData ? JSON.parse(queueData) : [];
-  } catch (error) {
-    console.error('Error getting Phase 2 queue:', error);
-    return [];
-  }
-}
-
-// Update Phase 1 queue after processing
-async function updatePhase1Queue(env, updatedQueue) {
-  try {
-    await env.MEMBER_DATA.put('processing_queue_phase1', JSON.stringify(updatedQueue));
-  } catch (error) {
-    console.error('Error updating Phase 1 queue:', error);
-  }
-}
-
-// Update Phase 2 queue after processing
-async function updatePhase2Queue(env, updatedQueue) {
-  try {
-    await env.MEMBER_DATA.put('processing_queue_phase2', JSON.stringify(updatedQueue));
-  } catch (error) {
-    console.error('Error updating Phase 2 queue:', error);
-  }
-}
-
 // =============================================================================
 // FEC MISMATCH DETECTION AND RECONCILIATION SYSTEM
 // =============================================================================
-
-// Get FEC mismatch queue - identifies members with potential mapping issues
-async function getMismatchQueue(env) {
-  try {
-    const queueData = await env.MEMBER_DATA.get('processing_queue_mismatch');
-    if (queueData) {
-      return JSON.parse(queueData);
-    }
-
-    // First time - scan for potential mismatches
-    console.log('🔍 Scanning for FEC mapping mismatches...');
-    const mismatchQueue = await scanForFECMismatches(env);
-    await env.MEMBER_DATA.put('processing_queue_mismatch', JSON.stringify(mismatchQueue));
-    return mismatchQueue;
-  } catch (error) {
-    console.error('Error getting mismatch queue:', error);
-    return [];
-  }
-}
-
-// Update mismatch queue after processing
-async function updateMismatchQueue(env, updatedQueue) {
-  try {
-    await env.MEMBER_DATA.put('processing_queue_mismatch', JSON.stringify(updatedQueue));
-  } catch (error) {
-    console.error('Error updating mismatch queue:', error);
-  }
-}
-
-// Scan current members for potential FEC mapping mismatches
-async function scanForFECMismatches(env) {
-  const mismatchQueue = [];
-
-  try {
-    const membersData = await env.MEMBER_DATA.get('members:all');
-    if (!membersData) {
-      return mismatchQueue;
-    }
-
-    const members = JSON.parse(membersData);
-
-    for (const member of members) {
-      // Check for potential mismatches:
-      // 1. Members with $0 raised despite being well-known senators
-      // 2. Committee IDs that don't match chamber (House vs Senate)
-      // 3. Common names that might be mixed up
-
-      const isHighProfileSenator = member.chamber === 'Senate' && member.totalRaised === 0;
-      const hasWrongCommitteePattern =
-        (member.chamber === 'Senate' &&
-          member.committeeInfo?.id &&
-          !member.committeeInfo.id.startsWith('S')) ||
-        (member.chamber === 'House' &&
-          member.committeeInfo?.id &&
-          !member.committeeInfo.id.startsWith('H'));
-      const hasCommonName = [
-        'Graham',
-        'Johnson',
-        'Smith',
-        'Brown',
-        'Miller',
-        'Wilson',
-        'Davis',
-        'Garcia',
-      ].some(name => member.name.includes(name));
-
-      if (
-        isHighProfileSenator ||
-        hasWrongCommitteePattern ||
-        (hasCommonName && member.totalRaised === 0)
-      ) {
-        mismatchQueue.push({
-          bioguideId: member.bioguideId,
-          name: member.name,
-          state: member.state,
-          chamber: member.chamber,
-          party: member.party,
-          currentCommitteeId: member.committeeInfo?.id,
-          reason: isHighProfileSenator
-            ? 'high-profile-zero'
-            : hasWrongCommitteePattern
-              ? 'wrong-committee-pattern'
-              : 'common-name-zero',
-        });
-      }
-    }
-
-    console.log(`🔍 Found ${mismatchQueue.length} potential FEC mismatches to reconcile`);
-    return mismatchQueue;
-  } catch (error) {
-    console.error('Error scanning for mismatches:', error);
-    return mismatchQueue;
-  }
-}
-
-// Reconcile a specific FEC mapping mismatch
-async function reconcileFECMismatch(member, env) {
-  try {
-    console.log(`🔧 Reconciling FEC mapping for ${member.name} (${member.reason})`);
-
-    // Clear existing cached mapping to force fresh lookup
-    const cacheKey = `fec_mapping_${member.bioguideId}`;
-    await env.MEMBER_DATA.delete(cacheKey);
-
-    // Force fresh FEC lookup with improved validation
-    const financials = await fetchMemberFinancials(member, env);
-
-    // DEBUG: Log detailed financials response
-    console.log(
-      `🔍 DEBUG: fetchMemberFinancials returned for ${member.name}:`,
-      JSON.stringify(financials, null, 2)
-    );
-
-    if (financials && financials.totalRaised > 0) {
-      console.log(
-        `✅ Reconciled ${member.name}: Found correct FEC data with $${financials.totalRaised}`
-      );
-
-      // Update the member data immediately
-      await updateMemberWithPhase1Data(member, financials, env);
-
-      return true;
-    } else {
-      console.warn(`⚠️ Still no FEC data found for ${member.name} after reconciliation`);
-      console.log(
-        `🔍 DEBUG: Financials was ${financials ? 'truthy' : 'falsy'}, totalRaised: ${financials?.totalRaised}`
-      );
-      return false;
-    }
-  } catch (error) {
-    console.error(`❌ Failed to reconcile FEC mapping for ${member.name}:`, error);
-    throw error;
-  }
-}
-
-// Update member with Phase 1 data and move to Phase 2 queue if successful
-// Mark a member whose FEC lookup keeps failing so re-queue logic can skip
-// them for a while (non-filers like delegates never resolve)
-async function markFECLookupExhausted(member, env) {
-  try {
-    const membersData = await env.MEMBER_DATA.get('members:all');
-    if (!membersData) {
-      return;
-    }
-    const members = JSON.parse(membersData);
-    const memberIndex = members.findIndex(m => m.bioguideId === member.bioguideId);
-    if (memberIndex === -1) {
-      return;
-    }
-    members[memberIndex] = {
-      ...members[memberIndex],
-      fecLookupExhausted: new Date().toISOString(),
-    };
-    await env.MEMBER_DATA.put('members:all', JSON.stringify(members));
-  } catch (error) {
-    console.warn(`Failed to mark FEC lookup exhausted for ${member.name}:`, error.message);
-  }
-}
-
-async function updateMemberWithPhase1Data(member, financials, env) {
-  if (!financials) {
-    // Never overwrite a member with zeros because a lookup came back empty
-    console.warn(
-      `⚠️ updateMemberWithPhase1Data called without financials for ${member.name}, skipping`
-    );
-    return;
-  }
-  try {
-    // Get existing members data
-    const membersData = await env.MEMBER_DATA.get('members:all');
-    const members = membersData ? JSON.parse(membersData) : [];
-    const currentCycle = await getElectionCycle();
-
-    // Find and update the member
-    const memberIndex = members.findIndex(m => m.bioguideId === member.bioguideId);
-    if (memberIndex === -1) {
-      // Add new member
-      const newMember = {
-        bioguideId: member.bioguideId,
-        name: member.name,
-        party: member.party,
-        state: member.state,
-        district: member.district,
-        chamber: member.chamber || 'Unknown',
-        totalRaised: financials?.totalRaised || 0,
-        grassrootsDonations: financials?.grassrootsDonations || 0,
-        grassrootsPercent: financials?.grassrootsPercent || 0,
-        // Must be written alongside totalRaised - dropping it here while
-        // the spread kept a previous cycle's value created impossible
-        // records (itemized > totalRaised, IFP up to 747%) when the
-        // financial refresh landed (found 2026-07-18 via Cramer)
-        largeDonorDonations: financials?.largeDonorDonations ?? null,
-        pacMoney: financials?.pacMoney || 0,
-        partyMoney: financials?.partyMoney || 0,
-        dataCycle: financials?.dataCycle || currentCycle,
-        // Written from one FEC response for one cycle - lets the scorer tell
-        // "the filing says this" from "we assembled this wrong" (2026-07-24)
-        financialsVerified: true,
-        financialsVerifiedCycle: financials?.dataCycle || currentCycle,
-        // Identity stamp: the scorer withholds a grade unless the figures came
-        // from one of the member's recorded FEC IDs (issue #41)
-        fecCandidateId: financials?.fecCandidateId || null,
-        fecIdentityVerified: isVerifiedIdentity(member.bioguideId, financials?.fecCandidateId),
-        fecLookupExhausted: null,
-        pacContributions: [],
-        tier: calculateTier(financials?.grassrootsPercent || 0, financials?.totalRaised || 0),
-        lastUpdated: new Date().toISOString(),
-        committeeInfo: financials?.committeeId ? { id: financials.committeeId } : null,
-      };
-      members.push(newMember);
-    } else {
-      // Update existing member
-      members[memberIndex] = {
-        ...members[memberIndex],
-        totalRaised: financials?.totalRaised || 0,
-        grassrootsDonations: financials?.grassrootsDonations || 0,
-        grassrootsPercent: financials?.grassrootsPercent || 0,
-        // Never carry a previous cycle's itemized total across a refresh
-        // (see comment in the new-member branch above)
-        largeDonorDonations: financials?.largeDonorDonations ?? null,
-        pacMoney: financials?.pacMoney || 0,
-        partyMoney: financials?.partyMoney || 0,
-        dataCycle: financials?.dataCycle || currentCycle,
-        // Written from one FEC response for one cycle - lets the scorer tell
-        // "the filing says this" from "we assembled this wrong" (2026-07-24)
-        financialsVerified: true,
-        financialsVerifiedCycle: financials?.dataCycle || currentCycle,
-        // Identity stamp: the scorer withholds a grade unless the figures came
-        // from one of the member's recorded FEC IDs (issue #41)
-        fecCandidateId: financials?.fecCandidateId || null,
-        fecIdentityVerified: isVerifiedIdentity(member.bioguideId, financials?.fecCandidateId),
-        fecLookupExhausted: null,
-        tier: calculateTier(financials?.grassrootsPercent || 0, financials?.totalRaised || 0),
-        lastUpdated: new Date().toISOString(),
-        committeeInfo: financials?.committeeId ? { id: financials.committeeId } : null,
-      };
-    }
-
-    // Save updated members data
-    await env.MEMBER_DATA.put('members:all', JSON.stringify(members));
-
-    // If successful and has committee ID, add to Phase 2 queue
-    if (financials?.committeeId) {
-      const phase2Queue = await getPhase2Queue(env);
-      phase2Queue.push({
-        bioguideId: member.bioguideId,
-        name: member.name,
-        state: member.state,
-        district: member.district,
-        party: member.party,
-        committeeId: financials.committeeId,
-      });
-      await updatePhase2Queue(env, phase2Queue);
-      console.log(`➡️ Moved ${member.name} to Phase 2 queue`);
-    }
-  } catch (error) {
-    console.error(`Error updating member ${member.name} with Phase 1 data:`, error);
-    throw error;
-  }
-}
-
-// Enhance member with PAC data (existing function integration)
-async function enhanceMemberWithPACData(member, env) {
-  try {
-    // Get existing members data
-    const membersData = await env.MEMBER_DATA.get('members:all');
-    const members = membersData ? JSON.parse(membersData) : [];
-
-    // Find the member
-    const memberIndex = members.findIndex(m => m.bioguideId === member.bioguideId);
-    if (memberIndex === -1) {
-      throw new Error(`Member ${member.name} not found for Phase 2 processing`);
-    }
-
-    const targetMember = members[memberIndex];
-
-    // Use existing PAC enhancement logic
-    if (targetMember.committeeInfo?.id || member.committeeId) {
-      const committeeId = targetMember.committeeInfo?.id || member.committeeId;
-      console.log(`📊 Fetching PAC details for committee: ${committeeId}`);
-
-      const pacContributions = await fetchPACDetails(committeeId, env);
-      targetMember.pacContributions = pacContributions;
-
-      // Recalculate tier with enhanced data
-      const { tier, individualFundingPercent } = await calculateEnhancedTier(
-        targetMember,
-        members,
-        env
-      );
-      targetMember.tier = tier;
-      targetMember.individualFundingPercent = individualFundingPercent;
-      targetMember.lastUpdated = new Date().toISOString();
-      // BUGFIX: Always refresh dataCycle to prevent stale 1970 values (Issue #15)
-      targetMember.dataCycle = targetMember.dataCycle || (await getElectionCycle());
-
-      // Save updated data
-      members[memberIndex] = targetMember;
-      await env.MEMBER_DATA.put('members:all', JSON.stringify(members));
-
-      console.log(`✅ Enhanced ${member.name} with ${pacContributions.length} PAC contributions`);
-    }
-  } catch (error) {
-    console.error(`Error enhancing member ${member.name} with PAC data:`, error);
-    throw error;
-  }
-}
-
-// Update processing status for monitoring
-async function updateProcessingStatus(env, stats) {
-  try {
-    const status = {
-      lastRun: stats.lastRun,
-      callsUsed: stats.callsUsed,
-      membersProcessed: stats.membersProcessed,
-      executionTime: stats.executionTime,
-      runCount: stats.runCount || 0,
-      phase1Remaining: (await getPhase1Queue(env)).length,
-      phase2Remaining: (await getPhase2Queue(env)).length,
-    };
-
-    await env.MEMBER_DATA.put('processing_status', JSON.stringify(status));
-    console.log(
-      `📊 Processing status updated: ${status.phase1Remaining} Phase 1, ${status.phase2Remaining} Phase 2 remaining`
-    );
-  } catch (error) {
-    console.error('Error updating processing status:', error);
-  }
-}
-// Handle resetting all PAC data and re-queuing Phase 2
-async function handleResetPACData(env, corsHeaders, request) {
-  try {
-    // Check for authorization
-    const authHeader = request.headers.get('Authorization');
-    const expectedAuth = env.UPDATE_SECRET ? `Bearer ${env.UPDATE_SECRET}` : null;
-
-    if (!authHeader || authHeader !== expectedAuth) {
-      return new Response(JSON.stringify({ error: 'Unauthorized' }), {
-        status: 401,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
-    }
-
-    console.log('🔄 Resetting all PAC data and rebuilding Phase 2 queue...');
-
-    // Get all members
-    const membersData = await env.MEMBER_DATA.get('members:all');
-    if (!membersData) {
-      return new Response(JSON.stringify({ error: 'No member data found' }), {
-        status: 404,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
-    }
-
-    const members = JSON.parse(membersData);
-    const phase2Queue = [];
-    let clearedCount = 0;
-
-    // Clear PAC data from all members and rebuild Phase 2 queue
-    for (const member of members) {
-      if (member.pacContributions && member.pacContributions.length > 0) {
-        member.pacContributions = [];
-        clearedCount++;
-      }
-
-      // Add to Phase 2 queue if they have financial data
-      if (member.totalRaised > 0 && member.committeeId) {
-        phase2Queue.push({
-          bioguideId: member.bioguideId,
-          name: member.name,
-          committeeId: member.committeeId,
-        });
-      }
-    }
-
-    // Save updated members (PAC data cleared)
-    await env.MEMBER_DATA.put('members:all', JSON.stringify(members));
-
-    // Rebuild Phase 2 queue
-    await env.MEMBER_DATA.put('processing_queue_phase2', JSON.stringify(phase2Queue));
-
-    console.log(
-      `✅ Reset complete: Cleared ${clearedCount} members, queued ${phase2Queue.length} for Phase 2`
-    );
-
-    return new Response(
-      JSON.stringify({
-        success: true,
-        message: 'PAC data reset complete',
-        membersCleared: clearedCount,
-        phase2QueueSize: phase2Queue.length,
-        nextStep: 'Phase 2 will re-process with corrected conduit filtering',
-      }),
-      {
-        status: 200,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      }
-    );
-  } catch (error) {
-    console.error('Error resetting PAC data:', error);
-    return new Response(JSON.stringify({ error: error.message }), {
-      status: 500,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    });
-  }
-}
 
 // Handle clearing bad FEC candidate mappings
 async function handleClearFECMapping(env, corsHeaders, request) {
@@ -3858,50 +2076,22 @@ async function handleRemoveMember(env, corsHeaders, request) {
 
     console.log(`🗑️ Member removal requested for bioguideId: ${bioguideId}`);
 
-    // Get current members data from KV
-    const membersData = await env.MEMBER_DATA.get('members:all');
-    if (!membersData) {
+    const removedMember = await getMember(env, bioguideId);
+    if (!removedMember) {
       return new Response(
-        JSON.stringify({
-          error: 'No member data found in storage',
-          bioguideId: bioguideId,
-        }),
-        {
-          status: 404,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        }
+        JSON.stringify({ error: `Member with bioguideId ${bioguideId} not found`, bioguideId }),
+        { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
+    const writer = new MemberWriter(env);
+    await writer.remove(bioguideId);
+    await writer.flush();
+    // Issue #14: removal also clears the member's cached FEC candidate match,
+    // so a later re-add can't inherit a wrong one
+    await env.MEMBER_DATA.delete(`fec_mapping_${bioguideId}`);
+    console.log(`✅ Removed ${removedMember.name} (${bioguideId}) and its FEC mapping`);
 
-    const members = JSON.parse(membersData);
-
-    // Find the member to remove
-    const memberIndex = members.findIndex(member => member.bioguideId === bioguideId);
-    if (memberIndex === -1) {
-      return new Response(
-        JSON.stringify({
-          error: `Member with bioguideId ${bioguideId} not found`,
-          bioguideId: bioguideId,
-          totalMembers: members.length,
-        }),
-        {
-          status: 404,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        }
-      );
-    }
-
-    // Get member info before removal for response
-    const removedMember = members[memberIndex];
-
-    // Remove the member from the array
-    members.splice(memberIndex, 1);
-
-    // Save updated array back to KV
-    await env.MEMBER_DATA.put('members:all', JSON.stringify(members));
-
-    console.log(`✅ Removed ${removedMember.name} (${bioguideId}) from storage`);
-
+    const remaining = (await getListBody(env))?.members.length ?? null;
     return new Response(
       JSON.stringify({
         success: true,
@@ -3912,7 +2102,7 @@ async function handleRemoveMember(env, corsHeaders, request) {
           state: removedMember.state,
           party: removedMember.party,
         },
-        remainingMembers: members.length,
+        remainingMembers: remaining,
         lastUpdated: new Date().toISOString(),
       }),
       {
@@ -3932,349 +2122,5 @@ async function handleRemoveMember(env, corsHeaders, request) {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       }
     );
-  }
-}
-
-// Refresh Congress.gov metadata for all members (chamber, party, state, district)
-async function handleRefreshCongressMetadata(env, corsHeaders, request) {
-  try {
-    // Check for authorization
-    const authHeader = request.headers.get('Authorization');
-    const expectedAuth = env.UPDATE_SECRET ? `Bearer ${env.UPDATE_SECRET}` : null;
-
-    if (!authHeader || authHeader !== expectedAuth) {
-      return new Response(JSON.stringify({ error: 'Unauthorized' }), {
-        status: 401,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
-    }
-
-    console.log('🏛️ Refreshing Congress.gov metadata for all members...');
-
-    const apiKey = requireSecret(env, 'CONGRESS_API_KEY');
-
-    // Fetch all current members from Congress.gov
-    let allCongressMembers = [];
-    let offset = 0;
-    const limit = 250;
-
-    while (true) {
-      const response = await fetch(
-        `https://api.congress.gov/v3/member/congress/119?currentMember=true&offset=${offset}&limit=${limit}&api_key=${apiKey}`,
-        {
-          headers: {
-            'User-Agent': 'TaskForcePurple/1.0 (Political Transparency Platform)',
-          },
-        }
-      );
-
-      if (!response.ok) {
-        throw new Error(`Congress.gov API error: ${response.status}`);
-      }
-
-      const data = await response.json();
-      allCongressMembers = allCongressMembers.concat(data.members || []);
-
-      if (!data.members || data.members.length < limit) {
-        break;
-      }
-      offset += limit;
-    }
-
-    console.log(`📥 Fetched ${allCongressMembers.length} members from Congress.gov`);
-
-    // Get existing member data
-    const membersData = await env.MEMBER_DATA.get('members:all');
-    if (!membersData) {
-      return new Response(JSON.stringify({ error: 'No member data found' }), {
-        status: 404,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
-    }
-
-    const members = JSON.parse(membersData);
-    let updatedCount = 0;
-
-    // Update metadata for each member
-    for (const congressMember of allCongressMembers) {
-      const memberIndex = members.findIndex(m => m.bioguideId === congressMember.bioguideId);
-
-      if (memberIndex >= 0) {
-        const member = members[memberIndex];
-
-        // Get most recent term (last item in array)
-        const terms = congressMember.terms?.item;
-        const currentTerm = terms && terms.length > 0 ? terms[terms.length - 1] : null;
-        const newChamber =
-          currentTerm?.chamber === 'House of Representatives'
-            ? 'House'
-            : currentTerm?.chamber === 'Senate'
-              ? 'Senate'
-              : 'Unknown';
-
-        // Only update if something changed
-        if (
-          member.chamber !== newChamber ||
-          member.party !== congressMember.partyName ||
-          member.state !== congressMember.state ||
-          member.district !== congressMember.district
-        ) {
-          member.chamber = newChamber;
-          member.party = congressMember.partyName;
-          member.state = congressMember.state;
-          member.district = congressMember.district;
-          updatedCount++;
-
-          console.log(`✅ Updated ${member.name}: chamber=${newChamber}`);
-        }
-      }
-    }
-
-    // Save updated members
-    await env.MEMBER_DATA.put('members:all', JSON.stringify(members));
-
-    console.log(`✅ Refresh complete: Updated ${updatedCount} members`);
-
-    return new Response(
-      JSON.stringify({
-        success: true,
-        message: 'Congress.gov metadata refresh complete',
-        totalMembers: allCongressMembers.length,
-        updatedCount: updatedCount,
-        lastUpdated: new Date().toISOString(),
-      }),
-      {
-        status: 200,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      }
-    );
-  } catch (error) {
-    console.error('Error refreshing Congress metadata:', error);
-    return new Response(JSON.stringify({ error: error.message }), {
-      status: 500,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    });
-  }
-}
-
-// Process priority queue for members missing largeDonorDonations
-async function processPriorityQueue(env) {
-  const queueData = await env.MEMBER_DATA.get('priority_missing_queue');
-  if (!queueData) {
-    return { processed: 0, remaining: 0 };
-  }
-
-  const queue = JSON.parse(queueData);
-
-  // Process 2 members (14 FEC calls - within limits)
-  const batch = queue.splice(0, 2);
-  let processed = 0;
-
-  // Get all members from storage
-  const allMembersData = await env.MEMBER_DATA.get('members:all');
-  if (!allMembersData) {
-    console.error('No members data found in storage');
-    return { processed: 0, remaining: queue.length };
-  }
-
-  const members = JSON.parse(allMembersData);
-
-  for (const bioguideId of batch) {
-    try {
-      console.log(`  Updating @${bioguideId}...`);
-
-      // Find member by bioguide ID
-      const member = members.find(m => m.bioguideId === bioguideId);
-      if (!member) {
-        console.error(`  Member ${bioguideId} not found in storage`);
-        continue;
-      }
-
-      // Update member data (Phase 1 + Phase 2)
-      await updateSingleMember(member, env);
-
-      // Update in members array
-      const index = members.findIndex(m => m.bioguideId === bioguideId);
-      if (index !== -1) {
-        members[index] = member;
-      }
-
-      processed++;
-    } catch (error) {
-      console.error(`  Failed @${bioguideId}:`, error.message);
-    }
-  }
-
-  // Save updated members back to storage
-  await env.MEMBER_DATA.put('members:all', JSON.stringify(members));
-
-  // Save updated queue or delete if empty
-  if (queue.length === 0) {
-    await env.MEMBER_DATA.delete('priority_missing_queue');
-  } else {
-    await env.MEMBER_DATA.put('priority_missing_queue', JSON.stringify(queue));
-  }
-
-  return { processed, remaining: queue.length };
-}
-
-// Sync Congress member list - add new members, remove departed members
-async function syncCongressMembers(env) {
-  const apiKey = requireSecret(env, 'CONGRESS_API_KEY');
-
-  // Step 1: Fetch all current Congress members from Congress.gov
-  let allCongressMembers = [];
-  let offset = 0;
-  const limit = 250;
-
-  while (true) {
-    const response = await fetch(
-      `https://api.congress.gov/v3/member/congress/119?currentMember=true&offset=${offset}&limit=${limit}&api_key=${apiKey}`,
-      {
-        headers: {
-          'User-Agent': 'TaskForcePurple/1.0 (Political Transparency Platform)',
-        },
-      }
-    );
-
-    if (!response.ok) {
-      throw new Error(`Congress.gov API error: ${response.status}`);
-    }
-
-    const data = await response.json();
-    allCongressMembers = allCongressMembers.concat(data.members || []);
-
-    if (!data.members || data.members.length < limit) {
-      break;
-    }
-    offset += limit;
-  }
-
-  console.log(`📥 Fetched ${allCongressMembers.length} current members from Congress.gov`);
-
-  // Sanity check - Congress should have ~535-540 members
-  if (allCongressMembers.length < 400) {
-    throw new Error(
-      `Suspicious member count: ${allCongressMembers.length} (expected ~535). Aborting sync to prevent data corruption.`
-    );
-  }
-
-  // Step 2: Load our current dataset
-  const membersData = await env.MEMBER_DATA.get('members:all');
-  if (!membersData) {
-    throw new Error('No member data found in KV');
-  }
-
-  const ourMembers = JSON.parse(membersData);
-  const congressBioguideIds = new Set(allCongressMembers.map(m => m.bioguideId));
-  const ourBioguideIds = new Set(ourMembers.map(m => m.bioguideId));
-
-  // Step 3: Find new members (in Congress but not in our dataset)
-  const newMembers = allCongressMembers.filter(m => !ourBioguideIds.has(m.bioguideId));
-
-  // Step 4: Find departed members (in our dataset but not in Congress)
-  const departedBioguideIds = [...ourBioguideIds].filter(id => !congressBioguideIds.has(id));
-
-  console.log(`🔍 Comparison: ${newMembers.length} new, ${departedBioguideIds.length} departed`);
-
-  // Step 5: Add new members to dataset
-  for (const congressMember of newMembers) {
-    // Get most recent term for chamber
-    const terms = congressMember.terms?.item;
-    const currentTerm = terms && terms.length > 0 ? terms[terms.length - 1] : null;
-    const chamber =
-      currentTerm?.chamber === 'House of Representatives'
-        ? 'House'
-        : currentTerm?.chamber === 'Senate'
-          ? 'Senate'
-          : 'Unknown';
-
-    const currentCycle = await getElectionCycle();
-
-    // Create new member record with empty financial data
-    const newMember = {
-      bioguideId: congressMember.bioguideId,
-      name: congressMember.name,
-      party: congressMember.partyName,
-      state: congressMember.state,
-      district: congressMember.district,
-      chamber: chamber,
-      totalRaised: 0,
-      grassrootsDonations: 0,
-      grassrootsPercent: 0,
-      pacMoney: 0,
-      partyMoney: 0,
-      dataCycle: currentCycle,
-      pacContributions: [],
-      tier: 'F', // Default tier until financial data fetched
-      lastUpdated: new Date().toISOString(),
-      pacDetailsStatus: 'pending',
-      committeeInfo: null,
-    };
-
-    ourMembers.push(newMember);
-    console.log(`➕ Added new member: ${congressMember.name} (${congressMember.bioguideId})`);
-  }
-
-  // Step 6: Remove departed members from dataset
-  for (const bioguideId of departedBioguideIds) {
-    const index = ourMembers.findIndex(m => m.bioguideId === bioguideId);
-    if (index >= 0) {
-      const departedName = ourMembers[index].name;
-      ourMembers.splice(index, 1);
-      console.log(`➖ Removed departed member: ${departedName} (${bioguideId})`);
-
-      // Clean up KV keys for departed member
-      try {
-        await env.MEMBER_DATA.delete(`itemized_analysis_v2:${bioguideId}`);
-        await env.MEMBER_DATA.delete(`itemized_progress:${bioguideId}`);
-      } catch (error) {
-        console.log(`  ⚠️ Failed to clean up KV keys for ${bioguideId}: ${error.message}`);
-      }
-    }
-  }
-
-  // Step 7: Remove departed members from all processing queues
-  if (departedBioguideIds.length > 0) {
-    await removeFromQueue(env, 'priority_missing_queue', departedBioguideIds);
-    await removeFromQueue(env, 'itemized_processing_queue', departedBioguideIds);
-  }
-
-  // Step 8: Save updated dataset
-  await env.MEMBER_DATA.put('members:all', JSON.stringify(ourMembers));
-
-  console.log(`💾 Saved updated dataset: ${ourMembers.length} total members`);
-
-  return { added: newMembers.length, removed: departedBioguideIds.length };
-}
-
-// Helper: Remove bioguideIds from a queue
-async function removeFromQueue(env, queueKey, bioguideIdsToRemove) {
-  const queueData = await env.MEMBER_DATA.get(queueKey);
-  if (!queueData) {
-    return; // Queue doesn't exist, nothing to do
-  }
-
-  const queue = JSON.parse(queueData);
-  const removeSet = new Set(bioguideIdsToRemove);
-
-  // Filter out departed members from queue
-  const originalLength = queue.length;
-  const filteredQueue = queue.filter(item => {
-    // Queue items might be objects with bioguideId or just bioguideId strings
-    const id = typeof item === 'string' ? item : item.bioguideId;
-    return !removeSet.has(id);
-  });
-
-  if (filteredQueue.length !== originalLength) {
-    if (filteredQueue.length === 0) {
-      await env.MEMBER_DATA.delete(queueKey);
-      console.log(`  🗑️ Deleted empty queue: ${queueKey}`);
-    } else {
-      await env.MEMBER_DATA.put(queueKey, JSON.stringify(filteredQueue));
-      console.log(
-        `  🔄 Updated ${queueKey}: removed ${originalLength - filteredQueue.length} departed members`
-      );
-    }
   }
 }

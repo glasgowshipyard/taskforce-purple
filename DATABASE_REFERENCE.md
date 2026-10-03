@@ -65,6 +65,28 @@ wrangler kv key get "members:all" --namespace-id=8318226115e2423ab5d141adfa5419f
 ]
 ```
 
+#### Member records (Stage 1, 2026-10-03)
+
+**`member:{bioguideId}`**: one member's full record. It's the source of truth
+for member data, written only when a field actually differs
+(`workers/member-store.js`, `MemberWriter`).
+
+**`members:list`**: the exact `/api/members` response body (about 308 KB):
+list fields only, plus `quicklook` and `conduitCount`. It's served as stored
+and rewritten at most once per invocation, only when a list-visible field
+changes.
+
+**`members:all`**: the old 3.5 MB all-members value. It's **read-only** since
+Stage 1: kept as the rollback copy, read only as a fallback for a member with
+no key of their own yet, and deleted two weeks after the migration.
+
+```bash
+# One member's record
+npx wrangler kv key get "member:S000033" --namespace-id=8318226115e2423ab5d141adfa5419f9 --remote | jq '{name, tier, totalRaised}'
+# The list's size and date
+npx wrangler kv key get "members:list" --namespace-id=8318226115e2423ab5d141adfa5419f9 --remote | jq '{total, lastUpdated}'
+```
+
 #### Queue Keys
 
 **`itemized_processing_queue`** - Queue of members needing itemized analysis
