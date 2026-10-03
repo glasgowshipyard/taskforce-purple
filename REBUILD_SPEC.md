@@ -1,7 +1,7 @@
 # Rebuild spec: collection, storage and grading around the person
 
-**Status: v3, APPROVED by the owner 2026-10-03. Stage 0 in progress; nothing
-is built yet.**
+**Status: v3, APPROVED by the owner 2026-10-03. Stage 0 COMPLETE
+2026-10-03; Stage 1 is next.**
 
 Written by Claude, who wrote the code this replaces. This version replaces
 v1 and v2 (git history has them). Everything about the API backfill, lanes,
@@ -338,7 +338,10 @@ Campaign money only changes when committees file. So:
 
 ## 10. Stages (each proven live before the next starts)
 
-**Stage 0: approve and prepare.**
+**Stage 0: approve and prepare.** **Complete 2026-10-03:** approved; `CLAUDE.md` updated; GitHub
+secrets `FEC_API_KEY` and `CLOUDFLARE_API_TOKEN` (token
+`taskforce-purple-github-actions-kv-d1`: KV and D1 read/write) and the
+variable `CLOUDFLARE_ACCOUNT_ID` stored and verified; measurements done.
 
 - The owner approves this spec.
 - **Update `CLAUDE.md`** where it contradicts this spec:
