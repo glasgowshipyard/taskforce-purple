@@ -7,6 +7,9 @@ live in `API_KEYS.md` and `.claude-reference.md` (both gitignored).
 
 ## Start here
 
+**All scheduled jobs are PAUSED (2026-10-03, owner's decision) until the
+rebuild. Don't re-enable them; see IMPLEMENTATION_STATUS.**
+
 0. `REBUILD_SPEC.md` — DRAFT rebuild of collection, storage and grading
    publication around the person (#47). Until it is approved and built, do
    not patch the old collection/storage paths except to stop active harm;

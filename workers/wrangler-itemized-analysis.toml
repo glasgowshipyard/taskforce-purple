@@ -18,7 +18,7 @@ database_id = "87d24fba-1e43-45a0-aa84-1610e984aee8"
 # Offset 10 minutes from the data pipeline (*/20): the FEC key allows 60
 # requests per MINUTE, and two workers firing in the same minute could
 # exceed it. :10 runs do committee discovery (#32); :30 and :50 collect.
-crons = ["10,30,50 * * * *"]
+crons = []  # PAUSED 2026-10-03 by owner during the rebuild (REBUILD_SPEC.md); was "10,30,50 * * * *"
 
 # Environment variables
 [vars]

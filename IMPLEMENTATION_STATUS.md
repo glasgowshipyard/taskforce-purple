@@ -4,6 +4,31 @@
 
 ---
 
+## 2026-10-03: all scheduled jobs PAUSED for the rebuild (owner's decision)
+
+The owner paused everything while the rebuild spec (`REBUILD_SPEC.md`, #47)
+is settled:
+
+- **Pipeline:** cron triggers removed (`crons = []` in `wrangler.toml`; was
+  `*/20`).
+- **Itemized worker:** cron triggers removed (was `10,30,50`).
+- **Health alert:** GitHub workflow disabled.
+
+Applied with `wrangler triggers deploy`, which changes triggers only, not
+code. Verified via the Cloudflare API: both workers report no schedules.
+The site keeps serving its current data, and admin endpoints still work.
+No data is refreshed, and AOC's and Yakym's in-progress collections are
+frozen where they stand.
+
+**Do not re-enable** the old schedules: the rebuild replaces them with
+filing-calendar triggers (REBUILD_SPEC §4.13). To undo the pause in an
+emergency only: restore the `crons` lines from git history, run
+`npx wrangler triggers deploy` (pipeline) and
+`cd workers && npx wrangler triggers deploy --config wrangler-itemized-analysis.toml`,
+then `gh workflow enable health-alert.yml`.
+
+---
+
 ## Current System Status (measured 2026-09-26)
 
 1. **Data pipeline** (`taskforce-purple-api`, cron */20): 539 members synced
