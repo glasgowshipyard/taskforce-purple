@@ -1,7 +1,7 @@
 # Rebuild spec: collection, storage and grading around the person
 
-**Status: v3, consolidated 2026-10-03 around the owner's decisions (§12).
-Awaiting the owner's final approval. Nothing here is built yet.**
+**Status: v3, APPROVED by the owner 2026-10-03. Stage 0 in progress; nothing
+is built yet.**
 
 Written by Claude, who wrote the code this replaces. This version replaces
 v1 and v2 (git history has them). Everything about the API backfill, lanes,
@@ -433,9 +433,8 @@ remainder).
 - **D6c, D1 contents:** results, not a copy of every donation (§7).
 - **Dropped as moot:** D4 (lane split) and D5 (D1 write test).
 - **Rule:** refresh on the filing calendar or events, never a clock (§8).
-- **Pending final approval:** §3's move of all FEC work into GitHub
-  Actions, introduced in this consolidation, and the two GitHub secrets it
-  needs.
+- **Approved 2026-10-03:** §3's move of all FEC work into GitHub Actions,
+  and the two GitHub secrets it needs (§5).
 
 ## 13. Stock trading (paused by the owner)
 

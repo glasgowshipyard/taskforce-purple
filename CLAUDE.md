@@ -10,10 +10,10 @@ live in `API_KEYS.md` and `.claude-reference.md` (both gitignored).
 **All scheduled jobs are PAUSED (2026-10-03, owner's decision) until the
 rebuild. Don't re-enable them; see IMPLEMENTATION_STATUS.**
 
-0. `REBUILD_SPEC.md` — DRAFT rebuild of collection, storage and grading
-   publication around the person (#47). Until it is approved and built, do
-   not patch the old collection/storage paths except to stop active harm;
-   read it before touching `members:all`, the itemized queue or D1.
+0. `REBUILD_SPEC.md` — the APPROVED (2026-10-03) rebuild: all FEC work in
+   a filing-calendar-triggered GitHub Actions job; Workers only serve. Where
+   it differs from the description below of the current system, the spec
+   is the target. Don't patch the old collection/storage paths.
 1. `IMPLEMENTATION_STATUS.md` — current system state, dated change log,
    known limitations. Read this first; it is kept accurate.
 2. `RUNBOOK.md` — self-serve health/log/progress checks from a terminal.
@@ -40,9 +40,11 @@ OpenFEC Schedule A ─> itemized-analysis worker ─────┘             
                        KV itemized_analysis_v2:* + D1 mirror)
 ```
 
-- **KV is the source of truth** for tiers. D1 (`taskforce-purple-donors`) is
-  an analytical mirror of raw transactions/aggregates — currently incomplete
-  (see IMPLEMENTATION_STATUS known limitations).
+- **Current system (being replaced, see REBUILD_SPEC.md):** KV `members:all`
+  holds tiers; D1 `taskforce-purple-donors` is an incomplete mirror of raw
+  transactions. **Target:** KV holds `member:{id}`, `members:list` and the
+  published analyses; D1 `tfp-results` holds results, history and gap-fill
+  records; the FEC bulk file is the full donation record.
 - All tier math lives in `workers/tier-calculation.js` as pure functions with
   unit tests. Never reimplement tier logic inline in the pipeline.
 - FEC election cycles are named by the even END year (2025 → cycle 2026).
@@ -131,8 +133,9 @@ estimateRowWrites({...})`) — an unmetered path silently reopens the hole.
   both were replaced and the fallbacks removed. To rotate again:
   `bash scripts/rotate-secrets.sh` (the owner pastes the key; Claude does not
   handle credential values). Current values are in the gitignored API_KEYS.md.
-- Queue processing is designed to never let one failing member block a queue
-  head: failures defer to the end with a retry budget. Preserve this pattern.
+- No queues and no strikes in the target design: a failing member never
+  blocks others, is never dropped, and retries on the daily calendar check
+  with an alert (REBUILD_SPEC §5, §8).
 - `fec_mapping_{bioguideId}` KV keys cache FEC candidate matches and are
   trusted forever. A wrong cached match pins a member to the wrong candidate
   (and their zeros) until cleared via `/api/clear-fec-mapping?bioguideId=X`.
