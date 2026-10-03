@@ -36,7 +36,7 @@ fi
 printf 'Paste the Cloudflare API token, then press Enter (input hidden): '
 read -rs CF_TOKEN; echo
 auth=(-H "Authorization: Bearer $CF_TOKEN")
-kv=$(curl -s "${auth[@]}" "https://api.cloudflare.com/client/v4/accounts/$ACCOUNT_ID/storage/kv/namespaces/$KV_NAMESPACE/keys?limit=1" | grep -c '"success":true' || true)
+kv=$(curl -s "${auth[@]}" "https://api.cloudflare.com/client/v4/accounts/$ACCOUNT_ID/storage/kv/namespaces/$KV_NAMESPACE/keys?limit=10" | grep -c '"success":true' || true)
 d1=$(curl -s "${auth[@]}" "https://api.cloudflare.com/client/v4/accounts/$ACCOUNT_ID/d1/database?per_page=1" | grep -c '"success":true' || true)
 if [ "$kv" != "1" ] || [ "$d1" != "1" ]; then
   echo "That token can't reach KV ($kv) and/or D1 ($d1) on this account. Check its permissions. Nothing was changed."; exit 1
