@@ -156,6 +156,11 @@ that's interrupted or hits the 6 h limit continues where it stopped.
 4. **Bulk pass.**
    - Download `indiv{yy}.zip` (2.2 GB for 2026) if the FEC's copy is newer
      than the last one used.
+   - **Disk:** GitHub's standard runner has 14 GB of SSD (checked
+     2026-10-03; 4 cores, 16 GB RAM, free for public repos). The zip
+     unpacks to 12 GB because it holds the data twice (`itcont.txt` plus
+     `by_date/` copies). Extract **only `itcont.txt`** (5.6 GB), for about
+     7.8 GB in total.
    - DuckDB keeps only the rows for committees in any member's pool. A full
      scan of all 32.3M rows took 2.4 s on the owner's Mac.
 5. **Gap check and fill** (the hybrid, D6a). Per committee, compare the bulk
@@ -329,13 +334,15 @@ Campaign money only changes when committees file. So:
   - The queue / retry-budget rule → no queues; per-member failures retry on
     the calendar check.
   - The architecture diagram and crons → §3 and §8.
-- **The owner creates the two GitHub secrets** (§5).
+- **The owner creates the two GitHub secrets** (§5) by running
+  `bash scripts/set-github-secrets.sh`. It checks both values before
+  storing them; future key rotations update GitHub too.
 - **Measurements:**
   1. Find the API filter whose counts compare exactly with the bulk file's
      records (§5 step 5).
   2. The FEC reporting-dates endpoint: confirm it gives what the calendar
      check needs.
-  3. Current GitHub runner specs.
+  3. ~~Current GitHub runner specs~~: done 2026-10-03 (see §5 step 4).
 - **Freeze:** no patches to the old collection paths. Everything is
   already paused.
 

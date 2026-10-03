@@ -43,6 +43,12 @@ put "" FEC_API_KEY "$NEW_KEY"
 put "" CONGRESS_API_KEY "$NEW_KEY"
 put "" UPDATE_SECRET "$NEW_UPDATE_SECRET"
 put itemized FEC_API_KEY "$NEW_KEY"
+if gh auth status >/dev/null 2>&1; then
+  # The refresh job (REBUILD_SPEC §5) uses the same key from GitHub Actions
+  printf '%s' "$NEW_KEY" | gh secret set FEC_API_KEY >/dev/null && echo "  set FEC_API_KEY in GitHub Actions"
+else
+  echo "  GitHub CLI not logged in: GitHub's FEC_API_KEY NOT updated (run scripts/set-github-secrets.sh)"
+fi
 put itemized UPDATE_SECRET "$NEW_UPDATE_SECRET"
 
 {
