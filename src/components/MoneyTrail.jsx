@@ -65,8 +65,7 @@ export default function MoneyTrail({ member }) {
       <div className="mb-6 p-4 rounded-lg border border-gray-200 bg-gray-50 text-sm text-gray-600">
         <span className="font-semibold text-gray-800">Where the money comes from: </span>
         we haven&apos;t mapped this member&apos;s other committees (joint fundraising funds,
-        leadership PACs) yet. Our scan reaches every member within about three weeks; until then the
-        figures here cover their campaign committee only.
+        leadership PACs) yet. Until we have, the figures here cover their campaign committee only.
       </div>
     );
   }
