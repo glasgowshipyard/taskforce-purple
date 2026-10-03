@@ -882,11 +882,22 @@ donation to D1.
   while in office are dirty". Defining that precisely needs the follow-ups
   below.
 
-**Still open:**
+- **D3: publish with a note.** If every record is present but the FEC's
+  reported totals differ from the sum of its own records, publish the grade
+  with a plain note that the FEC's figures differ by $X.
+- **D6c: D1 does not copy every donation.** The FEC bulk file is the full
+  record of every donation, and anything can be re-derived from it. D1 keeps
+  each member's results:
+  - donor totals and concentration;
+  - top donors with their FEC record IDs;
+  - the date of the FEC file the results came from;
+  - the API-fetched records that filled any slice gaps.
+- **D5 dropped:** with no per-donation copying, D1 writes stop being a
+  constraint.
+- **D4 dropped:** superseded by the hybrid.
 
-- **D3:** restated in plain terms in the conversation of 2026-10-03; awaiting
-  an answer.
-- **D6c:** does D1 keep every donation row, or per-member donor totals plus
-  the top donors with their FEC IDs? This also decides whether D5 (the D1
-  write test) is needed at all.
-- **T1 follow-ups, and T2–T8.**
+**Paused by the owner:** stock trading (T1 follow-ups, T2–T8).
+
+**Next:** one consolidation rewrite of this spec around the decisions above.
+It removes the superseded API-backfill design (lanes, shards, the
+every-minute collector, the 70–140-day estimate).
