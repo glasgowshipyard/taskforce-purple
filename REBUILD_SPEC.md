@@ -417,10 +417,12 @@ finishes about then.
   Proposed: (a), with the senator's earlier periods shown as history, because
   (b) triples their collection.
 
-### 4.11 The FEC bulk file: a possible replacement for the API backfill
+### 4.11 The FEC bulk file: replacing most of the API backfill
 
-**Found 2026-10-03; not yet validated.** If validation passes, it replaces the
-API backfill in §4.3, §4.5 and §6.
+**Found and validated 2026-10-03** (results below). It is fast and nearly
+complete but not exact, so the proposal is a hybrid: the bulk file, plus the
+API only for slices whose counts differ. If adopted, rewrite §4.3, §4.5, §6
+and Stage 2 around it before building.
 
 **What exists.** The FEC publishes every itemized individual contribution of
 a cycle, to every committee, as one file: `indiv26.zip`.
@@ -453,19 +455,60 @@ a cycle, to every committee, as one file: `indiv26.zip`.
     evidence pointers.
   - Owner's principle to respect: "no aggregation that loses detail" (#20).
 
-**Validation before adopting it (Stage 0, item 6):**
+**Validation results (2026-10-03).** The file was processed on the owner's
+Mac with DuckDB, version of 27 Sept 2026.
 
-1. Process the file once, off-Cloudflare, for a few members we already know
-   well: Sanders (13,102 unique donors in the current analysis), one small
-   member, and Pelosi with her other committees.
-2. Reconcile each committee's sum of individual itemized rows against the
-   FEC's committee totals, to the dollar, with the same classification rules
-   as `schedule-a-classify.js`. The bulk file has transaction types instead of
-   Schedule A line numbers, so the mapping has to be checked.
-3. Compare the results with the API-collected analyses: same donors, same
-   concentration?
-4. Measure the job's run time and the size of what it needs to write into
-   Cloudflare.
+- **Speed.** All 32,280,757 rows (9,374 committees), 12 GB unzipped, were
+  scanned in **2.4 s**. Extracting chosen committees took 3.1 s. Download
+  53 s, unzip 41 s. A weekly job is trivially fast.
+- **Concentration matches the API-collected analyses:**
+
+  | Member           | Bulk file: donors / Nakamoto | API analysis: donors / Nakamoto |
+  | ---------------- | ---------------------------- | ------------------------------- |
+  | Williams (small) | 165 / 23                     | 167 / 23 (20 Sept)              |
+  | Pelosi campaign  | 2,718 / 404                  | 2,729 / 408 (17 Aug)            |
+  | Sanders          | 20,189 / 3,147               | 13,102 / 1,534 (14 Jan, stale)  |
+
+  All three are in the same concentration band either way.
+
+- **But it is NOT exact, for two reasons:**
+  1. **Amounts are rounded to whole dollars.** No row has cents. Gaps
+     against the FEC's itemized totals:
+     - Sanders: $1,101 over 122k rows;
+     - Pelosi's campaign: $963;
+     - PAC to the Future: $1,147;
+     - Victory Fund: $0.36.
+  2. **It is missing records the API has.** Williams (C00752584): 31 of 351
+     API records ($7,795 of $154,007, including one $7,000 gift) are absent
+     from both `itcont.txt` and the `by_date` files.
+     - One missing record is live in the API today, on the Q2 2026 report
+       (file 1997804, line 11AI). The bulk file contains other rows from that
+       same report.
+     - The cause is unknown. The 320 matched records agree to the dollar.
+- **Mapping.** Transaction types `15` (direct), `15E` (earmarked) and `11`
+  (e.g. tribal) are the itemized-individual money. `22Y` are refunds.
+  `MEMO_CD = 'X'` rows are memos.
+
+**Consequence: the bulk file can't be the evidence on its own. A hybrid
+design meets the exactness rule** (proposed; decision D6):
+
+1. **Weekly bulk pass** (GitHub Actions) builds every member's donor set
+   across all their committees in seconds.
+2. **Per committee and slice, compare** the bulk record count with the FEC
+   API's exact count (§4.3 slices). Matching slices are done. Mismatched
+   slices fetch **only those slices** from the API, and the API version
+   replaces the bulk rows. Williams-size gaps cost a handful of API calls,
+   not a backfill.
+3. **Cents.** Grades and concentration are unaffected by whole-dollar
+   rounding. To meet "money to the dollar", either:
+   - (a) fetch exact amounts from the API for the money check (costly; it
+     brings the API backfill back); or
+   - (b) reconcile with the FEC's rounding made explicit: the gap must be
+     under $0.50 per record, and the record sets must match exactly by
+     `SUB_ID`.
+
+   Owner decision; (b) is proposed. It is a stated, explainable rule, not a
+   tolerance for missing money: the records themselves must all be present.
 
 Writing the results into Cloudflare from Actions needs a Cloudflare API
 token, stored as a GitHub secret. The owner creates it once; Claude doesn't
@@ -608,7 +651,7 @@ donation to D1.
   4. **Itemized CPU** per run at 1–5 pages, on real FEC responses.
   5. **The census** (§6), which replaces the timeline guess and sizes the
      shards.
-  6. **Validate the FEC bulk file** (§4.11). If it reconciles, rewrite §4.3,
+  6. **FEC bulk file: validated 2026-10-03** (§4.11). If D6 adopts the hybrid, rewrite §4.3,
      §4.5, §6 and Stage 2 around the weekly batch before building them.
 - **Freeze.** No more patches to the old collection and storage paths
   except to stop active harm.
@@ -759,9 +802,15 @@ donation to D1.
    (proposed)?
 5. **D5 – The one-day D1 write test** (Stage 0). It pauses both crons for a
    day.
-6. **D6 – If the FEC bulk file validates** (§4.11): does D1 keep every
-   donation row, or per-member donor totals plus the top donors with their
-   FEC record IDs as evidence?
+6. **D6 – The FEC bulk file** (§4.11, validated: fast, same concentration,
+   but rounded to dollars and missing some records):
+   - **(a)** Adopt the hybrid: weekly bulk pass, plus API fetches only for
+     slices whose counts differ.
+   - **(b)** The cents rule: records must match exactly by FEC ID, and money
+     within the FEC's whole-dollar rounding (under $0.50 a record). The
+     alternative is fetching every amount from the API.
+   - **(c)** Does D1 keep every donation row, or per-member donor totals plus
+     the top donors with their FEC record IDs?
 7. **Stock trading** (§4.12): T1–T8. It isn't built until these are
    answered; designing for it now just keeps the rebuild from having to be
    redone.
