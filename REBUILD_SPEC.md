@@ -96,6 +96,16 @@ Settled by the owner. `CLAUDE.md` has the older ones; this list adds
   value differs. Never rewrite or recompute a whole dataset to change one
   item. Any design that needs a whole-dataset write is raised with the owner
   first.
+- **Work happens only when the data can have changed.** Campaign money only
+  changes when committees file reports with the FEC, mostly quarterly. So
+  refreshing anything about a member (totals, donors, grades) is triggered
+  by **the FEC filing calendar** (§4.13), or by an explicit event: a new
+  member, a corrected identity, a scoring change, a failed slice. Never by a
+  clock.
+  - No weekly, monthly, hourly or "rolling" re-checks of stored statistics.
+  - No cron left running for work that is finished.
+  - A finished cycle is never re-fetched.
+  - Monitoring of the system itself (`/health`) is not covered by this rule.
 - **History is never obliterated.**
   - Completed analyses are kept as dated snapshots.
   - Grade changes are kept as a history.
@@ -200,12 +210,15 @@ whole-dataset value again.
   analysis changed. The analysis write carries KV metadata `{updatedAt}`; the
   pipeline lists that prefix once per run and compares it with the member's
   `lastMergedAt`.
-- A **rolling safety check** re-grades about 50 members per run from a cursor,
-  a full pass about every 4 h. Not a single sweep: reading every member and
-  analysis in one run exceeds the 1,000-calls-per-invocation limit.
-- **Concurrency.** An admin re-grade running at the same time as a cron run
-  can lose one list patch, because KV has no transactions. The rolling check
-  repairs it within about 4 h.
+- A **full re-grade** happens only on an explicit event: a scoring change,
+  or the filing-calendar refresh (§4.13). It's spread across invocations,
+  about 50 members each, because reading every member and analysis in one
+  run exceeds the 1,000-calls-per-invocation limit. There is no standing
+  rolling re-check.
+- **Concurrency.** An admin re-grade running at the same time as another
+  write can lose one list patch, because KV has no transactions. Admin
+  endpoints therefore take a simple lock (a D1 row) while they write, so the
+  clash can't happen. There's no background job to repair it afterwards.
 
 ### 4.3 Collection around the person
 
@@ -213,14 +226,26 @@ whole-dataset value again.
   then the member's authorized committees, leadership PAC and the joint funds
   that count as theirs. The donor pool is every committee whose money the
   member received.
-- **Small runs, often (CPU).**
-  - The itemized cron moves from 3 runs an hour to **every minute** (one
-    trigger, `* * * * *`). Each run fetches **a few pages**: start at 3, and
-    tune to stay under 10 ms by measured CPU.
+- **Small runs, often (CPU), only while there is collection to do.**
+  - **Only while it has work.** During a first pass or a filing-deadline
+    refresh, collection runs **every minute**, fetching **a few pages** per
+    run: start at 3, and tune to stay under 10 ms by measured CPU. When the
+    work is done, collection stops.
+    - The first invocation that finds nothing to do disables collection
+      (a D1 flag), and later invocations exit at once without touching the
+      FEC.
+    - The filing-calendar trigger (§4.13) re-enables it.
+  - **Instead of an idle cron.** A cron schedule can't be switched off
+    without a deploy. So the every-minute trigger exists only in the
+    backfill/refresh deploy; between refreshes the worker is deployed with
+    one daily calendar check (§4.13). **VERIFY** whether simply exiting
+    early is cheap enough to keep one schedule; if it is, the D1 flag alone
+    will do.
   - At 3 pages a minute, FEC paging is about 430k records a day. D1, not
     CPU, then sets the pace.
-  - One handler decides what each minute does: collection for a lane, the
-    discovery sweep, health upkeep.
+  - One handler decides what each minute does: collection for a lane, or
+    discovery for a member whose committees aren't known yet. Discovery also
+    runs on the calendar and on events, not as a standing sweep.
   - Per-run state goes to D1 `collect_state`, not KV: about 1,440 runs a day
     would exceed KV's whole daily write allowance.
 - **Two lanes.**
@@ -254,11 +279,14 @@ whole-dataset value again.
   - Repeated failure alerts but never blocks the other lane.
 - **Never restart from zero.** Complete slices are kept. A change to the pool
   adds or removes committees' slices; it never discards the others.
-- **Refresh is incremental.** After the first complete pass:
-  - fetch only the open slices (the current month);
-  - re-check each closed slice's FEC count periodically (one cheap call per
-    slice) to catch amendments;
+- **Refresh is incremental and calendar-driven** (§4.13). After a filing
+  deadline:
+  - fetch the slices covered by the newly filed reports;
+  - re-check the counts only of slices whose reports were amended (the FEC
+    filings list shows amendments; one call per amended report);
   - re-collect only slices whose count changed.
+
+  Nothing runs between deadlines.
 
 ### 4.4 Analysis computed from the evidence in D1
 
@@ -373,6 +401,15 @@ receipt_date, row_class) WITHOUT ROWID`, plus one index on
 
 - It keeps its job: the member list from Congress.gov, and FEC committee
   totals and PAC details.
+- **On events, not a clock.** Today it cycles through members every 20
+  minutes, re-fetching FEC totals that change only when a report is filed.
+  - **FEC totals and PAC details** are refreshed after each filing deadline
+    (§4.13) and for a member whose filings list shows a new or amended
+    report.
+  - **The Congress.gov member list** is checked once a day. Membership
+    changes rarely, but a death, resignation or special election must show
+    up promptly. That's one cheap call a day; the member data itself is
+    written only on a diff.
 - Every write goes through `saveMember`, and it processes only what changed.
 - Its FEC responses are heavy too (§3). Keep pages per run small, and
   **measure CPU per run with real FEC responses**, not stubs: the 2026-09-28
@@ -428,14 +465,15 @@ and Stage 2 around it before building.
 a cycle, to every committee, as one file: `indiv26.zip`.
 
 - **Size and freshness.** 2.2 GB compressed for 2026 (4.2 GB for the full
-  2024 cycle), refreshed weekly; last modified Sunday 27 Sept 2026.
+  2024 cycle), re-published weekly by the FEC; last modified Sunday 27 Sept 2026.
 - **Columns.** The same fields we collect: committee ID, donor name, city,
   state, zip, employer, occupation, date, amount, memo code, transaction type,
   file number and `SUB_ID` (the same unique record ID the API returns).
 
 **What it would change.**
 
-- **One pass a week.**
+- **One pass after each filing deadline** (§4.13). The FEC re-publishes the
+  file weekly, but we only need it when new reports are due.
   - A scheduled **GitHub Actions** job (free for public repos; the runners
     have the disk and memory a Worker doesn't) downloads the file and streams
     it.
@@ -445,9 +483,9 @@ a cycle, to every committee, as one file: `indiv26.zip`.
     earmark totals, FARA employer matches.
 - **No backfill queue.** The 70–140-day first pass (§6), the lanes, slices,
   shards and the D1 write budget for donations all stop being needed for
-  grading. Small and huge campaigns finish in the same weekly pass.
+  grading. Small and huge campaigns finish in the same pass.
 - **It matches the filing cycle.** Money changes only when committees file,
-  and a weekly refresh tracks that.
+  and the pass runs only after filing deadlines.
 - **The source of truth** is the dated FEC file plus our derived results,
   which are reproducible from it.
   - What D1 keeps becomes a decision (D6): every donation row as before, or
@@ -460,7 +498,8 @@ Mac with DuckDB, version of 27 Sept 2026.
 
 - **Speed.** All 32,280,757 rows (9,374 committees), 12 GB unzipped, were
   scanned in **2.4 s**. Extracting chosen committees took 3.1 s. Download
-  53 s, unzip 41 s. A weekly job is trivially fast.
+  53 s, unzip 41 s. Cost isn't a factor in how often it runs; the filing
+  calendar is (§4.13).
 - **Concentration matches the API-collected analyses:**
 
   | Member           | Bulk file: donors / Nakamoto | API analysis: donors / Nakamoto |
@@ -492,7 +531,7 @@ Mac with DuckDB, version of 27 Sept 2026.
 **Consequence: the bulk file can't be the evidence on its own. A hybrid
 design meets the exactness rule** (proposed; decision D6):
 
-1. **Weekly bulk pass** (GitHub Actions) builds every member's donor set
+1. **Bulk pass after each filing deadline** (GitHub Actions) builds every member's donor set
    across all their committees in seconds.
 2. **Per committee and slice, compare** the bulk record count with the FEC
    API's exact count (§4.3 slices). Matching slices are done. Mismatched
@@ -555,6 +594,11 @@ actually looks like and every open question. **No scoring rule is decided.**
 - **Filing rule.** Trades must be reported within 30 days of notification and
   45 days of the trade.
 
+**When it runs.** Trade reports aren't filed on the quarterly calendar; each
+is due within 45 days of the trade. The daily calendar check (§4.13) also
+fetches the House index (one 62 KB file). It processes only document IDs it
+hasn't seen, and does nothing if there are none.
+
 **Where it would run.** PDF parsing and OCR can't fit in a Worker's 10 ms. It
 runs in a scheduled GitHub Actions job (the same pattern as §4.11), which
 writes parsed trades into D1. The volume is small: hundreds of reports a
@@ -591,12 +635,41 @@ alongside donations, each with its own completeness check.
 - T8. Which committee-to-industry mapping defines "industries they oversee",
   and from what source?
 
+### 4.13 The FEC filing calendar drives every refresh
+
+- **The deadlines.** For candidate committees (House and Senate):
+  - quarterly reports due 15 April, 15 July and 15 October, and a year-end
+    report due 31 January;
+  - in an election year, a pre-general report (12 days before the election)
+    and a post-general report (30 days after);
+  - pre-primary reports, depending on the state's primary date;
+  - monthly filers (some PACs, party committees and joint funds) on the
+    20th.
+
+  The FEC publishes the exact dates each cycle. Load them from the FEC's
+  calendar, never hard-code them.
+
+- **The trigger.** A single **daily check** (one cheap call) asks whether a
+  deadline has passed since the last refresh, plus a few days for the FEC to
+  process the reports. If not, it ends. If so, it starts the refresh: the
+  bulk pass (§4.11) and/or collection (§4.3), FEC totals for the pipeline
+  (§4.8), then re-grading the members whose data changed.
+- **The daily check is the only thing that runs on a clock, apart from
+  `/health`.** If a cron trigger can't be avoided, it does nothing beyond
+  that one check.
+- **Late and amended filings.** The refresh compares each member's filings
+  list with what we hold, and fetches only reports that are new or amended
+  since the last refresh.
+- **Finished cycles are never refreshed.** Their last refresh is final,
+  apart from an amendment found during a refresh of the next cycle, which is
+  rare and handled as an event.
+
 ## 5. Budgets the design must meet (check each per stage)
 
 | Resource                         | Limit                     | Target                                                         |
 | -------------------------------- | ------------------------- | -------------------------------------------------------------- |
 | CPU per invocation, both workers | 10 ms                     | Under 10 ms; zero `exceededResources` over 48 h                |
-| Itemized invocations / day       | 100,000 requests          | About 1,440 (every minute)                                     |
+| Itemized invocations / day       | 100,000 requests          | About 1,440 during a backfill or refresh; about 1 otherwise    |
 | KV writes / day                  | 1,000                     | Well below today's 290–500 (collection state moved to D1)      |
 | KV reads / day                   | 100,000                   | Below today's 15–31k                                           |
 | KV lists / day                   | 1,000                     | ≤ ~100                                                         |
@@ -652,7 +725,8 @@ donation to D1.
   5. **The census** (§6), which replaces the timeline guess and sizes the
      shards.
   6. **FEC bulk file: validated 2026-10-03** (§4.11). If D6 adopts the hybrid, rewrite §4.3,
-     §4.5, §6 and Stage 2 around the weekly batch before building them.
+     §4.5, §6 and Stage 2 around the deadline-driven bulk pass before building
+     them.
 - **Freeze.** No more patches to the old collection and storage paths
   except to stop active harm.
 
@@ -660,7 +734,8 @@ donation to D1.
 
 - Build:
   - `member:{id}` and `members:list` with `saveMember`;
-  - re-grade only on change, plus the rolling check;
+  - re-grade only on change and on explicit events;
+  - the pipeline moved to the filing calendar (§4.8, §4.13);
   - `/api/members` served as stored;
   - the popup fed from member-detail;
   - #38.
@@ -715,7 +790,7 @@ donation to D1.
 
 - Build:
   - grade history and snapshots in the site;
-  - incremental refresh, including amendment re-checks;
+  - calendar-driven incremental refresh, including amended reports (§4.13);
   - retire `members:all` and, with the owner's OK, the legacy database;
   - the full sweep (§10).
 
@@ -775,7 +850,8 @@ donation to D1.
   30-day refresh means the queue never drains → refresh is incremental
   (§4.3).
 - **FEC responses are heavy** (383 KB a page), which the original diagnosis
-  missed → small runs, every minute (§4.3).
+  missed → small runs, every minute, only while there's collection to do
+  (§4.3).
 - **No rule existed for cycle rollover or senators' six-year terms** → §4.10.
 - **`workers/recalculate-metrics.js`**, an old standalone worker that reads
   D1 → confirm whether it's deployed or used; delete if not.
@@ -804,7 +880,8 @@ donation to D1.
    day.
 6. **D6 – The FEC bulk file** (§4.11, validated: fast, same concentration,
    but rounded to dollars and missing some records):
-   - **(a)** Adopt the hybrid: weekly bulk pass, plus API fetches only for
+   - **(a)** Adopt the hybrid: a bulk pass after each filing deadline, plus
+     API fetches only for
      slices whose counts differ.
    - **(b)** The cents rule: records must match exactly by FEC ID, and money
      within the FEC's whole-dollar rounding (under $0.50 a record). The

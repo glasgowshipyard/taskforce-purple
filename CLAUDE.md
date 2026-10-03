@@ -83,6 +83,14 @@ redesigned them wasted days and, twice, proposed breaking them. Build on them.
   (DISPUTED / UNVERIFIED). Simulate every scoring change across all members,
   with named reference members, before deploying.
 - **Free tier only.** Never propose paid plans.
+- **Work only when the data can have changed.** Campaign money changes
+  only when committees file FEC reports, mostly quarterly. Refreshes of totals,
+  donors and grades are triggered by the FEC filing calendar or by an
+  explicit event (new member, corrected identity, scoring change, failed
+  slice). Never by a clock: no weekly, monthly, hourly or "rolling" re-checks
+  of stored statistics, and no crons left running for finished work.
+  Monitoring the system itself (`/health`) is the exception. See
+  REBUILD_SPEC.md §4.13.
 - **Lean, targeted updates — always.** Change only the record that changed,
   and only if its value actually differs. Never read-modify-write a whole
   dataset to update one member, and never redo work (re-grading, re-writing)
