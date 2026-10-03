@@ -3,7 +3,8 @@
 **Status: DRAFT v2, awaiting owner approval. Nothing here is built yet.**
 Written 2026-09-28 by Claude, who wrote the code this replaces. Revised
 2026-10-03 after a review found four build-breaking gaps; they are fixed in
-§4.3, §4.4, §4.6 and §4.10. Umbrella issue: #47. Supersedes the fix plans in
+§4.3, §4.4, §4.6 and §4.10. Also added 2026-10-03: the FEC bulk file
+(§4.11) and stock trading (§4.12). Umbrella issue: #47. Supersedes the fix plans in
 #46 and #44; the evidence in those issues still stands.
 
 Anyone building this: read the whole document first, then `CLAUDE.md` (and
@@ -416,6 +417,137 @@ finishes about then.
   Proposed: (a), with the senator's earlier periods shown as history, because
   (b) triples their collection.
 
+### 4.11 The FEC bulk file: a possible replacement for the API backfill
+
+**Found 2026-10-03; not yet validated.** If validation passes, it replaces the
+API backfill in §4.3, §4.5 and §6.
+
+**What exists.** The FEC publishes every itemized individual contribution of
+a cycle, to every committee, as one file: `indiv26.zip`.
+
+- **Size and freshness.** 2.2 GB compressed for 2026 (4.2 GB for the full
+  2024 cycle), refreshed weekly; last modified Sunday 27 Sept 2026.
+- **Columns.** The same fields we collect: committee ID, donor name, city,
+  state, zip, employer, occupation, date, amount, memo code, transaction type,
+  file number and `SUB_ID` (the same unique record ID the API returns).
+
+**What it would change.**
+
+- **One pass a week.**
+  - A scheduled **GitHub Actions** job (free for public repos; the runners
+    have the disk and memory a Worker doesn't) downloads the file and streams
+    it.
+  - It keeps only the rows for the committees in every member's donor pool.
+  - It computes every member's donor statistics in one go, across all their
+    committees: unique donors, top-10 share, Nakamoto, median, conduit and
+    earmark totals, FARA employer matches.
+- **No backfill queue.** The 70–140-day first pass (§6), the lanes, slices,
+  shards and the D1 write budget for donations all stop being needed for
+  grading. Small and huge campaigns finish in the same weekly pass.
+- **It matches the filing cycle.** Money changes only when committees file,
+  and a weekly refresh tracks that.
+- **The source of truth** is the dated FEC file plus our derived results,
+  which are reproducible from it.
+  - What D1 keeps becomes a decision (D6): every donation row as before, or
+    per-member donor totals and the top donors with their `SUB_ID`s as
+    evidence pointers.
+  - Owner's principle to respect: "no aggregation that loses detail" (#20).
+
+**Validation before adopting it (Stage 0, item 6):**
+
+1. Process the file once, off-Cloudflare, for a few members we already know
+   well: Sanders (13,102 unique donors in the current analysis), one small
+   member, and Pelosi with her other committees.
+2. Reconcile each committee's sum of individual itemized rows against the
+   FEC's committee totals, to the dollar, with the same classification rules
+   as `schedule-a-classify.js`. The bulk file has transaction types instead of
+   Schedule A line numbers, so the mapping has to be checked.
+3. Compare the results with the API-collected analyses: same donors, same
+   concentration?
+4. Measure the job's run time and the size of what it needs to write into
+   Cloudflare.
+
+Writing the results into Cloudflare from Actions needs a Cloudflare API
+token, stored as a GitHub secret. The owner creates it once; Claude doesn't
+handle credential values.
+
+### 4.12 Stock trading (design placeholder; rules undecided)
+
+Issue #31. The owner wants trading folded into the grade: "a member can enter
+at S and trade themselves to F". This section records what disclosure
+actually looks like and every open question. **No scoring rule is decided.**
+
+**What's disclosed, and how (checked 2026-10-03):**
+
+- **The House** (disclosures-clerk.house.gov).
+  - **A structured index.** A yearly zip (`2026FD.zip`, 62 KB) holds an XML
+    and TXT list of every filing: name, state and district, filing type,
+    date and a document ID. 2026 so far has 407 stock-trade reports
+    (Periodic Transaction Reports, "PTRs", type `P`).
+  - **The trades are only inside per-report PDFs**
+    (`/public_disc/ptr-pdfs/2026/{DocID}.pdf`).
+    - **88% (360 of 407) are filed electronically.** Their PDFs carry real,
+      extractable text: asset, ticker, sale or purchase, transaction and
+      notification dates, amount range, owner, and sometimes a description
+      with exact share counts and prices.
+    - **12% (47) are scanned paper:** images, no text. These need OCR or
+      manual entry.
+  - **There is no data feed or API of the trades themselves.**
+- **The Senate** (efdsearch.senate.gov).
+  - **Behind a legal agreement.** Searching requires clicking "I understand
+    the prohibitions" first. Not done: accepting it is the owner's call.
+  - **Format unverified.** From general knowledge, electronically filed
+    reports are HTML tables and paper ones are scanned images.
+- **The law** (5 U.S.C. app. § 105(c), quoted on the Senate's agreement page)
+  applies to House and Senate reports alike. It's unlawful to use a report:
+  - "for any commercial purpose, other than by news and communications media
+    for dissemination to the general public";
+  - "for determining or establishing the credit rating of any individual";
+  - "in the solicitation of money for any political, charitable, or other
+    purpose".
+
+  The penalty is up to $10,000 per violation.
+
+- **Amounts are ranges** ($1,001–$15,000, $15,001–$50,000, …), not exact.
+- **Filing rule.** Trades must be reported within 30 days of notification and
+  45 days of the trade.
+
+**Where it would run.** PDF parsing and OCR can't fit in a Worker's 10 ms. It
+runs in a scheduled GitHub Actions job (the same pattern as §4.11), which
+writes parsed trades into D1. The volume is small: hundreds of reports a
+year.
+
+**How it fits the rebuild.** Trades become a second kind of evidence
+alongside donations, each with its own completeness check.
+
+- A grade that includes trading is only published when both are complete.
+- What counts as complete for trades is itself an open question: every
+  report in the House index parsed, and scans handled?
+
+**Open questions** (owner; nothing to be built until answered):
+
+- T1. What counts against a member?
+  - owning individual stocks at all;
+  - trading at all;
+  - trading in industries their committees oversee;
+  - late filing (past the 45-day rule);
+  - volume or value;
+  - trades by a spouse or dependent ("Owner" column);
+  - trades just before related legislation or committee action.
+- T2. How much can trading move the grade, and can it ever raise one?
+- T3. How are amount ranges scored: midpoint, low end, or band?
+- T4. Scanned paper filings: OCR (error-prone), manual entry, or "can't read
+  this, so disclosure-quality penalty"?
+- T5. Accepting the Senate agreement, and confirming Task Force Purple's use
+  is lawful: it's dissemination to the public, and the site must never use
+  trade data to ask for money (donation appeals).
+- T6. Third-party parsed feeds (the Apify actors offered on #31, others):
+  acceptable if free and their terms allow it, or parse it ourselves?
+- T7. Members' broader holdings: annual disclosures (types `A`/`O`) also list
+  assets. In scope?
+- T8. Which committee-to-industry mapping defines "industries they oversee",
+  and from what source?
+
 ## 5. Budgets the design must meet (check each per stage)
 
 | Resource                         | Limit                     | Target                                                         |
@@ -476,6 +608,8 @@ donation to D1.
   4. **Itemized CPU** per run at 1–5 pages, on real FEC responses.
   5. **The census** (§6), which replaces the timeline guess and sizes the
      shards.
+  6. **Validate the FEC bulk file** (§4.11). If it reconciles, rewrite §4.3,
+     §4.5, §6 and Stage 2 around the weekly batch before building them.
 - **Freeze.** No more patches to the old collection and storage paths
   except to stop active harm.
 
@@ -577,7 +711,7 @@ donation to D1.
 | #34 FARA                         | Stage 2 (SQL at completion against each shard's copy)                                                                                |
 | #33 network / conduits           | Conduit and earmark totals kept in the Stage 2 analysis; connected-organisation lookups deferred                                     |
 | #32 person-level funding         | Stages 2–3                                                                                                                           |
-| #31 STOCK Act composite          | Deferred until after Stage 4 (needs grade history)                                                                                   |
+| #31 STOCK Act composite          | Designed for in §4.12 (disclosure formats checked, open questions T1–T8); build waits on the owner's answers                         |
 | #21 PAC colour coding            | Deferred                                                                                                                             |
 | #20 donor concentration          | Superseded by Stage 2; close at its exit                                                                                             |
 | #19 tier calc broken             | Superseded by the concentration design and the Step 4 fix; close                                                                     |
@@ -625,4 +759,11 @@ donation to D1.
    (proposed)?
 5. **D5 – The one-day D1 write test** (Stage 0). It pauses both crons for a
    day.
-6. **Approve the spec,** and the deferrals in §9: #1, #12, #18, #21, #31.
+6. **D6 – If the FEC bulk file validates** (§4.11): does D1 keep every
+   donation row, or per-member donor totals plus the top donors with their
+   FEC record IDs as evidence?
+7. **Stock trading** (§4.12): T1–T8. It isn't built until these are
+   answered; designing for it now just keeps the rebuild from having to be
+   redone.
+8. **Approve the spec,** and the deferrals in §9: #1, #12, #18, #21. #31 is
+   now designed for in §4.12, but its build waits on T1–T8.
