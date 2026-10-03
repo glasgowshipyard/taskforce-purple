@@ -10,7 +10,7 @@
 #     /analyze endpoint refuses every request without UPDATE_SECRET)
 #   - sets FEC_API_KEY in GitHub Actions for the refresh job
 #     (REBUILD_SPEC §5), if the GitHub CLI is logged in
-#   - records the new values in your local, gitignored API_KEYS.md
+#   - rewrites your local, gitignored API_KEYS.md to hold only the new values
 #   - checks both workers now list the secrets
 #
 # Values never appear on screen and are never written anywhere tracked.
@@ -53,15 +53,42 @@ else
 fi
 put itemized UPDATE_SECRET "$NEW_UPDATE_SECRET"
 
-{
-  echo
-  echo "## Rotated $(date -u +%Y-%m-%d) - CURRENT (set as Cloudflare Worker secrets)"
-  echo
-  echo "- api.data.gov key (FEC_API_KEY and CONGRESS_API_KEY): \`$NEW_KEY\`"
-  echo "- UPDATE_SECRET (admin endpoints; use as \$UPDATE_SECRET in RUNBOOK): \`$NEW_UPDATE_SECRET\`"
-  echo "- Everything above this section is RETIRED - those values are public in the repo's history."
-} >> API_KEYS.md
-echo "Recorded the new values at the end of API_KEYS.md (gitignored)."
+# Rewrite the whole file: it holds ONLY current values, so there is never an
+# old key sitting above the new one under an official-looking label
+cat > API_KEYS.md <<EOF
+# Task Force Purple: current credentials
+
+**Gitignored. Never commit, paste into chat, or put in code.** Every value
+here is CURRENT (last rotated $(date -u +%Y-%m-%d)). Retired values are deliberately
+not kept here.
+
+## api.data.gov key (one key, used for both the FEC and Congress.gov)
+
+\`$NEW_KEY\`
+
+Set as:
+- Cloudflare Worker secrets \`FEC_API_KEY\` and \`CONGRESS_API_KEY\` (pipeline
+  worker) and \`FEC_API_KEY\` (itemized worker);
+- GitHub Actions secret \`FEC_API_KEY\` (refresh job, REBUILD_SPEC §5).
+
+## UPDATE_SECRET (admin endpoints; \`\$UPDATE_SECRET\` in RUNBOOK)
+
+\`$NEW_UPDATE_SECRET\`
+
+Set as Cloudflare Worker secret \`UPDATE_SECRET\` on both workers.
+
+## Cloudflare API token for the refresh job
+
+Not stored here. It lives only as the GitHub Actions secret
+\`CLOUDFLARE_API_TOKEN\` (\`taskforce-purple-github-actions-kv-d1\`, KV and D1
+read/write on this account). To replace it, create a new one in the
+Cloudflare dashboard and run \`bash scripts/set-github-secrets.sh\`.
+
+## Rotating
+
+\`bash scripts/rotate-secrets.sh\` rewrites this file with the new values.
+EOF
+echo "Rewrote API_KEYS.md (gitignored) with only the new values."
 
 echo "Checking both workers..."
 p=$(npx wrangler secret list 2>/dev/null)
