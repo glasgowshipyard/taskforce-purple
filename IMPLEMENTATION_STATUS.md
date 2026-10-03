@@ -4,6 +4,56 @@
 
 ---
 
+## 2026-10-03: Stage 1 deployed: one record per member, slim list, diff-only writes (#46)
+
+REBUILD_SPEC.md Stage 1. API worker `9973eabf`; frontend `4544c53` (Pages).
+
+- **Storage.** `member:{bioguideId}` holds each member's full record;
+  `members:list` holds the exact `/api/members` body (308 KB, against 3.5 MB
+  for `members:all`). `workers/member-store.js` is the only writer: it writes
+  a member only when a field differs, and the list at most once per
+  invocation, only when a list-visible field changed.
+- **Serving.** `/api/members` returns the stored list without parsing it.
+  Offline, on production data: 0.8 ms CPU against 37.3 ms before. The
+  profile fetches the member's full record from `/api/member-detail` when it
+  opens.
+- **Re-grading** works per member, 10 per call (the slowest, cold call
+  measured 9.6–10.1 ms CPU offline), and writes only what changed. Use
+  `scripts/recalculate-all.sh`.
+- **Fixed on the way:**
+  - #5: `process-candidate` passed the member object as the committee ID
+    and threw the PAC results away.
+  - `process-candidate` accepted anyone; it now needs the admin secret.
+  - #14: `remove-member` now also clears the member's `fec_mapping_*`.
+  - #38: the list's date is when its data last changed (18:21 UTC today),
+    not 16 Jan.
+  - The profile no longer promises a scan "within about three weeks".
+- **Retired (HTTP 410):** the batch engine and its endpoints (`update-data`,
+  `update-fec-batch`, `smart-batch`, `test-member`, `reset-pac-data`,
+  `refresh-congress-metadata`) and the cron handler. Each rewrote every
+  member to change one. 2,073 lines of unreachable code were deleted (git
+  history keeps it). The refresh job (Stage 2) replaces them.
+- **Proof:** `node scripts/verify/stage1-equivalence.mjs` runs the old and
+  new workers against the same production snapshot with no network. All 539
+  members are identical on every list field (11,319 compared), on
+  member-detail, on `/api/members/{id}` and on `/api/status` (apart from the
+  #38 date). Re-grading gives identical results with 0 writes, where the old
+  path rewrote the whole list.
+- **Migration:** `scripts/migrations/2026-10-03-split-members.mjs` (540 KV
+  writes). Its budget guard refused at 20:25 UTC: 438 writes had already been
+  used today, before the pause. It is queued for 00:05 UTC. Until it runs,
+  the worker serves through the old path, which the check shows is identical.
+- **Still to meet for Stage 1's exit:** 48 h of zero `exceededResources` on
+  the API worker, and KV writes below the pre-pause baseline, both read from
+  Cloudflare analytics after the migration.
+- **Known:** `adaptiveThresholds` in the list is the cached July value. The
+  old path would have recomputed it after 17 Oct; recomputing it moves to the
+  refresh job (Stage 2). The itemized worker's `/status` still reads
+  `members:all`, which stays as the rollback copy until that worker is
+  retired in Stage 2.
+
+---
+
 ## 2026-10-03: all scheduled jobs PAUSED for the rebuild (owner's decision)
 
 The owner paused everything while the rebuild spec (`REBUILD_SPEC.md`, #47)
