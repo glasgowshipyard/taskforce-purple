@@ -163,21 +163,35 @@ that's interrupted or hits the 6 h limit continues where it stopped.
      7.8 GB in total.
    - DuckDB keeps only the rows for committees in any member's pool. A full
      scan of all 32.3M rows took 2.4 s on the owner's Mac.
-5. **Gap check and fill** (the hybrid, D6a). Per committee, compare the bulk
-   file's record count with the FEC API's **exact** count. Where they
-   differ, or the FEC's count is only an estimate, narrow it down by month,
-   then week, then day, and fetch **only the mismatched slices** from the
-   API. The API's records replace the bulk file's for those slices.
-   - Proven necessary: Williams had 31 of 351 records ($7,795) missing from
-     the bulk file but present in the API.
-   - **VERIFY in Stage 0:** which API filter yields a count that is
-     comparable to the bulk file's rows. The bulk file holds individual
-     contributions (transaction types `15`, `15E`, `11`, `22Y`, plus memo
-     rows); the API's unfiltered count includes committee money. Find the
-     filter whose counts match exactly on several committees before relying
-     on it.
+5. **Gap check and fill** (the hybrid, D6a). Established in Stage 0
+   (2026-10-03, on Williams C00752584, where every record was checked by
+   `SUB_ID`). The bulk file is exactly a subset of the FEC's own
+   **`is_individual=true`** set, and three things together make a committee
+   complete:
+   1. **Missing individual records.** Compare the bulk file's record count
+      with the API's exact count for `is_individual=true`. Any difference is
+      records the bulk file is missing. Williams: the API had 356, the bulk
+      file 326; all 326 were in the API set, so 30 were missing and none
+      were extra. Where the counts differ, or the FEC's count is only an
+      estimate, narrow it down by month, then week, then day, and fetch
+      **only those slices**. The API's records, with cents, replace the bulk
+      file's for those slices.
+   2. **Earmarked gifts the FEC doesn't flag as individual.** A person's
+      donation passed through a PAC conduit (Williams: a $7,000 gift
+      "earmarked for End Citizens United") is on the individual line but
+      flagged `is_individual: false`. The bulk file leaves it out, yet the
+      FEC's itemized total counts it. **One call per committee** finds them
+      all: `line_number=F3-11AI&is_individual=false&contributor_type=individual`.
+      Williams returned exactly 1; Pelosi's and Sanders's campaigns returned 0. Fetch them, then classify them with `schedule-a-classify.js` (memo
+      lines excluded).
+   3. **The money check** (§6). Proven exact on Williams: 352 non-memo
+      individual records ($147,007.00) plus the 1 earmarked gift ($7,000)
+      equals the FEC's itemized total of $154,007.00, to the cent.
    - Within an API slice, paginate with `last_index` plus `max_date`. Deep
      cursors without `max_date` time out.
+   - **VERIFY at Stage 2's exit:** Pelosi's campaign (API 23,295
+     individual records against the bulk file's 23,159) reconciles the same
+     way once its 136 missing records are filled.
 6. **Analysis**, in DuckDB, over each member's pooled donors (donor key
    `FIRST|LAST|STATE|ZIP5`, as today):
    - unique donors, top-10 share, Nakamoto coefficient and median;
@@ -338,11 +352,16 @@ Campaign money only changes when committees file. So:
   `bash scripts/set-github-secrets.sh`. It checks both values before
   storing them; future key rotations update GitHub too.
 - **Measurements:**
-  1. Find the API filter whose counts compare exactly with the bulk file's
-     records (§5 step 5).
-  2. The FEC reporting-dates endpoint: confirm it gives what the calendar
-     check needs.
+  1. ~~The comparable-count filter~~: done 2026-10-03 (`is_individual=true`,
+     plus the earmarked-gift call; §5 step 5).
+  2. ~~The reporting-dates endpoint~~: done 2026-10-03. Use
+     `/v1/reporting-dates/?min_due_date=…&max_due_date=…`; `due_date_gte` is
+     ignored. It returns every deadline: quarterlies, monthlies, and
+     pre-general reports entered state by state (Q3 due 15 Oct 2026, M10 on
+     20 Oct, 12G on 22 Oct).
   3. ~~Current GitHub runner specs~~: done 2026-10-03 (see §5 step 4).
+  4. FEC rate limit confirmed from the response headers:
+     `x-ratelimit-limit: 60`, over a short (per-minute) window.
 - **Freeze:** no patches to the old collection paths. Everything is
   already paused.
 

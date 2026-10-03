@@ -8,6 +8,8 @@
 #   - sets FEC_API_KEY, CONGRESS_API_KEY and UPDATE_SECRET on the pipeline
 #     worker, and FEC_API_KEY and UPDATE_SECRET on the itemized worker (its
 #     /analyze endpoint refuses every request without UPDATE_SECRET)
+#   - sets FEC_API_KEY in GitHub Actions for the refresh job
+#     (REBUILD_SPEC §5), if the GitHub CLI is logged in
 #   - records the new values in your local, gitignored API_KEYS.md
 #   - checks both workers now list the secrets
 #
