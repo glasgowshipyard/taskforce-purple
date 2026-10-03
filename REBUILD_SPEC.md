@@ -864,32 +864,29 @@ donation to D1.
   - silent `catch` blocks that turn failure into "no data";
   - CPU against 10 ms.
 
-## 11. Decisions the owner needs to make
+## 11. Decisions
 
-1. **D1 – Cycle rollover** (§4.10). Keep the last complete cycle's grade,
-   labelled, until the new cycle has complete evidence and its first
-   quarterly report, showing the new cycle as trajectory meanwhile. Yes or
-   no?
-2. **D2 – Senators** (§4.10). Two-year periods like everyone else, with
-   earlier periods shown as history (proposed), or their whole six-year term?
-3. **D3 – Records match the FEC exactly but the money doesn't** (§4.6).
-   Publish with the difference disclosed (proposed), or stay pending?
-4. **D4 – Lane split** of the daily D1 budget: 50/50 big versus regular
-   (proposed)?
-5. **D5 – The one-day D1 write test** (Stage 0). It pauses both crons for a
-   day.
-6. **D6 – The FEC bulk file** (§4.11, validated: fast, same concentration,
-   but rounded to dollars and missing some records):
-   - **(a)** Adopt the hybrid: a bulk pass after each filing deadline, plus
-     API fetches only for
-     slices whose counts differ.
-   - **(b)** The cents rule: records must match exactly by FEC ID, and money
-     within the FEC's whole-dollar rounding (under $0.50 a record). The
-     alternative is fetching every amount from the API.
-   - **(c)** Does D1 keep every donation row, or per-member donor totals plus
-     the top donors with their FEC record IDs?
-7. **Stock trading** (§4.12): T1–T8. It isn't built until these are
-   answered; designing for it now just keeps the rebuild from having to be
-   redone.
-8. **Approve the spec,** and the deferrals in §9: #1, #12, #18, #21. #31 is
-   now designed for in §4.12, but its build waits on T1–T8.
+**Decided by the owner, 2026-10-03:**
+
+- **D1, cycle rollover: YES.** Keep the last complete cycle's grade,
+  labelled, until the new cycle has complete evidence and its first
+  quarterly report. Show the new cycle as trajectory meanwhile.
+- **D2, senators:** two-year periods, like everyone else, for simplicity.
+- **D6a, the hybrid: YES.** A bulk-file pass after each filing deadline,
+  plus API fetches only for slices whose counts differ (§4.11). The lanes
+  (D4) and the API-backfill sections are superseded and are removed in the
+  consolidation rewrite.
+- **D6b, whole dollars accepted.** Every record must be present, matched by
+  FEC ID. Money is checked within the FEC's whole-dollar rounding.
+- **T1, stock trading:** "anyone making trades that produce financial benefit
+  while in office are dirty". Defining that precisely needs the follow-ups
+  below.
+
+**Still open:**
+
+- **D3:** restated in plain terms in the conversation of 2026-10-03; awaiting
+  an answer.
+- **D6c:** does D1 keep every donation row, or per-member donor totals plus
+  the top donors with their FEC IDs? This also decides whether D5 (the D1
+  write test) is needed at all.
+- **T1 follow-ups, and T2–T8.**
