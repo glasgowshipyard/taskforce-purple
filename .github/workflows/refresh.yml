@@ -1,9 +1,11 @@
 name: Refresh
 
 # The refresh job (REBUILD_SPEC.md §5): all FEC work, off Cloudflare.
-# Stage 2: started by hand only, and it records results without publishing
-# them. The filing-calendar trigger (§8) is added once the job is proven;
-# every scheduled job is paused for the rebuild (owner's decision, 2026-10-03).
+# Stage 2: started by hand, and it records results without publishing them.
+# A pass that outlasts one run (the FEC allows 1,000 calls an hour) starts its
+# own next run until every member is done. The filing-calendar trigger (§8)
+# comes in Stage 3; every scheduled job is paused for the rebuild (owner's
+# decision, 2026-10-03).
 on:
   workflow_dispatch:
     inputs:
@@ -23,6 +25,7 @@ on:
 permissions:
   contents: read
   issues: write
+  actions: write # to start the next run of a pass
 
 concurrency:
   group: refresh
@@ -46,6 +49,7 @@ jobs:
           npm install --no-save @duckdb/node-api
 
       - name: Run the refresh job
+        id: refresh
         env:
           FEC_API_KEY: ${{ secrets.FEC_API_KEY }}
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
@@ -72,3 +76,16 @@ jobs:
           GH_REPO: ${{ github.repository }}
           JOB_FAILED_URL: ${{ job.status != 'success' && format('{0}/{1}/actions/runs/{2}', github.server_url, github.repository, github.run_id) || '' }}
         run: bash scripts/health-alert.sh
+
+      # A pass over Congress takes several runs. When this run stopped on its
+      # time budget with members left, and finished at least one (so it can't
+      # loop on members that keep failing), start the next run of the same
+      # round. A stop for the D1 budget doesn't chain: D1 resets at 00:00 UTC.
+      - name: Continue the pass
+        if: always() && steps.refresh.outputs.stop_reason == 'time' && steps.refresh.outputs.progressed != '0' && !inputs.dry_run && inputs.members == ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          echo "${{ steps.refresh.outputs.remaining }} member(s) left: starting the next run of this pass"
+          gh workflow run refresh.yml -f dry_run=false

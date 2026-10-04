@@ -28,7 +28,23 @@ import {
 const num = v => (Number.isFinite(Number(v)) ? Number(v) : 0);
 const countsApi = r => countsAsItemizedIndividual(classifyScheduleARow(r));
 
-export async function reconcileCommittee({ fec, bulk, committeeId, cycle, log = () => {} }) {
+// Thrown when a committee's gap search runs past the run's hard deadline: the
+// committee is left for the next run (not failed), which starts it afresh
+export class TimeBudgetError extends Error {
+  constructor(committeeId) {
+    super(`${committeeId}: run out of time mid-search; left for the next run`);
+    this.name = 'TimeBudgetError';
+  }
+}
+
+export async function reconcileCommittee({
+  fec,
+  bulk,
+  committeeId,
+  cycle,
+  log = () => {},
+  deadline = null,
+}) {
   const { conn, read } = bulk;
   const totals = (await fec(`/committee/${committeeId}/totals/`, { cycle })).results?.[0] || null;
   const fecTotal = num(totals?.individual_itemized_contributions);
@@ -92,6 +108,9 @@ export async function reconcileCommittee({ fec, bulk, committeeId, cycle, log = 
     return fetched;
   }
   async function checkRange(range) {
+    if (deadline && Date.now() > deadline) {
+      throw new TimeBudgetError(committeeId);
+    }
     const api = await scheduleACount(fec, {
       ...base,
       is_individual: true,

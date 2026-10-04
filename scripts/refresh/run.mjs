@@ -18,7 +18,7 @@
  * GitHub Actions secrets). Run locally, the FEC key falls back to API_KEYS.md
  * and Cloudflare to the wrangler login. Nothing secret is ever printed.
  */
-import { existsSync, mkdirSync, readFileSync } from 'node:fs';
+import { appendFileSync, existsSync, mkdirSync, readFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { FEC_CROSSWALK } from '../../workers/fec-crosswalk.js';
@@ -34,7 +34,7 @@ import { cycleForYear } from '../../workers/tier-calculation.js';
 import { analyzePool, loadFara } from './lib/analysis.mjs';
 import { apiRowToBulkShape, ensureBulkFile, insertApiRows, loadBulk } from './lib/bulk.mjs';
 import { createCloudflare } from './lib/cloudflare.mjs';
-import { reconcileCommittee } from './lib/committee.mjs';
+import { TimeBudgetError, reconcileCommittee } from './lib/committee.mjs';
 import { createFecClient } from './lib/fec.mjs';
 
 export const RESULTS_DB = 'f4ad9245-769d-4bb2-b772-c552907e1692'; // tfp-results
@@ -156,12 +156,19 @@ async function main() {
   };
   const summary = { complete: 0, pending: 0, failed: 0, skipped: 0 };
   let processed = 0;
+  let stopReason = 'done'; // done | time | d1
+  // Soft deadline: start no new member or committee after it. Hard deadline:
+  // a committee mid-search stops (the job's own limit is 350 minutes)
+  const softDeadline = started + budgetMs;
+  const hardDeadline = softDeadline + 15 * 60000;
+  let cutShort = false;
 
   for (let b = 0; b < targets.length; b += batchSize) {
     if (Date.now() - started > budgetMs) {
       log(
         `time budget reached: ${targets.length - b} member(s) left for the next run of ${roundId}`
       );
+      stopReason = 'time';
       break;
     }
     // D1 budget, again before each batch: today's ledger plus what this run
@@ -171,6 +178,7 @@ async function main() {
       log(
         `D1 budget: ${writtenToday} rows written today; stopping, ${targets.length - b} member(s) left for the next run of ${roundId}`
       );
+      stopReason = 'd1';
       break;
     }
     const batch = targets.slice(b, b + batchSize);
@@ -178,6 +186,10 @@ async function main() {
     // 1. Each member's committees (discovery, #32)
     const people = [];
     for (const m of batch) {
+      if (Date.now() > softDeadline) {
+        cutShort = true;
+        break;
+      }
       const ids = crosswalkIdsFor(m.bioguideId, FEC_CROSSWALK);
       if (!ids.length) {
         people.push({ id: m.bioguideId, name: m.name, skip: 'no FEC identity (N/A)' });
@@ -191,6 +203,12 @@ async function main() {
         people.push({ id: m.bioguideId, name: m.name, error: `discovery: ${error.message}` });
         log(`  ${m.name}: discovery failed: ${error.message}`);
       }
+    }
+
+    if (cutShort) {
+      log(`time budget reached during discovery: this batch is left for the next run`);
+      stopReason = 'time';
+      break;
     }
 
     // 2. The bulk file, loaded for this batch's committees
@@ -227,7 +245,18 @@ async function main() {
           log(`  ${id}: already reconciled this round (${prior.status}); reused`);
           continue;
         }
-        const r = await reconcileCommittee({ fec, bulk, committeeId: id, cycle, log });
+        if (Date.now() > softDeadline) {
+          cutShort = true;
+          break;
+        }
+        const r = await reconcileCommittee({
+          fec,
+          bulk,
+          committeeId: id,
+          cycle,
+          log,
+          deadline: hardDeadline,
+        });
         committees.set(id, r);
         log(
           `  ${id} ${r.name}: ${r.status} (bulk ${r.bulkCount}, FEC ${r.fecIndividualCount}${r.fecCountExact ? '' : '~'}, filled ${r.gapFilled}, earmarked ${r.earmarkedExtra}, delta $${r.money.delta}; ${r.rangesCounted} ranges, ${r.fetchedSlices} fetched, ${fec.calls} FEC calls so far)`
@@ -280,6 +309,11 @@ async function main() {
           }
         }
       } catch (error) {
+        if (error instanceof TimeBudgetError) {
+          log(`  ${error.message}`);
+          cutShort = true;
+          break;
+        }
         committees.set(id, { committeeId: id, status: 'failed', note: error.message });
         log(`  ${id}: reconciliation failed: ${error.message}`);
       }
@@ -287,6 +321,11 @@ async function main() {
 
     // 4. Analyse and grade each member (Stage 2: recorded, not published)
     for (const p of people) {
+      // Out of time before all this member's committees were checked: leave
+      // them for the next run (committees already checked are reused there)
+      if (cutShort && !p.skip && !p.error && p.pool.some(id => !committees.has(id))) {
+        continue;
+      }
       processed++;
       const progress = async (status, error = null) => {
         if (dryRun) {
@@ -406,6 +445,11 @@ async function main() {
         await progress('failed', error.message);
       }
     }
+    if (cutShort) {
+      log(`time budget reached mid-batch: the rest is left for the next run of ${roundId}`);
+      stopReason = 'time';
+      break;
+    }
   }
 
   const remaining = targets.length - processed;
@@ -419,6 +463,14 @@ async function main() {
     minutes: Math.round((Date.now() - started) / 60000),
   };
   log('summary', JSON.stringify(stats));
+  // For the workflow: whether to start the next run of this round
+  if (process.env.GITHUB_OUTPUT) {
+    const progressed = summary.complete + summary.pending + summary.skipped;
+    appendFileSync(
+      process.env.GITHUB_OUTPUT,
+      `stop_reason=${stopReason}\nremaining=${remaining}\nprogressed=${progressed}\n`
+    );
+  }
   if (!dryRun) {
     if (!only.length && remaining === 0) {
       await d1('UPDATE rounds SET finished_at = ? WHERE round_id = ?', [now(), roundId]);
