@@ -186,6 +186,15 @@ the Cloudflare dashboard → Workers & Pages → KV → namespace → Metrics.
 Cloudflare emails at 50% of writes — at our cruising altitude that email
 is normal background noise, not an incident.
 
+### Storage health since Stage 1 (CPU kills and KV writes)
+
+```bash
+# Cloudflare's own figures since the Stage 1 migration: CPU-limit kills on
+# the API worker (must be 0) and KV writes per day (must stay below the
+# pre-pause 290-500). Read-only; uses your wrangler login.
+node scripts/verify/stage1-exit-check.mjs
+```
+
 ## 7. Deploys and CI
 
 ```bash
