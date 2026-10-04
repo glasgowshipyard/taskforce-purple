@@ -4,6 +4,56 @@
 
 ---
 
+## 2026-10-03: Stage 2 in progress: the refresh job (REBUILD_SPEC §5)
+
+Built (`be1d27b`); nothing is published yet, by design:
+
+- **`scripts/refresh/`** (Node + DuckDB) has these parts:
+  - an FEC client paced under the key's real limit;
+  - a Cloudflare REST client (KV and D1; every D1 write is charged to the
+    `tfp-results` ledger from D1's own `rows_written`);
+  - the bulk loader (extracts only `itcont.txt`, which fits a runner's
+    14 GB disk);
+  - per-committee reconciliation;
+  - pooled donor analysis in DuckDB;
+  - the `run.mjs` orchestrator (`--members`, `--dry-run`).
+- **D1 `tfp-results`** (`f4ad9245`): runs, member progress, committees,
+  gap records, results, snapshots, grade history, the write ledger, and the
+  225 FARA employer matches (copied).
+- **`workers/grading.js`**: the grade step, now shared by the API worker and
+  the job. The equivalence check gives identical grades for all 539 members.
+- **`.github/workflows/refresh.yml`**: manual dispatch only (everything
+  scheduled is paused); it opens a `system-alert` issue on failure.
+
+**Reconciliation, as built.** The bulk file is a subset of the FEC's
+`is_individual=true` records, so:
+
+1. Compare counts.
+2. On a mismatch, binary-search the dates (one count call per half) and
+   fetch only small ranges that still differ.
+3. Make one more call per committee for gifts earmarked through PAC
+   conduits, which the FEC doesn't flag as individual.
+4. Do the money check within whole-dollar rounding.
+
+**Proven on Williams (W000788).** Her campaign had 30 records missing from
+the bulk file and a $7,000 earmarked gift, all filled from the API; the
+money is within $2 of the FEC's total. Her leadership PAC matches exactly.
+That took 26 FEC calls locally, and also in GitHub Actions (run 37169374224):
+secrets OK, 2.2 GB downloaded in 29 s and extracted in 43 s, identical
+result.
+
+**Found: the FEC limit is 1,000 calls an hour per personal key**, not 60 a
+minute (the FEC's own 429 message). The job paces at 3.7 s a call and waits
+out 429s. The first full pass will take roughly 7–10 hours over two or three
+runs, or 1–2 hours with a free upgraded key from apiinfo@fec.gov (the owner
+has the email to send).
+
+**Next:** the Sanders, Pelosi and AOC reconciliation (dry run 37170371462),
+then the itemized worker's retirement, the filing-calendar check, and a full
+run.
+
+---
+
 ## 2026-10-03: Stage 1 deployed: one record per member, slim list, diff-only writes (#46)
 
 REBUILD_SPEC.md Stage 1. API worker `9973eabf`; frontend `4544c53` (Pages).
