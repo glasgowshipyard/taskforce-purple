@@ -4,7 +4,15 @@
  * results; publishes nothing (Stage 3 does).
  *
  *   node scripts/refresh/run.mjs [--members ID,ID] [--cycle 2026] [--dry-run]
- *                                [--bulk-dir DIR] [--trigger manual|calendar|event]
+ *     [--bulk-dir DIR] [--trigger manual|calendar|event] [--new-round REASON]
+ *     [--budget-minutes 300] [--batch 25]
+ *
+ * Rounds: one round is one full pass over Congress. The FEC allows 1,000
+ * calls an hour, so a first pass takes several runs: each run continues the
+ * open round, skips members already done in it, works in batches, and stops
+ * cleanly when its time budget is spent. A committee shared by several
+ * members (a joint fund) is reconciled once per round; later runs reload its
+ * gap records from D1 instead of fetching them again.
  *
  * Credentials: FEC_API_KEY and CLOUDFLARE_API_TOKEN from the environment (the
  * GitHub Actions secrets). Run locally, the FEC key falls back to API_KEYS.md
@@ -16,17 +24,22 @@ import { join } from 'node:path';
 import { FEC_CROSSWALK } from '../../workers/fec-crosswalk.js';
 import { crosswalkIdsFor } from '../../workers/fec-identity.js';
 import { gradeMember } from '../../workers/grading.js';
-import { memberKey, LIST_KEY } from '../../workers/member-store.js';
+import { LIST_KEY, memberKey } from '../../workers/member-store.js';
 import { fetchPersonFunding } from '../../workers/person-funding.js';
+import {
+  classifyScheduleARow,
+  countsAsItemizedIndividual,
+} from '../../workers/schedule-a-classify.js';
 import { cycleForYear } from '../../workers/tier-calculation.js';
 import { analyzePool, loadFara } from './lib/analysis.mjs';
-import { ensureBulkFile, loadBulk } from './lib/bulk.mjs';
+import { apiRowToBulkShape, ensureBulkFile, insertApiRows, loadBulk } from './lib/bulk.mjs';
 import { createCloudflare } from './lib/cloudflare.mjs';
 import { reconcileCommittee } from './lib/committee.mjs';
 import { createFecClient } from './lib/fec.mjs';
 
 export const RESULTS_DB = 'f4ad9245-769d-4bb2-b772-c552907e1692'; // tfp-results
 const D1_DAILY_CAP = 85000; // the account's D1 limit is 100k/day, shared with other projects
+const SETTLED = new Set(['reconciled', 'reconciled-with-note', 'mismatch']);
 
 const arg = (name, dflt) => {
   const i = process.argv.indexOf(name);
@@ -34,6 +47,7 @@ const arg = (name, dflt) => {
 };
 const now = () => new Date().toISOString();
 const log = (...a) => console.log(`[${new Date().toISOString().slice(11, 19)}]`, ...a);
+const countsApi = r => countsAsItemizedIndividual(classifyScheduleARow(r));
 
 function fecKey() {
   if (process.env.FEC_API_KEY) {
@@ -44,6 +58,7 @@ function fecKey() {
 }
 
 async function main() {
+  const started = Date.now();
   const dryRun = process.argv.includes('--dry-run');
   const cycle = Number(arg('--cycle', cycleForYear(new Date().getUTCFullYear())));
   const only = arg('--members', '')
@@ -51,6 +66,8 @@ async function main() {
     .map(s => s.trim())
     .filter(Boolean);
   const bulkDir = arg('--bulk-dir', join(tmpdir(), 'tfp-bulk'));
+  const budgetMs = Number(arg('--budget-minutes', 300)) * 60000;
+  const batchSize = Number(arg('--batch', 25));
   mkdirSync(bulkDir, { recursive: true });
 
   const cf = createCloudflare();
@@ -64,103 +81,54 @@ async function main() {
   if ((ledger?.rows_written || 0) > D1_DAILY_CAP - 20000) {
     throw new Error(`D1 budget: ${ledger.rows_written} rows written today; not starting`);
   }
+
+  // The round this run belongs to
+  let roundId = 'dry-run';
   if (!dryRun) {
-    await d1('INSERT INTO runs (run_id, started_at, trigger, status) VALUES (?, ?, ?, ?)', [
-      runId,
-      now(),
-      arg('--trigger', 'manual'),
-      'running',
-    ]);
+    const reason = arg('--new-round', null);
+    const [open] = await d1(
+      'SELECT round_id FROM rounds WHERE cycle = ? AND finished_at IS NULL ORDER BY started_at DESC LIMIT 1',
+      [cycle]
+    );
+    if (open && !reason) {
+      roundId = open.round_id;
+    } else {
+      roundId = `round-${now()}`;
+      await d1('INSERT INTO rounds (round_id, cycle, started_at, reason) VALUES (?,?,?,?)', [
+        roundId,
+        cycle,
+        now(),
+        reason || 'first run',
+      ]);
+    }
+    await d1(
+      'INSERT INTO runs (run_id, started_at, trigger, status, round_id) VALUES (?, ?, ?, ?, ?)',
+      [runId, now(), arg('--trigger', 'manual'), 'running', roundId]
+    );
   }
 
-  // 1. Members: ids from the stored list, full records per member
+  // Members still to do in this round
   const list = JSON.parse((await cf.kvGet(LIST_KEY)) || '{"members":[]}').members;
-  const targets = only.length ? list.filter(m => only.includes(m.bioguideId)) : list;
-  log(`run ${runId}: ${targets.length} member(s), cycle ${cycle}${dryRun ? ' (dry run)' : ''}`);
-
-  // 2. Each member's committees (discovery, #32)
-  const people = [];
-  for (const m of targets) {
-    const ids = crosswalkIdsFor(m.bioguideId, FEC_CROSSWALK);
-    if (!ids.length) {
-      people.push({ id: m.bioguideId, name: m.name, skip: 'no FEC identity (N/A)' });
-      continue;
-    }
-    try {
-      const pf = await fetchPersonFunding(fec, ids, cycle);
-      people.push({ id: m.bioguideId, name: m.name, pf, pool: pf.donorCommitteeIds });
-      log(`  ${m.name}: pool ${pf.donorCommitteeIds.join(', ') || '(none)'}`);
-    } catch (error) {
-      people.push({ id: m.bioguideId, name: m.name, error: `discovery: ${error.message}` });
-      log(`  ${m.name}: discovery failed: ${error.message}`);
-    }
-  }
-
-  // 3. The bulk file, loaded once for every committee in any pool
-  const allIds = [...new Set(people.flatMap(p => p.pool || []))];
-  const file = ensureBulkFile(cycle, bulkDir, log);
-  const bulk = await loadBulk(file.path, allIds);
-  await loadFara(
-    bulk,
-    await d1('SELECT employer, fara_firm, registration_number FROM fara_employer_matches')
-  );
-  log(`bulk file of ${file.lastModified} loaded for ${allIds.length} committee(s)`);
-
-  // 4. Reconcile each committee once
-  const committees = new Map();
-  for (const id of allIds) {
-    try {
-      const r = await reconcileCommittee({ fec, bulk, committeeId: id, cycle, log });
-      committees.set(id, r);
-      log(
-        `  ${id} ${r.name}: ${r.status} (bulk ${r.bulkCount}, FEC ${r.fecIndividualCount}${r.fecCountExact ? '' : '~'}, filled ${r.gapFilled}, earmarked ${r.earmarkedExtra}, delta $${r.money.delta}; ${r.rangesCounted} ranges counted, ${r.fetchedSlices} fetched, ${fec.calls} FEC calls so far)`
-      );
-      if (!dryRun) {
+  let targets = only.length ? list.filter(m => only.includes(m.bioguideId)) : list;
+  if (!dryRun && !only.length) {
+    const done = new Set(
+      (
         await d1(
-          `INSERT INTO committees (committee_id, cycle, name, fec_itemized_total, fec_individual_count, fec_count_exact,
-             bulk_count, gap_filled, earmarked_extra, our_itemized_total, status, note, checked_at)
-           VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)
-           ON CONFLICT(committee_id, cycle) DO UPDATE SET name=excluded.name, fec_itemized_total=excluded.fec_itemized_total,
-             fec_individual_count=excluded.fec_individual_count, fec_count_exact=excluded.fec_count_exact,
-             bulk_count=excluded.bulk_count, gap_filled=excluded.gap_filled, earmarked_extra=excluded.earmarked_extra,
-             our_itemized_total=excluded.our_itemized_total, status=excluded.status, note=excluded.note,
-             checked_at=excluded.checked_at`,
-          [
-            id,
-            cycle,
-            r.name,
-            r.fecItemizedTotal,
-            r.fecIndividualCount,
-            r.fecCountExact ? 1 : 0,
-            r.bulkCount,
-            r.gapFilled,
-            r.earmarkedExtra,
-            r.ourItemizedTotal,
-            r.status,
-            r.note,
-            now(),
-          ]
-        );
-        const fetched = [
-          ...r.gapRows.map(x => ['gap', x]),
-          ...r.earmarkedRows.map(x => ['earmarked', x]),
-        ];
-        for (let i = 0; i < fetched.length; i += 15) {
-          const b = fetched.slice(i, i + 15);
-          await d1(
-            `INSERT INTO gap_records (sub_id, committee_id, cycle, kind, record, fetched_at) VALUES ${b.map(() => '(?,?,?,?,?,?)').join(',')}
-             ON CONFLICT(sub_id) DO NOTHING`,
-            b.flatMap(([kind, x]) => [String(x.sub_id), id, cycle, kind, JSON.stringify(x), now()])
-          );
-        }
-      }
-    } catch (error) {
-      committees.set(id, { committeeId: id, status: 'failed', note: error.message });
-      log(`  ${id}: reconciliation failed: ${error.message}`);
-    }
+          "SELECT bioguide_id FROM member_progress WHERE cycle = ? AND round_id = ? AND status = 'done'",
+          [cycle, roundId]
+        )
+      ).map(r => r.bioguide_id)
+    );
+    targets = targets.filter(m => !done.has(m.bioguideId));
   }
+  log(
+    `run ${runId} (${roundId}): ${targets.length} member(s) to do, cycle ${cycle}${dryRun ? ' (dry run)' : ''}`
+  );
 
-  // 5. Analyse and grade each member (Stage 2: recorded, not published)
+  const file = ensureBulkFile(cycle, bulkDir, log);
+  const fara = await d1(
+    'SELECT employer, fara_firm, registration_number FROM fara_employer_matches'
+  );
   const conduitNames = new Map();
   const conduitName = async id => {
     if (!conduitNames.has(id)) {
@@ -170,115 +138,266 @@ async function main() {
     return conduitNames.get(id);
   };
   const summary = { complete: 0, pending: 0, failed: 0, skipped: 0 };
-  for (const p of people) {
-    if (p.skip || p.error) {
-      summary[p.skip ? 'skipped' : 'failed']++;
-      if (!dryRun && p.error) {
-        await d1(
-          `INSERT INTO member_progress (bioguide_id, cycle, status, last_error, attempts, updated_at) VALUES (?,?,?,?,1,?)
-           ON CONFLICT(bioguide_id, cycle) DO UPDATE SET status=excluded.status, last_error=excluded.last_error,
-             attempts=member_progress.attempts+1, updated_at=excluded.updated_at`,
-          [p.id, cycle, 'failed', p.error, now()]
-        );
-      }
-      continue;
+  let processed = 0;
+
+  for (let b = 0; b < targets.length; b += batchSize) {
+    if (Date.now() - started > budgetMs) {
+      log(
+        `time budget reached: ${targets.length - b} member(s) left for the next run of ${roundId}`
+      );
+      break;
     }
-    const recon = p.pool.map(id => ({ committeeId: id, ...committees.get(id) }));
-    const ok = recon.every(r => r.status === 'reconciled' || r.status === 'reconciled-with-note');
-    const notes = recon
-      .filter(r => r.note && r.status === 'reconciled-with-note')
-      .map(r => `${r.committeeId}: ${r.note}`);
-    const analysis = await analyzePool(bulk, p.pool, { conduitName });
-    const member = JSON.parse((await cf.kvGet(memberKey(p.id))) || 'null');
-    const asStored = {
-      ...analysis,
-      personLevel: true,
-      personFunding: p.pf,
-      reconciliation: { ok },
-    };
-    const grade = member ? gradeMember(member, asStored) : null;
-    const status = ok && grade ? 'complete' : 'pending';
-    summary[status]++;
-    log(
-      `  ${p.name}: ${status}${grade ? ` -> ${grade.tier} (${grade.gradeBasis}), donors ${analysis.uniqueDonors}, Nakamoto ${analysis.nakamotoCoefficient}` : ''}${
-        ok
-          ? ''
-          : ` [not reconciled: ${recon
-              .filter(r => !['reconciled', 'reconciled-with-note'].includes(r.status))
-              .map(r => r.committeeId)
-              .join(', ')}]`
-      }`
-    );
-    if (!dryRun) {
-      const result = {
-        pool: {
-          committees: p.pf.committees,
-          donorCommitteeIds: p.pool,
-          totals: { totalRaised: p.pf.totalRaised, raisedInName: p.pf.raisedInName },
-        },
-        analysis,
-        reconciliation: {
-          ok,
-          notes,
-          committees: recon.map(({ gapRows: _gap, earmarkedRows: _earmarked, ...r }) => r),
-        },
-        grade: grade && {
-          tier: grade.tier,
-          individualFundingPercent: grade.individualFundingPercent,
-          gradeBasis: grade.gradeBasis,
-          personFigures: grade.personFigures,
-          detail: grade.detail,
-        },
-      };
-      const [prev] = await d1(
-        'SELECT analysis, grade, reconciliation FROM results WHERE bioguide_id = ? AND cycle = ?',
-        [p.id, cycle]
-      );
-      const changed =
-        !prev ||
-        prev.analysis !== JSON.stringify(result.analysis) ||
-        prev.grade !== JSON.stringify(result.grade) ||
-        prev.reconciliation !== JSON.stringify(result.reconciliation);
-      if (changed) {
-        await d1(
-          `INSERT INTO results (bioguide_id, cycle, computed_at, bulk_file_date, pool, analysis, reconciliation, grade, status)
-           VALUES (?,?,?,?,?,?,?,?,?)
-           ON CONFLICT(bioguide_id, cycle) DO UPDATE SET computed_at=excluded.computed_at, bulk_file_date=excluded.bulk_file_date,
-             pool=excluded.pool, analysis=excluded.analysis, reconciliation=excluded.reconciliation, grade=excluded.grade, status=excluded.status`,
-          [
-            p.id,
-            cycle,
-            now(),
-            file.lastModified,
-            JSON.stringify(result.pool),
-            JSON.stringify(result.analysis),
-            JSON.stringify(result.reconciliation),
-            JSON.stringify(result.grade),
-            status,
-          ]
-        );
-        await d1(
-          'INSERT INTO snapshots (bioguide_id, cycle, created_at, result) VALUES (?,?,?,?)',
-          [p.id, cycle, now(), JSON.stringify(result)]
-        );
+    const batch = targets.slice(b, b + batchSize);
+
+    // 1. Each member's committees (discovery, #32)
+    const people = [];
+    for (const m of batch) {
+      const ids = crosswalkIdsFor(m.bioguideId, FEC_CROSSWALK);
+      if (!ids.length) {
+        people.push({ id: m.bioguideId, name: m.name, skip: 'no FEC identity (N/A)' });
+        continue;
       }
-      await d1(
-        `INSERT INTO member_progress (bioguide_id, cycle, status, last_error, attempts, updated_at) VALUES (?,?,?,NULL,0,?)
-         ON CONFLICT(bioguide_id, cycle) DO UPDATE SET status=excluded.status, last_error=NULL, attempts=0, updated_at=excluded.updated_at`,
-        [p.id, cycle, 'done', now()]
-      );
+      try {
+        const pf = await fetchPersonFunding(fec, ids, cycle);
+        people.push({ id: m.bioguideId, name: m.name, pf, pool: pf.donorCommitteeIds });
+        log(`  ${m.name}: pool ${pf.donorCommitteeIds.join(', ') || '(none)'}`);
+      } catch (error) {
+        people.push({ id: m.bioguideId, name: m.name, error: `discovery: ${error.message}` });
+        log(`  ${m.name}: discovery failed: ${error.message}`);
+      }
+    }
+
+    // 2. The bulk file, loaded for this batch's committees
+    const ids = [...new Set(people.flatMap(p => p.pool || []))];
+    const bulk = await loadBulk(file.path, ids.length ? ids : ['C00000000']);
+    await loadFara(bulk, fara);
+
+    // 3. Reconcile each committee once per round
+    const committees = new Map();
+    for (const id of ids) {
+      try {
+        const [prior] = dryRun
+          ? []
+          : await d1(
+              'SELECT * FROM committees WHERE committee_id = ? AND cycle = ? AND round_id = ?',
+              [id, cycle, roundId]
+            );
+        if (prior && SETTLED.has(prior.status)) {
+          const saved = await d1(
+            'SELECT record FROM gap_records WHERE committee_id = ? AND cycle = ?',
+            [id, cycle]
+          );
+          const rows = saved.map(s => JSON.parse(s.record));
+          await insertApiRows(
+            bulk.conn,
+            rows.map(r => apiRowToBulkShape(r, countsApi(r)))
+          );
+          committees.set(id, {
+            committeeId: id,
+            status: prior.status,
+            note: prior.note,
+            reused: true,
+          });
+          log(`  ${id}: already reconciled this round (${prior.status}); reused`);
+          continue;
+        }
+        const r = await reconcileCommittee({ fec, bulk, committeeId: id, cycle, log });
+        committees.set(id, r);
+        log(
+          `  ${id} ${r.name}: ${r.status} (bulk ${r.bulkCount}, FEC ${r.fecIndividualCount}${r.fecCountExact ? '' : '~'}, filled ${r.gapFilled}, earmarked ${r.earmarkedExtra}, delta $${r.money.delta}; ${r.rangesCounted} ranges, ${r.fetchedSlices} fetched, ${fec.calls} FEC calls so far)`
+        );
+        if (!dryRun) {
+          await d1(
+            `INSERT INTO committees (committee_id, cycle, name, fec_itemized_total, fec_individual_count, fec_count_exact,
+               bulk_count, gap_filled, earmarked_extra, our_itemized_total, status, note, checked_at, round_id)
+             VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+             ON CONFLICT(committee_id, cycle) DO UPDATE SET name=excluded.name, fec_itemized_total=excluded.fec_itemized_total,
+               fec_individual_count=excluded.fec_individual_count, fec_count_exact=excluded.fec_count_exact,
+               bulk_count=excluded.bulk_count, gap_filled=excluded.gap_filled, earmarked_extra=excluded.earmarked_extra,
+               our_itemized_total=excluded.our_itemized_total, status=excluded.status, note=excluded.note,
+               checked_at=excluded.checked_at, round_id=excluded.round_id`,
+            [
+              id,
+              cycle,
+              r.name,
+              r.fecItemizedTotal,
+              r.fecIndividualCount,
+              r.fecCountExact ? 1 : 0,
+              r.bulkCount,
+              r.gapFilled,
+              r.earmarkedExtra,
+              r.ourItemizedTotal,
+              r.status,
+              r.note,
+              now(),
+              roundId,
+            ]
+          );
+          const fetched = [
+            ...r.gapRows.map(x => ['gap', x]),
+            ...r.earmarkedRows.map(x => ['earmarked', x]),
+          ];
+          for (let i = 0; i < fetched.length; i += 15) {
+            const rows = fetched.slice(i, i + 15);
+            await d1(
+              `INSERT INTO gap_records (sub_id, committee_id, cycle, kind, record, fetched_at) VALUES ${rows.map(() => '(?,?,?,?,?,?)').join(',')}
+               ON CONFLICT(sub_id) DO NOTHING`,
+              rows.flatMap(([kind, x]) => [
+                String(x.sub_id),
+                id,
+                cycle,
+                kind,
+                JSON.stringify(x),
+                now(),
+              ])
+            );
+          }
+        }
+      } catch (error) {
+        committees.set(id, { committeeId: id, status: 'failed', note: error.message });
+        log(`  ${id}: reconciliation failed: ${error.message}`);
+      }
+    }
+
+    // 4. Analyse and grade each member (Stage 2: recorded, not published)
+    for (const p of people) {
+      processed++;
+      const progress = async (status, error = null) => {
+        if (dryRun) {
+          return;
+        }
+        await d1(
+          `INSERT INTO member_progress (bioguide_id, cycle, status, last_error, attempts, updated_at, round_id)
+           VALUES (?,?,?,?,?,?,?)
+           ON CONFLICT(bioguide_id, cycle) DO UPDATE SET status=excluded.status, last_error=excluded.last_error,
+             attempts=CASE WHEN excluded.status = 'failed' THEN member_progress.attempts + 1 ELSE 0 END,
+             updated_at=excluded.updated_at, round_id=excluded.round_id`,
+          [p.id, cycle, status, error, status === 'failed' ? 1 : 0, now(), roundId]
+        );
+      };
+      if (p.skip) {
+        summary.skipped++;
+        await progress('done');
+        continue;
+      }
+      const failedCommittees = (p.pool || []).filter(id => committees.get(id)?.status === 'failed');
+      if (p.error || failedCommittees.length) {
+        summary.failed++;
+        await progress(
+          'failed',
+          p.error || `reconciliation failed: ${failedCommittees.join(', ')}`
+        );
+        continue;
+      }
+      try {
+        const recon = p.pool.map(id => {
+          const r = { ...committees.get(id) };
+          delete r.gapRows;
+          delete r.earmarkedRows;
+          return { committeeId: id, ...r };
+        });
+        const ok = recon.every(
+          r => r.status === 'reconciled' || r.status === 'reconciled-with-note'
+        );
+        const notes = recon
+          .filter(r => r.note && r.status === 'reconciled-with-note')
+          .map(r => `${r.committeeId}: ${r.note}`);
+        const analysis = await analyzePool(bulk, p.pool, { conduitName });
+        const member = JSON.parse((await cf.kvGet(memberKey(p.id))) || 'null');
+        const asStored = {
+          ...analysis,
+          personLevel: true,
+          personFunding: p.pf,
+          reconciliation: { ok },
+        };
+        const grade = member ? gradeMember(member, asStored) : null;
+        const status = ok && grade ? 'complete' : 'pending';
+        summary[status]++;
+        log(
+          `  ${p.name}: ${status}${grade ? ` -> ${grade.tier} (${grade.gradeBasis}), donors ${analysis.uniqueDonors}, Nakamoto ${analysis.nakamotoCoefficient}` : ''}${
+            ok
+              ? ''
+              : ` [not reconciled: ${recon
+                  .filter(r => !['reconciled', 'reconciled-with-note'].includes(r.status))
+                  .map(r => r.committeeId)
+                  .join(', ')}]`
+          }`
+        );
+        if (!dryRun) {
+          const result = {
+            pool: {
+              committees: p.pf.committees,
+              donorCommitteeIds: p.pool,
+              totals: { totalRaised: p.pf.totalRaised, raisedInName: p.pf.raisedInName },
+            },
+            analysis,
+            reconciliation: { ok, notes, committees: recon },
+            grade: grade && {
+              tier: grade.tier,
+              individualFundingPercent: grade.individualFundingPercent,
+              gradeBasis: grade.gradeBasis,
+              personFigures: grade.personFigures,
+              detail: grade.detail,
+            },
+          };
+          const [prev] = await d1(
+            'SELECT analysis, grade, reconciliation FROM results WHERE bioguide_id = ? AND cycle = ?',
+            [p.id, cycle]
+          );
+          const changed =
+            !prev ||
+            prev.analysis !== JSON.stringify(result.analysis) ||
+            prev.grade !== JSON.stringify(result.grade) ||
+            prev.reconciliation !== JSON.stringify(result.reconciliation);
+          if (changed) {
+            await d1(
+              `INSERT INTO results (bioguide_id, cycle, computed_at, bulk_file_date, pool, analysis, reconciliation, grade, status)
+               VALUES (?,?,?,?,?,?,?,?,?)
+               ON CONFLICT(bioguide_id, cycle) DO UPDATE SET computed_at=excluded.computed_at, bulk_file_date=excluded.bulk_file_date,
+                 pool=excluded.pool, analysis=excluded.analysis, reconciliation=excluded.reconciliation, grade=excluded.grade, status=excluded.status`,
+              [
+                p.id,
+                cycle,
+                now(),
+                file.lastModified,
+                JSON.stringify(result.pool),
+                JSON.stringify(result.analysis),
+                JSON.stringify(result.reconciliation),
+                JSON.stringify(result.grade),
+                status,
+              ]
+            );
+            await d1(
+              'INSERT INTO snapshots (bioguide_id, cycle, created_at, result) VALUES (?,?,?,?)',
+              [p.id, cycle, now(), JSON.stringify(result)]
+            );
+          }
+        }
+        await progress('done');
+      } catch (error) {
+        summary.failed++;
+        log(`  ${p.name}: failed: ${error.message}`);
+        await progress('failed', error.message);
+      }
     }
   }
 
+  const remaining = targets.length - processed;
   const stats = {
     ...summary,
+    remaining,
     fecCalls: fec.calls,
     kvReads: cf.stats.kvReads,
     kvWrites: cf.stats.kvWrites,
     d1RowsWritten: cf.stats.d1RowsWritten,
+    minutes: Math.round((Date.now() - started) / 60000),
   };
   log('summary', JSON.stringify(stats));
   if (!dryRun) {
+    if (!only.length && remaining === 0) {
+      await d1('UPDATE rounds SET finished_at = ? WHERE round_id = ?', [now(), roundId]);
+      log(`${roundId} finished`);
+    }
     await d1(
       'UPDATE runs SET finished_at = ?, status = ?, bulk_file_date = ?, summary = ? WHERE run_id = ?',
       [

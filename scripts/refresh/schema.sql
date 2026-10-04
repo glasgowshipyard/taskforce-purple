@@ -12,7 +12,8 @@ CREATE TABLE IF NOT EXISTS runs (
   trigger TEXT,               -- calendar | event | manual
   status TEXT NOT NULL,       -- running | done | failed
   bulk_file_date TEXT,        -- Last-Modified of the FEC bulk file used
-  summary TEXT                -- JSON: members done/pending/failed, calls, writes
+  summary TEXT,               -- JSON: members done/pending/failed, calls, writes
+  round_id TEXT
 );
 
 -- Per member per cycle: where it got to, and why it failed (for resuming and
@@ -25,6 +26,7 @@ CREATE TABLE IF NOT EXISTS member_progress (
   attempts INTEGER NOT NULL DEFAULT 0,
   next_retry_at TEXT,
   updated_at TEXT NOT NULL,
+  round_id TEXT,              -- the round it was last processed in
   PRIMARY KEY (bioguide_id, cycle)
 );
 
@@ -43,6 +45,7 @@ CREATE TABLE IF NOT EXISTS committees (
   status TEXT,                 -- reconciled | reconciled-with-note | mismatch
   note TEXT,
   checked_at TEXT NOT NULL,
+  round_id TEXT,
   PRIMARY KEY (committee_id, cycle)
 );
 
@@ -105,4 +108,13 @@ CREATE TABLE IF NOT EXISTS fara_employer_matches (
   employer TEXT PRIMARY KEY,
   fara_firm TEXT NOT NULL,
   registration_number TEXT
+);
+
+-- One full refresh pass (see migrations/2026-10-04-rounds.sql)
+CREATE TABLE IF NOT EXISTS rounds (
+  round_id TEXT PRIMARY KEY,
+  cycle INTEGER NOT NULL,
+  started_at TEXT NOT NULL,
+  reason TEXT,
+  finished_at TEXT
 );
