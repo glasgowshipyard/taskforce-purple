@@ -4,11 +4,11 @@
 import { STATE_ABBREVIATIONS } from './shared-constants.js';
 import { crosswalkIdsFor, isVerifiedIdentity, selectPrimaryCandidate } from './fec-identity.js';
 import {
-  calculateEnhancedTier as computeEnhancedTier,
   cycleForYear,
   getCommitteeCategory,
   getPACTransparencyWeight,
 } from './tier-calculation.js';
+import { gradeMember } from './grading.js';
 import { LIST_KEY, MemberWriter, getListBody, getMember, servedMember } from './member-store.js';
 
 // Endpoints of the old batch engine, retired in Stage 1 (REBUILD_SPEC §7-8):
@@ -1126,48 +1126,7 @@ async function calculateEnhancedTier(member, _allMembers = [], env = null) {
     concentrationRejected = true;
   }
 
-  // Grade basis (#32). Once a member's analysis pools donors from every
-  // committee they run, grade on everything they received - campaign(s),
-  // leadership PAC, and money transferred in from joint funds - so the
-  // concentration test and the money it tests describe the same thing.
-  // Until then, grade on the campaign committee: switching the money to
-  // all committees while concentration still saw only the campaign's donors
-  // would grade big-cheque joint-fund money unexamined.
-  // ...and only when every committee's records and money reconciled with the
-  // FEC's own figures at completion (exact counts, money to the dollar).
-  const pf = concentration?.personLevel ? concentration.personFunding : null;
-  const reconciled = concentration?.reconciliation?.ok === true;
-  const personLevel = Boolean(
-    pf && !pf.failed && pf.totalRaised > 0 && pf.invariantsHold && reconciled
-  );
-  const scored = personLevel
-    ? {
-        ...member,
-        totalRaised: pf.totalRaised,
-        grassrootsDonations: pf.grassrootsDonations,
-        largeDonorDonations: pf.largeDonorDonations,
-        grassrootsPercent: pf.grassrootsPercent,
-        pacMoney: pf.pacMoney,
-        partyMoney: pf.partyMoney,
-      }
-    : member;
-
-  const result = computeEnhancedTier(scored, concentration);
-  result.gradeBasis = personLevel
-    ? 'all-committees'
-    : pf && !pf.failed && !reconciled
-      ? 'campaign-committee-rechecking'
-      : 'campaign-committee';
-  result.personFigures = personLevel
-    ? {
-        totalRaised: pf.totalRaised,
-        grassrootsDonations: pf.grassrootsDonations,
-        largeDonorDonations: pf.largeDonorDonations,
-        pacMoney: pf.pacMoney,
-        partyMoney: pf.partyMoney,
-        grassrootsPercent: pf.grassrootsPercent,
-      }
-    : null;
+  const result = gradeMember(member, concentration);
 
   if (result.detail?.path === 'enhanced') {
     console.log(

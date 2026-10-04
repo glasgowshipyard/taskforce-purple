@@ -5,7 +5,7 @@
  *
  *   node scripts/verify/stage1-equivalence.mjs [--snapshot DIR] [--old-ref REF]
  *
- * Runs the OLD worker (git REF, default origin/main) and the NEW worker (the
+ * Runs the OLD worker (git REF, default 96c7edc, the last commit before Stage 1) and the NEW worker (the
  * working tree) against one snapshot of production KV, with no network:
  *   - /api/members: every new list entry equals the old served member on
  *     every list field; quicklook/conduitCount match what the old row derived
@@ -119,7 +119,8 @@ const strip = (m, keys) => Object.fromEntries(Object.entries(m).filter(([k]) => 
 
 async function main() {
   const snapDir = arg('--snapshot', join(tmpdir(), 'tfp-stage1-snapshot'));
-  const oldRef = arg('--old-ref', 'origin/main');
+  // The last commit before Stage 1: the old storage to compare against
+  const oldRef = arg('--old-ref', '96c7edc');
   const kv = snapshot(snapDir);
   const members = JSON.parse(kv['members:all']);
   console.log(`snapshot: ${members.length} members, ${Object.keys(kv).length} keys (${snapDir})`);

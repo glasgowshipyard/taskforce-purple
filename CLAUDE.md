@@ -116,8 +116,10 @@ redesigned them wasted days and, twice, proposed breaking them. Build on them.
 estimateRowWrites({...})`) — an unmetered path silently reopens the hole.
   Its per-row costs are measured against production, not derived from the
   index count; re-measure rather than reason about them (RUNBOOK §6).
-- **FEC rate limit: 60 requests per minute per key.** Local trial scripts
-  should use their own key, not the workers' secret, and space calls >= 1 s.
+- **FEC rate limit: 1,000 calls per hour per personal key** (the FEC's own
+  429 message, 2026-10-03; a response header also says 60, but the hourly
+  limit is what bites). The refresh job paces itself at one call every 3.7 s.
+  A free upgraded key (120 a minute) comes from emailing apiinfo@fec.gov.
 - **D1 bound-parameter limit**: batch inserts at ~10 rows/statement (see the
   transactions insert in itemized-analysis.js). Larger batches fail silently
   if wrapped in catch blocks — this already bit us once.

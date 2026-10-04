@@ -1,0 +1,67 @@
+name: Refresh
+
+# The refresh job (REBUILD_SPEC.md §5): all FEC work, off Cloudflare.
+# Stage 2: started by hand only, and it records results without publishing
+# them. The filing-calendar trigger (§8) is added once the job is proven;
+# every scheduled job is paused for the rebuild (owner's decision, 2026-10-03).
+on:
+  workflow_dispatch:
+    inputs:
+      members:
+        description: 'Bioguide IDs, comma-separated (empty = every member)'
+        required: false
+        default: ''
+      dry_run:
+        description: 'Dry run: compute and report, write nothing'
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: refresh
+  cancel-in-progress: false
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    timeout-minutes: 350
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install
+        run: |
+          npm ci
+          npm install --no-save @duckdb/node-api
+
+      - name: Run the refresh job
+        env:
+          FEC_API_KEY: ${{ secrets.FEC_API_KEY }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
+          MEMBERS: ${{ inputs.members }}
+          DRY_RUN: ${{ inputs.dry_run }}
+        run: |
+          args=(--bulk-dir "$RUNNER_TEMP/bulk" --trigger manual)
+          if [ -n "$MEMBERS" ]; then args+=(--members "$MEMBERS"); fi
+          if [ "$DRY_RUN" = "true" ]; then args+=(--dry-run); fi
+          node scripts/refresh/run.mjs "${args[@]}"
+
+      - name: Alert on failure
+        if: failure()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          gh label create system-alert --color B60205 --description "Automatic health alert" 2>/dev/null || true
+          gh issue create --label system-alert \
+            --title "Refresh job failed" \
+            --body "@glasgowshipyard the refresh job failed. Log: $RUN_URL"

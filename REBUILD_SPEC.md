@@ -114,16 +114,16 @@ around them is broken at the foundation:
 
 ## 4. Platform limits and current usage
 
-| Limit                                                   | Value                                                                                                     |
-| ------------------------------------------------------- | --------------------------------------------------------------------------------------------------------- |
-| Workers Free CPU per invocation                         | 10 ms (over it: error 1102 `exceededResources`)                                                           |
-| KV per day, per account (operations fail when exceeded) | 1,000 writes, 100,000 reads, 1,000 deletes, 1,000 lists                                                   |
-| KV value size / storage                                 | 25 MiB / 1 GB                                                                                             |
-| D1 per day                                              | 100,000 rows written (self-capped at 85,000), 5,000,000 rows read                                         |
-| D1 database size                                        | 500 MB per database (`taskforce-purple-donors` is at 414 MB)                                              |
-| Cloudflare service calls per invocation                 | 1,000                                                                                                     |
-| FEC API                                                 | 60 requests per minute per key                                                                            |
-| GitHub Actions (public repo)                            | Free; up to 6 h per job; runners with ~14 GB free disk and 16 GB memory (**VERIFY** current runner specs) |
+| Limit                                                   | Value                                                                                                                     |
+| ------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------- |
+| Workers Free CPU per invocation                         | 10 ms (over it: error 1102 `exceededResources`)                                                                           |
+| KV per day, per account (operations fail when exceeded) | 1,000 writes, 100,000 reads, 1,000 deletes, 1,000 lists                                                                   |
+| KV value size / storage                                 | 25 MiB / 1 GB                                                                                                             |
+| D1 per day                                              | 100,000 rows written (self-capped at 85,000), 5,000,000 rows read                                                         |
+| D1 database size                                        | 500 MB per database (`taskforce-purple-donors` is at 414 MB)                                                              |
+| Cloudflare service calls per invocation                 | 1,000                                                                                                                     |
+| FEC API                                                 | **1,000 calls per hour** per personal key (FEC 429 message, 2026-10-03); free upgrade to 120 a minute via apiinfo@fec.gov |
+| GitHub Actions (public repo)                            | Free; up to 6 h per job; runners with ~14 GB free disk and 16 GB memory (**VERIFY** current runner specs)                 |
 
 **Writes made through the Cloudflare API count against the same KV and D1
 limits** as writes made from Workers. The job's diff writing (§7) is what
@@ -216,12 +216,18 @@ created once by the owner; Claude never handles the values.
 
 **Expected run time** (**VERIFY** on the first run):
 
-- **First full run:** a few hours, dominated by FEC API calls at 60 a
-  minute (discovery, totals and counts for about 3,000 committees, plus gap
-  slices).
+- **First full run:** dominated by FEC API calls (discovery for every member,
+  plus totals, counts and gap slices for each committee). Measured 2026-10-03:
+  Williams took 26 calls once gap-finding used binary search.
+  - **At the personal key's 1,000 calls an hour:** roughly 7–10 hours, which
+    is more than one 6-hour GitHub job. Runs resume from `member_progress`,
+    so it spans two or three runs.
+  - **With a free upgraded key** (120 a minute, from apiinfo@fec.gov):
+    roughly 1–2 hours.
 - **Later runs:** only committees with new filings, so minutes.
 
-The whole of Congress is graded after the first run, not after 70–140 days.
+The whole of Congress is graded within a day or two of starting, not after
+70–140 days.
 
 ## 6. Reconciliation and the evidence guard
 
