@@ -57,11 +57,27 @@ function wrangler(args, opts = {}) {
     ...opts,
   });
 }
+// null only for a key that genuinely doesn't exist (HTTP 404). Every other
+// failure is thrown with wrangler's own error: on 2026-10-03 a transient
+// failure was reported as "members:all not found" because this swallowed it.
 const kvGet = key => {
   try {
     return wrangler(['kv', 'key', 'get', key, `--namespace-id=${NAMESPACE}`, '--remote']);
-  } catch {
-    return null;
+  } catch (error) {
+    const stderr = String(error.stderr || '');
+    if (/404: Not Found/.test(stderr)) {
+      return null;
+    }
+    const reason =
+      stderr
+        .split('\n')
+        .find(line => /ERROR|error/.test(line))
+        // strip terminal colour codes (ESC [ … m)
+        ?.split(String.fromCharCode(27))
+        .join('')
+        .replace(/\[[0-9;]*m/g, '')
+        .trim() || error.message;
+    throw new Error(`Reading ${key} from KV failed: ${reason}`);
   }
 };
 

@@ -39,10 +39,25 @@ REBUILD_SPEC.md Stage 1. API worker `9973eabf`; frontend `4544c53` (Pages).
   member-detail, on `/api/members/{id}` and on `/api/status` (apart from the
   #38 date). Re-grading gives identical results with 0 writes, where the old
   path rewrote the whole list.
-- **Migration:** `scripts/migrations/2026-10-03-split-members.mjs` (540 KV
-  writes). Its budget guard refused at 20:25 UTC: 438 writes had already been
-  used today, before the pause. It is queued for 00:05 UTC. Until it runs,
-  the worker serves through the old path, which the check shows is identical.
+- **Migration: done at 18:02 Pacific on 3 Oct (01:02 UTC 4 Oct)**, by a
+  one-off scheduled run. 539 `member:*` keys and `members:list` were written,
+  using about 548 of the day's 1,000 KV writes; `members:all` was untouched.
+  - **Verified:** the live `/api/members` serves `members:list` (539 members,
+    308,549 bytes; the 308,541 counted in characters, because a few names
+    have accented letters). The site shows "Last updated: 03/10/2026". A
+    profile opens and loads its full record in one detail call (checked in a
+    browser on Pelosi). A dry-run re-check finds every stored key identical.
+  - **The first scheduled attempt (17:10 Pacific) failed before writing
+    anything.** It reported `members:all not found` because the script's
+    `kvGet` turned every wrangler failure into "not found". It has been fixed
+    to return null only for a real 404 and to report anything else with
+    wrangler's own error. The cause of that failure isn't known; the same
+    read worked a minute later. Recovering needed the owner to approve a
+    re-run, which the pre-approved setup was meant to avoid.
+  - For about 2 minutes after the write the CLI couldn't read
+    `members:list`, while the site already served it. That's documented KV
+    behaviour: new keys can take up to 60 s to become visible everywhere,
+    and longer when a lookup just before the write cached the miss.
 - **Still to meet for Stage 1's exit:** 48 h of zero `exceededResources` on
   the API worker, and KV writes below the pre-pause baseline, both read from
   Cloudflare analytics after the migration.
