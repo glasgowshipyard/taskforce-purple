@@ -15,6 +15,10 @@ on:
         description: 'Dry run: compute and report, write nothing'
         type: boolean
         default: true
+      new_round:
+        description: 'Start a new round, with this reason (empty = continue the open round)'
+        required: false
+        default: ''
 
 permissions:
   contents: read
@@ -48,8 +52,12 @@ jobs:
           CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
           MEMBERS: ${{ inputs.members }}
           DRY_RUN: ${{ inputs.dry_run }}
+          NEW_ROUND: ${{ inputs.new_round }}
         run: |
-          args=(--bulk-dir "$RUNNER_TEMP/bulk" --trigger manual)
+          # Stop cleanly before the job's 350-minute limit; the next run of the
+          # round continues where this one stopped
+          args=(--bulk-dir "$RUNNER_TEMP/bulk" --trigger manual --budget-minutes 320)
+          if [ -n "$NEW_ROUND" ]; then args+=(--new-round "$NEW_ROUND"); fi
           if [ -n "$MEMBERS" ]; then args+=(--members "$MEMBERS"); fi
           if [ "$DRY_RUN" = "true" ]; then args+=(--dry-run); fi
           node scripts/refresh/run.mjs "${args[@]}"
