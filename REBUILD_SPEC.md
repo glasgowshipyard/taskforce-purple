@@ -216,19 +216,22 @@ created once by the owner; Claude never handles the values.
   else. The owner creates it in the Cloudflare dashboard, and a small script
   stores it with `gh secret set`.
 
-**Expected run time** (**VERIFY** on the first run):
+**Expected run time** (measured 2026-10-04 on the first full pass):
 
-- **First full run:** dominated by FEC API calls (discovery for every member,
-  plus totals, counts and gap slices for each committee). Measured 2026-10-03:
-  Williams took 26 calls once gap-finding used binary search.
-  - **At the personal key's 1,000 calls an hour:** roughly 7–10 hours, which
-    is more than one 6-hour GitHub job. Runs resume from `member_progress`,
-    so it spans two or three runs.
-  - **With a free upgraded key** (120 a minute, from apiinfo@fec.gov):
-    roughly 1–2 hours.
-- **Later runs:** only committees with new filings, so minutes.
+- **First full run:** dominated by FEC API calls. Finding a member's
+  committees costs about 1½ minutes, and big campaigns' gap searches cost
+  300–2,000 calls each, mostly chasing joint-fund memo lines the bulk file
+  leaves out (IMPLEMENTATION_STATUS 2026-10-04).
+  - **At the personal key's 1,000 calls an hour:** about 3 hours per batch
+    of 25 senators, so roughly 2–3 days. Each run stops before GitHub's
+    6-hour limit and starts the next run of the pass itself.
+  - **With the upgraded key** (7,200 an hour, requested 2026-10-04):
+    roughly half a day.
+  - My earlier estimate (7–10 hours, from Williams alone) was wrong.
+- **Later runs:** stored gap records are reloaded, so only new filings are
+  searched.
 
-The whole of Congress is graded within a day or two of starting, not after
+The whole of Congress is graded within a few days of starting, not after
 70–140 days.
 
 ## 6. Reconciliation and the evidence guard

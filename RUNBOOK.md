@@ -37,6 +37,16 @@ gh run list --workflow refresh.yml --limit 5
 gh run view RUN_ID --log | tail -40
 ```
 
+A full pass takes several runs: each stops before GitHub's 6-hour limit
+and starts the next run of the same pass itself, until every member is
+done. To start a pass, or to continue one whose chain stopped (a D1-budget
+stop, or a run that finished nobody):
+
+```bash
+gh workflow run refresh.yml -f dry_run=false                    # continue the open pass
+gh workflow run refresh.yml -f dry_run=false -f new_round="why"  # start a new pass
+```
+
 ```bash
 # Where the refresh stands: members done/failed this cycle, the reasons for
 # failures, and the latest rounds (one round = one full pass)

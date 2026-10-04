@@ -4,6 +4,64 @@
 
 ---
 
+## 2026-10-04: Pelosi and AOC reconcile; first full pass running
+
+**Dry run (Actions 37210788336), every committee reconciled:**
+
+- **AOC:** campaign, Courage to Change and the Squad Victory Fund. 438
+  records missing from the bulk file were filled from the API. The money
+  is within $1,706 across 286,000 records (whole-dollar rounding). Grade
+  **S** on all committees: 31,850 donors, Nakamoto 4,611.
+- **Pelosi:** campaign, PAC to the Future and both victory funds; 64 records
+  filled. Grade **B** on all committees (the site shows A, campaign only):
+  5,011 donors, Nakamoto 25 (the site's campaign-only figure is 408).
+- 2,674 FEC calls, 2 h 51 min. Nothing written (dry run).
+
+**First full pass** (round `round-2026-10-04T18:01:53.440Z`, run
+37222770431, started 11:01 PDT by the owner). The first batch of 25
+senators finished at 14:07 PDT: all done, none failed, 103 committees.
+
+**My run-time estimate was wrong.** I estimated 7–10 hours from Williams
+alone. Measured: about 3 hours per batch of 25 senators, so the first pass
+is roughly 2–3 days at 1,000 FEC calls an hour. Two reasons:
+
+- finding each member's committees costs about 1½ minutes;
+- big campaigns' gap searches cost 300–2,000 calls each.
+
+Most "missing" records are **memo lines**: a campaign's report restates
+each joint-fund donor as a memo (type 15J, or untyped memo X). The bulk file
+leaves them out, and the API can't filter them out of its counts, so the
+search chases them; once fetched, they're kept out of money totals.
+Examples:
+
+- Hagerty: 918 of his 930 "missing" records were 15J memos.
+- Across the first batch: about 85% memo lines, plus 114 real donations
+  missing from the bulk file.
+
+This is a first-pass cost only: later rounds reload the stored records and
+search only new filings. The owner has asked the FEC for the upgraded key
+(7,200 calls an hour).
+
+**Changes:**
+
+- The job checks the D1 budget before every batch, not only at start
+  (`a0a39ec`).
+- **A pass continues itself** (`fd53799`). A run that stops on its time
+  budget with members left, having finished at least one, starts the next
+  run of the same round (`workflow_dispatch` with the workflow's own token,
+  `actions: write`). A D1-budget stop doesn't chain.
+- **No new member or committee after the time budget**; a committee
+  mid-search stops at a hard deadline 15 minutes later and is left for the
+  next run, not failed. Before, I had the job check time only between
+  batches, and a batch of senators takes about 3 hours, so a late batch
+  could be killed at the job's 350-minute limit.
+- The run going now started before these changes: it won't chain, and its
+  second batch may be cut off at the limit (committees already checked are
+  reused). The next run is started by hand once; after that the pass
+  continues itself.
+
+---
+
 ## 2026-10-04: Health moves to the API worker; the itemized worker is retired
 
 - **`/api/health`** on the API worker (`6c413a7a`) replaces the itemized
