@@ -1,22 +1,33 @@
 #!/usr/bin/env bash
-# Turn the itemized worker's /health verdict into a GitHub issue alert.
+# Turn the API worker's /api/health verdict into a GitHub issue alert.
 #
 #   unhealthy, no alert open  -> open an issue that @mentions the owner
 #   unhealthy, problems changed -> comment on it (mentions again)
 #   unhealthy, same problems  -> nothing (you've already been told)
 #   healthy, alert open       -> comment "recovered" and close it
 #
-# Run hourly by .github/workflows/health-alert.yml. Locally:
+# Run at the end of every refresh job (.github/workflows/refresh.yml), which
+# sets JOB_FAILED_URL when the job itself failed. The hourly workflow
+# (health-alert.yml) stays off (REBUILD_SPEC §8). Locally:
 #   DRY_RUN=1 bash scripts/health-alert.sh     # shows what it would do
 set -euo pipefail
 
-HEALTH_URL="${HEALTH_URL:-https://taskforce-purple-itemized-analysis.dev-a4b.workers.dev/health}"
+HEALTH_URL="${HEALTH_URL:-https://taskforce-purple-api.dev-a4b.workers.dev/api/health}"
 OWNER="${ALERT_MENTION:-glasgowshipyard}"
 LABEL="system-alert"
 run() { if [ -n "${DRY_RUN:-}" ]; then echo "[dry run] $*"; else "$@"; fi; }
 
 if ! health=$(curl -sf --max-time 60 "$HEALTH_URL") || ! jq -e 'has("ok")' >/dev/null 2>&1 <<<"$health"; then
-  health='{"ok":false,"problems":[{"id":"health-unreachable","message":"The health check page did not answer, so nothing else could be checked. The worker may be down."}],"notes":[]}'
+  health='{"ok":false,"problems":[{"id":"health-unreachable","message":"The health check page did not answer, so nothing else could be checked. The API worker may be down.","fix":"Check the worker in the Cloudflare dashboard (Workers → taskforce-purple-api → Logs) and redeploy it with npx wrangler deploy."}],"notes":[]}'
+fi
+
+# The refresh job itself failed (its log has the error)
+if [ -n "${JOB_FAILED_URL:-}" ]; then
+  health=$(jq --arg url "$JOB_FAILED_URL" '.ok = false | .problems = [{
+    id: "refresh-job-failed",
+    message: ("The refresh job failed. Log: " + $url),
+    fix: "Read the error at the end of the log, fix the cause, then run Refresh again: it carries on the round where it stopped."
+  }] + .problems' <<<"$health")
 fi
 
 ok=$(jq -r '.ok' <<<"$health")
@@ -31,7 +42,7 @@ if [ "$ok" = "true" ]; then
   exit 0
 fi
 
-problems=$(jq -r '.problems[] | "- " + .message' <<<"$health")
+problems=$(jq -r '.problems[] | "- " + .message + (if .fix then "\n  Proposed fix: " + .fix else "" end)' <<<"$health")
 notes=$(jq -r '(.notes // [])[] | "- " + .' <<<"$health")
 body="@${OWNER} something needs attention (checked $(date -u '+%Y-%m-%d %H:%M UTC')):
 

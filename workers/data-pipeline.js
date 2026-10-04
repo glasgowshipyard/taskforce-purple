@@ -9,6 +9,7 @@ import {
   getPACTransparencyWeight,
 } from './tier-calculation.js';
 import { gradeMember } from './grading.js';
+import { evaluateHealth } from './health.js';
 import { LIST_KEY, MemberWriter, getListBody, getMember, servedMember } from './member-store.js';
 
 // Endpoints of the old batch engine, retired in Stage 1 (REBUILD_SPEC §7-8):
@@ -243,21 +244,10 @@ export default {
           return retiredEndpoint(corsHeaders, '/api/reset-pac-data');
         case '/api/refresh-congress-metadata':
           return retiredEndpoint(corsHeaders, '/api/refresh-congress-metadata');
-        case '/api/debug-kv': {
-          const queueData = await env.MEMBER_DATA.get('priority_missing_queue');
-          const allKeys = await env.MEMBER_DATA.list();
-          return new Response(
-            JSON.stringify({
-              queueExists: !!queueData,
-              queueLength: queueData ? JSON.parse(queueData).length : 0,
-              allKeysCount: allKeys.keys.length,
-              priorityKeys: allKeys.keys.filter(k => k.name.includes('priority')),
-            }),
-            {
-              headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-            }
-          );
-        }
+        case '/api/debug-kv':
+          return retiredEndpoint(corsHeaders, '/api/debug-kv');
+        case '/api/health':
+          return await handleHealth(env, corsHeaders);
         default:
           // Check for individual member lookup pattern: /api/members/{bioguideId}
           if (url.pathname.startsWith('/api/members/')) {
@@ -1262,6 +1252,51 @@ async function handleMembers(env, corsHeaders) {
 }
 
 // Status endpoint for monitoring Worker progress
+// System health (REBUILD_SPEC §8): the site's data in KV, and the refresh
+// job's record in D1 tfp-results. Read-only; checked hourly by
+// .github/workflows/health-alert.yml, which opens an issue on a problem.
+async function handleHealth(env, corsHeaders) {
+  const body = await getListBody(env);
+  const snapshot = {
+    listMembers: body?.members?.length ?? null,
+    listLastUpdated: body?.lastUpdated ?? null,
+    lastRun: null,
+    failingMembers: [],
+    mismatchedCommittees: [],
+    d1RowsToday: null,
+    resultsDbError: null,
+  };
+  try {
+    if (!env.RESULTS_DB) {
+      throw new Error('the RESULTS_DB binding is missing from wrangler.toml');
+    }
+    const today = new Date().toISOString().slice(0, 10);
+    const [run, failing, mismatched, ledger] = await env.RESULTS_DB.batch([
+      env.RESULTS_DB.prepare(
+        'SELECT run_id, status, started_at, finished_at FROM runs ORDER BY started_at DESC LIMIT 1'
+      ),
+      env.RESULTS_DB.prepare(
+        "SELECT bioguide_id, attempts, last_error FROM member_progress WHERE status = 'failed' ORDER BY updated_at DESC"
+      ),
+      env.RESULTS_DB.prepare("SELECT committee_id, name FROM committees WHERE status = 'mismatch'"),
+      env.RESULTS_DB.prepare('SELECT rows_written FROM d1_write_budget WHERE day = ?').bind(today),
+    ]);
+    snapshot.lastRun = run.results[0] ?? null;
+    snapshot.failingMembers = failing.results;
+    snapshot.mismatchedCommittees = mismatched.results;
+    snapshot.d1RowsToday = ledger.results[0]?.rows_written ?? 0;
+  } catch (error) {
+    snapshot.resultsDbError = error.message;
+  }
+  const verdict = evaluateHealth(snapshot);
+  return new Response(
+    JSON.stringify({ checkedAt: new Date().toISOString(), ...verdict }, null, 2),
+    {
+      headers: { ...corsHeaders, 'Content-Type': 'application/json', 'Cache-Control': 'no-store' },
+    }
+  );
+}
+
 async function handleStatus(env, corsHeaders) {
   try {
     // Reads the slim list (Stage 1); before the migration, the old blob

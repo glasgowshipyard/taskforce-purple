@@ -5,13 +5,13 @@
 # Everything else is automatic:
 #   - generates a new random UPDATE_SECRET (the token that guards the API's
 #     admin endpoints; the old one is public in the repo's history)
-#   - sets FEC_API_KEY, CONGRESS_API_KEY and UPDATE_SECRET on the pipeline
-#     worker, and FEC_API_KEY and UPDATE_SECRET on the itemized worker (its
-#     /analyze endpoint refuses every request without UPDATE_SECRET)
+#   - sets FEC_API_KEY, CONGRESS_API_KEY and UPDATE_SECRET on the API
+#     (pipeline) worker. The itemized worker is retired (2026-10-04) and holds
+#     no secrets
 #   - sets FEC_API_KEY in GitHub Actions for the refresh job
 #     (REBUILD_SPEC §5), if the GitHub CLI is logged in
 #   - rewrites your local, gitignored API_KEYS.md to hold only the new values
-#   - checks both workers now list the secrets
+#   - checks the worker now lists the secrets
 #
 # Values never appear on screen and are never written anywhere tracked.
 #
@@ -30,28 +30,21 @@ if ! [[ "$NEW_KEY" =~ ^[A-Za-z0-9]{40}$ ]]; then
 fi
 NEW_UPDATE_SECRET=$(openssl rand -hex 32)
 
-put() { # worker-config-flag secret-name value
-  local cfg=$1 name=$2 value=$3
-  if [ -n "$cfg" ]; then
-    printf '%s' "$value" | (cd workers && npx wrangler secret put "$name" --config wrangler-itemized-analysis.toml >/dev/null)
-  else
-    printf '%s' "$value" | npx wrangler secret put "$name" >/dev/null
-  fi
-  echo "  set $name on ${cfg:+itemized worker}${cfg:-pipeline worker}"
+put() { # secret-name value
+  printf '%s' "$2" | npx wrangler secret put "$1" >/dev/null
+  echo "  set $1 on the API worker"
 }
 
 echo "Setting secrets..."
-put "" FEC_API_KEY "$NEW_KEY"
-put "" CONGRESS_API_KEY "$NEW_KEY"
-put "" UPDATE_SECRET "$NEW_UPDATE_SECRET"
-put itemized FEC_API_KEY "$NEW_KEY"
+put FEC_API_KEY "$NEW_KEY"
+put CONGRESS_API_KEY "$NEW_KEY"
+put UPDATE_SECRET "$NEW_UPDATE_SECRET"
 if gh auth status >/dev/null 2>&1; then
   # The refresh job (REBUILD_SPEC §5) uses the same key from GitHub Actions
   printf '%s' "$NEW_KEY" | gh secret set FEC_API_KEY >/dev/null && echo "  set FEC_API_KEY in GitHub Actions"
 else
   echo "  GitHub CLI not logged in: GitHub's FEC_API_KEY NOT updated (run scripts/set-github-secrets.sh)"
 fi
-put itemized UPDATE_SECRET "$NEW_UPDATE_SECRET"
 
 # Rewrite the whole file: it holds ONLY current values, so there is never an
 # old key sitting above the new one under an official-looking label
@@ -67,15 +60,15 @@ not kept here.
 \`$NEW_KEY\`
 
 Set as:
-- Cloudflare Worker secrets \`FEC_API_KEY\` and \`CONGRESS_API_KEY\` (pipeline
-  worker) and \`FEC_API_KEY\` (itemized worker);
+- Cloudflare Worker secrets \`FEC_API_KEY\` and \`CONGRESS_API_KEY\` (API
+  worker, taskforce-purple-api);
 - GitHub Actions secret \`FEC_API_KEY\` (refresh job, REBUILD_SPEC §5).
 
 ## UPDATE_SECRET (admin endpoints; \`\$UPDATE_SECRET\` in RUNBOOK)
 
 \`$NEW_UPDATE_SECRET\`
 
-Set as Cloudflare Worker secret \`UPDATE_SECRET\` on both workers.
+Set as Cloudflare Worker secret \`UPDATE_SECRET\` on the API worker.
 
 ## Cloudflare API token for the refresh job
 
@@ -90,15 +83,11 @@ Cloudflare dashboard and run \`bash scripts/set-github-secrets.sh\`.
 EOF
 echo "Rewrote API_KEYS.md (gitignored) with only the new values."
 
-echo "Checking both workers..."
+echo "Checking the worker..."
 p=$(npx wrangler secret list 2>/dev/null)
-i=$(cd workers && npx wrangler secret list --config wrangler-itemized-analysis.toml 2>/dev/null)
 ok=1
 for n in FEC_API_KEY CONGRESS_API_KEY UPDATE_SECRET; do
-  if grep -q "\"$n\"" <<<"$p"; then echo "  pipeline: $n present"; else echo "  pipeline: $n MISSING"; ok=0; fi
-done
-for n in FEC_API_KEY UPDATE_SECRET; do
-  if grep -q "\"$n\"" <<<"$i"; then echo "  itemized: $n present"; else echo "  itemized: $n MISSING"; ok=0; fi
+  if grep -q "\"$n\"" <<<"$p"; then echo "  $n present"; else echo "  $n MISSING"; ok=0; fi
 done
 
 unset NEW_KEY NEW_UPDATE_SECRET

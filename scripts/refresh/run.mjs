@@ -57,6 +57,10 @@ function fecKey() {
   return existsSync(local) ? readFileSync(local, 'utf8').match(/`([A-Za-z0-9]{40})`/)?.[1] : null;
 }
 
+// Set once the run is recorded: on a crash, marks it failed and charges the
+// D1 rows already written, so health sees the failure and the ledger is right
+let recordCrash = null;
+
 async function main() {
   const started = Date.now();
   const dryRun = process.argv.includes('--dry-run');
@@ -105,6 +109,19 @@ async function main() {
       'INSERT INTO runs (run_id, started_at, trigger, status, round_id) VALUES (?, ?, ?, ?, ?)',
       [runId, now(), arg('--trigger', 'manual'), 'running', roundId]
     );
+    recordCrash = async message => {
+      await d1('UPDATE runs SET finished_at = ?, status = ?, summary = ? WHERE run_id = ?', [
+        now(),
+        'failed',
+        JSON.stringify({ error: message, fecCalls: fec.calls }),
+        runId,
+      ]);
+      await d1(
+        `INSERT INTO d1_write_budget (day, rows_written) VALUES (?, ?)
+         ON CONFLICT(day) DO UPDATE SET rows_written = rows_written + excluded.rows_written`,
+        [today, cf.stats.d1RowsWritten + 2]
+      );
+    };
   }
 
   // Members still to do in this round
@@ -420,7 +437,12 @@ async function main() {
   }
 }
 
-main().catch(error => {
+main().catch(async error => {
   console.error(`refresh job failed: ${error.message}`);
+  try {
+    await recordCrash?.(error.message);
+  } catch (e) {
+    console.error(`could not record the failure in D1: ${e.message}`);
+  }
   process.exit(1);
 });

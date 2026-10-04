@@ -21,16 +21,29 @@ Healthy looks like: 537 members, single-digit-to-~15 `noData` (non-filing
 delegates), a `lastUpdated` within the last day, and a tier spread that
 isn't 60%+ in one bucket. If `S` contains names that make you squint, see §5.
 
-## 2. Live worker status
+## 2. Health and the refresh job
 
 ```bash
-curl -s "https://taskforce-purple-itemized-analysis.dev-a4b.workers.dev/status" | jq .
+# The health verdict: problems (each with a proposed fix) and notes
+curl -s "https://taskforce-purple-api.dev-a4b.workers.dev/api/health" | jq .
 ```
 
-Shows the donor-analysis refresh: total members, analyses stored, queue
-remaining, who's next. Queue shrinks by ~3/hour while a pass is running;
-an empty queue means everything is fresher than 30 days (scans re-check
-every 6h).
+`"ok": true` with no problems is healthy. The same verdict raises the
+`system-alert` issue (§10).
+
+```bash
+# Refresh job runs (GitHub Actions, newest first), then one run's log
+gh run list --workflow refresh.yml --limit 5
+gh run view RUN_ID --log | tail -40
+```
+
+```bash
+# Where the refresh stands: members done/failed this cycle, the reasons for
+# failures, and the latest rounds (one round = one full pass)
+npx wrangler d1 execute tfp-results --remote --command "SELECT status, COUNT(*) AS n FROM member_progress WHERE cycle = 2026 GROUP BY status"
+npx wrangler d1 execute tfp-results --remote --command "SELECT bioguide_id, attempts, last_error FROM member_progress WHERE status = 'failed'"
+npx wrangler d1 execute tfp-results --remote --command "SELECT round_id, reason, started_at, finished_at FROM rounds ORDER BY started_at DESC LIMIT 3"
+```
 
 ```bash
 curl -s "https://taskforce-purple-api.dev-a4b.workers.dev/api/status" | jq '{status, progress, tierCounts}'
@@ -42,32 +55,16 @@ curl -s "https://taskforce-purple-api.dev-a4b.workers.dev/api/status" | jq '{sta
 npx wrangler tail taskforce-purple-api --format=pretty
 ```
 
-```bash
-npx wrangler tail taskforce-purple-itemized-analysis --format=pretty
-```
-
-Leave one running in a terminal; the crons fire every 20 minutes (both
-workers). You'll see member-by-member processing, FEC calls, D1 writes,
-FARA matches. Ctrl-C to stop. Nothing appearing for 25+ minutes = a cron
-is not firing → check deploy status (§7).
+The API worker only serves the site now (no crons), so the tail shows
+requests. The refresh job's work (FEC calls, reconciliation, grades) is in
+its GitHub Actions log (§2). The itemized worker is retired: every URL
+answers 410.
 
 ## 4. Progress and coverage
 
 ```bash
 # How much of Congress has conduit (bundling) data and FARA data
 curl -s "https://taskforce-purple-api.dev-a4b.workers.dev/api/members" | jq '{withConduits: ([.members[] | select((.conduitCount // 0) > 0)] | length), withFara: ([.members[] | select(.faraEmployerTotal != null and .faraEmployerTotal > 0)] | length), withNakamoto: ([.members[] | select(.nakamotoCoefficient != null)] | length)}'
-```
-
-```bash
-# Financial-refresh queue (Phase 1): members awaiting (re-)fetch
-npx wrangler kv key get "processing_queue_phase1" --namespace-id=8318226115e2423ab5d141adfa5419f9 --remote | jq 'length'
-```
-
-```bash
-# Donor-analysis queue: who is waiting, how many strikes, and why/when the
-# last one failed (dropped at 3 strikes; lastError/lastFailedAt recorded
-# from 2026-09-27 on - older strikes have no reason on record)
-npx wrangler kv key get "itemized_processing_queue" --namespace-id=8318226115e2423ab5d141adfa5419f9 --remote | jq -r '.[] | [.name, (.failCount // 0), (.lastFailedAt // "-"), (.lastError // "-")] | @tsv'
 ```
 
 ```bash
@@ -139,35 +136,22 @@ count and dollar reconciles.
 npx wrangler d1 info taskforce-purple-donors
 ```
 
-**The write budget (added 2026-09-09).** The pipeline now meters itself and
-stands down rather than breaching the write cap. What it thinks it has spent:
+**The write budget.** D1's 100k rows-written/day is per account, shared
+with the owner's other projects. The refresh job charges D1's own
+`rows_written` figures to a ledger and won't start within 20,000 of its
+85,000 cap:
 
 ```bash
-npx wrangler d1 execute taskforce-purple-donors --remote \
-  --command "SELECT * FROM d1_write_budget;"
+npx wrangler d1 execute tfp-results --remote \
+  --command "SELECT * FROM d1_write_budget ORDER BY day DESC LIMIT 3;"
+npx wrangler d1 info tfp-results
 ```
 
-One row, today's UTC date, against a self-imposed budget of 85,000 (15% under
-Cloudflare's 100k). At 00:00 UTC the day rolls and the row is replaced.
-
-```bash
-# What the worker itself reports - the same number, from its own mouth.
-# This runs one real collection pass (FEC requests + D1 writes), so it needs
-# the admin token; without it you get 401 and nothing runs.
-curl -s "https://taskforce-purple-itemized-analysis.dev-a4b.workers.dev/analyze" \
-  -H "Authorization: Bearer $UPDATE_SECRET" | jq '.d1Budget // {budgetExhausted, budget}'
-```
-
-Reading `"budgetExhausted": true` is the system **working**, not failing: it
-means collection paused itself and resumes at midnight UTC. The member stays
-at the queue head and loses nothing but a day of freshness.
-
-Two numbers that should stay close: `rows_written_24h` from `d1 info` and
-`rows_written` from the ledger. If the ledger reads much _lower_, something is
-writing to D1 outside the metered path — find it, because that is exactly how
-the cap got breached three days running in September 2026. The per-row costs
-the meter uses are measured, not derived (see `workers/d1-write-budget.js`);
-re-measure with `--file=` on a scratch statement, which prints `rows_written`.
+If `d1 info` shows many more writes than the ledger, something wrote to D1
+without going through the job's `cf.d1()` — find it, because that is how
+the cap was breached three days running in September 2026. The legacy
+`taskforce-purple-donors` database is no longer written (the itemized worker
+that wrote it is retired).
 
 If `rows_read` spikes, suspect a query using the wrong index. `EXPLAIN QUERY
 PLAN` in front of any statement shows which one it picked, and costs nothing:
@@ -241,58 +225,51 @@ curl -X POST "https://taskforce-purple-api.dev-a4b.workers.dev/api/clear-fec-map
 
 ## 9. Known failure signatures
 
-| Symptom                                   | Likely cause                                                       | First move                                                    |
-| ----------------------------------------- | ------------------------------------------------------------------ | ------------------------------------------------------------- |
-| Member with implausible zeros             | Stale/wrong `fec_mapping_*` cache                                  | Clear mapping (§8), reprocess                                 |
-| Score >100% or itemized > total           | Cross-cycle record corruption                                      | §5 check, reprocess affected, recalc                          |
-| Card data much older than analysis data   | Financial refresh stalled                                          | §4 queue length; tail the api worker                          |
-| Queue frozen on same member for hours     | Usually the daily D1 budget (§6); else failure-defer not advancing | §6 ledger; queue command in §4 (strikes + last error)         |
-| Frontend changes not visible              | Pages build failed                                                 | §7 deployment list; check the build log link it prints        |
-| Everything frozen, no logs at all         | Cloudflare incident                                                | `curl -s https://www.cloudflarestatus.com/api/v2/status.json` |
-| Collection stopped mid-day, no errors     | D1 write budget spent (by design)                                  | §6 ledger; resumes 00:00 UTC                                  |
-| `d1 info` writes >> ledger `rows_written` | An unmetered D1 write path                                         | §6; every D1 write must charge the meter                      |
+| Symptom                                   | Likely cause                                         | First move                                                    |
+| ----------------------------------------- | ---------------------------------------------------- | ------------------------------------------------------------- |
+| Member with implausible zeros             | Stale/wrong `fec_mapping_*` cache                    | Clear mapping (§8), reprocess                                 |
+| Score >100% or itemized > total           | Cross-cycle record corruption                        | §5 check, reprocess affected, recalc                          |
+| A refresh run failed or a member failed   | The reason is in the run's log and `member_progress` | §2; the alert issue carries the proposed fix                  |
+| Frontend changes not visible              | Pages build failed                                   | §7 deployment list; check the build log link it prints        |
+| Everything frozen, no logs at all         | Cloudflare incident                                  | `curl -s https://www.cloudflarestatus.com/api/v2/status.json` |
+| Refresh job won't start: "D1 budget"      | D1 write budget nearly spent (by design)             | §6 ledger; run again after 00:00 UTC (17:00 PDT)              |
+| `d1 info` writes >> ledger `rows_written` | An uncounted D1 write path                           | §6; every D1 write must go through `cf.d1()`                  |
 
 ## 10. Alerts (automatic — you get a GitHub notification)
 
-Every hour (at :25) the **Health alert** GitHub Action reads the live
-verdict and, if anything is wrong, opens an issue labelled `system-alert`
-that @mentions you. It comments again only if the set of problems changes,
-and closes the issue itself once every check passes. Delivery is by
-GitHub's own notifications (email and/or the mobile app, depending on
-your GitHub notification settings).
+At the end of every refresh job, `scripts/health-alert.sh` reads the live
+verdict (`/api/health`) and, if anything is wrong, opens an issue labelled
+`system-alert` that @mentions you. Each problem comes with a proposed fix.
+It comments again only if the set of problems changes, and closes the issue
+itself once every check passes. Delivery is by GitHub's own notifications
+(email and/or the mobile app, depending on your GitHub notification
+settings). The hourly Health alert workflow stays off (REBUILD_SPEC §8): the
+system only does work when a refresh runs.
 
 What it checks (`workers/health.js`, with tests):
 
-| Alert                  | Means                                                                                        |
-| ---------------------- | -------------------------------------------------------------------------------------------- |
-| `pipeline-not-running` | Main data worker hasn't run for 60+ min (should be every 20)                                 |
-| `itemized-not-running` | Donor-analysis worker hasn't run for 90+ min (should be hourly)                              |
-| `collection-stuck`     | The member at the head of the donor queue hasn't gained a page in 30 h; shows last FEC error |
-| `members-failing`      | A member got a strike in the last 24 h, with the reason (3 strikes = dropped)                |
-| `members-dropped`      | A member was dropped from donor analysis in the last 48 h, with the reason                   |
-| `collection-mismatch`  | A finished donor collection doesn't match the FEC's own count, so it's kept off the grade    |
-| `d1-over-budget`       | 95k+ D1 row-writes today — something is writing without charging the meter                   |
-| `d1-unreadable`        | The D1 write ledger can't be read                                                            |
-| `health-unreachable`   | The health page itself didn't answer — the worker may be down                                |
+| Alert                   | Means                                                                          |
+| ----------------------- | ------------------------------------------------------------------------------ |
+| `site-data-missing`     | The site has no member list to serve                                           |
+| `site-data-short`       | The member list has fewer than 530 members                                     |
+| `refresh-job-failed`    | The refresh job itself failed; the issue links its log                         |
+| `refresh-failed`        | The last recorded refresh run failed                                           |
+| `refresh-stuck`         | A run started 7+ hours ago and never recorded its end (killed)                 |
+| `members-failing`       | Members failed in the refresh, with the reason (they retry; nobody is dropped) |
+| `committee-mismatch`    | A committee's records couldn't all be found, so its members stay pending       |
+| `d1-over-budget`        | 95k+ D1 row-writes today (the account-wide limit is 100k)                      |
+| `results-db-unreadable` | The refresh job's database can't be read                                       |
+| `health-unreachable`    | The health page itself didn't answer — the API worker may be down              |
 
 ```bash
 # The raw verdict, any time
-curl -s "https://taskforce-purple-itemized-analysis.dev-a4b.workers.dev/health" | jq .
+curl -s "https://taskforce-purple-api.dev-a4b.workers.dev/api/health" | jq .
 ```
 
 ```bash
-# Run the check now instead of waiting for :25
-gh workflow run health-alert.yml
-```
-
-```bash
-# See what it would do without touching GitHub
+# See what the alert would do without touching GitHub
 DRY_RUN=1 bash scripts/health-alert.sh
 ```
-
-Caveats: GitHub can start scheduled jobs late at busy times, and it
-pauses scheduled workflows after 60 days without a commit to the repo (it
-emails a warning first; re-enable in the Actions tab).
 
 ## Related docs
 

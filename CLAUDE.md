@@ -32,13 +32,19 @@ designs — don't code against them.
 ## Architecture
 
 ```
-Congress.gov API ──> data-pipeline worker ──> KV members:all ──> React frontend
-OpenFEC API ───────> (cron */20, phase queues)      ^            (Cloudflare Pages,
-                                                    |             auto-deploys on
-OpenFEC Schedule A ─> itemized-analysis worker ─────┘             push to main)
-                      (cron */20, one member/run,
-                       KV itemized_analysis_v2:* + D1 mirror)
+FEC bulk file + OpenFEC API ─> refresh job (GitHub Actions,     ─> D1 tfp-results
+                               scripts/refresh/, Node + DuckDB)     (results, history,
+                                                                    gap-fill records)
+KV member:{id} + members:list ─> API worker (workers/data-pipeline.js,
+                                 read-only serving + admin)  ─> React frontend
+                                                                (Cloudflare Pages,
+                                                                 auto-deploys on
+                                                                 push to main)
 ```
+
+Stage 2 of the rebuild (2026-10-04): the refresh job computes results into
+D1 but doesn't publish them yet (Stage 3). The itemized worker is retired: a
+stub answering 410 (`workers/itemized-retired.js`).
 
 - **Current system (being replaced, see REBUILD_SPEC.md):** KV `members:all`
   holds tiers; D1 `taskforce-purple-donors` is an incomplete mirror of raw
@@ -57,9 +63,12 @@ npm test          # vitest - tier math unit tests; run before touching tier logi
 npm run lint      # eslint (husky + lint-staged also runs on commit)
 npm run build     # vite frontend build
 
-# Deploy workers (needs wrangler auth: `npx wrangler login` or CLOUDFLARE_API_TOKEN)
-npx wrangler deploy                                            # data-pipeline
-cd workers && npx wrangler deploy --config wrangler-itemized-analysis.toml
+# Deploy the API worker (needs wrangler auth: `npx wrangler login`).
+# wrangler.toml is gitignored (local only): KV MEMBER_DATA + D1 RESULTS_DB
+npx wrangler deploy
+
+# Refresh job: GitHub Actions → Refresh (workflow_dispatch), or locally
+node scripts/refresh/run.mjs --members W000788 --dry-run
 
 # Trigger tier recalculation after deploying tier-math changes
 curl -X POST "https://taskforce-purple-api.dev-a4b.workers.dev/api/recalculate-tiers" \
@@ -107,31 +116,33 @@ redesigned them wasted days and, twice, proposed breaking them. Build on them.
 
 ## Constraints and gotchas
 
-- **Cloudflare free tier**: ~1,000 KV writes/day total across both workers is
-  the binding constraint; that's why crons are 20-minute and process one
-  member per run. Don't add per-run KV writes casually.
-- **D1 write budget**: the free tier's 100k rows-written/day is hard-enforced.
-  `workers/d1-write-budget.js` meters every D1 write and stands the pipeline
-  down at 85k. **Any new D1 write must charge the meter** (`meter.spent +=
-estimateRowWrites({...})`) — an unmetered path silently reopens the hole.
-  Its per-row costs are measured against production, not derived from the
-  index count; re-measure rather than reason about them (RUNBOOK §6).
+- **Cloudflare free tier**: 1,000 KV writes/day per account (REST API writes
+  count too) is the binding constraint. Write only on a diff
+  (`MemberWriter`, `kvPut` after comparing). Don't add KV writes casually.
+- **D1 write budget**: the free tier's 100k rows-written/day is hard-enforced
+  and shared with the owner's other projects on the account. The refresh job
+  charges D1's own `rows_written` figures to `d1_write_budget` in
+  `tfp-results` and won't start above its cap. **Every D1 write must go
+  through `cf.d1()` in `scripts/refresh/lib/cloudflare.mjs`**, which counts
+  them; an uncounted path silently reopens the hole.
 - **FEC rate limit: 1,000 calls per hour per personal key** (the FEC's own
   429 message, 2026-10-03; a response header also says 60, but the hourly
   limit is what bites). The refresh job paces itself at one call every 3.7 s.
   A free upgraded key (120 a minute) comes from emailing apiinfo@fec.gov.
-- **D1 bound-parameter limit**: batch inserts at ~10 rows/statement (see the
-  transactions insert in itemized-analysis.js). Larger batches fail silently
-  if wrapped in catch blocks — this already bit us once.
+- **D1 bound-parameter limit**: batch inserts at ~10 rows/statement (100
+  bound parameters per statement). Larger batches fail, silently if wrapped
+  in catch blocks — this already bit us once.
 - Prefer `INSERT ... ON CONFLICT DO UPDATE ... WHERE <changed>` over
   `INSERT OR REPLACE`: an unchanged row then costs zero row-writes instead of
   two. Never write a row just to restate its current value.
-- **Credentials live only in Cloudflare Worker secrets** — `FEC_API_KEY`,
-  `CONGRESS_API_KEY`, `UPDATE_SECRET` on the pipeline worker; `FEC_API_KEY`,
-  `UPDATE_SECRET` on the itemized worker (it guards `/analyze`). Code reads them with `requireSecret()` and fails loudly
-  if one is missing. **Never write a key, token or password into code** — the
-  repo is public. Until 2026-09-27 an api.data.gov key and the admin
-  `UPDATE_SECRET` sat hardcoded in the workers for a year (written by Claude);
+- **Credentials live only in Cloudflare Worker secrets and GitHub secrets** —
+  `FEC_API_KEY`, `CONGRESS_API_KEY`, `UPDATE_SECRET` on the API worker;
+  `FEC_API_KEY` and `CLOUDFLARE_API_TOKEN` as GitHub Actions secrets for the
+  refresh job. The retired itemized worker holds none. Code reads them with
+  `requireSecret()` (or the job's env) and fails loudly if one is missing.
+  **Never write a key, token or password into code** — the repo is public.
+  Until 2026-09-27 an api.data.gov key and the admin `UPDATE_SECRET` sat
+  hardcoded in the workers for a year (written by Claude);
   both were replaced and the fallbacks removed. To rotate again:
   `bash scripts/rotate-secrets.sh` (the owner pastes the key; Claude does not
   handle credential values). Current values are in the gitignored API_KEYS.md.
@@ -142,11 +153,12 @@ estimateRowWrites({...})`) — an unmetered path silently reopens the hole.
   trusted forever. A wrong cached match pins a member to the wrong candidate
   (and their zeros) until cleared via `/api/clear-fec-mapping?bioguideId=X`.
   If a member has implausible zeros, suspect this cache first.
-- **Alerts:** `workers/health.js` (served at itemized `/health`, checked
-  hourly by `.github/workflows/health-alert.yml`, which opens a GitHub issue
-  for the owner). When you add a way for the system to fail quietly, add a
-  check there — a failure nobody is told about is how AOC sat stuck for
-  three months.
+- **Alerts:** `workers/health.js` (served at the API worker's `/api/health`).
+  `scripts/health-alert.sh` turns it into a `system-alert` GitHub issue for
+  the owner, each problem with a proposed fix; it runs at the end of every
+  refresh job (the hourly `health-alert.yml` stays off, REBUILD_SPEC §8).
+  When you add a way for the system to fail quietly, add a check there — a
+  failure nobody is told about is how AOC sat stuck for three months.
 - `.claude/settings.local.json` is local-only and gitignored — never commit.
 
 ## Conventions

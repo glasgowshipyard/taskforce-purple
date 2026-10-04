@@ -62,14 +62,13 @@ jobs:
           if [ "$DRY_RUN" = "true" ]; then args+=(--dry-run); fi
           node scripts/refresh/run.mjs "${args[@]}"
 
-      - name: Alert on failure
-        if: failure()
+      # Opens, updates or closes the system-alert issue from /api/health
+      # (failing members, unreconciled committees, D1 budget) plus this job's
+      # own failure, each with a proposed fix (REBUILD_SPEC §5 step 9)
+      - name: Alert
+        if: always()
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
-          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-        run: |
-          gh label create system-alert --color B60205 --description "Automatic health alert" 2>/dev/null || true
-          gh issue create --label system-alert \
-            --title "Refresh job failed" \
-            --body "@glasgowshipyard the refresh job failed. Log: $RUN_URL"
+          JOB_FAILED_URL: ${{ job.status != 'success' && format('{0}/{1}/actions/runs/{2}', github.server_url, github.repository, github.run_id) || '' }}
+        run: bash scripts/health-alert.sh

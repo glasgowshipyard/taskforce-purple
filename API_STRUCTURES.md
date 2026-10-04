@@ -410,26 +410,26 @@ const ELECTION_CYCLE = (() => {
 - **Performance**: Calculated once per worker cold start, not per API call
 - **Accuracy**: Always pulls data from the correct election cycle
 
-## Itemized worker `/analyze` (auth required since 2026-09-28)
+## Itemized worker (retired 2026-10-04)
 
-`GET https://taskforce-purple-itemized-analysis.dev-a4b.workers.dev/analyze` - runs one
-collection pass (5 FEC pages), the same work the cron does every 20 minutes. It spends
-requests on the shared api.data.gov key and D1 row-writes from the daily budget, so it
-requires the admin token. `/status` and `/health` stay public.
+Every URL on `https://taskforce-purple-itemized-analysis.dev-a4b.workers.dev`
+(`/analyze`, `/status`, `/health`) answers `410` with a pointer to
+`/api/health`. Donor collection is the refresh job (GitHub Actions,
+`scripts/refresh/`); the old code is in git history.
 
-```bash
-curl -s "https://taskforce-purple-itemized-analysis.dev-a4b.workers.dev/analyze" \
-  -H "Authorization: Bearer $UPDATE_SECRET"
-```
+## `GET /api/health` (added 2026-10-04)
 
-Missing or wrong token → `401 {"error":"Unauthorized"}`. If the worker has no
-`UPDATE_SECRET` secret set, every request gets 401.
+Public, read-only, never cached. Returns
+`{ checkedAt, ok, problems: [{id, message, fix}], notes: [] }` from
+`workers/health.js`: the site's member list (KV `members:list`) and the
+refresh job's record in D1 `tfp-results` (latest run, failed members,
+unreconciled committees, today's D1 write ledger). Read by
+`scripts/health-alert.sh` at the end of every refresh job (RUNBOOK §10).
+Cost per call: 1 KV read and one D1 batch of 4 small reads; no writes.
 
-## Itemized worker `/health` (added 2026-09-27)
-
-`GET https://taskforce-purple-itemized-analysis.dev-a4b.workers.dev/health` - public, read-only.
-Returns `{ ok, problems: [{id, message}], notes: [], checkedAt }`. Read hourly by the Health alert
-GitHub Action (RUNBOOK §10). Cost per call: 5 KV reads, 1 D1 read, no writes.
+`/api/debug-kv` was retired the same day (410): it reported a queue that no
+longer exists, and each public call spent one of the free tier's 1,000 daily
+KV list operations.
 
 ## Stage 1 changes (2026-10-03, REBUILD_SPEC.md)
 

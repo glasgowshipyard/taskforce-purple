@@ -89,6 +89,11 @@ npx wrangler kv key get "members:list" --namespace-id=8318226115e2423ab5d141adfa
 
 #### Queue Keys
 
+**Frozen since 2026-10-04.** The itemized worker that wrote these keys is
+retired; nothing reads or writes them now. The refresh job keeps its
+progress in D1 `tfp-results` (`member_progress`, `rounds`). They stay until
+Stage 4's cleanup.
+
 **`itemized_processing_queue`** - Queue of members needing itemized analysis
 
 Entries are `{bioguideId, name, failCount?, lastError?, lastFailedAt?}`. The last two have been

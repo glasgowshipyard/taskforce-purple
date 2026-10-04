@@ -1,6 +1,41 @@
 # Task Force Purple - Implementation Status
 
-**Last Updated**: 2026-09-28
+**Last Updated**: 2026-10-04
+
+---
+
+## 2026-10-04: Health moves to the API worker; the itemized worker is retired
+
+- **`/api/health`** on the API worker (`6c413a7a`) replaces the itemized
+  worker's `/health`. `workers/health.js` is rewritten for the new system:
+  - the site's member list (missing, or under 530 members);
+  - the refresh job's latest run (failed, or "running" 7+ hours, i.e.
+    killed);
+  - failing members, with reasons;
+  - committees that couldn't be reconciled;
+  - the D1 write ledger at 95k+;
+  - the results database unreadable.
+    Every problem carries a proposed fix. The API worker's `wrangler.toml`
+    (gitignored) gains a read binding `RESULTS_DB` to `tfp-results`.
+- **Alerts:** the Refresh workflow ends by running `scripts/health-alert.sh`
+  (always, pass or fail), which opens, updates or closes the one
+  `system-alert` issue, adding the job's own failure with its log link. This
+  replaces the workflow's separate "Refresh job failed" issue. The hourly
+  Health alert workflow stays off (REBUILD_SPEC §8).
+- **A crashed refresh run now records itself as failed** and charges the D1
+  rows it already wrote. Before, I had it leave the run "running" forever
+  and the ledger short.
+- **The itemized worker is retired** (`6c416433`): a stub that answers 410
+  on every URL (`workers/itemized-retired.js`). I deleted its code and tests
+  (1,496 lines; last version `04d44c4` in history) and the D1 meter only it
+  used (`d1-write-budget.js`). Its two worker secrets are deleted, and
+  `rotate-secrets.sh` no longer sets them.
+- **`/api/debug-kv` retired (410).** It was public, reported a queue that no
+  longer exists, and each call spent one of the free tier's 1,000 daily KV
+  list operations.
+- The KV keys it wrote (`itemized_analysis_v2:*`, queues) stay as they are,
+  frozen; the site still reads the analyses until Stage 3 publishes from
+  `tfp-results`.
 
 ---
 
