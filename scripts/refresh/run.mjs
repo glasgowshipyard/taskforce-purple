@@ -164,6 +164,15 @@ async function main() {
       );
       break;
     }
+    // D1 budget, again before each batch: today's ledger plus what this run
+    // has written so far, with room for one more batch
+    const writtenToday = (ledger?.rows_written || 0) + cf.stats.d1RowsWritten;
+    if (writtenToday > D1_DAILY_CAP - 5000) {
+      log(
+        `D1 budget: ${writtenToday} rows written today; stopping, ${targets.length - b} member(s) left for the next run of ${roundId}`
+      );
+      break;
+    }
     const batch = targets.slice(b, b + batchSize);
 
     // 1. Each member's committees (discovery, #32)
