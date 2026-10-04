@@ -13,6 +13,7 @@ const BASE = 'https://api.open.fec.gov/v1';
 const RETRY_WAITS_MS = [2000, 5000, 15000, 30000, 60000];
 const RATE_LIMIT_WAITS_MS = [60000, 300000, 600000, 900000, 1200000];
 const DEFAULT_INTERVAL_MS = Number(process.env.FEC_MIN_INTERVAL_MS) || 3700;
+const REQUEST_TIMEOUT_MS = 90000;
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 
 export class FecError extends Error {
@@ -56,9 +57,25 @@ export function createFecClient(
       let status = 0;
       let detail = '';
       try {
+        const started = Date.now();
+        if (process.env.FEC_DEBUG) {
+          console.log(
+            `  -> FEC ${path} attempt ${attempt + 1} at ${new Date().toISOString().slice(11, 19)}`
+          );
+        }
+        // A hung request must become a retry, not a silent stall: without a
+        // limit, each attempt waited ~5 minutes (Node's default) - found
+        // 2026-10-04 when a dry run sat on one committee for 3 hours
         const res = await fetchImpl(`${BASE}${path}?${qs}`, {
           headers: { 'User-Agent': 'TaskForcePurple/1.0 (refresh job)' },
+          signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
         });
+        if (process.env.FEC_DEBUG) {
+          const shown = Object.entries(params)
+            .map(([k, v]) => `${k}=${v}`)
+            .join('&');
+          console.log(`  FEC ${res.status} ${Date.now() - started}ms ${path}?${shown}`);
+        }
         status = res.status;
         if (res.ok) {
           const body = await res.json();
@@ -67,6 +84,9 @@ export function createFecClient(
         detail = (await res.text()).slice(0, 200);
       } catch (error) {
         detail = error.message;
+        if (process.env.FEC_DEBUG) {
+          console.log(`  !! FEC ${path} failed: ${error.name} ${error.message}`);
+        }
       }
       const temporary = status === 0 || status === 429 || status >= 500;
       const schedule = status === 429 ? rateLimitWaits : waits;
@@ -90,6 +110,7 @@ export function createFecClient(
  */
 export async function scheduleAPages(fec, params, onPage) {
   let last = {};
+  let previous = null;
   for (;;) {
     const d = await fec('/schedules/schedule_a/', { per_page: 100, ...params, ...last });
     const rows = d.results || [];
@@ -98,14 +119,22 @@ export async function scheduleAPages(fec, params, onPage) {
     }
     await onPage(rows, d.pagination);
     const li = d.pagination?.last_indexes;
-    if (!li) {
+    if (!li || !li.last_index) {
       return;
     }
-    last = {
-      last_index: li.last_index,
-      last_contribution_receipt_date: li.last_contribution_receipt_date,
-      max_date: li.last_contribution_receipt_date,
-    };
+    if (li.last_index === previous) {
+      throw new Error(`Schedule A cursor did not advance (${li.last_index})`);
+    }
+    previous = li.last_index;
+    // The cursor's date narrows the query (and keeps deep pages fast). A
+    // record with no date gives a cursor with no date: then the caller's own
+    // date range must stay in force, never be dropped (a dropped range turned
+    // one small slice into paging a whole 600k-record committee, 2026-10-04)
+    last = { last_index: li.last_index };
+    if (li.last_contribution_receipt_date) {
+      last.last_contribution_receipt_date = li.last_contribution_receipt_date;
+      last.max_date = li.last_contribution_receipt_date;
+    }
   }
 }
 

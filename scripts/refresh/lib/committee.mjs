@@ -16,6 +16,7 @@ import {
 import { apiRowToBulkShape, insertApiRows } from './bulk.mjs';
 import { scheduleACount, scheduleAPages } from './fec.mjs';
 import {
+  ITEMIZED_TYPES,
   addDays,
   committeeVerdict,
   dayCount,
@@ -37,10 +38,19 @@ export async function reconcileCommittee({ fec, bulk, committeeId, cycle, log = 
   const bulkIds = new Set(
     (await read('SELECT sub_id FROM bulk WHERE committee_id = ?', committeeId)).map(r => r.sub_id)
   );
+  // Only line-11AI records are compared. The FEC's is_individual set also holds
+  // line-12 memo records (type 15J: the donors behind a joint fund's transfer),
+  // which the bulk file leaves out and which aren't itemized individual money;
+  // counting them made AOC's every date range look short (2026-10-04)
+  const comparable = `tx_type IN (${[...ITEMIZED_TYPES].map(t => `'${t}'`).join(',')})`;
+  const [{ n: bulkComparable }] = await read(
+    `SELECT count(*)::INTEGER n FROM bulk WHERE committee_id = ? AND ${comparable}`,
+    committeeId
+  );
   const bulkInRange = async ({ min, max }) =>
     (
       await read(
-        'SELECT count(*)::INTEGER n FROM bulk WHERE committee_id = ? AND date BETWEEN ? AND ?',
+        `SELECT count(*)::INTEGER n FROM bulk WHERE committee_id = ? AND ${comparable} AND date BETWEEN ? AND ?`,
         committeeId,
         min,
         max
@@ -51,7 +61,7 @@ export async function reconcileCommittee({ fec, bulk, committeeId, cycle, log = 
   const gap = new Map();
   let recordsComplete = true;
   let fetchedSlices = 0;
-  const whole = await scheduleACount(fec, { ...base, is_individual: true });
+  const whole = await scheduleACount(fec, { ...base, is_individual: true, line_number: line });
 
   // Binary search on dates: a range whose count differs is split in half
   // (one count call each) until it is small enough to fetch. Each missing
@@ -66,6 +76,7 @@ export async function reconcileCommittee({ fec, bulk, committeeId, cycle, log = 
       {
         ...base,
         is_individual: true,
+        line_number: line,
         ...(range.min ? { min_date: range.min } : {}),
         ...(range.max ? { max_date: range.max } : {}),
       },
@@ -84,10 +95,16 @@ export async function reconcileCommittee({ fec, bulk, committeeId, cycle, log = 
     const api = await scheduleACount(fec, {
       ...base,
       is_individual: true,
+      line_number: line,
       ...(range.min ? { min_date: range.min } : {}),
       ...(range.max ? { max_date: range.max } : {}),
     });
     rangesCounted++;
+    if (rangesCounted % 25 === 0) {
+      log(
+        `  ${committeeId}: ${rangesCounted} date ranges checked, ${fetchedSlices} fetched, ${gap.size} missing records found so far (${fec.calls} FEC calls)`
+      );
+    }
     if (api.count === 0) {
       return 0;
     }
@@ -117,7 +134,7 @@ export async function reconcileCommittee({ fec, bulk, committeeId, cycle, log = 
     return sum;
   }
 
-  if (!(whole.exact && whole.count === bulkIds.size)) {
+  if (!(whole.exact && whole.count === bulkComparable)) {
     const start = `${cycle - 1}-01-01`;
     const end = `${cycle}-12-31`;
     // Records dated before or after the cycle's two years, then the years
@@ -170,7 +187,7 @@ export async function reconcileCommittee({ fec, bulk, committeeId, cycle, log = 
     fecItemizedTotal: fecTotal,
     fecIndividualCount: whole.count,
     fecCountExact: whole.exact,
-    bulkCount: bulkIds.size,
+    bulkCount: bulkComparable,
     gapFilled: gapRows.length,
     earmarkedExtra: earmarked.length,
     fetchedSlices,

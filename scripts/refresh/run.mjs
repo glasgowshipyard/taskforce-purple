@@ -113,7 +113,7 @@ async function main() {
       const r = await reconcileCommittee({ fec, bulk, committeeId: id, cycle, log });
       committees.set(id, r);
       log(
-        `  ${id} ${r.name}: ${r.status} (bulk ${r.bulkCount}, FEC ${r.fecIndividualCount}${r.fecCountExact ? '' : '~'}, filled ${r.gapFilled}, earmarked ${r.earmarkedExtra}, delta $${r.money.delta})`
+        `  ${id} ${r.name}: ${r.status} (bulk ${r.bulkCount}, FEC ${r.fecIndividualCount}${r.fecCountExact ? '' : '~'}, filled ${r.gapFilled}, earmarked ${r.earmarkedExtra}, delta $${r.money.delta}; ${r.rangesCounted} ranges counted, ${r.fetchedSlices} fetched, ${fec.calls} FEC calls so far)`
       );
       if (!dryRun) {
         await d1(
