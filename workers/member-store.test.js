@@ -7,6 +7,7 @@ import {
   listBody,
   listEntry,
   memberKey,
+  publishedMember,
   sameValue,
   servedMember,
 } from './member-store.js';
@@ -152,5 +153,70 @@ describe('getMember', () => {
     const kv = fakeKV({ [LEGACY_KEY]: JSON.stringify([member('A000001', { tier: 'C' })]) });
     expect((await getMember({ MEMBER_DATA: kv }, 'A000001')).tier).toBe('C');
     expect(await getMember({ MEMBER_DATA: kv }, 'Z999999')).toBeNull();
+  });
+});
+
+describe('publishedMember', () => {
+  const record = {
+    bioguideId: 'X000001',
+    name: 'Test, Member',
+    tier: 'F',
+    gradeBasis: 'campaign-committee',
+    individualFundingPercent: 6,
+    nakamotoCoefficient: 30,
+    uniqueDonors: 308,
+    pacContributions: [{ committee_type: 'Q' }],
+  };
+  const result = {
+    cycle: 2026,
+    computed_at: '2026-10-05T13:30:00Z',
+    status: 'provisional',
+    grade: {
+      tier: 'A',
+      individualFundingPercent: 76,
+      gradeBasis: 'all-committees',
+      personFigures: { totalRaised: 1871800 },
+      evidenceChecked: false,
+    },
+    analysis: {
+      uniqueDonors: 3162,
+      nakamotoCoefficient: 209,
+      top10Concentration: 0.1,
+      conduits: [{ name: 'WINRED', amount: 5000, count: 40 }],
+      earmarkedTotal: 5000,
+      faraFirms: [],
+      faraEmployerTotal: 0,
+    },
+  };
+
+  it('lays the graded result over the stored record', () => {
+    const m = publishedMember(record, result);
+    expect(m).toMatchObject({
+      tier: 'A',
+      gradeBasis: 'all-committees',
+      evidenceChecked: false,
+      individualFundingPercent: 76,
+      uniqueDonors: 3162,
+      nakamotoCoefficient: 209,
+      gradeCycle: 2026,
+      topConduits: [{ name: 'WINRED', amount: 5000, count: 40 }],
+      earmarkedIndividualTotal: 5000,
+    });
+    expect(m.nakamotoPercent).toBeCloseTo((209 / 3162) * 100);
+    // record-only fields stay
+    expect(m.name).toBe('Test, Member');
+    expect(m.pacContributions).toEqual(record.pacContributions);
+  });
+
+  it('a member without a graded result is published as stored', () => {
+    expect(publishedMember(record, null)).toBe(record);
+    expect(publishedMember(record, { status: 'pending', grade: null })).toBe(record);
+  });
+
+  it('the list entry carries the evidence state', () => {
+    expect(listEntry(publishedMember(record, result))).toMatchObject({
+      tier: 'A',
+      evidenceChecked: false,
+    });
   });
 });

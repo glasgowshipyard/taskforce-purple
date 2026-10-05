@@ -12,6 +12,7 @@ import { join } from 'node:path';
 
 export const ACCOUNT_ID = process.env.CLOUDFLARE_ACCOUNT_ID || 'a4bc6c41d0c4b6b1bb25dcacf9d4d55f';
 export const KV_NAMESPACE = '8318226115e2423ab5d141adfa5419f9';
+export const RESULTS_DB = 'f4ad9245-769d-4bb2-b772-c552907e1692'; // D1 tfp-results
 const API = 'https://api.cloudflare.com/client/v4';
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 

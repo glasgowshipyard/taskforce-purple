@@ -47,11 +47,11 @@ import { cycleForYear } from '../../workers/tier-calculation.js';
 import { analyzePool, loadFara } from './lib/analysis.mjs';
 import { discoverPeople, loadDiscoveryFiles } from './lib/discovery.mjs';
 import { apiRowToBulkShape, ensureBulkFile, insertApiRows, loadBulk } from './lib/bulk.mjs';
-import { createCloudflare } from './lib/cloudflare.mjs';
+import { RESULTS_DB, createCloudflare } from './lib/cloudflare.mjs';
 import { TimeBudgetError, reconcileCommittee } from './lib/committee.mjs';
 import { createFecClient } from './lib/fec.mjs';
+import { publishGrades } from './lib/publish.mjs';
 
-export const RESULTS_DB = 'f4ad9245-769d-4bb2-b772-c552907e1692'; // tfp-results
 const D1_DAILY_CAP = 85000; // the account's D1 limit is 100k/day, shared with other projects
 const SETTLED = new Set(['reconciled', 'reconciled-with-note', 'mismatch']);
 
@@ -530,6 +530,13 @@ async function main() {
         await progress('failed', error.message);
       }
     }
+    // Publish this batch to the site (Stage 3): one list write, only if it
+    // differs. Per batch, so the list and the member pages (which read D1
+    // directly) never disagree for long
+    if (!dryRun) {
+      const pub = await publishGrades({ cf, d1, cycle, log });
+      summary.gradeChanges = (summary.gradeChanges || 0) + pub.gradeChanges.length;
+    }
     if (cutShort) {
       log(`time budget reached mid-batch: the rest is left for the next run of ${roundId}`);
       stopReason = 'time';
@@ -550,7 +557,7 @@ async function main() {
   log('summary', JSON.stringify(stats));
   // For the workflow: whether to start the next run of this round
   if (process.env.GITHUB_OUTPUT) {
-    const progressed = summary.complete + summary.pending + summary.skipped;
+    const progressed = summary.complete + summary.provisional + summary.pending + summary.skipped;
     appendFileSync(
       process.env.GITHUB_OUTPUT,
       `stop_reason=${stopReason}\nremaining=${remaining}\nprogressed=${progressed}\n`

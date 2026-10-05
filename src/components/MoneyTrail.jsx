@@ -24,6 +24,14 @@ const ROLE_LABEL = {
 };
 
 const usd = n => TaskForceAPI.formatCurrency(Math.round(n || 0));
+
+// A note reads "C00123456: The FEC's reported itemized total differs ...";
+// show the committee's name instead of its ID
+function evidenceNote(note, committees) {
+  const [id, ...rest] = note.split(': ');
+  const c = committees.find(x => x.committeeId === id);
+  return rest.length ? `${c ? c.name : id}: ${rest.join(': ')}.` : note;
+}
 const pct = (part, whole) => (whole > 0 ? `${Math.round((part / whole) * 100)}%` : '—');
 const fecCommitteeUrl = (id, cycle) => `https://www.fec.gov/data/committee/${id}/?cycle=${cycle}`;
 
@@ -179,6 +187,26 @@ export default function MoneyTrail({ member }) {
       )}
 
       <div className="mt-5 pt-4 border-t text-xs text-gray-600 space-y-1">
+        {detail.evidence?.checked === false && (
+          <p className="p-2 rounded bg-amber-50 border border-amber-200 text-amber-900">
+            <span className="font-semibold">Still being double-checked. </span>
+            These figures come from the FEC&apos;s bulk download, which holds over 99% of the
+            records. We&apos;re now checking every record against the FEC&apos;s own; if anything
+            was missing, the grade may shift slightly when that&apos;s done.
+          </p>
+        )}
+        {detail.evidence?.checked === true && (
+          <p>
+            <span className="font-semibold">Checked: </span>
+            every record behind this grade matches the FEC&apos;s own.
+          </p>
+        )}
+        {(detail.evidence?.notes || []).map(n => (
+          <p key={n}>
+            <span className="font-semibold">Note: </span>
+            {evidenceNote(n, committees)}
+          </p>
+        ))}
         <p>
           <span className="font-semibold">This grade counts </span>
           {gradeAll

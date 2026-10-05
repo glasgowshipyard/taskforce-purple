@@ -40,6 +40,7 @@ export const LIST_FIELDS = [
   'individualFundingPercent',
   'gradeBasis',
   'personFigures',
+  'evidenceChecked',
   'fecIdentityVerified',
   'nakamotoCoefficient',
   'faraEmployerTotal',
@@ -97,6 +98,47 @@ export function servedMember(member) {
     nakamotoPercent: member.nakamotoPercent ?? null,
     uniqueDonors: member.uniqueDonors ?? null,
     top10Concentration: member.top10Concentration ?? null,
+  };
+}
+
+/**
+ * A member as published: their stored record with the refresh job's result
+ * for the cycle laid over it (Stage 3, REBUILD_SPEC §6-7). `result` is a row
+ * of D1 tfp-results `results` with its JSON columns parsed. A member with no
+ * graded result (none yet, or pending) is published as stored.
+ *
+ * The grade, its basis and evidence state come from the result; so do the
+ * donor figures it was graded on (concentration, conduits, foreign-agent
+ * employers). Everything else (name, seat, PAC list, social handles) stays
+ * from the record.
+ */
+export function publishedMember(record, result) {
+  const g = result?.grade;
+  if (!g?.tier) {
+    return record;
+  }
+  const a = result.analysis || {};
+  const donors = a.uniqueDonors ?? null;
+  return {
+    ...record,
+    tier: g.tier,
+    individualFundingPercent: g.individualFundingPercent ?? null,
+    gradeBasis: g.gradeBasis,
+    personFigures: g.personFigures ?? null,
+    evidenceChecked: g.evidenceChecked ?? null,
+    gradeCycle: result.cycle,
+    gradedAt: result.computed_at,
+    uniqueDonors: donors,
+    nakamotoCoefficient: a.nakamotoCoefficient ?? null,
+    nakamotoPercent:
+      donors && a.nakamotoCoefficient !== null && a.nakamotoCoefficient !== undefined
+        ? (a.nakamotoCoefficient / donors) * 100
+        : null,
+    top10Concentration: a.top10Concentration ?? null,
+    topConduits: a.conduits || [],
+    earmarkedIndividualTotal: a.earmarkedTotal ?? null,
+    faraFirms: a.faraFirms || [],
+    faraEmployerTotal: a.faraEmployerTotal ?? null,
   };
 }
 
