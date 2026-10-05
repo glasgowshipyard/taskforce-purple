@@ -399,6 +399,41 @@ async function main() {
         );
         continue;
       }
+      // No campaign, leadership PAC or joint fund registered for the cycle
+      // (e.g. a member whose only committee is registered as an ordinary
+      // PAC): nothing to grade on all committees. Recorded as pending with
+      // the reason, not a failure; the site keeps the current grade.
+      if (!p.pool.length) {
+        summary.pending++;
+        log(`  ${p.name}: pending: no campaign committee registered for ${cycle}`);
+        await progress('done');
+        if (!dryRun) {
+          await d1(
+            `INSERT INTO results (bioguide_id, cycle, computed_at, bulk_file_date, pool, analysis, reconciliation, grade, status)
+             VALUES (?,?,?,?,?,?,?,?,?)
+             ON CONFLICT(bioguide_id, cycle) DO UPDATE SET computed_at=excluded.computed_at, pool=excluded.pool,
+               analysis=excluded.analysis, reconciliation=excluded.reconciliation, grade=excluded.grade, status=excluded.status
+             WHERE results.status <> 'pending' OR results.reconciliation IS NOT excluded.reconciliation`,
+            [
+              p.id,
+              cycle,
+              now(),
+              file.lastModified,
+              JSON.stringify({ committees: p.pf.committees, donorCommitteeIds: [] }),
+              null,
+              JSON.stringify({
+                ok: false,
+                pending: false,
+                reason:
+                  'no campaign committee, leadership PAC or joint fund registered for the cycle',
+              }),
+              null,
+              'pending',
+            ]
+          );
+        }
+        continue;
+      }
       try {
         const recon = p.pool.map(id => {
           const r = { ...committees.get(id) };
