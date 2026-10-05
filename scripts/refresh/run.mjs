@@ -5,7 +5,20 @@
  *
  *   node scripts/refresh/run.mjs [--members ID,ID] [--cycle 2026] [--dry-run]
  *     [--bulk-dir DIR] [--trigger manual|calendar|event] [--new-round REASON]
- *     [--budget-minutes 300] [--batch 25]
+ *     [--budget-minutes 300] [--batch 25] [--grade-only] [--discovery zips|api]
+ *
+ * Two modes (owner, 2026-10-04: grade first, confirm after):
+ *   --grade-only  grades every member from the FEC's bulk files, with no
+ *                 record-by-record check: minutes, and almost no FEC calls.
+ *                 Committees already checked count as checked; the rest are
+ *                 marked unchecked and the grade is provisional.
+ *   (default)     the check: reconciles every committee's records with the
+ *                 FEC's, fills what the bulk file lacks, and confirms or
+ *                 shifts the grade. Takes days at 1,000 FEC calls an hour.
+ *
+ * Discovery (each member's committees and money) comes from the FEC's bulk
+ * files by default (lib/discovery.mjs); --discovery api uses the per-member
+ * API calls of workers/person-funding.js instead.
  *
  * Rounds: one round is one full pass over Congress. The FEC allows 1,000
  * calls an hour, so a first pass takes several runs: each run continues the
@@ -32,6 +45,7 @@ import {
 } from '../../workers/schedule-a-classify.js';
 import { cycleForYear } from '../../workers/tier-calculation.js';
 import { analyzePool, loadFara } from './lib/analysis.mjs';
+import { discoverPeople, loadDiscoveryFiles } from './lib/discovery.mjs';
 import { apiRowToBulkShape, ensureBulkFile, insertApiRows, loadBulk } from './lib/bulk.mjs';
 import { createCloudflare } from './lib/cloudflare.mjs';
 import { TimeBudgetError, reconcileCommittee } from './lib/committee.mjs';
@@ -64,6 +78,7 @@ let recordCrash = null;
 async function main() {
   const started = Date.now();
   const dryRun = process.argv.includes('--dry-run');
+  const gradeOnly = process.argv.includes('--grade-only');
   const cycle = Number(arg('--cycle', cycleForYear(new Date().getUTCFullYear())));
   const only = arg('--members', '')
     .split(',')
@@ -86,15 +101,17 @@ async function main() {
     throw new Error(`D1 budget: ${ledger.rows_written} rows written today; not starting`);
   }
 
-  // The round this run belongs to
-  let roundId = 'dry-run';
+  // The round this run belongs to (a grade-only run belongs to none)
+  let roundId = dryRun ? 'dry-run' : gradeOnly ? 'grade-only' : null;
   if (!dryRun) {
     const reason = arg('--new-round', null);
     const [open] = await d1(
       'SELECT round_id FROM rounds WHERE cycle = ? AND finished_at IS NULL ORDER BY started_at DESC LIMIT 1',
       [cycle]
     );
-    if (open && !reason) {
+    if (gradeOnly) {
+      // no round
+    } else if (open && !reason) {
       roundId = open.round_id;
     } else {
       roundId = `round-${now()}`;
@@ -107,7 +124,7 @@ async function main() {
     }
     await d1(
       'INSERT INTO runs (run_id, started_at, trigger, status, round_id) VALUES (?, ?, ?, ?, ?)',
-      [runId, now(), arg('--trigger', 'manual'), 'running', roundId]
+      [runId, now(), gradeOnly ? 'grade-only' : arg('--trigger', 'manual'), 'running', roundId]
     );
     recordCrash = async message => {
       await d1('UPDATE runs SET finished_at = ?, status = ?, summary = ? WHERE run_id = ?', [
@@ -127,7 +144,7 @@ async function main() {
   // Members still to do in this round
   const list = JSON.parse((await cf.kvGet(LIST_KEY)) || '{"members":[]}').members;
   let targets = only.length ? list.filter(m => only.includes(m.bioguideId)) : list;
-  if (!dryRun && !only.length) {
+  if (!dryRun && !gradeOnly && !only.length) {
     const done = new Set(
       (
         await d1(
@@ -146,7 +163,25 @@ async function main() {
   const fara = await d1(
     'SELECT employer, fara_firm, registration_number FROM fara_employer_matches'
   );
+  // Each member's committees and money, for every target at once
+  let discovered = null;
   const conduitNames = new Map();
+  if (arg('--discovery', 'zips') === 'zips') {
+    const db = await loadDiscoveryFiles(cycle, bulkDir, log);
+    discovered = await discoverPeople({
+      fec,
+      db,
+      people: targets
+        .map(m => ({ id: m.bioguideId, ids: crosswalkIdsFor(m.bioguideId, FEC_CROSSWALK) }))
+        .filter(p => p.ids.length),
+      cycle,
+      log,
+    });
+    for (const c of await db.read('SELECT id, name FROM cm')) {
+      conduitNames.set(c.id, c.name);
+    }
+    log(`discovery done: ${discovered.size} member(s), ${fec.calls} FEC calls`);
+  }
   const conduitName = async id => {
     if (!conduitNames.has(id)) {
       const c = (await fec(`/committee/${id}/`, {})).results?.[0];
@@ -154,7 +189,7 @@ async function main() {
     }
     return conduitNames.get(id);
   };
-  const summary = { complete: 0, pending: 0, failed: 0, skipped: 0 };
+  const summary = { complete: 0, provisional: 0, pending: 0, failed: 0, skipped: 0 };
   let processed = 0;
   let stopReason = 'done'; // done | time | d1
   // Soft deadline: start no new member or committee after it. Hard deadline:
@@ -196,7 +231,9 @@ async function main() {
         continue;
       }
       try {
-        const pf = await fetchPersonFunding(fec, ids, cycle);
+        const pf = discovered
+          ? discovered.get(m.bioguideId)
+          : await fetchPersonFunding(fec, ids, cycle);
         people.push({ id: m.bioguideId, name: m.name, pf, pool: pf.donorCommitteeIds });
         log(`  ${m.name}: pool ${pf.donorCommitteeIds.join(', ') || '(none)'}`);
       } catch (error) {
@@ -220,12 +257,16 @@ async function main() {
     const committees = new Map();
     for (const id of ids) {
       try {
+        // Already checked this round (a grade-only run takes any check of
+        // this cycle)
         const [prior] = dryRun
           ? []
-          : await d1(
-              'SELECT * FROM committees WHERE committee_id = ? AND cycle = ? AND round_id = ?',
-              [id, cycle, roundId]
-            );
+          : gradeOnly
+            ? await d1('SELECT * FROM committees WHERE committee_id = ? AND cycle = ?', [id, cycle])
+            : await d1(
+                'SELECT * FROM committees WHERE committee_id = ? AND cycle = ? AND round_id = ?',
+                [id, cycle, roundId]
+              );
         if (prior && SETTLED.has(prior.status)) {
           const saved = await d1(
             'SELECT record FROM gap_records WHERE committee_id = ? AND cycle = ?',
@@ -242,7 +283,11 @@ async function main() {
             note: prior.note,
             reused: true,
           });
-          log(`  ${id}: already reconciled this round (${prior.status}); reused`);
+          log(`  ${id}: already reconciled (${prior.status}); reused`);
+          continue;
+        }
+        if (gradeOnly) {
+          committees.set(id, { committeeId: id, status: 'unchecked' });
           continue;
         }
         if (Date.now() > softDeadline) {
@@ -328,7 +373,7 @@ async function main() {
       }
       processed++;
       const progress = async (status, error = null) => {
-        if (dryRun) {
+        if (dryRun || gradeOnly) {
           return;
         }
         await d1(
@@ -364,6 +409,10 @@ async function main() {
         const ok = recon.every(
           r => r.status === 'reconciled' || r.status === 'reconciled-with-note'
         );
+        // Graded from the bulk files, check still to come: provisional
+        const pending =
+          !ok &&
+          recon.every(r => ['reconciled', 'reconciled-with-note', 'unchecked'].includes(r.status));
         const notes = recon
           .filter(r => r.note && r.status === 'reconciled-with-note')
           .map(r => `${r.committeeId}: ${r.note}`);
@@ -373,14 +422,14 @@ async function main() {
           ...analysis,
           personLevel: true,
           personFunding: p.pf,
-          reconciliation: { ok },
+          reconciliation: { ok, pending },
         };
         const grade = member ? gradeMember(member, asStored) : null;
-        const status = ok && grade ? 'complete' : 'pending';
+        const status = !grade ? 'pending' : ok ? 'complete' : pending ? 'provisional' : 'pending';
         summary[status]++;
         log(
           `  ${p.name}: ${status}${grade ? ` -> ${grade.tier} (${grade.gradeBasis}), donors ${analysis.uniqueDonors}, Nakamoto ${analysis.nakamotoCoefficient}` : ''}${
-            ok
+            ok || pending
               ? ''
               : ` [not reconciled: ${recon
                   .filter(r => !['reconciled', 'reconciled-with-note'].includes(r.status))
@@ -396,11 +445,12 @@ async function main() {
               totals: { totalRaised: p.pf.totalRaised, raisedInName: p.pf.raisedInName },
             },
             analysis,
-            reconciliation: { ok, notes, committees: recon },
+            reconciliation: { ok, pending, notes, committees: recon },
             grade: grade && {
               tier: grade.tier,
               individualFundingPercent: grade.individualFundingPercent,
               gradeBasis: grade.gradeBasis,
+              evidenceChecked: grade.evidenceChecked,
               personFigures: grade.personFigures,
               detail: grade.detail,
             },
@@ -472,7 +522,7 @@ async function main() {
     );
   }
   if (!dryRun) {
-    if (!only.length && remaining === 0) {
+    if (!gradeOnly && !only.length && remaining === 0) {
       await d1('UPDATE rounds SET finished_at = ? WHERE round_id = ?', [now(), roundId]);
       log(`${roundId} finished`);
     }

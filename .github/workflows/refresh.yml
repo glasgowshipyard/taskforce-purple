@@ -21,14 +21,20 @@ on:
         description: 'Start a new round, with this reason (empty = continue the open round)'
         required: false
         default: ''
+      grade_only:
+        description: 'Grade every member from the FEC bulk files now, without the record check (minutes)'
+        type: boolean
+        default: false
 
 permissions:
   contents: read
   issues: write
   actions: write # to start the next run of a pass
 
+# Grading from the bulk files and the record check are separate lanes: a
+# grade-only run doesn't wait days behind a check that's under way
 concurrency:
-  group: refresh
+  group: refresh-${{ inputs.grade_only && 'grades' || 'check' }}
   cancel-in-progress: false
 
 jobs:
@@ -57,6 +63,10 @@ jobs:
           MEMBERS: ${{ inputs.members }}
           DRY_RUN: ${{ inputs.dry_run }}
           NEW_ROUND: ${{ inputs.new_round }}
+          GRADE_ONLY: ${{ inputs.grade_only }}
+          # The check paces itself at 900 FEC calls an hour, leaving about 100
+          # of the key's 1,000 for a grade-only run alongside it
+          FEC_MIN_INTERVAL_MS: ${{ inputs.grade_only && '3700' || '4000' }}
         run: |
           # Stop cleanly before the job's 350-minute limit; the next run of the
           # round continues where this one stopped
@@ -64,6 +74,8 @@ jobs:
           if [ -n "$NEW_ROUND" ]; then args+=(--new-round "$NEW_ROUND"); fi
           if [ -n "$MEMBERS" ]; then args+=(--members "$MEMBERS"); fi
           if [ "$DRY_RUN" = "true" ]; then args+=(--dry-run); fi
+          # Grading only reads the bulk file: bigger batches mean fewer scans of it
+          if [ "$GRADE_ONLY" = "true" ]; then args+=(--grade-only --batch 100); fi
           node scripts/refresh/run.mjs "${args[@]}"
 
       # Opens, updates or closes the system-alert issue from /api/health
@@ -82,7 +94,7 @@ jobs:
       # loop on members that keep failing), start the next run of the same
       # round. A stop for the D1 budget doesn't chain: D1 resets at 00:00 UTC.
       - name: Continue the pass
-        if: always() && steps.refresh.outputs.stop_reason == 'time' && steps.refresh.outputs.progressed != '0' && !inputs.dry_run && inputs.members == ''
+        if: always() && steps.refresh.outputs.stop_reason == 'time' && steps.refresh.outputs.progressed != '0' && !inputs.dry_run && !inputs.grade_only && inputs.members == ''
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}

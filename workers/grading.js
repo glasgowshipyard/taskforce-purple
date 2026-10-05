@@ -19,10 +19,16 @@ export function gradeMember(member, analysis) {
   // would grade big-cheque joint-fund money unexamined.
   // ...and only when every committee's records and money reconciled with the
   // FEC's own figures at completion.
+  //
+  // Grade first, confirm after (owner, 2026-10-04): a member graded from the
+  // FEC's bulk files before the record-by-record check is graded the same
+  // way, marked not yet checked (`reconciliation.pending`). The check then
+  // confirms the grade or shifts it.
   const pf = analysis?.personLevel ? analysis.personFunding : null;
   const reconciled = analysis?.reconciliation?.ok === true;
+  const awaitingCheck = analysis?.reconciliation?.pending === true;
   const personLevel = Boolean(
-    pf && !pf.failed && pf.totalRaised > 0 && pf.invariantsHold && reconciled
+    pf && !pf.failed && pf.totalRaised > 0 && pf.invariantsHold && (reconciled || awaitingCheck)
   );
   const scored = personLevel
     ? {
@@ -42,6 +48,9 @@ export function gradeMember(member, analysis) {
     : pf && !pf.failed && !reconciled
       ? 'campaign-committee-rechecking'
       : 'campaign-committee';
+  // true: every record checked against the FEC; false: graded from the bulk
+  // files, check still to come; null: not graded on all committees
+  result.evidenceChecked = personLevel ? reconciled : null;
   result.personFigures = personLevel
     ? {
         totalRaised: pf.totalRaised,

@@ -43,7 +43,12 @@ export function createFecClient(
   const fec = async (path, params = {}) => {
     const qs = new URLSearchParams({ api_key: apiKey });
     for (const [k, v] of Object.entries(params)) {
-      if (v !== undefined && v !== null) {
+      if (Array.isArray(v)) {
+        // The FEC takes a list as the same parameter repeated
+        for (const x of v) {
+          qs.append(k, String(x));
+        }
+      } else if (v !== undefined && v !== null) {
         qs.set(k, String(v));
       }
     }
