@@ -116,34 +116,53 @@ function transfersOut(t) {
 /**
  * Is a joint fund the MEMBER'S OWN fund (its donors count toward their
  * concentration test in full), or a shared one (it counts only by what it
- * transferred to them)?
+ * transferred to them)? Agreed with the owner 2026-09-26, kept 2026-10-04.
  *
- * Own = registered under the member's candidacy, OR the member's committees
- * are its largest candidate recipient (party committees excluded) per the
- * fund's own disbursement records. A leader's fund exists to raise for the
- * party - "GROW THE MAJORITY" raised $95.8M, passed $74.8M on and sent the
- * Speaker $5.0M - so "received most of it" would wrongly call it shared.
+ * Own = registered under the member's candidacy, OR the member is the fund's
+ * owner per fundOwner (`jfc.ownedByMember`, set by the caller from the fund's
+ * own disbursement records). A leader's fund exists to raise for the party -
+ * "GROW THE MAJORITY" raised $95.8M, passed $74.8M on and sent the Speaker
+ * $5.0M - so "received most of it" would wrongly call it shared.
  * Without disbursement data, fall back to "received at least half".
  * Evidence-based throughout; no name matching.
  */
-export function isMembersOwnFund(jfc, memberCommitteeIds = []) {
+export function isMembersOwnFund(jfc) {
   if (jfc.registered) {
     return true;
   }
-  if (jfc.largestCandidateRecipient) {
-    return memberCommitteeIds.includes(jfc.largestCandidateRecipient);
+  if (jfc.ownedByMember !== undefined) {
+    return jfc.ownedByMember;
   }
   const out = transfersOut(jfc.totals);
   return out > 0 && jfc.received / out >= 0.5;
 }
 
+// Recipients within 1% of each other count as a tie (an even split)
+export const FUND_TIE_MARGIN = 0.01;
+
 /**
- * The candidate committee that received the most from a fund, from its
- * Schedule B disbursements (transfers out). Party committees (FEC committee
- * types X/Y/Z) are excluded - a leader's fund always sends most to the party.
+ * Who a joint fund mainly exists for, from its disbursements (transfers
+ * out). Settled with the owner 2026-10-04:
+ *
+ *   - Payments are added up per PERSON: `ownerOf(committeeId)` maps each of a
+ *     member's committees (campaign, leadership PAC) to the same key, so a
+ *     member paid through two committees counts once with both amounts.
+ *     Committees of anyone else stay separate.
+ *   - Party committees (FEC types X/Y/Z) are left out: a leader's fund
+ *     always sends most to the party.
+ *   - The recipient paid the most owns the fund. If the top two are within
+ *     1% of each other, the fund was split evenly: it is shared, and nobody's
+ *     own. (Before this, a tie went to whichever committee came first in the
+ *     data, so the answer depended on the data's order.)
+ *
+ * Returns the owner's key, null on a tie, or undefined with no candidate
+ * recipient at all (the caller then falls back to "received at least half").
+ * Example: a fund split 8 ways, two of the shares to one member's campaign
+ * and leadership PAC, is that member's; a fund split 50/50 between two
+ * members is shared.
  */
-export function largestCandidateRecipient(disbursementRows) {
-  const byRecipient = new Map();
+export function fundOwner(disbursementRows, ownerOf = id => id) {
+  const byOwner = new Map();
   for (const r of disbursementRows || []) {
     if (r.memo_code === 'X') {
       continue;
@@ -153,15 +172,17 @@ export function largestCandidateRecipient(disbursementRows) {
     if (!id || ['X', 'Y', 'Z'].includes(type)) {
       continue;
     }
-    byRecipient.set(id, (byRecipient.get(id) || 0) + num(r.disbursement_amount));
+    const key = ownerOf(id);
+    byOwner.set(key, (byOwner.get(key) || 0) + num(r.disbursement_amount));
   }
-  let best = null;
-  for (const [id, amount] of byRecipient) {
-    if (!best || amount > best.amount) {
-      best = { id, amount };
-    }
+  const ranked = [...byOwner].sort((a, b) => b[1] - a[1]);
+  if (!ranked.length || ranked[0][1] <= 0) {
+    return undefined;
   }
-  return best?.id ?? null;
+  if (ranked.length > 1 && ranked[1][1] >= ranked[0][1] * (1 - FUND_TIE_MARGIN)) {
+    return null;
+  }
+  return ranked[0][0];
 }
 
 /**
@@ -218,10 +239,7 @@ export function combineVehicleTotals(moneyVehicles, transfers = { internal: 0, j
       name: j.name,
       role: 'joint',
       registered: Boolean(j.registered),
-      ownFund: isMembersOwnFund(
-        j,
-        withTotals.map(v => v.committeeId)
-      ),
+      ownFund: isMembersOwnFund(j),
       raised: num(j.totals?.receipts),
       bigCheques: j.bigCheques ?? null,
       toMember: j.received,
@@ -370,15 +388,20 @@ export async function fetchPersonFunding(fec, crosswalkIds, cycle) {
       ? reconciledBigCheques(await bigChequesOf(j.committeeId), j.totals)
       : null;
     if (!j.registered) {
-      // One page of its largest transfers out is enough to find its biggest
-      // candidate recipient
+      // One page of its largest transfers out is enough to find who it
+      // mainly paid. Here only this member's committees are known, so other
+      // recipients count per committee (lib/discovery.mjs groups every member)
       const d = await fec('/schedules/schedule_b/', {
         committee_id: j.committeeId,
         two_year_transaction_period: cycle,
         sort: '-disbursement_amount',
         per_page: 100,
       });
-      j.largestCandidateRecipient = largestCandidateRecipient(d.results);
+      const mine = new Set(moneyVehicles.map(v => v.committeeId));
+      const owner = fundOwner(d.results, id => (mine.has(id) ? 'member' : id));
+      if (owner !== undefined) {
+        j.ownedByMember = owner === 'member';
+      }
     }
   }
 

@@ -30,7 +30,7 @@ import {
   classifyTransfers,
   combineVehicleTotals,
   donorCommitteeIds,
-  largestCandidateRecipient,
+  fundOwner,
   selectVehicles,
 } from '../../../workers/person-funding.js';
 
@@ -176,9 +176,19 @@ const reconciledBigCheques = (big, totals) =>
 /**
  * Person-level funding for many members at once, from the zips.
  * @param people [{ id, ids }]  bioguide ID and crosswalk candidate IDs
+ * @param ownerRule            fundOwner; a simulation can pass another rule
+ * @param withBigCheques       false skips the size bands (display only)
  * @returns Map bioguide ID -> fetchPersonFunding-shaped result
  */
-export async function discoverPeople({ fec, db, people, cycle, log = () => {} }) {
+export async function discoverPeople({
+  fec,
+  db,
+  people,
+  cycle,
+  log = () => {},
+  ownerRule = fundOwner,
+  withBigCheques = true,
+}) {
   const { read } = db;
   const sponsored = await leadershipPacs(fec, cycle);
   const cm = new Map(
@@ -279,8 +289,13 @@ export async function discoverPeople({ fec, db, people, cycle, log = () => {} })
         ...jfcIds
       )
     : [];
-  const big = await bigChequesFor(fec, [...new Set([...withTotals, ...jfcIds])], cycle);
+  const big = withBigCheques
+    ? await bigChequesFor(fec, [...new Set([...withTotals, ...jfcIds])], cycle)
+    : new Map();
 
+  // Each member's campaigns and leadership PACs belong to them, so a fund's
+  // payments to any of them add up to one person
+  const memberOf = new Map(plans.flatMap(p => p.moneyVehicles.map(v => [v.committeeId, p.id])));
   const results = new Map();
   for (const p of plans) {
     for (const v of p.moneyVehicles) {
@@ -291,7 +306,9 @@ export async function discoverPeople({ fec, db, people, cycle, log = () => {} })
       j.totals = jfcTotals.get(j.committeeId) || null;
       j.bigCheques = j.totals ? reconciledBigCheques(big.get(j.committeeId), j.totals) : null;
       if (!j.registered) {
-        j.largestCandidateRecipient = largestCandidateRecipient(
+        // Who the fund mainly paid, counting each member's committees as one
+        // person (fundOwner: an even split is shared, nobody's own)
+        const owner = ownerRule(
           out
             .filter(r => r.committee_id === j.committeeId)
             .map(r => ({
@@ -301,8 +318,12 @@ export async function discoverPeople({ fec, db, people, cycle, log = () => {} })
                 committee_type: types.get(r.other_id) ?? cm.get(r.other_id)?.type,
               },
               disbursement_amount: r.amount,
-            }))
+            })),
+          id => memberOf.get(id) ?? id
         );
+        if (owner !== undefined) {
+          j.ownedByMember = owner === p.id;
+        }
       }
     }
     const result = combineVehicleTotals(p.moneyVehicles, p.transfers);

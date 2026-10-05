@@ -63,11 +63,14 @@ around them is broken at the foundation:
   their campaign(s), leadership PAC and money transferred in from joint funds,
   counted once. Money a joint fund passed to others is disclosed, not graded.
 - **Identity is looked up, never inferred** (crosswalk only).
-- **No grade without complete evidence.**
-  - A letter is published only when every committee in the member's pool is
-    complete and reconciled (§6).
-  - Until then: **"Grade pending"**, plus the FEC totals labelled "campaign
-    committee only".
+- **Grade first, confirm after** (D7, 2026-10-04; replaces "no grade without
+  complete evidence", decided before the bulk file was found).
+  - Every member is graded from the FEC's bulk files straight away; they
+    hold over 99% of records.
+  - The record-by-record check (§6) runs behind it. It confirms each grade
+    or shifts it; a shift is kept in grade history.
+  - Until a member's check is done, their grade shows a plain note that the
+    figures are being double-checked against the FEC.
   - No default-anchor grades.
 - **Every member ends up graded.** Nobody is ever dropped. Failures retry
   and alert. If the FEC's own figures contradict each other, publish with a
@@ -250,10 +253,18 @@ For each committee in a member's pool:
    is published anyway, with a plain-English note that the FEC's figures
    differ by $X (D3).
 
-**The guard.** It runs on every grading. A letter is published only if every
-committee in the member's pool passes checks 1 and 2, or 1 and 3 with the
-note, and the evidence is for the cycle being graded (§9). Otherwise:
-`PENDING`, with a reason and progress.
+**The guard.** It runs on every grading, and decides what a grade says
+about its evidence (D7):
+
+- every committee in the pool passes checks 1 and 2, or 1 and 3 with the
+  note: the grade is **checked** (`evidenceChecked: true`);
+- some committees not yet checked: the grade comes from the bulk files and
+  is **provisional** (`evidenceChecked: false`), with the double-checking
+  note;
+- a committee's records couldn't be completed (`mismatch`): the member falls
+  back to the campaign-committee figures with the ringfence, as before.
+
+The evidence must be for the cycle being graded (§9).
 
 - The default trust anchor can never produce a published grade.
 - Ringfences (DISPUTED / UNVERIFIED) stay, with #40's rule: no percentage
@@ -475,6 +486,14 @@ remainder).
 - **Rule:** refresh on the filing calendar or events, never a clock (§8).
 - **Approved 2026-10-03:** §3's move of all FEC work into GitHub Actions,
   and the two GitHub secrets it needs (§5).
+- **D7, grade first, confirm after (2026-10-04):** grade every member from
+  the bulk files now; the record check confirms or shifts each grade (§2,
+  §6). Replaces "Grade pending".
+- **D8, joint-fund owners (2026-10-04):** keep owners (a fund's donors count
+  in full for the member it mainly exists for) rather than sharing donors
+  out pro rata. Ownership adds up each member's committees as one person;
+  an even split (top two within 1%) is shared, nobody's own. Before this, a
+  tie went to whichever committee came first in the data.
 
 ## 13. Stock trading (paused by the owner)
 

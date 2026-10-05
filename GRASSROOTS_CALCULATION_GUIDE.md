@@ -1,6 +1,6 @@
 # Tier Calculation Guide
 
-**Last Updated**: 2026-07-12
+**Last Updated**: 2026-10-04
 **Implementation**: `workers/tier-calculation.js` (pure functions, unit-tested in `workers/tier-calculation.test.js`)
 
 > Historical note: this guide previously described an adaptive-percentile
@@ -18,6 +18,41 @@ individuals and institutions. The system distinguishes:
 - **Individual support** (grassroots + itemized donations from people)
 - **Institutional capture** (PAC money, weighted by transparency)
 - **Coordination risk** (how few donors could organize to threaten funding)
+
+## Whose money, and whose donors
+
+The unit is the member, not a committee (agreed 2026-09-26). Two different
+questions, answered separately (`workers/person-funding.js`):
+
+1. **The money graded** is what the member _received_: their campaign(s)
+   and leadership PAC, plus whatever any joint fund transferred to them,
+   split into small donors, large donors, PACs and party by that fund's own
+   mix. Transfers between the member's own committees count once.
+2. **The donors tested for concentration** are those of every committee in
+   the member's pool: their campaign(s), leadership PAC, and their **own**
+   joint funds in full.
+
+**Which joint funds are the member's own** (`isMembersOwnFund`, `fundOwner`):
+
+- a fund registered under the member's candidacy; or
+- the member the fund's payments mostly went to. Payments are added up per
+  person, all of a member's committees together, with party committees
+  left out (a leader's fund always sends most to the party). If the top two
+  recipients are within 1% of each other, the fund was split evenly: it is
+  shared, and nobody's own (owner, 2026-10-04). Example: a fund paying eight
+  committees $91,000 each, two of them one member's campaign and leadership
+  PAC, is that member's; a fund split 50/50 between two members is shared.
+- With no payment records at all, a fund is the member's if they received at
+  least half of what it passed on.
+
+A shared fund still counts for each member by the money they received
+(question 1); only its donors stay out of their concentration test.
+
+**Grade first, confirm after** (owner, 2026-10-04). Grades are computed from
+the FEC's bulk files as soon as they're available, then checked record by
+record against the FEC (`scripts/refresh/`). Until the check is done the
+grade is provisional (`evidenceChecked: false`); the check confirms it or
+shifts it.
 
 ## The Calculation
 

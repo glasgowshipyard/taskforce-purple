@@ -91,6 +91,21 @@ redesigned them wasted days and, twice, proposed breaking them. Build on them.
   is everything raised across their campaign(s), joint fundraising funds and
   leadership PACs, counted once. Scoring only the campaign committee grades
   some members on under a third of their money.
+- **Joint-fund owners (agreed 2026-09-26, kept 2026-10-04).** A joint fund's
+  donors count in full toward the concentration test of the member it
+  mainly exists for: registered under them, or the member its payments
+  mostly went to, adding up all of a member's committees as one person
+  (party committees left out). An even split (top two within 1%) is shared:
+  nobody's own. The owner chose owners over sharing donors out pro rata: a
+  six-figure cheque to a fund with a politician's name on it buys access to
+  that politician wherever the money ends up. `fundOwner` in
+  `workers/person-funding.js`.
+- **Grade first, confirm after (owner, 2026-10-04).** Every member is graded
+  from the FEC's bulk files straight away (refresh `--grade-only`). The
+  record-by-record check runs behind it and confirms each grade or shifts
+  it, with the change kept in history. A grade not yet checked carries
+  `evidenceChecked: false` and a plain note on the site. This replaced
+  "Grade pending", which was decided before the bulk file was found.
 - **Identity is looked up, never inferred** (`workers/fec-crosswalk.js`). No
   surname search anywhere — it tied 35 members to other people.
 - **No grade on figures we can't reconcile to source** — ringfence instead

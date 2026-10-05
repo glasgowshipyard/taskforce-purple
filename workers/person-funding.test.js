@@ -3,8 +3,8 @@ import {
   selectVehicles,
   classifyTransfers,
   combineVehicleTotals,
+  fundOwner,
   isMembersOwnFund,
-  largestCandidateRecipient,
   donorCommitteeIds,
   committeeSignature,
 } from './person-funding.js';
@@ -74,15 +74,11 @@ describe('isMembersOwnFund', () => {
       true
     );
   });
-  it("a leader's fund is theirs when they are its largest candidate recipient, even at 6% of its transfers", () => {
+  it("a leader's fund is theirs when they own it, even at 6% of its transfers", () => {
     // GROW THE MAJORITY: $79.8M passed on, $5.0M to the Speaker, rest to the party
-    const fund = {
-      received: 5033964,
-      largestCandidateRecipient: 'C1',
-      totals: t(95770596, 0, 0, 0, 79837455),
-    };
-    expect(isMembersOwnFund(fund, ['C1'])).toBe(true);
-    expect(isMembersOwnFund({ ...fund, largestCandidateRecipient: 'C77' }, ['C1'])).toBe(false);
+    const fund = { received: 5033964, ownedByMember: true, totals: t(95770596, 0, 0, 0, 79837455) };
+    expect(isMembersOwnFund(fund)).toBe(true);
+    expect(isMembersOwnFund({ ...fund, ownedByMember: false })).toBe(false);
   });
   it('without disbursement data, falls back to receiving at least half', () => {
     expect(isMembersOwnFund({ received: 1450467, totals: t(5e6, 0, 0, 0, 1500419) })).toBe(true);
@@ -90,22 +86,50 @@ describe('isMembersOwnFund', () => {
   });
 });
 
-describe('largestCandidateRecipient', () => {
+describe('fundOwner', () => {
+  const row = (id, amount, type = 'H', extra = {}) => ({
+    recipient_committee_id: id,
+    disbursement_amount: amount,
+    recipient_committee: { committee_type: type },
+    ...extra,
+  });
+
   it('ignores party committees and memo rows', () => {
-    const row = (id, amount, type = 'H', extra = {}) => ({
-      recipient_committee_id: id,
-      disbursement_amount: amount,
-      recipient_committee: { committee_type: type },
-      ...extra,
-    });
     expect(
-      largestCandidateRecipient([
+      fundOwner([
         row('NRCC', 70000000, 'Y'),
         row('C1', 5000000),
         row('C2', 1000000),
         row('C3', 9000000, 'H', { memo_code: 'X' }),
       ])
     ).toBe('C1');
+  });
+
+  it("adds up a member's committees as one person: two of eight equal shares win", () => {
+    // A fund split 8 ways, $91,000 each; C1 and C2 are one member's campaign
+    // and leadership PAC
+    const rows = ['C1', 'C2', 'C3', 'C4', 'C5', 'C6', 'C7', 'C8'].map(id => row(id, 91000));
+    const ownerOf = id => (['C1', 'C2'].includes(id) ? 'MEMBER' : id);
+    expect(fundOwner(rows, ownerOf)).toBe('MEMBER');
+  });
+
+  it('an even split is shared: nobody owns it', () => {
+    expect(fundOwner([row('C1', 25959), row('C2', 25959)])).toBeNull();
+    // within 1% is still even
+    expect(fundOwner([row('C1', 10300), row('C2', 10250)])).toBeNull();
+    // a clear lead is not
+    expect(fundOwner([row('C1', 10300), row('C2', 9000)])).toBe('C1');
+  });
+
+  it('a tie behind a party committee is still a tie', () => {
+    expect(
+      fundOwner([row('NRSC', 87550, 'Y'), row('C1', 24547, 'Q'), row('C2', 24547, 'Q')])
+    ).toBeNull();
+  });
+
+  it('no candidate recipient at all: undefined (the caller falls back)', () => {
+    expect(fundOwner([])).toBeUndefined();
+    expect(fundOwner([row('DSCC', 500000, 'Y')])).toBeUndefined();
   });
 });
 

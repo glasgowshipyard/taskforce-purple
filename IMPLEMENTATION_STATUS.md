@@ -4,6 +4,60 @@
 
 ---
 
+## 2026-10-04: Grade first, confirm after; discovery from the bulk files; fund owners
+
+Owner's decisions (recorded in CLAUDE.md settled decisions, REBUILD_SPEC
+§12 D7 and D8, and GRASSROOTS_CALCULATION_GUIDE "Whose money, and whose
+donors"):
+
+- **D7, grade first, confirm after.** Every member is graded from the FEC's
+  bulk files now; the record-by-record check runs behind it and confirms or
+  shifts each grade. Replaces "Grade pending" (decided before the bulk file
+  was found).
+- **D8, joint-fund owners kept, ties fixed.** A fund belongs to the member
+  its payments mostly went to, adding up each member's committees as one
+  person; an even split (top two within 1%) is shared, nobody's own. I had
+  written the rule to pick the single biggest committee, so an even split
+  went to whichever came first in the data: the API and the zip disagreed
+  for 5 of the first 25 senators.
+
+**Built:**
+
+- `scripts/refresh/lib/discovery.mjs`: every member's committees, funds,
+  transfers and totals from the FEC's ccl, cm and oth zips plus batched API
+  calls. About 125 FEC calls for Congress instead of about 13,000. For the
+  25 members already checked, totals matched the API version exactly; the
+  only pool differences were the ties above.
+- `run.mjs --grade-only` (workflow input `grade_only`, its own lane):
+  grades from the bulk files, no record check. Pelosi B, AOC S, Williams F
+  in one minute and 14 FEC calls, identical to their checked grades.
+- `gradeMember`: `evidenceChecked` (true checked, false provisional).
+- `fundOwner` replaces `largestCandidateRecipient` (tests added).
+- The check paces at 900 FEC calls an hour, leaving room for grading.
+
+**Tie rule simulated across all 537 members** (provisional grades, before
+and after): 45 members' donor pools change and **4 grades move**:
+
+- Alsobrooks C to D;
+- Golden D to C;
+- Fitzpatrick E to D;
+- Meng E to D.
+
+The rest keep their grade. AOC stays S: the Squad Victory Fund paid four
+members (AOC, Pressley, Omar, Tlaib) $91,000 into both their campaign and
+leadership PAC, so it is a four-way tie, shared (31,197 donors counted
+instead of 31,805). I first told the owner the fund would be hers; that was
+wrong.
+
+**The "$2,000+" figure** (money trail, display only) still comes from the
+FEC's size bands: no count of the zip's cheques reproduces them (the FEC's
+figure is often twice the member's actual $2,000-and-over cheques).
+
+**Hand-over worked:** run 37245496660 finished at 22:31 PDT and started run
+37268190655 itself.
+
+---
+
 ## 2026-10-04: Pelosi and AOC reconcile; first full pass running
 
 **Dry run (Actions 37210788336), every committee reconciled:**
