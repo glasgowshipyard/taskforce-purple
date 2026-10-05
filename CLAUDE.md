@@ -70,9 +70,10 @@ npx wrangler deploy
 # Refresh job: GitHub Actions → Refresh (workflow_dispatch), or locally
 node scripts/refresh/run.mjs --members W000788 --dry-run
 
-# Trigger tier recalculation after deploying tier-math changes
-curl -X POST "https://taskforce-purple-api.dev-a4b.workers.dev/api/recalculate-tiers" \
-  -H "Authorization: Bearer $UPDATE_SECRET"
+# Re-grade everyone after changing tier maths (simulate first: CLAUDE.md
+# settled decisions); grades publish to the site at the end of each batch
+gh workflow run refresh.yml -f grade_only=true -f dry_run=false
+node scripts/refresh/publish.mjs --dry-run      # what publishing would change
 ```
 
 Frontend deploys automatically when main is pushed to GitHub (Pages
@@ -134,6 +135,12 @@ redesigned them wasted days and, twice, proposed breaking them. Build on them.
 - **Cloudflare free tier**: 1,000 KV writes/day per account (REST API writes
   count too) is the binding constraint. Write only on a diff
   (`MemberWriter`, `kvPut` after comparing). Don't add KV writes casually.
+- **D1 read limit: 5M rows read a day, per account.** Over it, D1 refuses
+  reads on every database, the owner's other projects included, until
+  midnight UTC. On 2026-10-05 an unindexed lookup I wrote read 18.8M rows and
+  did exactly that. **Every D1 lookup must use an index** (check with
+  `EXPLAIN QUERY PLAN`); the refresh job meters rows read and stops at 3M.
+  `node scripts/verify/d1-usage.mjs` shows usage by database.
 - **D1 write budget**: the free tier's 100k rows-written/day is hard-enforced
   and shared with the owner's other projects on the account. The refresh job
   charges D1's own `rows_written` figures to `d1_write_budget` in

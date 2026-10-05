@@ -400,6 +400,7 @@ async function handleHealth(env, corsHeaders) {
     failingMembers: [],
     mismatchedCommittees: [],
     d1RowsToday: null,
+    d1RowsReadToday: null,
     resultsDbError: null,
   };
   try {
@@ -415,12 +416,13 @@ async function handleHealth(env, corsHeaders) {
         "SELECT bioguide_id, attempts, last_error FROM member_progress WHERE status = 'failed' ORDER BY updated_at DESC"
       ),
       env.RESULTS_DB.prepare("SELECT committee_id, name FROM committees WHERE status = 'mismatch'"),
-      env.RESULTS_DB.prepare('SELECT rows_written FROM d1_write_budget WHERE day = ?').bind(today),
+      env.RESULTS_DB.prepare('SELECT * FROM d1_write_budget WHERE day = ?').bind(today),
     ]);
     snapshot.lastRun = run.results[0] ?? null;
     snapshot.failingMembers = failing.results;
     snapshot.mismatchedCommittees = mismatched.results;
     snapshot.d1RowsToday = ledger.results[0]?.rows_written ?? 0;
+    snapshot.d1RowsReadToday = ledger.results[0]?.rows_read ?? 0;
   } catch (error) {
     snapshot.resultsDbError = error.message;
   }

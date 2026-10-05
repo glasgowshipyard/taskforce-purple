@@ -52,7 +52,19 @@ import { TimeBudgetError, reconcileCommittee } from './lib/committee.mjs';
 import { createFecClient } from './lib/fec.mjs';
 import { publishGrades } from './lib/publish.mjs';
 
-const D1_DAILY_CAP = 85000; // the account's D1 limit is 100k/day, shared with other projects
+// D1's free limits are per day for the whole account, shared with the
+// owner's other projects: 100k rows written and 5M rows read. The job stops
+// well short of both. (2026-10-05: an unindexed lookup read 18.8M rows and
+// D1 refused every read on the account for the rest of the day.)
+const D1_DAILY_CAP = 85000;
+const D1_READ_CAP = 3000000;
+const chargeLedger = (d1, day, written, read) =>
+  d1(
+    `INSERT INTO d1_write_budget (day, rows_written, rows_read) VALUES (?, ?, ?)
+     ON CONFLICT(day) DO UPDATE SET rows_written = rows_written + excluded.rows_written,
+       rows_read = rows_read + excluded.rows_read`,
+    [day, written, read]
+  );
 const SETTLED = new Set(['reconciled', 'reconciled-with-note', 'mismatch']);
 
 const arg = (name, dflt) => {
@@ -96,9 +108,14 @@ async function main() {
   const d1 = (sql, params) => cf.d1(RESULTS_DB, sql, params);
 
   // D1 budget: stop before the job's cap
-  const [ledger] = await d1('SELECT rows_written FROM d1_write_budget WHERE day = ?', [today]);
+  const [ledger] = await d1('SELECT rows_written, rows_read FROM d1_write_budget WHERE day = ?', [
+    today,
+  ]);
   if ((ledger?.rows_written || 0) > D1_DAILY_CAP - 20000) {
     throw new Error(`D1 budget: ${ledger.rows_written} rows written today; not starting`);
+  }
+  if ((ledger?.rows_read || 0) > D1_READ_CAP - 500000) {
+    throw new Error(`D1 budget: ${ledger.rows_read} rows read today; not starting`);
   }
 
   // The round this run belongs to (a grade-only run belongs to none)
@@ -133,11 +150,7 @@ async function main() {
         JSON.stringify({ error: message, fecCalls: fec.calls }),
         runId,
       ]);
-      await d1(
-        `INSERT INTO d1_write_budget (day, rows_written) VALUES (?, ?)
-         ON CONFLICT(day) DO UPDATE SET rows_written = rows_written + excluded.rows_written`,
-        [today, cf.stats.d1RowsWritten + 2]
-      );
+      await chargeLedger(d1, today, cf.stats.d1RowsWritten + 2, cf.stats.d1RowsRead);
     };
   }
 
@@ -209,6 +222,14 @@ async function main() {
     // D1 budget, again before each batch: today's ledger plus what this run
     // has written so far, with room for one more batch
     const writtenToday = (ledger?.rows_written || 0) + cf.stats.d1RowsWritten;
+    const readToday = (ledger?.rows_read || 0) + cf.stats.d1RowsRead;
+    if (readToday > D1_READ_CAP - 200000) {
+      log(
+        `D1 budget: ${readToday} rows read today; stopping, ${targets.length - b} member(s) left for the next run of ${roundId}`
+      );
+      stopReason = 'd1';
+      break;
+    }
     if (writtenToday > D1_DAILY_CAP - 5000) {
       log(
         `D1 budget: ${writtenToday} rows written today; stopping, ${targets.length - b} member(s) left for the next run of ${roundId}`
@@ -552,6 +573,7 @@ async function main() {
     kvReads: cf.stats.kvReads,
     kvWrites: cf.stats.kvWrites,
     d1RowsWritten: cf.stats.d1RowsWritten,
+    d1RowsRead: cf.stats.d1RowsRead,
     minutes: Math.round((Date.now() - started) / 60000),
   };
   log('summary', JSON.stringify(stats));
@@ -578,12 +600,8 @@ async function main() {
         runId,
       ]
     );
-    // Charge D1's own rows_written figures to the ledger (CLAUDE.md rule)
-    await d1(
-      `INSERT INTO d1_write_budget (day, rows_written) VALUES (?, ?)
-       ON CONFLICT(day) DO UPDATE SET rows_written = rows_written + excluded.rows_written`,
-      [today, cf.stats.d1RowsWritten + 1]
-    );
+    // Charge D1's own rows_written and rows_read figures to the ledger
+    await chargeLedger(d1, today, cf.stats.d1RowsWritten + 1, cf.stats.d1RowsRead);
   }
   if (summary.failed) {
     process.exitCode = 1;

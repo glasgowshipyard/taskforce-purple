@@ -13,6 +13,8 @@ const HOUR = 3600 * 1000;
 export const RUN_STUCK_MS = 7 * HOUR;
 // The meter stops the job at 85k; D1 refuses writes at 100k (account-wide)
 export const D1_ALARM_ROWS = 95000;
+// D1 refuses every read on the account at 5M rows a day; the job stops at 3M
+export const D1_READ_ALARM_ROWS = 4000000;
 export const MIN_MEMBERS = 530;
 
 // The proposed fix for each problem, shown in the alert
@@ -22,7 +24,9 @@ export const FIXES = {
   'site-data-short':
     'Compare the list with Congress.gov, then add each missing member with /api/process-candidate.',
   'results-db-unreadable':
-    'Check the RESULTS_DB binding in the API worker’s wrangler.toml and redeploy it.',
+    'If the error says a daily limit was exceeded, D1 refuses reads on the whole account until midnight UTC (5 pm PDT): find what read so much (RUNBOOK §6) before running anything else. Otherwise check the RESULTS_DB binding in the API worker’s wrangler.toml and redeploy it.',
+  'd1-reads-high':
+    'Something read far more than the refresh job should (it stops at 3M). Check reads by database (RUNBOOK §6) and stop whatever is reading; at 5M D1 refuses reads on the whole account until midnight UTC.',
   'refresh-failed':
     'Read the error in the run’s log (Actions → Refresh), fix the cause, then run Refresh again: it carries on the round where it stopped.',
   'refresh-stuck':
@@ -42,7 +46,8 @@ export const FIXES = {
  * @param {object|null} s.lastRun           latest row of tfp-results `runs`
  * @param {Array} s.failingMembers          member_progress rows with status 'failed'
  * @param {Array} s.mismatchedCommittees    committees rows with status 'mismatch'
- * @param {number|null} s.d1RowsToday       tfp-results d1_write_budget for today
+ * @param {number|null} s.d1RowsToday       tfp-results d1_write_budget rows written today
+ * @param {number|null} s.d1RowsReadToday   tfp-results d1_write_budget rows read today
  * @param {string|null} s.resultsDbError    set when tfp-results can't be read
  */
 export function evaluateHealth(s, nowMs = Date.now()) {
@@ -107,6 +112,12 @@ export function evaluateHealth(s, nowMs = Date.now()) {
             .slice(0, 10)
             .map(c => `${c.committee_id}${c.name ? ` ${c.name}` : ''}`)
             .join('; ')
+      );
+    }
+    if ((s.d1RowsReadToday || 0) >= D1_READ_ALARM_ROWS) {
+      problem(
+        'd1-reads-high',
+        `The refresh job has read ${s.d1RowsReadToday.toLocaleString()} D1 rows today. D1 refuses reads on the whole account at 5,000,000.`
       );
     }
     if ((s.d1RowsToday || 0) >= D1_ALARM_ROWS) {

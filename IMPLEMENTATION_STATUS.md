@@ -4,6 +4,50 @@
 
 ---
 
+## 2026-10-05: Stage 3 publish built; I exceeded D1's daily read limit for the whole account
+
+**Incident (mine).** The refresh job reloads a checked committee's fetched
+records with `SELECT record FROM gap_records WHERE committee_id = ?`. I never
+indexed `committee_id`, so every lookup scanned the whole table. Between 5 pm
+PDT on 2026-10-04 and 7 am on 2026-10-05, `tfp-results` read **18.8 million
+rows** (3,142 queries) against the account's **5 million a day**, and D1
+refused reads on every database in the account until midnight UTC (5 pm
+PDT), including the owner's other projects. Nothing alerted: the job metered
+writes, not reads, and the health check had no read check.
+
+- Stopped: the running check (run 37300955430) was cancelled.
+- Fix, applied after the reset: `migrations/2026-10-05-gap-index-and-reads.sql`
+  (index on `gap_records (committee_id, cycle)`; the ledger gains `rows_read`).
+  The job now meters rows read from D1's own figures, won't start above 2.5M
+  and stops at 3M. Health alerts at 4M (`d1-reads-high`), and its "database
+  unreadable" alert now explains the daily-limit case.
+- `scripts/verify/d1-usage.mjs`: usage by database from Cloudflare's
+  analytics (RUNBOOK §6).
+
+**Stage 3 publish** (owner's yes 2026-10-05):
+
+- **Publishing** (`scripts/refresh/lib/publish.mjs`): each graded result is
+  laid over the member's record, and `members:list` is rewritten once, only
+  if it changed. Every grade change goes to `grade_history`. It runs after
+  every batch of every refresh run (`publish.mjs` by hand). One KV write per
+  publish instead of about 1,080 per-member writes.
+- `/api/member-detail` reads the member's result from D1 (figures, money
+  trail, top donors, evidence state, FEC-difference notes), falling back to
+  the stored record for members not graded.
+- **Retired (410):** `/api/recalculate-tiers`, `/api/process-candidate` and
+  `/api/update-member/@`. They re-graded through the old engine, which would
+  overwrite published grades. The old engine is removed from the API worker
+  (2,100 to 942 lines); the worker no longer calls the FEC or Congress.gov.
+- **Member page:** a plain "still being double-checked" note while a grade
+  is provisional, "Checked" once confirmed, and FEC-difference notes (D3).
+- **Not yet published:** the list write waits for D1 reads to come back;
+  the dry run gives 536 graded members and 193 grade changes.
+- **Blair (B001328):** his only FEC committee is registered as an ordinary
+  PAC, so his pool is empty. He is recorded as pending, not failed, and
+  keeps his current grade.
+
+---
+
 ## 2026-10-04: Grade first, confirm after; discovery from the bulk files; fund owners
 
 Owner's decisions (recorded in CLAUDE.md settled decisions, REBUILD_SPEC

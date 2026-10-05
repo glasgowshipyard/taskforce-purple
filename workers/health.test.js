@@ -70,6 +70,11 @@ describe('evaluateHealth', () => {
     }
   });
 
+  it('flags D1 reads near the account-wide limit', () => {
+    expect(ids({ ...healthy(), d1RowsReadToday: 4200000 })).toEqual(['d1-reads-high']);
+    expect(ids({ ...healthy(), d1RowsReadToday: 900000 })).toEqual([]);
+  });
+
   it('flags D1 writes near the limit and an unreadable results database', () => {
     expect(ids({ ...healthy(), d1RowsToday: 96000 })).toEqual(['d1-over-budget']);
     expect(ids({ ...healthy(), resultsDbError: 'no binding' })).toEqual(['results-db-unreadable']);

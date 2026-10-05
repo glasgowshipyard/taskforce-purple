@@ -34,7 +34,7 @@ export function createCloudflare({
   if (!tok) {
     throw new Error('No CLOUDFLARE_API_TOKEN and no local wrangler login');
   }
-  const stats = { kvReads: 0, kvWrites: 0, d1Queries: 0, d1RowsWritten: 0 };
+  const stats = { kvReads: 0, kvWrites: 0, d1Queries: 0, d1RowsWritten: 0, d1RowsRead: 0 };
 
   async function call(method, path, { body, contentType = 'application/json', raw = false } = {}) {
     for (let attempt = 0; ; attempt++) {
@@ -105,6 +105,7 @@ export function createCloudflare({
       });
       const r = j.result?.[0];
       stats.d1RowsWritten += r?.meta?.rows_written || 0;
+      stats.d1RowsRead += r?.meta?.rows_read || 0;
       return r?.results || [];
     },
     async d1Databases() {

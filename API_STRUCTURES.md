@@ -444,14 +444,30 @@ nakamotoCoefficient, faraEmployerTotal, pacDetailsStatus, lastUpdated`, plus
   `lastUpdated` is when the list's data last changed (#38).
 - **`GET /api/member-detail?bioguideId=`** adds `member`: the member's full
   served record (PAC donations, FARA firms, conduits and so on).
-- **`POST /api/recalculate-tiers?offset=&limit=`** re-grades one slice (10
-  members by default, 50 at most) and returns `stats.nextOffset`;
-  `scripts/recalculate-all.sh` walks every slice. Writes only members that
-  change.
-- **`POST /api/process-candidate`** now requires the admin secret.
 - **`/api/remove-member/{id}`** also clears that member's `fec_mapping_*` (#14).
 - **Retired (HTTP 410):** `/api/update-data`, `/api/update-fec-batch`,
   `/api/smart-batch`, `/api/test-member`, `/api/reset-pac-data`,
   `/api/refresh-congress-metadata`, and the scheduled (cron) handler. Each
   rewrote every member to change one. The refresh job (Stage 2) replaces
   them. The sections above that describe them are historical.
+
+## Stage 3 changes (2026-10-05)
+
+- **`GET /api/member-detail?bioguideId=`**: for a member graded by the
+  refresh job, everything comes from their row in D1 `tfp-results`:
+  - `member`: their record with the result laid over it (tier, gradeBasis,
+    personFigures, `evidenceChecked`, donors, Nakamoto, conduits, FARA);
+  - `moneyTrail` and `topDonors`;
+  - `donorPoolCommitteeIds`;
+  - `evidence: { checked, notes }`. `checked` is true when every record has
+    been checked against the FEC's, false while the grade comes from the bulk
+    files only. `notes` lists where the FEC's own figures disagree (D3).
+
+  Members not graded by the job (no FEC identity, or pending) get the old
+  stored record, with `evidence: null`. One D1 read per request.
+
+- **`GET /api/members`** list entries carry `evidenceChecked`.
+- **Retired (HTTP 410):** `/api/recalculate-tiers`, `/api/process-candidate`
+  and `/api/update-member/@{handle}`. They re-graded through the old engine
+  and would have overwritten published grades. Re-grade with the refresh job
+  instead (RUNBOOK §8).

@@ -94,7 +94,7 @@ curl -s "https://taskforce-purple-api.dev-a4b.workers.dev/api/members" | jq '{im
 
 Nonzero = data corruption (see IMPLEMENTATION_STATUS 2026-07-18 post-mortem
 for the last occurrence and the repair procedure: re-fetch affected members
-via `/api/process-candidate`, then recalculate).
+with a grade-only refresh for them, §8).
 
 ### Identity: is every member's money actually theirs? (added 2026-09-26)
 
@@ -144,6 +144,16 @@ count and dollar reconciles.
 # HARD-ENFORCED since ~2026-09-01 - exceeding either returns errors until
 # 00:00 UTC. Treat any reading over cap as a defect, not a warning.
 npx wrangler d1 info taskforce-purple-donors
+```
+
+**D1 by database, from Cloudflare's own figures.** D1's free limits are per
+account per day (UTC), shared with the owner's other projects: 5,000,000 rows
+read and 100,000 written. Over either, D1 refuses that kind of query on
+every database until midnight UTC (5 pm PDT). That happened on 2026-10-05
+(an unindexed lookup read 18.8M rows).
+
+```bash
+node scripts/verify/d1-usage.mjs        # today and yesterday, by database
 ```
 
 **The write budget.** D1's 100k rows-written/day is per account, shared
@@ -212,24 +222,25 @@ gh run list --limit 5
 curl -s "https://taskforce-purple.pages.dev" | grep -o 'assets/index-[A-Za-z0-9_-]*\.js'
 ```
 
-## 8. Manual interventions (auth required)
+## 8. Manual interventions
+
+Grades come from the refresh job (Stage 3). The old re-grading endpoints
+(`/api/recalculate-tiers`, `/api/process-candidate`, `/api/update-member`)
+are retired: they re-graded through the old engine.
 
 ```bash
-# Re-grade every member (safe, idempotent; writes only members that change).
-# The API does 10 members per call to stay inside Cloudflare's 10 ms CPU
-# limit; this script walks every slice. UPDATE_SECRET is in API_KEYS.md.
-UPDATE_SECRET=... bash scripts/recalculate-all.sh
+# Re-grade members from the FEC's bulk files now (minutes), and publish
+gh workflow run refresh.yml -f grade_only=true -f dry_run=false
+gh workflow run refresh.yml -f grade_only=true -f dry_run=false -f members=C001096,P000197
 ```
 
 ```bash
-# Re-fetch one member end-to-end (use after fixing bad data). Needs the
-# secret: until 2026-10-03 this endpoint wrongly accepted anyone.
-curl -X POST "https://taskforce-purple-api.dev-a4b.workers.dev/api/process-candidate?bioguideId=C001096" -H "Authorization: Bearer $UPDATE_SECRET"
+# What publishing would change on the site, without writing anything
+node scripts/refresh/publish.mjs --dry-run
 ```
 
 ```bash
-# Clear a member's cached FEC candidate match (wrong-twin fix; the member
-# re-searches on next processing)
+# Clear a member's cached FEC candidate match (wrong-twin fix)
 curl -X POST "https://taskforce-purple-api.dev-a4b.workers.dev/api/clear-fec-mapping?bioguideId=C001096" -H "Authorization: Bearer $UPDATE_SECRET"
 ```
 
@@ -268,6 +279,7 @@ What it checks (`workers/health.js`, with tests):
 | `members-failing`       | Members failed in the refresh, with the reason (they retry; nobody is dropped) |
 | `committee-mismatch`    | A committee's records couldn't all be found, so its members stay pending       |
 | `d1-over-budget`        | 95k+ D1 row-writes today (the account-wide limit is 100k)                      |
+| `d1-reads-high`         | 4M+ D1 rows read today (the account-wide limit is 5M; the job stops at 3M)     |
 | `results-db-unreadable` | The refresh job's database can't be read                                       |
 | `health-unreachable`    | The health page itself didn't answer — the API worker may be down              |
 

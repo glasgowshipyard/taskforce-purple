@@ -58,6 +58,8 @@ CREATE TABLE IF NOT EXISTS gap_records (
   record TEXT NOT NULL,        -- the API row, JSON
   fetched_at TEXT NOT NULL
 );
+-- Loading a committee's fetched records goes by committee (2026-10-05)
+CREATE INDEX IF NOT EXISTS idx_gap_records_committee ON gap_records (committee_id, cycle);
 
 -- The current result per member per cycle (Stage 2: computed, not published)
 CREATE TABLE IF NOT EXISTS results (
@@ -94,12 +96,13 @@ CREATE TABLE IF NOT EXISTS grade_history (
   snapshot_id INTEGER
 );
 
--- D1 row writes per UTC day, charged from D1's own rows_written figures.
--- The D1 limit (100k/day) is per account and shared with the owner's other
--- projects; the job stops at its own cap.
+-- D1 rows written and read per UTC day, charged from D1's own figures.
+-- The D1 limits (100k written, 5M read a day) are per account and shared
+-- with the owner's other projects; the job stops at its own caps.
 CREATE TABLE IF NOT EXISTS d1_write_budget (
   day TEXT PRIMARY KEY,
-  rows_written INTEGER NOT NULL DEFAULT 0
+  rows_written INTEGER NOT NULL DEFAULT 0,
+  rows_read INTEGER NOT NULL DEFAULT 0     -- since 2026-10-05; the read limit is 5M/day
 );
 
 -- FARA employer matches, copied from taskforce-purple-donors (D1 can't join
