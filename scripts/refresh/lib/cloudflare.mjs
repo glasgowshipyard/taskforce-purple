@@ -108,9 +108,30 @@ export function createCloudflare({
       stats.d1RowsRead += r?.meta?.rows_read || 0;
       return r?.results || [];
     },
+    /** Like d1, but also returns D1's own figures for the statement (rows_written, size_after...). */
+    async d1WithMeta(databaseId, sql, params = []) {
+      stats.d1Queries++;
+      const j = await call('POST', `/accounts/${ACCOUNT_ID}/d1/database/${databaseId}/query`, {
+        body: JSON.stringify({ sql, params }),
+      });
+      const r = j.result?.[0];
+      stats.d1RowsWritten += r?.meta?.rows_written || 0;
+      stats.d1RowsRead += r?.meta?.rows_read || 0;
+      return { rows: r?.results || [], meta: r?.meta || {} };
+    },
     async d1Databases() {
       const j = await call('GET', `/accounts/${ACCOUNT_ID}/d1/database?per_page=100`);
       return j.result;
+    },
+    /** Create a D1 database; returns its ID. */
+    async d1Create(name) {
+      const j = await call('POST', `/accounts/${ACCOUNT_ID}/d1/database`, {
+        body: JSON.stringify({ name }),
+      });
+      return j.result.uuid;
+    },
+    async d1Delete(databaseId) {
+      await call('DELETE', `/accounts/${ACCOUNT_ID}/d1/database/${databaseId}`);
     },
   };
 }

@@ -1,0 +1,73 @@
+name: One-off D1 repack
+
+# One-off (2026-10-06): repack the refresh job's database after D1's daily
+# write limit resets, then restart the record check. It runs once at 00:05
+# UTC on 7 October (5:05 pm PDT on the 6th) and then switches itself off, so
+# no clock is left running (CLAUDE.md). See scripts/migrations/2026-10-06-repack.mjs.
+on:
+  schedule:
+    - cron: '5 0 7 10 *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+  actions: write
+
+concurrency:
+  group: refresh-check
+  cancel-in-progress: false
+
+jobs:
+  repack:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install
+        run: npm ci
+
+      - name: Repack
+        id: repack
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
+        run: node scripts/migrations/2026-10-06-repack.mjs
+
+      - name: Restart the record check
+        if: success() && steps.repack.outputs.restart == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: gh workflow run refresh.yml -f dry_run=false
+
+      - name: Report to the owner
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          OUTCOME: ${{ steps.repack.outputs.restart == 'true' && 'done, check restarted' || 'stopped, needs a look' }}
+          REPORT: ${{ steps.repack.outputs.report }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          {
+            echo "@glasgowshipyard the database repack ran on GitHub's machines: ${OUTCOME}."
+            echo
+            if [ -n "$REPORT" ]; then echo "$REPORT" | base64 -d | sed 's/^/- /'; else echo "- No report: the script failed before writing one. Log: $RUN_URL"; fi
+            echo
+            echo "Log: $RUN_URL"
+          } > report.md
+          gh issue create --title "D1 repack: ${OUTCOME}" --body-file report.md
+
+      - name: Switch this workflow off
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: gh workflow disable d1-repack.yml
