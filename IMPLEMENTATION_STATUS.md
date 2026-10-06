@@ -40,8 +40,17 @@ writes, not reads, and the health check had no read check.
   (2,100 to 942 lines); the worker no longer calls the FEC or Congress.gov.
 - **Member page:** a plain "still being double-checked" note while a grade
   is provisional, "Checked" once confirmed, and FEC-difference notes (D3).
-- **Not yet published:** the list write waits for D1 reads to come back;
-  the dry run gives 536 graded members and 193 grade changes.
+- **Published 2026-10-05 17:30 PDT**, after D1's reset:
+  - the index migration applied first (78k rows read, 38.9k written, charged
+    by hand to the ledger so the job's cap accounts for it);
+  - then 536 members graded on the site, 193 grades changed (each in
+    `grade_history`).
+  - Live checks: Hawley A and AOC S, both checked; Sanders S and Pelosi B,
+    still being double-checked, with the note showing on Pelosi's page;
+    health clear.
+  - The record check restarted (run 37394452463). The scheduled task meant
+    to do this at 17:10 stalled at its first permission prompt and was
+    stopped.
 - **Blair (B001328):** his only FEC committee is registered as an ordinary
   PAC, so his pool is empty. He is recorded as pending, not failed, and
   keeps his current grade.
