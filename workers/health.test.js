@@ -70,6 +70,11 @@ describe('evaluateHealth', () => {
     }
   });
 
+  it('flags the database nearing its size limit', () => {
+    expect(ids({ ...healthy(), d1SizeBytes: 450e6 })).toEqual(['d1-size-high']);
+    expect(ids({ ...healthy(), d1SizeBytes: 20e6 })).toEqual([]);
+  });
+
   it('flags D1 reads near the account-wide limit', () => {
     expect(ids({ ...healthy(), d1RowsReadToday: 4200000 })).toEqual(['d1-reads-high']);
     expect(ids({ ...healthy(), d1RowsReadToday: 900000 })).toEqual([]);

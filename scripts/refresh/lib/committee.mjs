@@ -3,8 +3,11 @@
 //
 // 1. Missing individual records: the bulk file is a subset of the FEC's
 //    `is_individual=true` set, so compare counts - whole committee first
-//    (one call), then by month (and day, where a month's count is only an
-//    estimate) - and fetch only the slices that differ.
+//    (one call), then by date ranges halved down - and fetch only the slices
+//    that differ. Records fetched in earlier passes (`stored`) count as
+//    known, so a later pass searches only what changed since: in practice,
+//    new filings. A slice that is fetched again replaces what was stored for
+//    it, so a record an amended filing removed doesn't linger.
 // 2. Earmarked gifts the FEC doesn't flag individual (a person's gift through
 //    a PAC conduit): one call per committee.
 // 3. The money check against the FEC's itemized total.
@@ -44,6 +47,7 @@ export async function reconcileCommittee({
   cycle,
   log = () => {},
   deadline = null,
+  stored = [],
 }) {
   const { conn, read } = bulk;
   const totals = (await fec(`/committee/${committeeId}/totals/`, { cycle })).results?.[0] || null;
@@ -63,6 +67,22 @@ export async function reconcileCommittee({
     `SELECT count(*)::INTEGER n FROM bulk WHERE committee_id = ? AND ${comparable}`,
     committeeId
   );
+  // Records fetched before (not in this bulk file), by date. A record without
+  // a date can only sit in an open-ended range, which is always fetched.
+  const storedDate = r => String(r.contribution_receipt_date || '').slice(0, 10) || null;
+  const known = new Map(
+    stored.filter(r => !bulkIds.has(String(r.sub_id))).map(r => [String(r.sub_id), r])
+  );
+  const storedInRange = ({ min, max }) => {
+    let n = 0;
+    for (const r of known.values()) {
+      const d = storedDate(r);
+      if (d && d >= min && d <= max) {
+        n++;
+      }
+    }
+    return n;
+  };
   const bulkInRange = async ({ min, max }) =>
     (
       await read(
@@ -71,7 +91,7 @@ export async function reconcileCommittee({
         min,
         max
       )
-    )[0].n;
+    )[0].n + storedInRange({ min, max });
 
   // 1. Missing individual records
   const gap = new Map();
@@ -87,6 +107,16 @@ export async function reconcileCommittee({
   async function fetchRange(range) {
     fetchedSlices++;
     let fetched = 0;
+    // The FEC's answer for this range replaces what was stored for it
+    for (const [id, r] of known) {
+      const d = storedDate(r);
+      const inRange = d
+        ? (!range.min || d >= range.min) && (!range.max || d <= range.max)
+        : !range.min || !range.max;
+      if (inRange) {
+        known.delete(id);
+      }
+    }
     await scheduleAPages(
       fec,
       {
@@ -153,7 +183,7 @@ export async function reconcileCommittee({
     return sum;
   }
 
-  if (!(whole.exact && whole.count === bulkComparable)) {
+  if (!(whole.exact && whole.count === bulkComparable + known.size)) {
     const start = `${cycle - 1}-01-01`;
     const end = `${cycle}-12-31`;
     // Records dated before or after the cycle's two years, then the years
@@ -165,6 +195,13 @@ export async function reconcileCommittee({
       // e.g. records with no date at all, which no date range can find
       recordsComplete = false;
       log(`  ${committeeId}: ranges account for ${found} of the FEC's ${whole.count} records`);
+    }
+  }
+
+  // Stored records the FEC still confirms (their range matched), plus new ones
+  for (const [id, r] of known) {
+    if (!gap.has(id)) {
+      gap.set(id, r);
     }
   }
 

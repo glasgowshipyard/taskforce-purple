@@ -141,6 +141,12 @@ redesigned them wasted days and, twice, proposed breaking them. Build on them.
   did exactly that. **Every D1 lookup must use an index** (check with
   `EXPLAIN QUERY PLAN`); the refresh job meters rows read and stops at 3M.
   `node scripts/verify/d1-usage.mjs` shows usage by database.
+- **D1 database size: 500 MB each.** Over it, D1 refuses every write to that
+  database. On 2026-10-05 `gap_records` (one uncompressed FEC record per
+  row) reached it and the job wrote 275k rows in a day doing so. Fetched
+  records are now stored full but Brotli-packed per committee
+  (`gap_packs`, `scripts/refresh/lib/gap-store.mjs`): 438 MB became 7.6 MB.
+  Never store one row per donation in D1. Health alerts at 400 MB.
 - **D1 write budget**: the free tier's 100k rows-written/day is hard-enforced
   and shared with the owner's other projects on the account. The refresh job
   charges D1's own `rows_written` figures to `d1_write_budget` in

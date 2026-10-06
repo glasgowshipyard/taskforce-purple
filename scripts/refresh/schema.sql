@@ -49,17 +49,19 @@ CREATE TABLE IF NOT EXISTS committees (
   PRIMARY KEY (committee_id, cycle)
 );
 
--- Records fetched from the API (gap fills and earmarked gifts), in full
-CREATE TABLE IF NOT EXISTS gap_records (
-  sub_id TEXT PRIMARY KEY,
+-- Records fetched from the API (gap fills and earmarked gifts), in full,
+-- Brotli-packed per committee (lib/gap-store.mjs; 2026-10-06). Replaces
+-- gap_records, one uncompressed row per record, which filled D1's 500 MB.
+CREATE TABLE IF NOT EXISTS gap_packs (
   committee_id TEXT NOT NULL,
   cycle INTEGER NOT NULL,
   kind TEXT NOT NULL,          -- gap | earmarked
-  record TEXT NOT NULL,        -- the API row, JSON
-  fetched_at TEXT NOT NULL
+  pack INTEGER NOT NULL,       -- 0, 1, ... (up to 5,000 records each)
+  records INTEGER NOT NULL,
+  data TEXT NOT NULL,          -- base64 of Brotli-compressed JSON: the FEC's records as fetched
+  saved_at TEXT NOT NULL,
+  PRIMARY KEY (committee_id, cycle, kind, pack)
 );
--- Loading a committee's fetched records goes by committee (2026-10-05)
-CREATE INDEX IF NOT EXISTS idx_gap_records_committee ON gap_records (committee_id, cycle);
 
 -- The current result per member per cycle (Stage 2: computed, not published)
 CREATE TABLE IF NOT EXISTS results (

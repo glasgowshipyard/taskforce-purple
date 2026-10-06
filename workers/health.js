@@ -15,6 +15,8 @@ export const RUN_STUCK_MS = 7 * HOUR;
 export const D1_ALARM_ROWS = 95000;
 // D1 refuses every read on the account at 5M rows a day; the job stops at 3M
 export const D1_READ_ALARM_ROWS = 4000000;
+// D1 refuses writes to a database over 500 MB (2026-10-05: it happened)
+export const D1_SIZE_ALARM_BYTES = 400 * 1000 * 1000;
 export const MIN_MEMBERS = 530;
 
 // The proposed fix for each problem, shown in the alert
@@ -35,6 +37,8 @@ export const FIXES = {
     'They retry on the next run. The same reason twice in a row means a code fault to fix; an FEC outage clears itself.',
   'committee-mismatch':
     'Compare the committee’s records with the FEC’s month by month to find the missing ones; until then its members stay pending, not graded.',
+  'd1-size-high':
+    'The results database is near D1’s 500 MB limit, past which it refuses every write. Find the biggest table (RUNBOOK §6) and pack or remove what isn’t needed before the next refresh.',
   'd1-over-budget':
     'The job stops itself at 85,000. Find which of the account’s other projects wrote the rest before running it again today.',
 };
@@ -48,6 +52,7 @@ export const FIXES = {
  * @param {Array} s.mismatchedCommittees    committees rows with status 'mismatch'
  * @param {number|null} s.d1RowsToday       tfp-results d1_write_budget rows written today
  * @param {number|null} s.d1RowsReadToday   tfp-results d1_write_budget rows read today
+ * @param {number|null} s.d1SizeBytes       tfp-results size, from D1's own figure
  * @param {string|null} s.resultsDbError    set when tfp-results can't be read
  */
 export function evaluateHealth(s, nowMs = Date.now()) {
@@ -118,6 +123,12 @@ export function evaluateHealth(s, nowMs = Date.now()) {
       problem(
         'd1-reads-high',
         `The refresh job has read ${s.d1RowsReadToday.toLocaleString()} D1 rows today. D1 refuses reads on the whole account at 5,000,000.`
+      );
+    }
+    if ((s.d1SizeBytes || 0) >= D1_SIZE_ALARM_BYTES) {
+      problem(
+        'd1-size-high',
+        `The refresh job's database is ${Math.round(s.d1SizeBytes / 1e6)} MB; D1 refuses writes at 500 MB.`
       );
     }
     if ((s.d1RowsToday || 0) >= D1_ALARM_ROWS) {

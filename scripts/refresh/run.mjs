@@ -50,6 +50,7 @@ import { apiRowToBulkShape, ensureBulkFile, insertApiRows, loadBulk } from './li
 import { RESULTS_DB, createCloudflare } from './lib/cloudflare.mjs';
 import { TimeBudgetError, reconcileCommittee } from './lib/committee.mjs';
 import { createFecClient } from './lib/fec.mjs';
+import { loadStored, saveStored } from './lib/gap-store.mjs';
 import { publishGrades } from './lib/publish.mjs';
 
 // D1's free limits are per day for the whole account, shared with the
@@ -288,15 +289,12 @@ async function main() {
                 'SELECT * FROM committees WHERE committee_id = ? AND cycle = ? AND round_id = ?',
                 [id, cycle, roundId]
               );
+        // Records fetched in earlier runs because the bulk file lacks them
+        const stored = await loadStored(d1, id, cycle);
         if (prior && SETTLED.has(prior.status)) {
-          const saved = await d1(
-            'SELECT record FROM gap_records WHERE committee_id = ? AND cycle = ?',
-            [id, cycle]
-          );
-          const rows = saved.map(s => JSON.parse(s.record));
           await insertApiRows(
             bulk.conn,
-            rows.map(r => apiRowToBulkShape(r, countsApi(r)))
+            [...stored.gap, ...stored.earmarked].map(r => apiRowToBulkShape(r, countsApi(r)))
           );
           committees.set(id, {
             committeeId: id,
@@ -322,6 +320,7 @@ async function main() {
           cycle,
           log,
           deadline: hardDeadline,
+          stored: stored.gap,
         });
         committees.set(id, r);
         log(
@@ -354,25 +353,9 @@ async function main() {
               roundId,
             ]
           );
-          const fetched = [
-            ...r.gapRows.map(x => ['gap', x]),
-            ...r.earmarkedRows.map(x => ['earmarked', x]),
-          ];
-          for (let i = 0; i < fetched.length; i += 15) {
-            const rows = fetched.slice(i, i + 15);
-            await d1(
-              `INSERT INTO gap_records (sub_id, committee_id, cycle, kind, record, fetched_at) VALUES ${rows.map(() => '(?,?,?,?,?,?)').join(',')}
-               ON CONFLICT(sub_id) DO NOTHING`,
-              rows.flatMap(([kind, x]) => [
-                String(x.sub_id),
-                id,
-                cycle,
-                kind,
-                JSON.stringify(x),
-                now(),
-              ])
-            );
-          }
+          // Full records, Brotli-packed per committee: a few rows, whatever
+          // the number of records (lib/gap-store.mjs)
+          await saveStored(d1, id, cycle, { gap: r.gapRows, earmarked: r.earmarkedRows });
         }
       } catch (error) {
         if (error instanceof TimeBudgetError) {

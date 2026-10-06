@@ -4,6 +4,46 @@
 
 ---
 
+## 2026-10-05 evening: the results database hit D1's 500 MB size limit (mine)
+
+**What happened.** The check run restarted at 17:31 PDT wrote 274,854 D1
+rows (the account's limit is 100,000 a day) and failed at 20:12 with
+"Exceeded maximum DB size". D1 refused writes on the whole account until
+midnight UTC (5 pm PDT on 2026-10-06), the owner's other projects
+included; reads and the site were unaffected.
+
+**Cause (mine).** I stored every record fetched from the FEC as one
+uncompressed row in `gap_records`, the full API record (about 3.7 KB).
+TEAM JORDAN (C00857615), a joint fund, has 125,374 records at the FEC but
+4,453 in the bulk file. Almost all the missing ones are small gifts from
+donors under $200 for the year, itemized voluntarily, which the bulk file
+largely leaves out. The job fetched 78,585 of them (286 MB) inside one batch,
+and the write cap was only checked between batches. `gap_records` reached
+117,450 rows and 438 MB.
+
+**Fix (owner's choice: full records, compressed):**
+
+- `gap_packs` replaces `gap_records`: each committee's records, exactly as
+  the FEC returned them, Brotli-packed up to 5,000 a row
+  (`scripts/refresh/lib/gap-store.mjs`). Dry run over all 117,450 records:
+  438.4 MB became 7.6 MB, every record unpacked identical. A committee now
+  writes a few rows however many records it has.
+- A later pass now reuses stored records. Before this, they were reused only
+  within the same pass, so the next pass would have searched everything
+  again. The search counts stored records as known and fetches only ranges
+  that still differ. Test: Daines's campaign, 302 stored records, checked in
+  4 FEC calls with no search and the same verdict.
+- Health alerts at 400 MB (`d1-size-high`).
+- `node scripts/refresh/gap-records.mjs C00857615` unpacks a committee's
+  records to a file for DuckDB (RUNBOOK §6).
+- To apply after 17:00 PDT on 2026-10-06: `migrations/2026-10-06-gap-packs.sql`,
+  then `scripts/migrations/2026-10-06-pack-gap-records.mjs --apply`, then
+  `--drop` (it re-verifies every committee before dropping `gap_records`;
+  the owner OKs the drop). First, test on a scratch table that a drop
+  doesn't cost a write per row.
+
+---
+
 ## 2026-10-05: Stage 3 publish built; I exceeded D1's daily read limit for the whole account
 
 **Incident (mine).** The refresh job reloads a checked committee's fetched

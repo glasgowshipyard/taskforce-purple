@@ -401,6 +401,7 @@ async function handleHealth(env, corsHeaders) {
     mismatchedCommittees: [],
     d1RowsToday: null,
     d1RowsReadToday: null,
+    d1SizeBytes: null,
     resultsDbError: null,
   };
   try {
@@ -423,6 +424,7 @@ async function handleHealth(env, corsHeaders) {
     snapshot.mismatchedCommittees = mismatched.results;
     snapshot.d1RowsToday = ledger.results[0]?.rows_written ?? 0;
     snapshot.d1RowsReadToday = ledger.results[0]?.rows_read ?? 0;
+    snapshot.d1SizeBytes = ledger.meta?.size_after ?? null;
   } catch (error) {
     snapshot.resultsDbError = error.message;
   }

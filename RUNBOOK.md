@@ -156,6 +156,14 @@ every database until midnight UTC (5 pm PDT). That happened on 2026-10-05
 node scripts/verify/d1-usage.mjs        # today and yesterday, by database
 ```
 
+Each database is also capped at 500 MB, past which D1 refuses its writes
+(health: `d1-size-high` at 400 MB). Records fetched from the FEC are stored
+Brotli-packed per committee in `gap_packs`. To look at one committee's:
+
+```bash
+node scripts/refresh/gap-records.mjs C00857615      # writes C00857615-2026.jsonl
+```
+
 **The write budget.** D1's 100k rows-written/day is per account, shared
 with the owner's other projects. The refresh job charges D1's own
 `rows_written` figures to a ledger and won't start within 20,000 of its
@@ -279,6 +287,7 @@ What it checks (`workers/health.js`, with tests):
 | `members-failing`       | Members failed in the refresh, with the reason (they retry; nobody is dropped) |
 | `committee-mismatch`    | A committee's records couldn't all be found, so its members stay pending       |
 | `d1-over-budget`        | 95k+ D1 row-writes today (the account-wide limit is 100k)                      |
+| `d1-size-high`          | The results database is 400 MB+ (D1 refuses its writes at 500 MB)              |
 | `d1-reads-high`         | 4M+ D1 rows read today (the account-wide limit is 5M; the job stops at 3M)     |
 | `results-db-unreadable` | The refresh job's database can't be read                                       |
 | `health-unreachable`    | The health page itself didn't answer — the API worker may be down              |
