@@ -125,6 +125,11 @@ export function evaluateHealth(s, nowMs = Date.now()) {
         `The refresh job has read ${s.d1RowsReadToday.toLocaleString()} D1 rows today. D1 refuses reads on the whole account at 5,000,000.`
       );
     }
+    if (s.d1SizeBytes) {
+      notes.push(
+        `The refresh job's database is ${Math.round(s.d1SizeBytes / 1e6)} MB of D1's 500.`
+      );
+    }
     if ((s.d1SizeBytes || 0) >= D1_SIZE_ALARM_BYTES) {
       problem(
         'd1-size-high',

@@ -424,7 +424,9 @@ async function handleHealth(env, corsHeaders) {
     snapshot.mismatchedCommittees = mismatched.results;
     snapshot.d1RowsToday = ledger.results[0]?.rows_written ?? 0;
     snapshot.d1RowsReadToday = ledger.results[0]?.rows_read ?? 0;
-    snapshot.d1SizeBytes = ledger.meta?.size_after ?? null;
+    // D1 reports the database's size with every query
+    snapshot.d1SizeBytes =
+      [run, failing, mismatched, ledger].map(r => r?.meta?.size_after).find(Boolean) ?? null;
   } catch (error) {
     snapshot.resultsDbError = error.message;
   }
