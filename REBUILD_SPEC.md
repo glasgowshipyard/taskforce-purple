@@ -1,9 +1,11 @@
 # Rebuild spec: collection, storage and grading around the person
 
 **Status: v3, APPROVED by the owner 2026-10-03. Stage 0 COMPLETE.
-Stage 1 DEPLOYED and MIGRATED 2026-10-03 (48 h exit check pending).
-Stage 2 IN PROGRESS: job built; health on the API worker and the itemized
-worker retired (2026-10-04); exit runs pending.**
+Stage 1 COMPLETE (exit check passed 2026-10-05: 0 CPU kills in 51 h, KV
+writes at most 103/day). Stage 2 IN PROGRESS: job built; the full check of
+Congress is under way. Stage 3 PARTLY LIVE: grades published 2026-10-05
+(grade first, confirm after, D7); cycle labels, rollover, reference tests
+and the filing-calendar trigger to come.**
 
 Written by Claude, who wrote the code this replaces. This version replaces
 v1 and v2 (git history has them). Everything about the API backfill, lanes,

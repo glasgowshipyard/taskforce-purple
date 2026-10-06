@@ -4,6 +4,15 @@
 
 ---
 
+## 2026-10-05: Stage 1 exit check passed
+
+`node scripts/verify/stage1-exit-check.mjs`, 50.9 h from the migration (Oct 3
+18:05 to Oct 5 20:57 PDT): **0** CPU-limit kills on the API worker (p99 CPU
+up to 11.5 ms), and KV writes after the migration day at most **103 a day**
+against the pre-pause 290-500. Stage 1 is complete.
+
+---
+
 ## 2026-10-05 evening: the results database hit D1's 500 MB size limit (mine)
 
 **What happened.** The check run restarted at 17:31 PDT wrote 274,854 D1
