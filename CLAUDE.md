@@ -7,8 +7,10 @@ live in `API_KEYS.md` and `.claude-reference.md` (both gitignored).
 
 ## Start here
 
-**All scheduled jobs are PAUSED (2026-10-03, owner's decision) until the
-rebuild. Don't re-enable them; see IMPLEMENTATION_STATUS.**
+**The old Worker crons and the hourly health workflow stay off (owner's
+decision, 2026-10-03).** Work runs in GitHub Actions: the refresh job
+(started by hand or by its own previous run of a pass), and the races job
+(23 and 27 October 2026, then it switches itself off). Don't add clocks.
 
 0. `REBUILD_SPEC.md` — the APPROVED (2026-10-03) rebuild: all FEC work in
    a filing-calendar-triggered GitHub Actions job; Workers only serve. Where
@@ -42,15 +44,17 @@ KV member:{id} + members:list ─> API worker (workers/data-pipeline.js,
                                                                  push to main)
 ```
 
-Stage 2 of the rebuild (2026-10-04): the refresh job computes results into
-D1 but doesn't publish them yet (Stage 3). The itemized worker is retired: a
-stub answering 410 (`workers/itemized-retired.js`).
+Since 2026-10-05 (Stage 3) the refresh job publishes grades: it rewrites
+`members:list` once per batch, only on change, and member pages read their
+detail from D1 `tfp-results`. The itemized worker is retired: a stub
+answering 410 (`workers/itemized-retired.js`).
 
-- **Current system (being replaced, see REBUILD_SPEC.md):** KV `members:all`
-  holds tiers; D1 `taskforce-purple-donors` is an incomplete mirror of raw
-  transactions. **Target:** KV holds `member:{id}`, `members:list` and the
-  published analyses; D1 `tfp-results` holds results, history and gap-fill
-  records; the FEC bulk file is the full donation record.
+- **Storage:** KV holds `members:list` (the published grades), `member:{id}`
+  (each member's stored record) and `races:list`. D1 `tfp-results` holds
+  results, history, the record check, fetched FEC records (Brotli-packed)
+  and race candidates. The FEC bulk file is the full donation record. The
+  old `members:all`, `itemized_*` keys and `taskforce-purple-donors` are
+  legacy and no longer written.
 - All tier math lives in `workers/tier-calculation.js` as pure functions with
   unit tests. Never reimplement tier logic inline in the pipeline.
 - FEC election cycles are named by the even END year (2025 → cycle 2026).
@@ -178,10 +182,10 @@ redesigned them wasted days and, twice, proposed breaking them. Build on them.
 - No queues and no strikes in the target design: a failing member never
   blocks others, is never dropped, and retries on the daily calendar check
   with an alert (REBUILD_SPEC §5, §8).
-- `fec_mapping_{bioguideId}` KV keys cache FEC candidate matches and are
-  trusted forever. A wrong cached match pins a member to the wrong candidate
-  (and their zeros) until cleared via `/api/clear-fec-mapping?bioguideId=X`.
-  If a member has implausible zeros, suspect this cache first.
+- `fec_mapping_{bioguideId}` KV keys are legacy: the old pipeline's cached
+  FEC matches. Grading no longer reads them; identity comes only from the
+  crosswalk. A member with implausible figures: check their crosswalk entry
+  (`workers/fec-crosswalk.js`), then re-grade them (RUNBOOK §8).
 - **Alerts:** `workers/health.js` (served at the API worker's `/api/health`).
   `scripts/health-alert.sh` turns it into a `system-alert` GitHub issue for
   the owner, each problem with a proposed fix; it runs at the end of every

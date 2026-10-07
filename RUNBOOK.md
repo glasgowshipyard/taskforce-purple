@@ -17,9 +17,15 @@ add the command that can.
 curl -s "https://taskforce-purple-api.dev-a4b.workers.dev/api/members" | jq '{members: (.members|length), tiers: (.members | group_by(.tier) | map({(.[0].tier): length}) | add), noData: ([.members[] | select(.totalRaised == 0)] | length), lastUpdated}'
 ```
 
-Healthy looks like: 537 members, single-digit-to-~15 `noData` (non-filing
-delegates), a `lastUpdated` within the last day, and a tier spread that
-isn't 60%+ in one bucket. If `S` contains names that make you squint, see §5.
+Healthy looks like: 539 members, a handful of `noData` (non-filing
+delegates), and a tier spread that isn't 60%+ in one bucket. `lastUpdated`
+moves only when a refresh changes grades (after FEC filing deadlines), not
+daily. If `S` contains names that make you squint, see §5.
+
+```bash
+# How many grades are checked record by record vs still provisional
+curl -s "https://taskforce-purple-api.dev-a4b.workers.dev/api/members" | jq '[.members[].evidenceChecked] | group_by(.) | map({(tostring): length}) | add'
+```
 
 ## 2. Health and the refresh job
 
@@ -266,7 +272,7 @@ gh workflow run races.yml -f dry_run=true -f states=ME
 
 | Symptom                                   | Likely cause                                         | First move                                                    |
 | ----------------------------------------- | ---------------------------------------------------- | ------------------------------------------------------------- |
-| Member with implausible zeros             | Stale/wrong `fec_mapping_*` cache                    | Clear mapping (§8), reprocess                                 |
+| Member with implausible zeros             | Wrong or missing FEC identity in the crosswalk       | Check `workers/fec-crosswalk.js`; re-grade the member (§8)    |
 | Score >100% or itemized > total           | Cross-cycle record corruption                        | §5 check, reprocess affected, recalc                          |
 | A refresh run failed or a member failed   | The reason is in the run's log and `member_progress` | §2; the alert issue carries the proposed fix                  |
 | Frontend changes not visible              | Pages build failed                                   | §7 deployment list; check the build log link it prints        |

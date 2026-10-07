@@ -4,6 +4,40 @@
 
 ---
 
+## 2026-10-07: site and docs checked against the current system
+
+**Member pages** (checked live on four kinds of member: checked,
+provisional, unconfirmed identity, one-committee):
+
+- The small-donor figure showed "*includes Candidate Committee" and the
+  explainer said "+ Candidate Committee (85% discount applied)". That's
+  wrong: the figure is gifts under $200 only. Other candidates'
+  committees only weigh 85% less in the PAC penalty, and the PAC
+  explainer now says so in plain words.
+- "Data last updated" showed the old record's date. It now shows when the
+  grade was computed ("Graded: …").
+- The foreign-agent line said "This campaign took …" when it counts all
+  committees: now "Their committees took …".
+- Dates followed the visitor's browser format ("07/10/2026" reads as July
+  10 to an American); now "October 7, 2026".
+- Two messages still described the old collection ("still being
+  collected"); reworded for members graded on one committee.
+
+**Docs:**
+
+- DATABASE_REFERENCE and API_STRUCTURES start with a current summary; the
+  old pipeline's sections are marked historical. The free-plan limits and
+  the October incidents are recorded, and the enhanced FEC limit is noted
+  as ours.
+- CLAUDE.md: what runs and what stays off; storage; the legacy
+  `fec_mapping_*` keys.
+- RUNBOOK §1: 539 members, the date moving only with refreshes, and an
+  evidence-count check.
+- The health alert for a short member list no longer points at a retired
+  endpoint.
+
+---
+
 ## 2026-10-07: reference members locked in tests
 
 `workers/reference-cases.test.js` grades four reference members from their

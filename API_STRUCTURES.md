@@ -1,5 +1,35 @@
 # API Data Structures Documentation
 
+## Current endpoints at a glance (2026-10-07)
+
+API worker `https://taskforce-purple-api.dev-a4b.workers.dev`:
+
+| Endpoint                                                                                | What it does                                                                    |
+| --------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------- |
+| `GET /api/members`                                                                      | The member list as stored (`members:list`)                                      |
+| `GET /api/members/{bioguideId}`                                                         | One member's list entry                                                         |
+| `GET /api/member-detail?bioguideId=`                                                    | One member's page: grade, money trail, donors, evidence (from D1 `tfp-results`) |
+| `GET /api/status`                                                                       | Counts from the list                                                            |
+| `GET /api/health`                                                                       | The health verdict (problems, each with a proposed fix)                         |
+| `GET /api/races`                                                                        | The 2026 races (404 until published)                                            |
+| `GET /api/candidate-detail?id=`                                                         | A race candidate's page                                                         |
+| `GET /api/social-handles`                                                               | Members' social handles                                                         |
+| `POST /api/refresh-social-handles`, `/api/remove-member/{id}`, `/api/clear-fec-mapping` | Admin, need `$UPDATE_SECRET`                                                    |
+
+**Retired (HTTP 410):**
+
+- `/api/update-data`, `/api/update-fec-batch`, `/api/smart-batch`,
+  `/api/test-member`, `/api/reset-pac-data` and
+  `/api/refresh-congress-metadata` (Stage 1).
+- `/api/debug-kv` (2026-10-04).
+- `/api/recalculate-tiers`, `/api/process-candidate` and
+  `/api/update-member/@…` (Stage 3).
+- The whole itemized worker.
+
+Grades come from the refresh job (RUNBOOK §8). Sections below marked
+historical describe the old pipeline; the dated sections at the end are
+current.
+
 ## Congress.gov API
 
 ### Important: Different endpoints return different structures!
@@ -83,7 +113,8 @@ Returns financial summary data. Uses dynamic election cycle calculation (2025→
 ### FEC API (api.open.fec.gov)
 
 - **Standard Rate Limit**: 1,000 requests per hour (~16.67 requests per minute)
-- **Enhanced Rate Limit**: 7,200 requests per hour (120 requests per minute) - requires email request
+- **Enhanced Rate Limit**: 7,200 requests per hour (120 requests per minute) - requires email request.
+  **Our key has had it since 2026-10-07** (header `X-RateLimit-Limit: 120`).
 - **Rate Limit Headers**: Returns `X-RateLimit-Limit` and `X-RateLimit-Remaining`
 - **Error Code**: 429 when rate limit exceeded
 - **Pages**: Limited to 100 results per page
@@ -93,7 +124,7 @@ Returns financial summary data. Uses dynamic election cycle calculation (2025→
 - **Appears unlimited** for our current usage patterns
 - **Pagination**: 250 members per page works fine
 
-### Current Problem: FEC Rate Limiting
+### Historical: FEC rate limiting in the old pipeline
 
 **Issue**: Processing 535 members × 3 FEC calls each = 1,605 API calls
 
@@ -137,7 +168,7 @@ curl -s "https://taskforce-purple-api.dev-a4b.workers.dev/api/members" | jq '.me
 curl -s "https://taskforce-purple-api.dev-a4b.workers.dev/api/members" | jq '.members[] | select(.bioguideId == "H001046")'
 ```
 
-### Test Update Endpoint
+### Test Update Endpoint (historical: retired, answers 410)
 
 ```bash
 curl -X POST "https://taskforce-purple-api.dev-a4b.workers.dev/api/update-data" -H "Authorization: Bearer $UPDATE_SECRET"
@@ -183,7 +214,7 @@ curl -X POST "https://taskforce-purple-api.dev-a4b.workers.dev/api/remove-member
 
 **Use Case**: When a member has corrupted or outdated data cached in KV storage that isn't being refreshed by normal update calls. After removal, the next update call will fetch fresh data from APIs.
 
-## NEW: Batch FEC Update System
+## Historical: the batch FEC update system (retired)
 
 ### Problem Solved
 
@@ -278,7 +309,7 @@ Use existing `/api/status` endpoint to track progress:
 - `withPACDetails`: Members with Phase 2 complete
 - `twoCallStrategy.phase2Progress`: Shows PAC completion ratio
 
-## PROPOSED: Enhanced PAC Tiering System
+## Historical proposal: enhanced PAC tiering (built in 2025; see GRASSROOTS_CALCULATION_GUIDE)
 
 ### Current Problem
 

@@ -24,7 +24,7 @@ export const FIXES = {
   'site-data-missing':
     'Rebuild members:list from the member:{id} records (one KV write), then check the site loads.',
   'site-data-short':
-    'Compare the list with Congress.gov, then add each missing member with /api/process-candidate.',
+    'Compare the list with Congress.gov. Adding members needs the roster update (planned with the New Year work); until then Claude adds them by hand.',
   'results-db-unreadable':
     'If the error says a daily limit was exceeded, D1 refuses reads on the whole account until midnight UTC (5 pm PDT): find what read so much (RUNBOOK §6) before running anything else. Otherwise check the RESULTS_DB binding in the API worker’s wrangler.toml and redeploy it.',
   'd1-reads-high':

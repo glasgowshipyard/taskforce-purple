@@ -377,10 +377,12 @@ export default function MembersList() {
                 <p className="text-sm text-purple-600 mt-2 italic">
                   {TaskForceAPI.getTierExplanation(selectedMember.tier)}
                 </p>
-                {selectedMember.lastUpdated && (
+                {(selectedMember.gradedAt || selectedMember.lastUpdated) && (
                   <p className="text-xs text-gray-400 mt-1">
-                    Data last updated:{' '}
-                    {new Date(selectedMember.lastUpdated).toLocaleDateString('en-US', {
+                    {selectedMember.gradedAt ? 'Graded' : 'Data last updated'}:{' '}
+                    {new Date(
+                      selectedMember.gradedAt || selectedMember.lastUpdated
+                    ).toLocaleDateString('en-US', {
                       year: 'numeric',
                       month: 'short',
                       day: 'numeric',
@@ -617,7 +619,7 @@ export default function MembersList() {
                     <h3 className="font-semibold text-red-900">Foreign-agent connected money</h3>
                   </div>
                   <p className="text-sm text-gray-800">
-                    This campaign took{' '}
+                    {fig.allCommittees ? 'Their committees took' : 'This campaign took'}{' '}
                     <span className="font-bold text-red-900">
                       {TaskForceAPI.formatCurrency(selectedMember.faraEmployerTotal)}
                     </span>{' '}
@@ -691,26 +693,12 @@ export default function MembersList() {
                       className={`text-2xl font-bold ${fig.grassrootsPercent <= 15 ? 'text-red-600' : 'text-green-600'}`}
                     >
                       {fig.grassrootsPercent}%
-                      {selectedMember.hasEnhancedData && selectedMember.grassrootsPACTypes && (
-                        <span
-                          className={`text-sm font-normal ${fig.grassrootsPercent <= 15 ? 'text-red-600' : 'text-green-600'}`}
-                        >
-                          *
-                        </span>
-                      )}
                     </div>
                     <div
                       className={`text-sm ${fig.grassrootsPercent <= 15 ? 'text-red-700' : 'text-green-700'}`}
                     >
                       {TaskForceAPI.formatCurrency(fig.grassrootsDonations)}
                     </div>
-                    {selectedMember.hasEnhancedData && selectedMember.grassrootsPACTypes && (
-                      <div
-                        className={`text-xs mt-1 ${fig.grassrootsPercent <= 15 ? 'text-red-600' : 'text-green-600'}`}
-                      >
-                        *includes {selectedMember.grassrootsPACTypes.join(', ')}
-                      </div>
-                    )}
                   </div>
 
                   <div className="bg-orange-50 p-4 rounded-lg">
@@ -775,12 +763,7 @@ export default function MembersList() {
                       <span className="font-semibold text-green-700 min-w-[120px]">
                         Grassroots:
                       </span>
-                      <span>
-                        All donations under $200
-                        {selectedMember.grassrootsPACTypes &&
-                          selectedMember.grassrootsPACTypes.length > 0 &&
-                          ` + ${selectedMember.grassrootsPACTypes.join(', ')} (85% discount applied)`}
-                      </span>
+                      <span>All donations under $200</span>
                     </div>
                     <div className="flex items-start space-x-2">
                       <span className="font-semibold text-orange-700 min-w-[120px]">
@@ -791,8 +774,10 @@ export default function MembersList() {
                     <div className="flex items-start space-x-2">
                       <span className="font-semibold text-red-700 min-w-[120px]">PAC Money:</span>
                       <span>
-                        Corporate, union, and special interest PAC contributions (weighted by
-                        transparency: Super PACs 2.0x, Leadership/Lobbyist PACs 1.5x)
+                        Money from PACs: companies, unions, interest groups and other
+                        politicians&apos; committees. In the score, each kind weighs differently:
+                        Super PACs count double, leadership and lobbyist PACs 1.5 times, and other
+                        candidates&apos; own campaign committees 85% less.
                       </span>
                     </div>
                     {Number.isFinite(selectedMember.individualFundingPercent) && (
@@ -993,7 +978,12 @@ export default function MembersList() {
             </h2>
             {lastUpdated && (
               <p className="text-sm text-gray-500 mt-1">
-                Last updated: {new Date(lastUpdated).toLocaleDateString()}
+                Last updated:{' '}
+                {new Date(lastUpdated).toLocaleDateString('en-US', {
+                  year: 'numeric',
+                  month: 'long',
+                  day: 'numeric',
+                })}
               </p>
             )}
           </div>

@@ -1,8 +1,42 @@
 # Task Force Purple - Database Reference
 
-**Last Updated**: 2026-01-17
+**Last Updated**: 2026-10-07
 
 This document provides complete reference for all KV and D1 databases used in the project, including how to query them.
+
+## At a glance (current, 2026-10-07)
+
+**KV `MEMBER_DATA`:**
+
+| Key                   | What it holds                                                          | Written by                                                           |
+| --------------------- | ---------------------------------------------------------------------- | -------------------------------------------------------------------- |
+| `members:list`        | The site's member list: each member's published grade and list figures | The refresh job's publish step (one write per batch, only on change) |
+| `member:{bioguideId}` | Each member's stored record (name, seat, PAC list, social handles)     | Stage 1 migration; admin endpoints                                   |
+| `races:list`          | The 2026 races: everyone on November's ballot, by seat                 | The races job (only on change)                                       |
+
+Legacy keys, frozen and no longer read for grades: `members:all`,
+`itemized_analysis_v2:*`, the queue keys and `fec_mapping_*`.
+
+**D1:**
+
+- `tfp-results` (current): results, history, the record check, fetched
+  records (packed) and race candidates (section below).
+- `taskforce-purple-donors` (legacy): no longer written.
+
+**The flow:**
+
+1. The refresh job runs in GitHub Actions (FEC bulk files plus the FEC API).
+2. It writes results to D1 `tfp-results`.
+3. It publishes `members:list` to KV.
+4. The API worker serves the list and reads each member page's detail from
+   D1.
+5. The site shows them.
+
+Free-plan limits that bind (per day, whole account):
+
+- KV: 1,000 writes.
+- D1: 5,000,000 rows read and 100,000 written.
+- D1: 500 MB per database.
 
 ---
 
@@ -18,7 +52,7 @@ This document provides complete reference for all KV and D1 databases used in th
 
 #### Core Data Keys
 
-**`members:all`** - Complete member dataset (537 members)
+**`members:all`** - LEGACY: the old complete member dataset (read-only since 2026-10-03; the site no longer reads it)
 
 ```bash
 # Read the full dataset
@@ -420,6 +454,8 @@ wrangler d1 execute taskforce-purple-donors --remote --command "SELECT * FROM it
 
 ## Data Relationships
 
+> **Historical:** this section describes the old pipeline (before the 2026-10 rebuild). For the current system see the summary at the top.
+
 ### How KV and D1 Work Together
 
 1. **Raw Transaction Storage (D1)**:
@@ -458,6 +494,8 @@ FEC API → Itemized Analysis Worker
 ---
 
 ## Troubleshooting
+
+> **Historical:** this section describes the old pipeline (before the 2026-10 rebuild). For the current system: RUNBOOK §2 (progress), §6 (D1) and §8 (re-grading).
 
 ### Check if member has itemized data
 
@@ -504,6 +542,8 @@ wrangler kv key delete "progress:S000033" --namespace-id=8318226115e2423ab5d141a
 
 ## Emergency Recovery
 
+> **Historical:** this section describes the old pipeline (before the 2026-10 rebuild). For the current system: RUNBOOK §8 (re-grade and publish).
+
 ### Rebuild members:all from scratch
 
 **DO NOT DO THIS UNLESS ABSOLUTELY NECESSARY**
@@ -541,22 +581,20 @@ echo $MEMBERS | wrangler kv key put "itemized_processing_queue" --namespace-id=8
 - **Deletes**: 1,000/day
 - **Storage**: 1 GB
 
-**Current Usage** (at 20-min intervals):
-
-- Data pipeline: ~360-576 writes/day
-- Itemized analysis: ~432 writes/day
-- **Total**: ~790-1,010 writes/day (79-101% of limit)
+**Usage now:** about 100 writes a day at most (Stage 1 exit check), mostly
+one `members:list` write per published batch. Before the rebuild the two
+workers used 790-1,010 a day.
 
 ### D1 Free Tier
 
-- **Rows read**: 5 million/day
-- **Rows written**: 100,000/day
-- **Storage**: 500 MB
+- **Rows read**: 5 million/day for the whole account
+- **Rows written**: 100,000/day for the whole account
+- **Storage**: 500 MB per database
 
-**Current Usage**:
-
-- Itemized analysis: ~1,000 rows/member × 1 member per 30 min = 48,000 rows/day
-- **Well within limits**
+All three were hit in October 2026: 18.8M reads (an unindexed lookup) and
+the 500 MB size limit with 275k writes (uncompressed records). Both are
+fixed and metered (CLAUDE.md, RUNBOOK §6). `node scripts/verify/d1-usage.mjs`
+shows usage by database.
 
 ---
 

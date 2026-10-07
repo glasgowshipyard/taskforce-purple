@@ -77,8 +77,8 @@ export default function MoneyTrail({ member, loadDetail }) {
     return (
       <div className="mb-6 p-4 rounded-lg border border-gray-200 bg-gray-50 text-sm text-gray-600">
         <span className="font-semibold text-gray-800">Where the money comes from: </span>
-        we haven&apos;t mapped this member&apos;s other committees (joint fundraising funds,
-        leadership PACs) yet. Until we have, the figures here cover their campaign committee only.
+        we couldn&apos;t map all of this member&apos;s committees in the FEC&apos;s records yet, so
+        the figures here cover one committee only.
       </div>
     );
   }
@@ -219,7 +219,7 @@ export default function MoneyTrail({ member, loadDetail }) {
             ? 'money from all of these committees.'
             : gradeBasis === 'campaign-committee-rechecking'
               ? "only their campaign committee for now. We've collected the donors of all their committees, but our totals don't yet match the FEC's own to the dollar, so we won't grade on them until they do."
-              : 'only their campaign committee for now. The donors of their other committees are still being collected; the grade updates when that finishes.'}
+              : "only one committee, from before we graded every member on all of theirs. We couldn't find a campaign committee for this election in the FEC's records to grade them on yet; the grade updates when we can."}
         </p>
         <p>
           <span className="font-semibold">How we count: </span>
@@ -227,7 +227,16 @@ export default function MoneyTrail({ member, loadDetail }) {
           split by that fund&apos;s own mix of small donors, large donors and PACs. Every committee
           name links to its FEC filings, so you can check any figure yourself.
           {trail.fetchedAt && (
-            <> Committee data as of {new Date(trail.fetchedAt).toLocaleDateString()}.</>
+            <>
+              {' '}
+              Committee data as of{' '}
+              {new Date(trail.fetchedAt).toLocaleDateString('en-US', {
+                year: 'numeric',
+                month: 'long',
+                day: 'numeric',
+              })}
+              .
+            </>
           )}
         </p>
       </div>
