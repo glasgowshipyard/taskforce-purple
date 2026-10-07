@@ -34,6 +34,13 @@ grades, a Races tab, and third-party candidates who file.
   8 am PDT, then disables itself.
 - **To come:** the record-by-record check for challengers, after the
   members' pass.
+- **DuckDB is pinned in `package.json`** (devDependencies, 1.5.6-r.1), so
+  `npm ci` installs the same version everywhere. Until now the workflows
+  installed it separately (`npm install --no-save`), so it wasn't in the
+  lockfile, and the 2026-10-06 `npm audit fix` removed my local copy.
+  DuckDB isn't a stored database: each job builds one in memory from the
+  FEC's zip on GitHub's machines and throws it away. Nothing depends on
+  the owner's Mac.
 
 ---
 

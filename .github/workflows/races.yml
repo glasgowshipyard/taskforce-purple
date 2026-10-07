@@ -44,9 +44,7 @@ jobs:
           cache: 'npm'
 
       - name: Install
-        run: |
-          npm ci
-          npm install --no-save @duckdb/node-api
+        run: npm ci # includes DuckDB (devDependencies, pinned)
 
       - name: Grade and publish the races
         env:
