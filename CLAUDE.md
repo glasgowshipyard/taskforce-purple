@@ -153,10 +153,11 @@ redesigned them wasted days and, twice, proposed breaking them. Build on them.
   `tfp-results` and won't start above its cap. **Every D1 write must go
   through `cf.d1()` in `scripts/refresh/lib/cloudflare.mjs`**, which counts
   them; an uncounted path silently reopens the hole.
-- **FEC rate limit: 1,000 calls per hour per personal key** (the FEC's own
-  429 message, 2026-10-03; a response header also says 60, but the hourly
-  limit is what bites). The refresh job paces itself at one call every 3.7 s.
-  A free upgraded key (120 a minute) comes from emailing apiinfo@fec.gov.
+- **FEC rate limit: 120 calls a minute** for our key, upgraded by the FEC on
+  2026-10-07 (its `X-RateLimit-Limit` header reads 120). Before that it was
+  1,000 an hour. The jobs pace themselves (`FEC_MIN_INTERVAL_MS`): the check
+  at about 86 a minute, grading and races at 30, so together they stay
+  under 120.
 - **D1 bound-parameter limit**: batch inserts at ~10 rows/statement (100
   bound parameters per statement). Larger batches fail, silently if wrapped
   in catch blocks — this already bit us once.

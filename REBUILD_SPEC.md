@@ -230,8 +230,8 @@ created once by the owner; Claude never handles the values.
   - **At the personal key's 1,000 calls an hour:** about 3 hours per batch
     of 25 senators, so roughly 2–3 days. Each run stops before GitHub's
     6-hour limit and starts the next run of the pass itself.
-  - **With the upgraded key** (7,200 an hour, requested 2026-10-04):
-    roughly half a day.
+  - **With the upgraded key** (granted 2026-10-07: 120 a minute): roughly
+    half a day.
   - My earlier estimate (7–10 hours, from Williams alone) was wrong.
 - **Later runs:** stored gap records are reloaded, so only new filings are
   searched.

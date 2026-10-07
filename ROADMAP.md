@@ -187,22 +187,9 @@ with Stage 3's rollover, which must be live before 1 January.
 
 ## Options on hold (owner's call, not scheduled)
 
-- **Upgraded FEC key (noted 2026-10-04).** The FEC's own API page offers
-  a key with 7,200 calls an hour (120 a minute) instead of 1,000, free, on
-  request to APIinfo@fec.gov.
-  - **Gain:** a full refresh pass drops from about 7–10 hours (two or three
-    Actions runs) to about 1–2 hours (one run).
-  - **Cloudflare:** no change in what the job stores (same KV and D1 reads
-    and writes per pass, only faster). At full speed the job makes at most
-    about 100 Cloudflare API calls a minute, against the 240 allowed
-    (1,200 per 5 minutes); its client already waits and retries on a 429.
-  - **Steps:**
-    1. The owner emails APIinfo@fec.gov. The email describes the site as
-       free and non-commercial, and names the key by its sign-up email,
-       not the key itself.
-    2. If the FEC issues a new key: `bash scripts/rotate-secrets.sh`.
-    3. Claude lowers the job's pacing (`FEC_MIN_INTERVAL_MS`, now 3,700 ms)
-       to suit the new limit.
+- **Upgraded FEC key: DONE 2026-10-07.** The owner asked and the FEC
+  upgraded the same key to 120 calls a minute (was 1,000 an hour). The jobs'
+  pacing is raised to match (CLAUDE.md, FEC rate limit).
 
 ---
 

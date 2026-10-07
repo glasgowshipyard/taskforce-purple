@@ -4,6 +4,17 @@
 
 ---
 
+## 2026-10-07: the FEC upgraded our key to 120 calls a minute
+
+The owner asked; the FEC upgraded the same key in place. Its
+`X-RateLimit-Limit` header now reads 120 (60 before; the real limit before
+was 1,000 an hour). Pacing raised: the record check from 900 an hour to
+about 86 a minute (5,100 an hour), and grading and races to 30 a minute.
+Together they stay under 120. The rest of the first full check (about 230
+members) should take hours instead of a day and a half.
+
+---
+
 ## 2026-10-07: the 2026 races, built (ROADMAP Phase E)
 
 Owner's go, with the four recommendations: November's ballot, provisional

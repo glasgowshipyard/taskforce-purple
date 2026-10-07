@@ -1,9 +1,10 @@
 // FEC API client for the refresh job (REBUILD_SPEC.md §5).
 //
-// - Paced under the key's real limit. A personal api.data.gov key allows
-//   1,000 calls an hour (the FEC's 429 message, 2026-10-03), so the default is
-//   one call every 3.7 s (~970 an hour). An upgraded key (120 a minute, free
-//   from apiinfo@fec.gov) can set FEC_MIN_INTERVAL_MS=550.
+// - Paced under the key's real limit. The FEC upgraded our key on 2026-10-07
+//   to 120 calls a minute (its X-RateLimit-Limit header: 120; it was 1,000
+//   an hour before). The default is one call every 0.6 s (100 a minute); the
+//   workflows set FEC_MIN_INTERVAL_MS so jobs running together stay under
+//   120. A key back on the standard limit would need 3,700.
 // - A 429 waits for the hourly window to free up (up to an hour); 5xx and
 //   network failures retry with shorter waits. The FEC also fails
 //   transiently on good queries (seen 2026-10-03).
@@ -12,7 +13,7 @@
 const BASE = 'https://api.open.fec.gov/v1';
 const RETRY_WAITS_MS = [2000, 5000, 15000, 30000, 60000];
 const RATE_LIMIT_WAITS_MS = [60000, 300000, 600000, 900000, 1200000];
-const DEFAULT_INTERVAL_MS = Number(process.env.FEC_MIN_INTERVAL_MS) || 3700;
+const DEFAULT_INTERVAL_MS = Number(process.env.FEC_MIN_INTERVAL_MS) || 600;
 const REQUEST_TIMEOUT_MS = 90000;
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 

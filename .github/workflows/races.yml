@@ -53,8 +53,9 @@ jobs:
           CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
           DRY_RUN: ${{ inputs.dry_run }}
           STATES: ${{ inputs.states }}
-          # Leaves room in the FEC key's 1,000 calls an hour for the record check
-          FEC_MIN_INTERVAL_MS: '4000'
+          # 30 FEC calls a minute, beside the record check's 86 (the key allows
+          # 120 a minute since 2026-10-07)
+          FEC_MIN_INTERVAL_MS: '2000'
         run: |
           args=(--bulk-dir "$RUNNER_TEMP/bulk")
           if [ "$DRY_RUN" = "true" ]; then args+=(--dry-run); fi
