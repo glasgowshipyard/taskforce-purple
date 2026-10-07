@@ -35,7 +35,9 @@ function evidenceNote(note, committees) {
 const pct = (part, whole) => (whole > 0 ? `${Math.round((part / whole) * 100)}%` : '—');
 const fecCommitteeUrl = (id, cycle) => `https://www.fec.gov/data/committee/${id}/?cycle=${cycle}`;
 
-export default function MoneyTrail({ member }) {
+// `loadDetail` fetches the detail for someone who isn't a sitting member (a
+// candidate in the Races view); by default, the member's own detail
+export default function MoneyTrail({ member, loadDetail }) {
   const [detail, setDetail] = useState(null);
   const [state, setState] = useState('loading');
 
@@ -43,7 +45,7 @@ export default function MoneyTrail({ member }) {
     let cancelled = false;
     setState('loading');
     setDetail(null);
-    TaskForceAPI.fetchMemberDetail(member.bioguideId)
+    (loadDetail ? loadDetail() : TaskForceAPI.fetchMemberDetail(member.bioguideId))
       .then(d => {
         if (!cancelled) {
           setDetail(d);
@@ -54,6 +56,9 @@ export default function MoneyTrail({ member }) {
     return () => {
       cancelled = true;
     };
+    // The detail is keyed by the ID; a new loadDetail function each render
+    // doesn't mean a different person
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [member.bioguideId]);
 
   if (state === 'loading') {
@@ -87,7 +92,8 @@ export default function MoneyTrail({ member }) {
     .reduce((s, c) => s + (c.passedElsewhere || 0), 0);
   const poolIds = detail.donorPoolCommitteeIds || [];
   const donorsCoverAll = detail.personLevel && poolIds.length > 1;
-  const gradeAll = member.gradeBasis === 'all-committees';
+  const gradeBasis = detail.member?.gradeBasis ?? member.gradeBasis;
+  const gradeAll = gradeBasis === 'all-committees';
 
   return (
     <div className="mb-6 p-6 rounded-lg border-2 border-slate-300 bg-white">
@@ -211,7 +217,7 @@ export default function MoneyTrail({ member }) {
           <span className="font-semibold">This grade counts </span>
           {gradeAll
             ? 'money from all of these committees.'
-            : member.gradeBasis === 'campaign-committee-rechecking'
+            : gradeBasis === 'campaign-committee-rechecking'
               ? "only their campaign committee for now. We've collected the donors of all their committees, but our totals don't yet match the FEC's own to the dollar, so we won't grade on them until they do."
               : 'only their campaign committee for now. The donors of their other committees are still being collected; the grade updates when that finishes.'}
         </p>

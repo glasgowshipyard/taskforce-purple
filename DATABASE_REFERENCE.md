@@ -269,7 +269,29 @@ wrangler kv key delete "test_key" --namespace-id=8318226115e2423ab5d141adfa5419f
 
 ## Cloudflare D1 Database
 
-### Database: taskforce-purple-donors
+### Database: tfp-results (the refresh job's; current)
+
+ID `f4ad9245-769d-4bb2-b772-c552907e1692`. Schema: `scripts/refresh/schema.sql`
+(and `scripts/refresh/migrations/`). Free-plan limits that apply: 500 MB per
+database; 5M rows read and 100k written a day for the whole account
+(RUNBOOK §6, `node scripts/verify/d1-usage.mjs`).
+
+| Table                               | What it holds                                                                                                                                                  |
+| ----------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `results`                           | Each member's current result per cycle: pool, analysis, grade, status (complete, provisional, pending)                                                         |
+| `snapshots`                         | Every result that was ever current (history)                                                                                                                   |
+| `grade_history`                     | One row per published grade change                                                                                                                             |
+| `committees`                        | Each committee's check against the FEC: counts, money, status                                                                                                  |
+| `gap_packs`                         | Records fetched from the FEC because the bulk file lacks them: full records, Brotli-packed per committee (`scripts/refresh/gap-records.mjs C00… ` unpacks one) |
+| `race_candidates`                   | General-election candidates who aren't sitting members, graded (2026 races)                                                                                    |
+| `member_progress`, `rounds`, `runs` | The record check's progress and run history                                                                                                                    |
+| `d1_write_budget`                   | The job's D1 rows written and read per UTC day                                                                                                                 |
+| `fara_employer_matches`             | Employers matched to FARA-registered firms                                                                                                                     |
+
+KV keys the job writes: `members:list` (published grades, one write per
+publish) and `races:list` (the 2026 races, one write per publish).
+
+### Database: taskforce-purple-donors (legacy; no longer written since 2026-10-04)
 
 **ID**: `87d24fba-1e43-45a0-aa84-1610e984aee8`
 

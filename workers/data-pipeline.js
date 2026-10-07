@@ -78,6 +78,10 @@ export default {
           return retiredEndpoint(corsHeaders, '/api/debug-kv');
         case '/api/health':
           return await handleHealth(env, corsHeaders);
+        case '/api/races':
+          return await handleRaces(env, corsHeaders);
+        case '/api/candidate-detail':
+          return await handleCandidateDetail(env, corsHeaders, url);
         default:
           // Check for individual member lookup pattern: /api/members/{bioguideId}
           if (url.pathname.startsWith('/api/members/')) {
@@ -244,6 +248,67 @@ async function handleMemberDetail(env, corsHeaders, url) {
       'Content-Type': 'application/json',
       'Cache-Control': 'public, max-age=900',
     },
+  });
+}
+
+// The 2026 races (ROADMAP Phase E): the races list as the races job stored
+// it, served without parsing. 404 until published, which hides the tab.
+async function handleRaces(env, corsHeaders) {
+  const stored = await env.MEMBER_DATA.get('races:list');
+  return new Response(stored || JSON.stringify({ error: 'races not published yet' }), {
+    status: stored ? 200 : 404,
+    headers: {
+      ...corsHeaders,
+      'Content-Type': 'application/json',
+      'Cache-Control': 'public, max-age=300',
+    },
+  });
+}
+
+// A general-election candidate who isn't a sitting member: the same detail a
+// member's page gets, from their row in D1 race_candidates
+async function handleCandidateDetail(env, corsHeaders, url) {
+  const id = url.searchParams.get('id') || '';
+  const headers = { ...corsHeaders, 'Content-Type': 'application/json' };
+  if (!/^[HS][0-9][A-Z]{2}[0-9]{5}$/.test(id)) {
+    return new Response(JSON.stringify({ error: 'FEC candidate id required' }), {
+      status: 400,
+      headers,
+    });
+  }
+  const row = env.RESULTS_DB
+    ? await env.RESULTS_DB.prepare(
+        'SELECT * FROM race_candidates WHERE candidate_id = ? ORDER BY cycle DESC LIMIT 1'
+      )
+        .bind(id)
+        .first()
+    : null;
+  if (!row) {
+    return new Response(JSON.stringify({ error: 'not found' }), { status: 404, headers });
+  }
+  const parse = s => (s ? JSON.parse(s) : null);
+  const result = {
+    ...row,
+    pool: parse(row.pool),
+    analysis: parse(row.analysis),
+    grade: parse(row.grade),
+    reconciliation: null,
+  };
+  const record = {
+    bioguideId: id,
+    candidateId: id,
+    name: row.name,
+    party: row.party,
+    state: row.state,
+    district: row.district,
+    chamber: row.office === 'S' ? 'Senate' : 'House',
+    fecIdentityVerified: true,
+  };
+  const body = result.grade?.tier
+    ? { ...publishedDetail(id, record, result), candidateId: id }
+    : { bioguideId: id, candidateId: id, member: record, moneyTrail: null, evidence: null };
+  return new Response(JSON.stringify(body), {
+    headers: { ...headers, 'Cache-Control': 'public, max-age=900' },
   });
 }
 

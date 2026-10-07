@@ -252,6 +252,16 @@ node scripts/refresh/publish.mjs --dry-run
 curl -X POST "https://taskforce-purple-api.dev-a4b.workers.dev/api/clear-fec-mapping?bioguideId=C001096" -H "Authorization: Bearer $UPDATE_SECRET"
 ```
 
+### The 2026 races
+
+```bash
+# What the site's Races tab serves (404 until published)
+curl -s "https://taskforce-purple-api.dev-a4b.workers.dev/api/races" | jq '{field, updatedAt, races: (.races | length)}'
+# Grade and publish now (normally automatic on 23 and 27 October)
+gh workflow run races.yml
+gh workflow run races.yml -f dry_run=true -f states=ME
+```
+
 ## 9. Known failure signatures
 
 | Symptom                                   | Likely cause                                         | First move                                                    |

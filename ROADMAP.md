@@ -113,7 +113,15 @@ funding routes visible, behavior included. Same rules for all 537.
 
 ---
 
-## Phase E — 2026 races: grade the challengers too (scoped 2026-10-07; owner to decide)
+## Phase E — 2026 races: grade the challengers too (owner's go 2026-10-07; built, live 23 October)
+
+> **Built 2026-10-07** with the four recommendations: the November ballot
+> (FEC pre-general filers), provisional grades with the note, a Races tab,
+> and third parties if they filed. `scripts/refresh/races.mjs` with
+> `.github/workflows/races.yml`, which runs 23 and 27 October and then
+> switches itself off. The tab appears once the real field is published.
+> Still to come: the record-by-record check for challengers, after the
+> members' check finishes.
 
 **Today** the site grades the 539 sitting members only, on the 2026 cycle.
 Challengers and open-seat candidates aren't graded, so a voter can't compare

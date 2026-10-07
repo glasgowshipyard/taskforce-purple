@@ -116,6 +116,41 @@ export class TaskForceAPI {
   }
 
   /**
+   * The 2026 races (ROADMAP Phase E): every general-election candidate,
+   * grouped by seat. Null until published (the Races tab stays hidden).
+   */
+  static async fetchRaces() {
+    // VITE_RACES_URL: a local file instead, for checking the tab in
+    // development before anything is published
+    const response = await fetch(import.meta.env.VITE_RACES_URL || `${API_BASE_URL}/races`);
+    if (response.status === 404) {
+      return null;
+    }
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}`);
+    }
+    return response.json();
+  }
+
+  /** A candidate who isn't a sitting member: the same detail as a member's. */
+  static fetchCandidateDetail(candidateId) {
+    const key = `candidate:${candidateId}`;
+    if (!detailRequests.has(key)) {
+      const request = fetch(
+        `${API_BASE_URL}/candidate-detail?id=${encodeURIComponent(candidateId)}`
+      ).then(response => {
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}`);
+        }
+        return response.json();
+      });
+      request.catch(() => detailRequests.delete(key));
+      detailRequests.set(key, request);
+    }
+    return detailRequests.get(key);
+  }
+
+  /**
    * The money figures a member's grade was computed on: all their committees
    * once their person-level analysis is complete (#32), otherwise their
    * campaign committee. Every figure on a card goes through this so the card

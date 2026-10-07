@@ -63,6 +63,25 @@ CREATE TABLE IF NOT EXISTS gap_packs (
   PRIMARY KEY (committee_id, cycle, kind, pack)
 );
 
+-- Candidates in November's general election who aren't sitting members
+-- (2026-10-07, ROADMAP Phase E; scripts/refresh/races.mjs)
+CREATE TABLE IF NOT EXISTS race_candidates (
+  candidate_id TEXT NOT NULL,
+  cycle INTEGER NOT NULL,
+  office TEXT NOT NULL,
+  state TEXT NOT NULL,
+  district TEXT,
+  name TEXT NOT NULL,
+  party TEXT,
+  ici TEXT,
+  computed_at TEXT NOT NULL,
+  pool TEXT,
+  analysis TEXT,
+  grade TEXT,
+  status TEXT NOT NULL,
+  PRIMARY KEY (candidate_id, cycle)
+);
+
 -- The current result per member per cycle (Stage 2: computed, not published)
 CREATE TABLE IF NOT EXISTS results (
   bioguide_id TEXT NOT NULL,

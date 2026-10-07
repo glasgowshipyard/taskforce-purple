@@ -4,6 +4,39 @@
 
 ---
 
+## 2026-10-07: the 2026 races, built (ROADMAP Phase E)
+
+Owner's go, with the four recommendations: November's ballot, provisional
+grades, a Races tab, and third-party candidates who file.
+
+- **Who's on the ballot:** campaigns that filed the FEC's pre-general report
+  (12G, due 22 October), mapped to candidates through the committee links.
+  Nothing outside FEC data is used. Before the 22nd there's no way to tell
+  primary losers apart (the summary file's election-result fields are
+  empty), so `--field test` (candidates over $500,000) is a dry run only.
+  It showed why: senators not up this year, and a former senator the FEC
+  still flags as an incumbent.
+- **Grading** (`scripts/refresh/races.mjs`): a challenger is graded exactly
+  like a member (zip discovery, all committees, bulk-file analysis,
+  `gradeMember`, provisional). The identity is the FEC's candidate ID.
+  Sitting members keep their published grade. Maine test: 7 candidates in
+  a minute, 14 FEC calls.
+- **Storage:** D1 `race_candidates` (migration 2026-10-07, applied; written
+  only on change) and KV `races:list` (one write, only on change).
+- **API:** `/api/races` (404 until published, which hides the tab) and
+  `/api/candidate-detail?id=` (same shape as a member's detail).
+- **Site:** a Races tab (state picker; each seat's candidates side by side
+  with grade, money mix and the "being double-checked" note; "Where the
+  money comes from" opens the same money trail as a member page). "In
+  office now" means a current member as Congress lists them, not the FEC's
+  incumbent flag. Checked at phone width; nothing scrolls sideways.
+- **Schedule:** `.github/workflows/races.yml` runs 23 and 27 October at
+  8 am PDT, then disables itself.
+- **To come:** the record-by-record check for challengers, after the
+  members' pass.
+
+---
+
 ## 2026-10-07: issue sweep, and two fixes it turned up (#41, #40)
 
 **Fixes (744bd04):**

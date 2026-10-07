@@ -1,0 +1,80 @@
+name: Races
+
+# The 2026 races (ROADMAP Phase E): grade everyone on November's ballot for
+# Congress and publish the races for the site's Races tab.
+#
+# Who's on the ballot comes from the FEC's pre-general reports (due 22
+# October 2026), so this runs on the filing calendar: the morning after the
+# deadline (23 Oct) and again on 27 Oct for filings the FEC processed late.
+# It switches itself off after the second run, so no clock is left running
+# (CLAUDE.md). Started by hand at any other time.
+on:
+  schedule:
+    - cron: '0 15 23,27 10 *'
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Dry run: grade and report, publish nothing'
+        type: boolean
+        default: false
+      states:
+        description: 'Only these states, comma-separated (empty = all)'
+        required: false
+        default: ''
+
+permissions:
+  contents: read
+  issues: write
+  actions: write
+
+concurrency:
+  group: races
+  cancel-in-progress: false
+
+jobs:
+  races:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install
+        run: |
+          npm ci
+          npm install --no-save @duckdb/node-api
+
+      - name: Grade and publish the races
+        env:
+          FEC_API_KEY: ${{ secrets.FEC_API_KEY }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
+          DRY_RUN: ${{ inputs.dry_run }}
+          STATES: ${{ inputs.states }}
+          # Leaves room in the FEC key's 1,000 calls an hour for the record check
+          FEC_MIN_INTERVAL_MS: '4000'
+        run: |
+          args=(--bulk-dir "$RUNNER_TEMP/bulk")
+          if [ "$DRY_RUN" = "true" ]; then args+=(--dry-run); fi
+          if [ -n "$STATES" ]; then args+=(--states "$STATES"); fi
+          node scripts/refresh/races.mjs "${args[@]}"
+
+      - name: Alert on failure
+        if: failure()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          JOB_FAILED_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: bash scripts/health-alert.sh
+
+      - name: Switch off after the last scheduled run
+        if: always() && github.event_name == 'schedule' && github.event.schedule == '0 15 23,27 10 *'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          if [ "$(date -u +%d)" -ge 27 ]; then gh workflow disable races.yml; fi

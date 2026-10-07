@@ -471,3 +471,16 @@ nakamotoCoefficient, faraEmployerTotal, pacDetailsStatus, lastUpdated`, plus
   and `/api/update-member/@{handle}`. They re-graded through the old engine
   and would have overwritten published grades. Re-grade with the refresh job
   instead (RUNBOOK §8).
+
+## The 2026 races (2026-10-07, ROADMAP Phase E)
+
+- **`GET /api/races`**: KV `races:list` as stored:
+  `{cycle, field, races: [{key, office, state, district, label, candidates:
+[{candidateId, bioguideId, name, party, ici, tier, evidenceChecked,
+totalRaised, smallDonors, largeDonors, pac, uniqueDonors, nakamoto}]}],
+updatedAt}`. HTTP 404 until the races job publishes. The site shows the
+  Races tab only when `field` is `12g` (November's ballot).
+- **`GET /api/candidate-detail?id={FEC candidate ID}`**: a candidate who
+  isn't a sitting member, from D1 `race_candidates`, in the same shape as
+  `/api/member-detail` (member, moneyTrail, topDonors, evidence). One D1
+  read.

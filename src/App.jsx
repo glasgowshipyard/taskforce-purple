@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { BarChart3, GitCompare, Users } from 'lucide-react';
+import { BarChart3, GitCompare, Users, Vote } from 'lucide-react';
 import MembersList from './components/MembersList.jsx';
+import Races from './components/Races.jsx';
 import { TaskForceAPI } from './lib/api.js';
 
 // Bipartisan issues data for the overlap tracker
@@ -40,6 +41,14 @@ const bipartisanIssues = [
 
 export default function App() {
   const [activeTab, setActiveTab] = useState('leaderboard');
+  // The 2026 races (ROADMAP Phase E): the tab appears once the races are
+  // published for November's field (FEC pre-general reports, 22 October)
+  const [races, setRaces] = useState(null);
+  useEffect(() => {
+    TaskForceAPI.fetchRaces()
+      .then(d => setRaces(d?.field === '12g' && d.races?.length ? d : null))
+      .catch(() => setRaces(null));
+  }, []);
   const [showMethodology, setShowMethodology] = useState(false);
   const [showNerdExplanation, setShowNerdExplanation] = useState(false);
   const [adaptiveThresholds, setAdaptiveThresholds] = useState(null);
@@ -157,6 +166,19 @@ export default function App() {
                 <BarChart3 className="w-4 h-4" />
                 <span>Leaderboard</span>
               </button>
+              {races && (
+                <button
+                  onClick={() => setActiveTab('races')}
+                  className={`flex items-center justify-center space-x-2 px-4 py-3 sm:py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
+                    activeTab === 'races'
+                      ? 'bg-white/25 text-white backdrop-blur-sm ring-1 ring-white/30'
+                      : 'text-white/80 hover:text-white hover:bg-white/10'
+                  }`}
+                >
+                  <Vote className="w-4 h-4" />
+                  <span>Races</span>
+                </button>
+              )}
               <button
                 onClick={() => setActiveTab('overlap')}
                 className={`flex items-center justify-center space-x-2 px-4 py-3 sm:py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
@@ -175,6 +197,7 @@ export default function App() {
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {activeTab === 'leaderboard' && renderLeaderboard()}
+        {activeTab === 'races' && races && <Races data={races} />}
         {activeTab === 'overlap' && renderOverlap()}
       </main>
 
