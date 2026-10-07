@@ -209,8 +209,18 @@ describe('publishedMember', () => {
   });
 
   it('a member without a graded result is published as stored', () => {
-    expect(publishedMember(record, null)).toBe(record);
-    expect(publishedMember(record, { status: 'pending', grade: null })).toBe(record);
+    const verified = { ...record, fecIdentityVerified: true };
+    expect(publishedMember(verified, null)).toBe(verified);
+    expect(publishedMember(verified, { status: 'pending', grade: null })).toBe(verified);
+  });
+
+  it('but never with a letter grade on an unconfirmed FEC identity (#41)', () => {
+    expect(publishedMember({ ...record, fecIdentityVerified: false }, null).tier).toBe(
+      'UNVERIFIED'
+    );
+    expect(publishedMember(record, null).tier).toBe('UNVERIFIED'); // never stamped
+    // a ringfence already in place is left alone
+    expect(publishedMember({ ...record, tier: 'DISPUTED' }, null).tier).toBe('DISPUTED');
   });
 
   it('the list entry carries the evidence state', () => {

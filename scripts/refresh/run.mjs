@@ -463,7 +463,12 @@ async function main() {
           personFunding: p.pf,
           reconciliation: { ok, pending },
         };
-        const grade = member ? gradeMember(member, asStored) : null;
+        // Every member graded here was looked up in the FEC crosswalk (members
+        // without an identity are skipped above), so the figures are theirs.
+        // A record's older flag (stamped once, 2026-09-26) doesn't override it.
+        const grade = member
+          ? gradeMember({ ...member, fecIdentityVerified: true }, asStored)
+          : null;
         const status = !grade ? 'pending' : ok ? 'complete' : pending ? 'provisional' : 'pending';
         summary[status]++;
         log(

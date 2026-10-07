@@ -45,8 +45,13 @@ export async function publishGrades({ cf, d1, cycle, log = () => {}, dryRun = fa
     const record = r?.grade?.tier ? parse(await cf.kvGet(memberKey(old.bioguideId))) : null;
     if (!record) {
       // Not graded by the refresh job (no FEC identity, pending, or no
-      // record): the list keeps what it has
-      entries.push(old);
+      // record): the list keeps what it has, except a letter grade on an
+      // unconfirmed FEC identity, which is ringfenced (#41)
+      const kept = publishedMember(old, null);
+      entries.push(kept);
+      if (kept.tier !== old.tier) {
+        gradeChanges.push({ id: old.bioguideId, name: old.name, from: old.tier, to: kept.tier });
+      }
       continue;
     }
     const entry = listEntry(publishedMember(record, r));

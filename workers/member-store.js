@@ -115,6 +115,12 @@ export function servedMember(member) {
 export function publishedMember(record, result) {
   const g = result?.grade;
   if (!g?.tier) {
+    // Not graded by the refresh job: shown as stored, except that a letter
+    // grade on figures whose FEC identity was never confirmed is not
+    // published (identity is looked up, never inferred, #41)
+    if (record && record.fecIdentityVerified !== true && /^[SABCDEF]$/.test(record.tier || '')) {
+      return { ...record, tier: 'UNVERIFIED' };
+    }
     return record;
   }
   const a = result.analysis || {};

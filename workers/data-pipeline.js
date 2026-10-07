@@ -323,7 +323,7 @@ async function legacyDetail(env, bioguideId, record) {
     bioguideId,
     // The member's full served record: the profile's heavy fields (PAC
     // donations, FARA firms, conduits) live here, not in the list (Stage 1)
-    member: record ? servedMember(record) : null,
+    member: record ? servedMember(publishedMember(record, null)) : null,
     // Donor-level figures come from the committees this analysis pooled
     donorPoolCommitteeIds: a?.committeeIds || (a?.committeeId ? [a.committeeId] : []),
     personLevel: Boolean(a?.personLevel),

@@ -546,9 +546,20 @@ export default function MembersList() {
                                 {TaskForceAPI.formatCurrency(earmarked)}
                               </span>{' '}
                               of {fig.allCommittees ? 'their' : "this campaign's"} donations from
-                              people — <span className="font-bold">{pct}%</span> — didn't arrive on
-                              their own. Organizations collected them and delivered them in blocks.
-                              Legal, and exactly how influence networks operate in plain sight:
+                              people
+                              {/* A ringfenced member's individual total is the figure in
+                                  dispute, so no percentage of it is shown (#40) */}
+                              {TaskForceAPI.isRingfenced(selectedMember.tier) ? (
+                                ' '
+                              ) : (
+                                <>
+                                  {' '}
+                                  — <span className="font-bold">{pct}%</span> —{' '}
+                                </>
+                              )}
+                              didn&apos;t arrive on their own. Organizations collected them and
+                              delivered them in blocks. Legal, and exactly how influence networks
+                              operate in plain sight:
                             </p>
                           ) : null;
                         })()}
