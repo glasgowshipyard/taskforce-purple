@@ -27,7 +27,7 @@ export function Header({ page }) {
       <div className="wrap">
         <Link to="/" className="brand" aria-label="Task Force Purple, home">
           <span className="brand-mark" aria-hidden="true">
-            TP
+            TFP
           </span>
           <span className="brand-word" aria-hidden="true">
             TASK FORCE PURPLE
@@ -63,8 +63,9 @@ export function Footer() {
     <footer className="site-footer">
       <div className="wrap">
         <p style={{ maxWidth: '42em' }}>
-          We grade money, not views. No party, no ads. Every figure comes from public FEC filings
-          and Congress.gov, and updates after each filing deadline.
+          Task Force Purple isn&apos;t connected to any party or campaign. Grades are based on
+          public FEC filings and Congress.gov data, and we update them after each FEC filing
+          deadline.
         </p>
         <p>
           <Link to="/how">How grades work</Link> ·{' '}

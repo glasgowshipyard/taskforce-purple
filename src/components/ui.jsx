@@ -73,7 +73,7 @@ export function Evidence({ checked, long = false }) {
     return (
       <span className="chip" style={{ '--c': 'var(--checked)' }}>
         <CheckCircle2 size={16} aria-hidden="true" />
-        {long ? 'Every record checked against the FEC' : 'Checked against FEC'}
+        {long ? 'Every donation checked against FEC records' : 'Checked against FEC records'}
       </span>
     );
   }
@@ -81,7 +81,7 @@ export function Evidence({ checked, long = false }) {
     return (
       <span className="chip" style={{ '--c': 'var(--provisional)' }}>
         <Clock3 size={16} aria-hidden="true" />
-        {long ? 'Graded from FEC bulk data, being double-checked' : 'Being double-checked'}
+        {long ? 'Graded from FEC bulk data. Still being checked.' : 'Still being checked'}
       </span>
     );
   }

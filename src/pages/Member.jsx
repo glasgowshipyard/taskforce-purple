@@ -30,23 +30,23 @@ import {
 import { Link, racePath } from '../lib/router.js';
 
 const ROLE = {
-  campaign: 'Campaign',
+  campaign: 'Campaign committee',
   leadership: 'Leadership PAC',
-  joint: 'Joint fund',
+  joint: 'Joint fundraising committee',
 };
 
 // What each kind of committee is for, without FEC jargon (#32)
 function describe(c) {
   if (c.role === 'campaign') {
-    return 'Pays for running for the seat.';
+    return 'The main committee for their own election campaign.';
   }
   if (c.role === 'leadership') {
-    return "Money handed on to other politicians' campaigns, which builds loyalty and influence.";
+    return "A PAC that gives money to other politicians' campaigns, which can earn goodwill and influence.";
   }
   if (c.ownFund) {
-    return 'Lets one donor write a single check far above the limit for a candidate, which is then split across several committees. Legal.';
+    return 'Lets a donor write one large check, above the usual limit for a single candidate, which is then split among several committees. This is legal.';
   }
-  return 'Shared with other politicians and party committees. Counted here only for what it sent this person.';
+  return 'Shared with other politicians or party committees. We only count the money it passed to this person.';
 }
 
 const fecCommitteeUrl = (id, cycle) => `https://www.fec.gov/data/committee/${id}/?cycle=${cycle}`;
@@ -76,12 +76,12 @@ function pacStanding(share, members) {
   }
   const below = shares.filter(s => s < share).length / shares.length;
   if (below >= 0.6) {
-    return `more than ${Math.round(below * 100)}% of Congress`;
+    return `That's a higher share than ${Math.round(below * 100)}% of members of Congress.`;
   }
   if (below <= 0.4) {
-    return 'less than most of Congress';
+    return "That's a lower share than most members of Congress.";
   }
-  return 'about the middle of Congress';
+  return "That's about average for Congress.";
 }
 
 function topPacs(contributions = []) {
@@ -202,9 +202,10 @@ export default function Member({ id, kind = 'member' }) {
   if (!m) {
     return (
       <div className="wrap section">
-        <h1 className="display display-l">We can&apos;t find that receipt</h1>
+        <h1 className="display display-l">We couldn&apos;t find that page</h1>
         <p className="lede" style={{ marginTop: 16 }}>
-          The link may be old. <Link to="/congress">Look them up in all of Congress</Link>.
+          The link may be out of date. You can <Link to="/congress">search all of Congress</Link>{' '}
+          instead.
         </p>
       </div>
     );
@@ -231,16 +232,18 @@ export default function Member({ id, kind = 'member' }) {
   const checked = d?.evidence?.checked ?? m.evidenceChecked ?? null;
   const gradedOn = dateText(d?.collectedAt || m.gradedAt);
   const canShare = isLetter(m.tier) && hasMoney;
+  const fromWhom = n => (n === 1 ? 'one person' : `${count(n)} people`);
+  // Leads with the number; the non-breaking hyphen keeps "large-donor" on one line
   const headline = conc
-    ? `${count(conc.n)} ${conc.n === 1 ? 'person' : 'people'} gave half the big-check money.`
-    : `${smallPct}% came from small donors.`;
+    ? `${conc.n === 1 ? 'One person' : `${count(conc.n)} people`} gave half the large\u2011donor money.`
+    : `${smallPct}% of the money came from small donors.`;
   const standing = hasMoney ? pacStanding(f.pacMoney / f.totalRaised, members) : null;
   const passedOn = committees
     .filter(c => c.role === 'joint' && c.ownFund)
     .reduce((s, c) => s + (c.passedElsewhere || 0), 0);
 
   const shareUrl = `${window.location.origin}${isCandidate ? `/candidate/${encodeURIComponent(id)}` : `/member/${encodeURIComponent(id)}`}`;
-  const shareText = `${name}'s campaign money, graded ${g.mark}: ${g.name}. ${headline}`;
+  const shareText = `${name} gets ${withArticle(g.mark)} (${g.name}) for where their campaign money comes from. ${headline.replace('\u2011', '-')}`;
   const card = {
     id,
     name,
@@ -250,12 +253,8 @@ export default function Member({ id, kind = 'member' }) {
     tier: m.tier,
     lines,
     total: usdShort(f.totalRaised),
-    headline: conc
-      ? `${count(conc.n)} ${conc.n === 1 ? 'person' : 'people'} gave half the big money.`
-      : `${smallPct}% from small donors.`,
-    sub: conc?.of
-      ? `Out of ${count(conc.of)} donors the FEC lists by name. Who pays yours?`
-      : 'Who pays yours?',
+    headline: headline.replace('\u2011', '-'),
+    sub: conc?.of ? `Out of ${count(conc.of)} donors named in FEC records.` : '',
     host: window.location.host,
     cycleLabel: CYCLE_LABEL,
   };
@@ -280,12 +279,12 @@ export default function Member({ id, kind = 'member' }) {
           <div className="row">
             {canShare && (
               <button type="button" className="btn btn-dark" onClick={() => setSharing(true)}>
-                <Share2 size={20} aria-hidden="true" /> Share this receipt
+                <Share2 size={20} aria-hidden="true" /> Share
               </button>
             )}
             {inRace && (
               <Link to={racePath(inRace.race.key)} className="btn btn-outline">
-                Compare the race
+                Compare the candidates
               </Link>
             )}
           </div>
@@ -321,7 +320,7 @@ export default function Member({ id, kind = 'member' }) {
                   {committees.length > 1 && (
                     <>
                       <br />
-                      Through {committees.length} committees
+                      Across {committees.length} committees
                     </>
                   )}
                 </p>
@@ -352,7 +351,7 @@ export default function Member({ id, kind = 'member' }) {
 
             <div className="member-main">
               <div className="headline dark on-dark">
-                <p className="eyebrow">The headline</p>
+                <p className="eyebrow">Large donors</p>
                 <p
                   className="display"
                   style={{ marginTop: 12, fontSize: 'clamp(40px, 6vw, 84px)', lineHeight: 0.9 }}
@@ -363,8 +362,8 @@ export default function Member({ id, kind = 'member' }) {
                   <>
                     <p className="lede">
                       {conc.of
-                        ? `${name} has ${count(conc.of)} donors the FEC lists by name (it names anyone giving over $200). ${conc.n === 1 ? 'One of them' : `${count(conc.n)} of them`} supplied half of that money. The other ${count(conc.of - conc.n)} supplied the rest.`
-                        : `Half of the big-check money came from ${count(conc.n)} donors.`}
+                        ? `The FEC lists ${count(conc.of)} people by name as donors to ${name}. It names anyone who gives more than $200. Half of their money came from ${conc.n === 1 ? 'one of them' : `${count(conc.n)} of them`}, and the other ${count(conc.of - conc.n)} gave the rest.`
+                        : `Half of the money from large donors came from ${fromWhom(conc.n)}.`}
                     </p>
                     <ConcentrationBars n={conc.n} of={conc.of} />
                   </>
@@ -379,17 +378,17 @@ export default function Member({ id, kind = 'member' }) {
                 <div className="facts">
                   <div className="fact">
                     <b>{smallPct}%</b>
-                    <p>from small donors giving under $200.</p>
+                    <p>of the money came from small donors giving under $200.</p>
                   </div>
                   <div className="fact">
                     <b>{pacPct}%</b>
-                    <p>from PACs{standing ? `, ${standing}` : ''}.</p>
+                    <p>came from PACs.{standing ? ` ${standing}` : ''}</p>
                   </div>
                   {conc && (
                     <div className="fact">
                       <b>{count(conc.n)}</b>
                       <p>
-                        {conc.n === 1 ? 'person holds' : 'people hold'} half the big-check money.
+                        {conc.n === 1 ? 'donor gave' : 'donors gave'} half of the large-donor money.
                       </p>
                     </div>
                   )}
@@ -398,16 +397,19 @@ export default function Member({ id, kind = 'member' }) {
 
               <section aria-labelledby="trail-title">
                 <h2 id="trail-title" className="display display-m" style={{ marginBottom: 6 }}>
-                  Follow the money
+                  Where the money was raised
                 </h2>
                 {trail ? (
                   <>
                     <p style={{ marginBottom: 16, color: 'var(--ink-2)' }}>
-                      Everything raised in {name}&apos;s name: {usd(trail.raisedInName)} through{' '}
-                      {committees.length} {committees.length === 1 ? 'committee' : 'committees'}.
+                      {name} raised {usd(trail.raisedInName)} through{' '}
+                      {committees.length === 1
+                        ? 'one committee'
+                        : `${committees.length} committees`}
+                      .
                       {passedOn > 0 &&
-                        ` ${usd(passedOn)} of it went through their own joint funds on to other committees.`}{' '}
-                      Each one links to its FEC filings.
+                        ` ${usd(passedOn)} of that went through ${name}'s joint fundraising committee and on to other committees.`}{' '}
+                      Click a committee to see its filings on the FEC website.
                     </p>
                     <ul className="trail">
                       {committees.map(c => {
@@ -424,13 +426,13 @@ export default function Member({ id, kind = 'member' }) {
                                   {c.name}{' '}
                                   <ExternalLink
                                     size={14}
-                                    aria-label="(opens the FEC's page)"
+                                    aria-label="(opens on fec.gov)"
                                     style={{ display: 'inline', verticalAlign: '-1px' }}
                                   />
                                 </span>
                                 <span className="mono" style={{ fontWeight: 600 }}>
                                   {usd(own)}
-                                  {c.role === 'joint' ? ' to them' : ''}
+                                  {c.role === 'joint' ? ' received' : ''}
                                 </span>
                               </span>
                               <span
@@ -454,8 +456,8 @@ export default function Member({ id, kind = 'member' }) {
                   </>
                 ) : (
                   <p className="notice">
-                    We couldn&apos;t map all of {name}&apos;s committees in the FEC&apos;s records
-                    yet, so these figures cover one committee only.
+                    We haven&apos;t matched all of {name}&apos;s committees in the FEC&apos;s
+                    records yet, so these figures only cover one committee.
                   </p>
                 )}
               </section>
@@ -478,22 +480,22 @@ export default function Member({ id, kind = 'member' }) {
                       ))}
                     </ol>
                     <p className="fine" style={{ marginTop: 12 }}>
-                      Each person&apos;s gifts added up across every committee above. Public FEC
-                      records.
+                      Each person&apos;s donations are added up across all the committees above.
+                      From public FEC records.
                     </p>
                   </div>
                 )}
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
                   {m.topConduits?.length > 0 && (
                     <div className="panel">
-                      <h3>Who bundled it</h3>
+                      <h3>Bundled donations</h3>
                       {m.earmarkedIndividualTotal > 0 && (
                         <p style={{ marginBottom: 12, color: 'var(--ink-2)' }}>
                           <strong style={{ color: 'var(--ink)' }}>
                             {usd(m.earmarkedIndividualTotal)}
                           </strong>{' '}
-                          of the money from people arrived in bundles: organizations collected it
-                          and passed it on.
+                          of the donations from individuals came in through organizations that
+                          collect donations and pass them on, such as online fundraising platforms.
                         </p>
                       )}
                       <ul className="ranked">
@@ -524,12 +526,12 @@ export default function Member({ id, kind = 'member' }) {
                   )}
                   {m.faraEmployerTotal > 0 && (
                     <div className="panel panel-alert">
-                      <h3>Foreign-agent connected</h3>
+                      <h3>Donors at foreign-agent firms</h3>
                       <p style={{ color: 'var(--ink-2)' }}>
                         <strong style={{ color: 'var(--ink)' }}>{usd(m.faraEmployerTotal)}</strong>{' '}
-                        from people who work at firms registered with the Justice Department as
-                        agents of foreign governments or interests. Legal, disclosed, and now
-                        visible.
+                        came from people who work at firms registered with the Justice Department as
+                        agents of foreign clients, such as foreign governments. These donations are
+                        legal and publicly reported.
                       </p>
                       {m.faraFirms?.length > 0 && (
                         <ul className="ranked" style={{ marginTop: 12 }}>
@@ -566,7 +568,8 @@ export default function Member({ id, kind = 'member' }) {
                       ))}
                     </ol>
                     <p className="fine" style={{ marginTop: 12 }}>
-                      Super PAC, leadership PAC and lobbyist money weighs more against the grade.
+                      Money from super PACs, leadership PACs and lobbyists&apos; PACs counts more
+                      heavily against the grade.
                     </p>
                   </div>
                 )}
@@ -582,16 +585,16 @@ export default function Member({ id, kind = 'member' }) {
                 </h2>
                 {checked === false && (
                   <p className="fine">
-                    <strong>Being double-checked.</strong> This grade comes from the FEC&apos;s bulk
-                    download, which holds over 99% of the records. We&apos;re checking every record
-                    against the FEC&apos;s own; if anything was missing, the grade may shift a
-                    little.
+                    <strong>Still being checked.</strong> This grade is based on the FEC&apos;s bulk
+                    data files, which contain over 99% of the records. We&apos;re now checking each
+                    donation against the FEC&apos;s own records. If anything turns out to be
+                    missing, the grade could change slightly.
                   </p>
                 )}
                 {checked === true && (
                   <p className="fine">
-                    <strong>Checked.</strong> Every record behind this grade matches the FEC&apos;s
-                    own.
+                    <strong>Checked.</strong> Every donation behind this grade matches the
+                    FEC&apos;s own records.
                   </p>
                 )}
                 {(d?.evidence?.notes || []).map(n => (
@@ -600,12 +603,13 @@ export default function Member({ id, kind = 'member' }) {
                   </p>
                 ))}
                 <p className="fine">
-                  <strong>How we count:</strong> money moved between someone&apos;s own committees
-                  is counted once. Money a joint fund sent them is split by that fund&apos;s own mix
-                  of small donors, big checks and PACs.{' '}
+                  <strong>How we count:</strong> Money moved between someone&apos;s own committees
+                  is only counted once. Money received from a joint fundraising committee is split
+                  into small donors, large donors and PACs in the same proportions as that
+                  committee&apos;s own fundraising.{' '}
                   {f.allCommittees
-                    ? 'This grade counts every committee above.'
-                    : 'This grade counts their campaign committee only, for now.'}
+                    ? 'This grade includes all of the committees listed above.'
+                    : 'For now, this grade only includes their campaign committee.'}
                 </p>
               </section>
             </div>
@@ -620,14 +624,14 @@ export default function Member({ id, kind = 'member' }) {
               className="display display-l"
               style={{ flex: '1 1 480px', fontSize: 'clamp(32px, 4vw, 52px)' }}
             >
-              Your neighbors don&apos;t know this yet.
+              Share {name}&apos;s grade
             </p>
             <button
               type="button"
               className="btn btn-big btn-light"
               onClick={() => setSharing(true)}
             >
-              <Share2 size={22} aria-hidden="true" /> Share this receipt
+              <Share2 size={22} aria-hidden="true" /> Share
             </button>
           </div>
         </section>

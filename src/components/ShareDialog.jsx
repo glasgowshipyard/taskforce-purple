@@ -38,7 +38,7 @@ export default function ShareDialog({ open, onClose, card, url, text, filename }
       })
       .catch(
         () =>
-          !cancelled && setNote("We couldn't draw the picture, but you can still copy the link.")
+          !cancelled && setNote("We couldn't create the image, but you can still copy the link.")
       );
     return () => {
       cancelled = true;
@@ -86,7 +86,7 @@ export default function ShareDialog({ open, onClose, card, url, text, filename }
       <div className="share-body">
         <div className="share-head">
           <h2 id="share-title" className="display display-m">
-            Share this receipt
+            Share this grade
           </h2>
           <button type="button" className="icon-button" onClick={onClose} aria-label="Close">
             <X size={22} aria-hidden="true" />
@@ -107,7 +107,7 @@ export default function ShareDialog({ open, onClose, card, url, text, filename }
           )}
           {image && (
             <a className="btn btn-dark" href={image.src} download={filename}>
-              <Download size={18} aria-hidden="true" /> Save picture
+              <Download size={18} aria-hidden="true" /> Save image
             </a>
           )}
           <button type="button" className="btn btn-outline" onClick={copy}>

@@ -56,8 +56,9 @@ function fitText(x, text, { width, maxLines, start, min, font }) {
       return { size, lines };
     }
   }
+  // Never drop words: at the smallest size, take as many lines as it needs
   x.font = font(min);
-  return { size: min, lines: wrap(x, text, width).slice(0, maxLines) };
+  return { size: min, lines: wrap(x, text, width) };
 }
 
 function dotted(x, x0, x1, y) {
@@ -187,7 +188,12 @@ export async function drawShareCard(card) {
   const x = canvas.getContext('2d');
   const g = gradeInfo(card.tier);
 
-  x.fillStyle = '#5B21B6';
+  // Red into blue, as on the site
+  const bg = x.createLinearGradient(0, 0, W, H * 0.4);
+  bg.addColorStop(0, '#B4233C');
+  bg.addColorStop(0.52, '#5B21B6');
+  bg.addColorStop(1, '#1E4FD0');
+  x.fillStyle = bg;
   x.fillRect(0, 0, W, H);
   const receiptBottom = drawReceipt(x, card);
   // Over the receipt's barcode corner: it must never cover a figure
@@ -211,9 +217,9 @@ export async function drawShareCard(card) {
   stretch(x, 'extra-condensed');
   const head = fitText(x, card.headline.toUpperCase(), {
     width,
-    maxLines: 3,
-    start: 112,
-    min: 56,
+    maxLines: 4,
+    start: 104,
+    min: 44,
     font: s => `900 ${s}px ${DISPLAY}`,
   });
   let y = 108 + head.size * 0.9;
@@ -235,17 +241,19 @@ export async function drawShareCard(card) {
   // brand and address
   x.fillStyle = '#FFFFFF';
   x.beginPath();
-  x.roundRect(left, H - 78, 34, 34, 8);
+  x.arc(left + 18, H - 61, 18, 0, Math.PI * 2);
   x.fill();
   x.fillStyle = '#5B21B6';
   x.textAlign = 'center';
-  x.font = `900 16px ${DISPLAY}`;
-  x.fillText('TP', left + 17, H - 55);
+  stretch(x, 'condensed');
+  x.font = `900 13px ${DISPLAY}`;
+  x.fillText('TFP', left + 18, H - 56);
+  stretch(x, 'normal');
   x.textAlign = 'left';
   x.fillStyle = '#FFFFFF';
   stretch(x, 'semi-expanded');
   x.font = `800 20px ${DISPLAY}`;
-  x.fillText('TASK FORCE PURPLE', left + 46, H - 54);
+  x.fillText('TASK FORCE PURPLE', left + 48, H - 54);
   stretch(x, 'normal');
   x.font = `600 22px ${MONO}`;
   x.textAlign = 'right';

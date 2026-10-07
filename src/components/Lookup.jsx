@@ -29,7 +29,7 @@ async function districtsIn(codes) {
 
 function districtName({ state, district }) {
   const name = stateByCode[state]?.name || state;
-  return district ? `${name} district ${district}` : `${name} (one seat for the whole state)`;
+  return district ? `${name} district ${district}` : `${name} (one district for the whole state)`;
 }
 
 function position() {
@@ -52,7 +52,7 @@ function position() {
  */
 export default function Lookup({
   onFound,
-  submitLabel = 'Show me the receipts',
+  submitLabel = 'Find my representatives',
   idPrefix = 'lookup',
 }) {
   const [zip, setZip] = useState('');
@@ -81,13 +81,15 @@ export default function Lookup({
       const parts = parseZipEntry(zips?.[z]);
       if (parts.length === 0) {
         setStatus(
-          `We don't have ${z} on file. Some ZIP codes are only for PO boxes or one building. Use your location instead, or pick your state:`
+          `We couldn't find ZIP code ${z}. Some ZIP codes only cover PO boxes or a single building. You can use your location instead, or choose your state.`
         );
         setPickState(true);
       } else if (parts.length === 1) {
         onFound({ state: parts[0].state, district: parts[0].district });
       } else {
-        setStatus(`ZIP ${z} crosses a district line. Which part are you in?`);
+        setStatus(
+          `ZIP code ${z} is split between ${parts.length} congressional districts. Which one do you live in?`
+        );
         setChoices(parts);
       }
     } catch {
@@ -108,11 +110,13 @@ export default function Lookup({
       const found = codes.length ? locate(await districtsIn(codes), lon, lat) : null;
       if (!found) {
         setStatus(
-          "That location isn't in a US congressional district. Try a ZIP code, or pick your state:"
+          "That location isn't in a U.S. congressional district. You can enter a ZIP code or choose your state instead."
         );
         setPickState(true);
       } else if (found.near.length) {
-        setStatus("You're right by a district line. Which one is yours?");
+        setStatus(
+          "You're close to a district boundary, so we can't tell which district you're in. Which one is yours?"
+        );
         setChoices([found.key, ...found.near].map(parseDistrict));
       } else {
         onFound(parseDistrict(found.key));
@@ -120,8 +124,8 @@ export default function Lookup({
     } catch (err) {
       setStatus(
         err?.code === 1
-          ? 'Location is turned off for this site. Enter your ZIP code instead.'
-          : "We couldn't get your location. Enter your ZIP code instead."
+          ? "Your browser didn't share your location. You can enter your ZIP code instead."
+          : "We couldn't get your location. You can enter your ZIP code instead."
       );
     } finally {
       setBusy(null);
@@ -163,7 +167,8 @@ export default function Lookup({
         </span>
       </form>
       <p className="lookup-privacy">
-        Looked up on your device. Your ZIP code and location are never sent anywhere.
+        We look up your district on your own device. Your ZIP code and location aren&apos;t sent
+        anywhere.
       </p>
 
       <div className="lookup-status" role="status" aria-live="polite">
@@ -178,7 +183,7 @@ export default function Lookup({
                 onClick={() => onFound({ state: c.state, district: c.district })}
               >
                 {districtName(c)}
-                {c.share && c.share < 100 ? ` (${i === 0 ? 'most' : 'some'} of it)` : ''}
+                {c.share && c.share < 100 ? ` (${i === 0 ? 'most' : 'part'} of the ZIP code)` : ''}
               </button>
             ))}
           </div>
@@ -195,7 +200,7 @@ export default function Lookup({
               onChange={e => e.target.value && onFound({ state: e.target.value, district: null })}
             >
               <option value="" disabled>
-                Pick your state
+                Choose your state
               </option>
               {[...STATES]
                 .sort((a, b) => a.name.localeCompare(b.name))

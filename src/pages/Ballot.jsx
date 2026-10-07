@@ -21,15 +21,6 @@ import { racesFor, savePlace, savedPlace } from '../lib/place.js';
 import { Link, memberPath, racePath } from '../lib/router.js';
 
 const SHOWN = 4;
-const NUMBER_WORDS = [
-  'No one',
-  'One person',
-  'Two people',
-  'Three people',
-  'Four people',
-  'Five people',
-  'Six people',
-];
 
 function candidatePerson(c) {
   const graded = Boolean(c.tier);
@@ -46,7 +37,9 @@ function candidatePerson(c) {
     party: partyName(c.party),
     tier: c.tier,
     figures: graded ? figures : null,
-    note: graded ? null : 'Not graded yet: no campaign committee we can grade for this election.',
+    note: graded
+      ? null
+      : "Not graded yet. We haven't found a campaign committee for this election that we can grade.",
     evidenceChecked: c.evidenceChecked,
     nakamotoCoefficient: c.nakamoto,
     uniqueDonors: c.uniqueDonors ?? null,
@@ -71,11 +64,11 @@ function shortVersion(cands) {
     (a, b) => b.smallDonors / b.totalRaised - a.smallDonors / a.totalRaised
   )[0];
   const name = c => displayName(c.name);
-  const first = `${name(most)} raised the most: ${usd(most.totalRaised)}.`;
+  const first = `${name(most)} has raised the most, ${usd(most.totalRaised)}.`;
   if (small === most) {
-    return `${first} ${name(most)} also took the biggest share from small donors: ${pctOf(most.smallDonors, most.totalRaised)} cents of every dollar.`;
+    return `${first} ${name(most)} also gets the largest share from small donors: ${pctOf(most.smallDonors, most.totalRaised)} cents of every dollar.`;
   }
-  return `${first} ${name(small)} raised more of it from small donors: ${pctOf(small.smallDonors, small.totalRaised)} cents of every dollar, against ${pctOf(most.smallDonors, most.totalRaised)} for ${name(most)}.`;
+  return `${first} ${name(small)} gets the largest share from small donors: ${pctOf(small.smallDonors, small.totalRaised)} cents of every dollar, compared with ${pctOf(most.smallDonors, most.totalRaised)} cents for ${name(most)}.`;
 }
 
 function CompareTable({ cands }) {
@@ -95,7 +88,7 @@ function CompareTable({ cands }) {
       score: c => (c.tier && Number.isFinite(c.pac) ? -c.pac / c.totalRaised : -Infinity),
     },
     {
-      label: 'People who gave half the big money',
+      label: 'Donors who gave half the large-donor money',
       value: c => (c.nakamoto > 0 ? count(c.nakamoto) : '—'),
       score: c => (c.nakamoto > 0 ? c.nakamoto : -1),
     },
@@ -103,7 +96,7 @@ function CompareTable({ cands }) {
   return (
     <div className="scroll-x">
       <table className="compare">
-        <caption className="eyebrow">Side by side · 2025–26 election cycle</caption>
+        <caption className="eyebrow">2025–26 election cycle</caption>
         <thead>
           <tr>
             <td />
@@ -150,15 +143,14 @@ function RaceView({ race, others }) {
         <div className="wrap">
           <div style={{ flex: '1 1 560px', minWidth: 0 }}>
             <p className="eyebrow" style={{ marginBottom: 14 }}>
-              Your ballot · {raceSeat(race)}
+              {raceSeat(race)} · {cands.length} {cands.length === 1 ? 'candidate' : 'candidates'}
             </p>
             <h1
               id="race-title"
               className="display display-xl"
               style={{ fontSize: 'clamp(48px, 7.4vw, 104px)' }}
             >
-              {(NUMBER_WORDS[cands.length] || `${cands.length} people`) + ' want this seat.'}{' '}
-              Here&apos;s who pays them.
+              Who&apos;s paying the candidates?
             </h1>
           </div>
           {days >= 0 && (
@@ -208,7 +200,7 @@ function RaceView({ race, others }) {
           <section className="section-tight" aria-labelledby="short-title">
             <div className="panel" style={{ padding: 'clamp(20px, 3vw, 40px)' }}>
               <h2 id="short-title" className="display display-m">
-                The short version
+                How they compare
               </h2>
               {summary && (
                 <p
@@ -220,11 +212,12 @@ function RaceView({ race, others }) {
               )}
               <CompareTable cands={top} />
               <p className="fine" style={{ marginTop: 18 }}>
-                Bold marks the more people-funded figure in each row. We grade money, not positions.
+                In each row, the figure in bold is the most people-funded. Grades are based only on
+                where the money comes from.
                 {notInCongress &&
-                  " Grades for people not in Congress come from the FEC's bulk files and are double-checked record by record afterwards."}
+                  " Candidates who aren't in Congress are graded from the FEC's bulk data files. We check their donations against the FEC's own records afterwards."}
                 {race.office === 'H' &&
-                  ' Some states drew new district lines for this election. If yours did, your House race may have a different number: check at vote.gov.'}
+                  ' Some states redrew their congressional districts for this election. If yours did, your district number may be different. You can check at vote.gov.'}
               </p>
             </div>
           </section>
@@ -279,15 +272,16 @@ function RaceView({ race, others }) {
             )}
             <div className="headline dark on-dark">
               <p className="display" style={{ fontSize: 36, lineHeight: 0.95 }}>
-                You know who pays them. Now go vote.
+                Make sure you&apos;re registered to vote
               </p>
               <div className="row" style={{ marginTop: 20 }}>
                 <a href="https://vote.gov" className="btn btn-light">
-                  Check you&apos;re registered
+                  Check at vote.gov
                 </a>
               </div>
               <p className="small" style={{ marginTop: 14, color: 'var(--on-dark-2)' }}>
-                vote.gov is the US government&apos;s official voter site.
+                vote.gov is run by the federal government and links to your state&apos;s
+                registration page.
               </p>
             </div>
           </div>
@@ -305,19 +299,20 @@ function NotYet() {
       <div className="wrap">
         <div style={{ flex: '1 1 560px', minWidth: 0 }}>
           <p className="eyebrow" style={{ marginBottom: 14 }}>
-            Your ballot · Election day {ELECTION_DAY_TEXT}
+            Election day is {ELECTION_DAY_TEXT}
           </p>
           <h1 className="display display-xl" style={{ fontSize: 'clamp(48px, 7.4vw, 104px)' }}>
-            Your ballot, side by side. Arriving {RACES_ARRIVE_TEXT}.
+            Candidate grades arrive {RACES_ARRIVE_TEXT}
           </h1>
           <p className="lede" style={{ marginTop: 22, color: 'var(--on-dark)' }}>
-            Everyone running for Congress where you live, graded the same way as the people already
-            there. Candidates file their last money reports before the election on October 22; their
-            receipts appear here the next day.
+            Candidates for Congress file their last campaign finance reports before the election on
+            October 22. We&apos;ll grade every candidate the next day, using the same method we use
+            for current members, and you&apos;ll be able to compare the candidates in your district
+            and state.
           </p>
           <div className="row" style={{ marginTop: 28 }}>
             <Link to="/" className="btn btn-big btn-light">
-              See your representatives now
+              See your current representatives
             </Link>
           </div>
         </div>
@@ -360,9 +355,9 @@ export default function Ballot({ raceKey }) {
   if (raceKey && !race) {
     return (
       <div className="wrap section">
-        <h1 className="display display-l">We can&apos;t find that race</h1>
+        <h1 className="display display-l">We couldn&apos;t find that race</h1>
         <p className="lede" style={{ marginTop: 16 }}>
-          <Link to="/ballot">See the races where you live</Link>.
+          The link may be out of date. <Link to="/ballot">See the races where you live</Link>.
         </p>
       </div>
     );
@@ -373,16 +368,16 @@ export default function Ballot({ raceKey }) {
         <div className="wrap">
           <div className="hero-copy">
             <p className="eyebrow" style={{ marginBottom: 20 }}>
-              Your ballot · {ELECTION_DAY_TEXT}
+              Election day is {ELECTION_DAY_TEXT}
             </p>
             <h1 className="display display-xl" style={{ fontSize: 'clamp(48px, 7.4vw, 104px)' }}>
               {place
-                ? `No races for Congress found in ${stateName(place.state)}`
-                : 'Where do you vote?'}
+                ? `We didn't find any races for Congress in ${stateName(place.state)}`
+                : 'Where are you registered to vote?'}
             </h1>
             <Lookup
               idPrefix="ballot"
-              submitLabel="Show my ballot"
+              submitLabel="Find my ballot"
               onFound={p => {
                 savePlace(p);
                 setPlace(p);

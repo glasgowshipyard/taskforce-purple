@@ -73,7 +73,7 @@ function Row({ m }) {
             {withheld
               ? gradeInfo(m.tier).name
               : n > 0
-                ? `${count(n)} ${n === 1 ? 'person' : 'people'} gave half the big money`
+                ? `Half of large-donor money from ${n === 1 ? 'one person' : `${count(n)} people`}`
                 : gradeInfo(m.tier).name}
           </span>
         </span>
@@ -137,8 +137,8 @@ export default function Congress({ search }) {
           <h1 className="display display-l">All of Congress</h1>
         </div>
         <p>
-          Every senator, representative and delegate, graded on where their money comes from. Search
-          by name or state.
+          Every senator, representative and non-voting delegate, graded on where their campaign
+          money comes from. You can search by name, state or party.
         </p>
       </div>
 
@@ -227,7 +227,7 @@ export default function Congress({ search }) {
         <>
           <p className="count-line" role="status" style={{ marginBottom: 12 }}>
             {list.length === 0
-              ? 'Nobody matches. Try fewer filters.'
+              ? 'No members match. Try removing a filter.'
               : `Showing ${Math.min(shown, list.length)} of ${list.length}`}
             {params.grade && ` · grade ${params.grade}, ${GRADES[params.grade].name}`}
           </p>

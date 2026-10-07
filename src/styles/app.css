@@ -15,6 +15,11 @@
   --leader: #a9a5b0;
   --purple: #5b21b6;
   --purple-deep: #2e1065;
+  /* Red and blue meeting in purple: the name of the thing. Deep, slightly
+     muted ends so it reads as a brand, not a flag */
+  --red: #b4233c;
+  --blue: #1e4fd0;
+  --spectrum: linear-gradient(100deg, var(--red) 0%, var(--purple) 52%, var(--blue) 100%);
   --lilac: #c4b5fd;
   --on-dark: #e4e1ec;
   --on-dark-2: #cfcbd8;
@@ -148,10 +153,12 @@ p {
   line-height: 0.88;
   text-transform: uppercase;
   letter-spacing: -0.005em;
+  /* A word too long for a phone (a long surname) wraps instead of being cut */
+  overflow-wrap: break-word;
 }
 
 .display-xl {
-  font-size: clamp(54px, 9vw, 132px);
+  font-size: clamp(36px, 10.5vw, 132px);
   font-stretch: 70%;
   line-height: 0.86;
 }
@@ -237,7 +244,20 @@ p {
 
 .band {
   background: var(--purple);
+  background: var(--spectrum);
   color: var(--white);
+}
+
+@supports (background: linear-gradient(in oklab, red, blue)) {
+  .band,
+  .brand-mark {
+    background: linear-gradient(
+      in oklab 100deg,
+      var(--red) 0%,
+      var(--purple) 52%,
+      var(--blue) 100%
+    );
+  }
 }
 
 .stack-s > * + * {
@@ -260,6 +280,18 @@ p {
 .site-header {
   background: var(--ink);
   color: var(--white);
+  position: relative;
+}
+
+/* A thin red-to-blue rule under the header */
+.site-header::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 3px;
+  background: var(--spectrum);
 }
 
 .site-header .wrap {
@@ -284,17 +316,22 @@ p {
   color: var(--white);
 }
 
+/* A small round stamp, like the grades */
 .brand-mark {
-  width: 30px;
-  height: 30px;
-  border-radius: 7px;
-  background: var(--purple);
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: var(--spectrum);
+  box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.4);
   display: inline-flex;
   align-items: center;
   justify-content: center;
   font-family: var(--display);
   font-weight: 900;
-  font-size: 15px;
+  font-stretch: 80%;
+  font-size: 14px;
+  letter-spacing: 0.03em;
+  transform: rotate(-8deg);
 }
 
 .brand-word {
@@ -407,7 +444,8 @@ p {
   font-weight: 700;
   font-size: 16px;
   text-decoration: none;
-  white-space: nowrap;
+  text-align: center;
+  max-width: 100%;
   transition:
     transform 0.12s ease,
     background-color 0.12s ease;
@@ -737,6 +775,13 @@ p {
 
 .hero {
   padding: clamp(40px, 6vw, 56px) 0 clamp(56px, 8vw, 88px);
+}
+
+/* A faint red glow from one side and blue from the other */
+.hero.dark {
+  background:
+    radial-gradient(55% 70% at 0% 0%, rgba(180, 35, 60, 0.22), transparent 70%),
+    radial-gradient(55% 80% at 100% 100%, rgba(30, 79, 208, 0.24), transparent 70%), var(--ink);
 }
 
 .hero .wrap {

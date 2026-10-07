@@ -4,6 +4,33 @@
 
 ---
 
+## 2026-10-07 (later): the TFP mark, red into blue, and plainer words
+
+Owner's notes on the redesign, the same day:
+
+- **The mark is now "TFP"** in a small round stamp. "TP" read as toilet
+  paper.
+- **Red into blue is back**, done quietly. Deep red and blue meet in the
+  site's purple. It shows in the stamp mark, a thin rule under the header,
+  a faint red and blue glow in the dark hero, the bands that used to be
+  flat purple, the share card and the favicon. The grade colours are
+  unchanged.
+- **The words are rewritten** in plain, complete sentences. Out: slogan
+  fragments ("Your ballot, side by side."), "X, not Y" lines ("We grade
+  money, not views"), colon reveals, and lines like "Your neighbors don't
+  know this yet." The grade meanings now state their ranges, and the
+  buttons say what they do ("Find my representatives", "Share").
+- **Fixed while checking:**
+  - "REPRESENTATIVES?" in the home headline didn't fit a 375 px phone, and
+    was being cut off. It also caused the page widening I put down to the
+    stamp animation earlier today. The headline now scales down further,
+    and an overlong word wraps instead of being cut.
+  - A long button label ran past the edge on phones; buttons now wrap.
+  - The share card dropped the end of a long headline; it now shrinks the
+    text and never drops words.
+
+---
+
 ## 2026-10-07: the site redesigned ("Receipts", owner approved)
 
 The whole frontend was rebuilt from the owner-approved design canvas.

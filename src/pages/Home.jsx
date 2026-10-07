@@ -45,20 +45,17 @@ function YourReps({ members, place, onChange, arrived }) {
     headingRef.current?.closest('section')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }, [arrived, place.state, place.district]);
 
-  const n = shown.length;
   const title =
     place.district === null
       ? 'Your senators'
-      : n === 1
-        ? 'Your receipt'
-        : n === 3
-          ? 'Your three receipts'
-          : 'Your receipts';
+      : DELEGATE_ONLY.has(place.state)
+        ? 'Your delegate'
+        : 'Your representatives';
   const intro = DELEGATE_ONLY.has(place.state)
-    ? "Your delegate in the House. The grade is stamped on how they're paid, not how they vote."
+    ? 'Your delegate to the House. The grade is based only on where their campaign money comes from, and has nothing to do with how they vote.'
     : place.district === null
-      ? 'Both your senators. For your House member, look up your ZIP code above.'
-      : "One representative in the House, two senators. The grade is stamped on how they're paid, not how they vote.";
+      ? 'To see your member of the House as well, look up your ZIP code above.'
+      : 'Your member of the House and your two senators. Each grade is based only on where their campaign money comes from, and has nothing to do with how they vote.';
 
   return (
     <section id="reps" className="section" aria-labelledby="reps-title">
@@ -91,10 +88,10 @@ function YourReps({ members, place, onChange, arrived }) {
           {place.district !== null && house.length === 0 && (
             <div className="receipt">
               <p className="eyebrow">House</p>
-              <p className="receipt-name">This seat is empty right now</p>
+              <p className="receipt-name">This seat is vacant</p>
               <p className="small muted">
-                Nobody holds this House seat at the moment. It gets a receipt when someone is sworn
-                in.
+                Nobody holds this House seat right now. We&apos;ll grade the next member once
+                they&apos;re sworn in.
               </p>
             </div>
           )}
@@ -108,7 +105,7 @@ function YourReps({ members, place, onChange, arrived }) {
         </div>
         {place.district === null && house.length > 0 && (
           <div className="panel" style={{ marginTop: 24 }}>
-            <h3>The House members for {stateByCode[place.state]?.name}</h3>
+            <h3>Members of the House from {stateByCode[place.state]?.name}</h3>
             <ul className="ranked" style={{ fontFamily: 'var(--body)', fontSize: 16 }}>
               {house
                 .sort((a, b) => Number(a.district) - Number(b.district))
@@ -147,7 +144,7 @@ function CongressDots({ members }) {
           <div className="section-head">
             <div style={{ flex: '1 1 420px', minWidth: 0 }}>
               <p className="eyebrow" style={{ marginBottom: 10 }}>
-                All of Congress · one dot per member
+                All of Congress · one dot for each member
               </p>
               <h2 id="dots-title" className="display display-l">
                 {words
@@ -156,10 +153,11 @@ function CongressDots({ members }) {
               </h2>
             </div>
             <p style={{ flex: '1 1 320px' }}>
-              {low} of the {graded.length} members graded lean on PACs or a small circle of big
-              donors. Only {counts.S} are funded mostly by regular people.
-              {unchecked > 0 && ` ${unchecked} more are still being checked.`} Tap a grade to see
-              who&apos;s in it.
+              {low} of the {graded.length} members we&apos;ve graded rely mostly on PACs or on a
+              small number of large donors. Only {counts.S} are funded mainly by ordinary people.
+              {unchecked > 0 &&
+                ` ${unchecked} more aren't graded yet while we confirm their records.`}{' '}
+              Click a grade to see who&apos;s in it.
             </p>
           </div>
           <div className="dots">
@@ -199,28 +197,29 @@ export function HowSteps() {
     <div className="steps">
       <div className="step">
         <p className="step-num">01</p>
-        <h3>Who paid?</h3>
+        <h3>We add up their money</h3>
         <p>
-          We add up everything raised in their name: their campaign, their leadership PAC and their
-          joint funds. Money from people counts in their favor, whether it&apos;s $5 or $5,000.
-          Money from PACs doesn&apos;t.
+          We count everything raised in the member&apos;s name, including their campaign, their
+          leadership PAC and any joint fundraising committees. Donations from individuals count in
+          their favor, whether the check is for $5 or $5,000. Money from PACs doesn&apos;t.
         </p>
       </div>
       <div className="step">
         <p className="step-num">02</p>
-        <h3>How few people?</h3>
+        <h3>We check how many people gave it</h3>
         <p>
-          Big checks are fine when thousands of people write them. When a handful of donors supply
-          half the money, those few matter more than you do, and the grade drops.
+          Large donations don&apos;t hurt a grade when thousands of different people make them. If
+          half of the large-donation money comes from a few dozen people, part of it stops counting
+          and the grade goes down.
         </p>
       </div>
       <div className="step">
         <p className="step-num">03</p>
-        <h3>Checked, every record.</h3>
+        <h3>We check every donation</h3>
         <p>
-          Grades start from the FEC&apos;s bulk download, then every donation is checked against the
-          FEC&apos;s own records. Until that&apos;s done, the grade says it&apos;s being
-          double-checked.
+          We grade from the FEC&apos;s bulk data files first, then check each donation against the
+          FEC&apos;s own records. Until that&apos;s finished, the member&apos;s page says the grade
+          is still being checked.
         </p>
       </div>
     </div>
@@ -253,16 +252,15 @@ export default function Home() {
         <div className="wrap">
           <div className="hero-copy">
             <p className="eyebrow" style={{ marginBottom: 20, fontSize: 14 }}>
-              FEC filings · 2026 election
-              {list.length ? ` · ${list.length} members graded` : ''}
+              2026 election{list.length ? ` · ${list.length} members graded` : ''}
             </p>
             <h1 id="hero-title" className="display display-xl">
               Who&apos;s paying your representatives?
             </h1>
             <p className="lede">
-              Every member of Congress, graded on where their money really comes from: thousands of
-              regular people, or a few big checks. Straight from public FEC filings, checked record
-              by record.
+              We grade every member of Congress on where their campaign money comes from. Members
+              funded by lots of ordinary donors get high grades. Members who rely on PACs or a small
+              group of wealthy donors get low grades. All the figures come from public FEC filings.
             </p>
             <Lookup onFound={found} idPrefix="home" />
           </div>
@@ -302,11 +300,11 @@ export default function Home() {
       <section className="section" aria-labelledby="how-title" style={{ paddingTop: 24 }}>
         <div className="wrap">
           <h2 id="how-title" className="display display-l" style={{ marginBottom: 28 }}>
-            How a grade is made
+            How we grade
           </h2>
           <HowSteps />
           <p style={{ marginTop: 24 }}>
-            <Link to="/how">The full method, in plain English</Link>
+            <Link to="/how">Read the full method</Link>
           </p>
         </div>
       </section>
@@ -315,28 +313,28 @@ export default function Home() {
         <div className="wrap">
           <div style={{ flex: '1 1 520px', minWidth: 0 }}>
             <p className="eyebrow" style={{ marginBottom: 12, fontSize: 14 }}>
-              Election day · {ELECTION_DAY_TEXT}
+              Election day is {ELECTION_DAY_TEXT}
             </p>
             <h2
               id="ballot-title"
               className="display display-l"
               style={{ fontSize: 'clamp(40px, 6vw, 80px)' }}
             >
-              Your ballot, side by side.
+              The candidates on your ballot
             </h2>
             <p className="lede" style={{ marginTop: 18 }}>
               {races.data
-                ? "Everyone running for Congress where you live, graded the same way. Know who's paying them before you vote."
-                : `Everyone running for Congress where you live, graded the same way. Arrives ${RACES_ARRIVE_TEXT}, the day after candidates file their last reports before the election.`}
+                ? 'We grade everyone running for Congress the same way we grade current members. See who is paying each candidate in your district and state.'
+                : `Candidates for Congress file their last campaign finance reports before the election on October 22. We'll grade every candidate by ${RACES_ARRIVE_TEXT}, using the same method we use for current members.`}
             </p>
           </div>
           {races.data ? (
             <Link to="/ballot" className="btn btn-big btn-light">
-              Compare my races <ArrowRight size={22} aria-hidden="true" />
+              See my ballot <ArrowRight size={22} aria-hidden="true" />
             </Link>
           ) : (
             <p className="btn btn-big btn-outline" style={{ cursor: 'default' }}>
-              Coming {RACES_ARRIVE_TEXT}
+              Available {RACES_ARRIVE_TEXT}
             </p>
           )}
         </div>

@@ -14,8 +14,7 @@ export const GRADES = {
     light: '#34D3A6',
     rank: 8,
     range: '90% or more',
-    meaning:
-      'Funded by regular people, and lots of them. At least 90% of the money counts as people-funded.',
+    meaning: 'At least 90% of the money counts as coming from ordinary people.',
   },
   A: {
     name: 'Very clean',
@@ -23,7 +22,7 @@ export const GRADES = {
     light: '#7BCB55',
     rank: 7,
     range: '75–89%',
-    meaning: 'Mostly funded by regular people: three-quarters or more of the money counts.',
+    meaning: 'Between 75% and 89% of the money counts as coming from ordinary people.',
   },
   B: {
     name: 'Above average',
@@ -31,7 +30,7 @@ export const GRADES = {
     light: '#C9D23A',
     rank: 6,
     range: '60–74%',
-    meaning: 'More people-funded than most, with some PAC or big-donor money in the mix.',
+    meaning: 'Between 60% and 74% of the money counts as coming from ordinary people.',
   },
   C: {
     name: 'Below average',
@@ -39,8 +38,7 @@ export const GRADES = {
     light: '#E9B824',
     rank: 5,
     range: '45–59%',
-    meaning:
-      'About half the money counts as people-funded. The rest leans on PACs or a few donors.',
+    meaning: 'Between 45% and 59% of the money counts as coming from ordinary people.',
   },
   D: {
     name: 'PAC heavy',
@@ -49,7 +47,7 @@ export const GRADES = {
     rank: 4,
     range: '30–44%',
     meaning:
-      'Less than half the money counts as people-funded. PACs or a small circle of donors carry the rest.',
+      'Between 30% and 44% of the money counts as coming from ordinary people. Most of it comes from PACs or a small number of large donors.',
   },
   E: {
     name: 'Captured',
@@ -57,7 +55,8 @@ export const GRADES = {
     light: '#F06A50',
     rank: 3,
     range: '15–29%',
-    meaning: 'Depends on PACs or a few big donors far more than on regular people.',
+    meaning:
+      'Between 15% and 29% of the money counts as coming from ordinary people. Most of it comes from PACs or a small number of large donors.',
   },
   F: {
     name: 'Owned',
@@ -65,7 +64,7 @@ export const GRADES = {
     light: '#E2566B',
     rank: 2,
     range: 'under 15%',
-    meaning: 'Almost none of the money counts as people-funded.',
+    meaning: 'Less than 15% of the money counts as coming from ordinary people.',
   },
   'N/A': {
     name: 'No money yet',
@@ -73,7 +72,8 @@ export const GRADES = {
     color: '#77738A',
     light: '#B9B5C6',
     rank: 1,
-    meaning: 'No campaign money reported for this election yet, so there is nothing to grade.',
+    meaning:
+      "No campaign money has been reported for this election yet, so there's nothing to grade.",
   },
   // Our figures don't add up against the FEC's own filing: a problem with our
   // data, not a finding about the member
@@ -84,7 +84,7 @@ export const GRADES = {
     light: '#C4B5FD',
     rank: 0,
     meaning:
-      "Our figures for this campaign don't add up against the FEC's own filing, so we won't publish a grade we can't stand behind. This is about our data, not about this member.",
+      "Our totals for this campaign don't match the FEC's own, so we're not showing a grade until we've fixed that. It's a problem with our data, not something we found about this member.",
   },
   // We couldn't yet confirm the FEC records are this member's (#41)
   UNVERIFIED: {
@@ -94,7 +94,7 @@ export const GRADES = {
     light: '#CFCBD8',
     rank: 0,
     meaning:
-      "We're making sure the campaign money on file really belongs to this member. Until it's confirmed we show no grade and no figures. This is about our records, not about this member.",
+      "We haven't yet confirmed that the campaign records we found belong to this member, so we're not showing a grade or any figures. It's a problem with our records, not something we found about this member.",
   },
 };
 

@@ -6,6 +6,33 @@ import { GRADES, LETTERS } from '../lib/grades.js';
 import { useTitle } from '../lib/hooks.js';
 import { HowSteps } from './Home.jsx';
 
+const PANELS = [
+  {
+    title: 'Which committees we count',
+    text: "We count every committee raising money for a member, not just their campaign. That includes their leadership PAC, which politicians use to give money to each other, and joint fundraising committees, which let a donor write one large check that's split among several committees. Money moved between a member's own committees is only counted once.",
+  },
+  {
+    title: 'Large donations',
+    text: 'A $2,000 donation from a supporter still counts as support from a person. What matters is how many different people give large amounts. If half of the large-donor money comes from a few dozen people, the amount above a set allowance stops counting. A member with thousands of large donors gets a bigger allowance than one with a handful.',
+  },
+  {
+    title: 'What "still being checked" means',
+    text: "We grade each member from the FEC's bulk data files first. Those files contain over 99% of the records. We then check every donation against the FEC's own records. Most grades don't change. If one does, we keep a record of the change.",
+  },
+  {
+    title: "When we don't show a grade",
+    text: "If we can't confirm that the campaign records we found belong to the member, or our totals don't match the FEC's, we don't show a grade or any figures. That means there's a problem with our records, not that we found anything about the member.",
+  },
+  {
+    title: 'Where the data comes from',
+    text: "Campaign finance filings from the Federal Election Commission (fec.gov), the list of members from Congress.gov, and the Justice Department's register of foreign agents. We update grades after each FEC filing deadline. Each committee on a member's page links to its filings.",
+  },
+  {
+    title: "What we don't grade",
+    text: "We don't look at votes, positions or party, and the same rules apply to every member. The site has no ads and no tracking, and the code is open source.",
+  },
+];
+
 export default function How() {
   useTitle('How grades work');
   return (
@@ -20,8 +47,9 @@ export default function How() {
               How grades work
             </h1>
             <p className="lede">
-              One question: does this person&apos;s money come from lots of regular people, or from
-              PACs and a few big donors? Here&apos;s exactly how we answer it.
+              Each grade answers one question: does a member&apos;s campaign money mostly come from
+              a large number of ordinary donors, or from PACs and a small group of wealthy ones?
+              This page explains how we work that out.
             </p>
           </div>
         </div>
@@ -30,7 +58,7 @@ export default function How() {
       <section className="section">
         <div className="wrap">
           <h2 className="display display-l" style={{ marginBottom: 28 }}>
-            Three steps
+            The three steps
           </h2>
           <HowSteps />
         </div>
@@ -42,10 +70,10 @@ export default function How() {
             The grades
           </h2>
           <p style={{ maxWidth: '44em', color: 'var(--ink-2)', marginBottom: 28 }}>
-            Each grade is the share of someone&apos;s money that counts as coming from regular
-            people, after the check on how few donors gave it. Super PAC, leadership PAC and
-            lobbyist money raises the bar for every grade: the more of it, the higher the share
-            needed.
+            A grade is based on the share of a member&apos;s money that counts as coming from
+            ordinary people, after we&apos;ve checked how many people gave it. Money from super
+            PACs, leadership PACs and lobbyists&apos; PACs makes every grade harder to reach. The
+            more of it a member takes, the higher the share they need.
           </p>
           <ul
             className="member-rows"
@@ -71,55 +99,12 @@ export default function How() {
 
       <section className="section" style={{ paddingTop: 0 }}>
         <div className="wrap panels">
-          <div className="panel">
-            <h3>Whose money counts</h3>
-            <p style={{ color: 'var(--ink-2)' }}>
-              The person, not one committee. We add up their campaign, their leadership PAC (the
-              fund politicians use to give money to each other) and their joint funds (which let one
-              donor write one big check that&apos;s split across several committees). Money moved
-              between their own committees is counted once.
-            </p>
-          </div>
-          <div className="panel">
-            <h3>Big checks aren&apos;t bad</h3>
-            <p style={{ color: 'var(--ink-2)' }}>
-              A $2,000 check from a supporter is still a person supporting them. What matters is how
-              many people write them. If half the big-check money comes from a few dozen donors, the
-              part above a set allowance stops counting. Thousands of donors get a bigger allowance
-              than a dinner party.
-            </p>
-          </div>
-          <div className="panel">
-            <h3>&ldquo;Being double-checked&rdquo;</h3>
-            <p style={{ color: 'var(--ink-2)' }}>
-              Every grade starts from the FEC&apos;s bulk download, which holds over 99% of the
-              records. Then every donation is checked against the FEC&apos;s own records. Most
-              grades don&apos;t move; if one does, the change is kept on record.
-            </p>
-          </div>
-          <div className="panel">
-            <h3>When we won&apos;t grade</h3>
-            <p style={{ color: 'var(--ink-2)' }}>
-              If we can&apos;t confirm the money on file is really theirs, or our figures don&apos;t
-              add up against the FEC&apos;s own, we show no grade and no figures. That&apos;s about
-              our records, not about them.
-            </p>
-          </div>
-          <div className="panel">
-            <h3>Where it comes from</h3>
-            <p style={{ color: 'var(--ink-2)' }}>
-              Public filings at the Federal Election Commission (fec.gov), the member list from
-              Congress.gov, and the Justice Department&apos;s foreign-agent registry. Figures update
-              after each FEC filing deadline. Every committee on a receipt links to its filings.
-            </p>
-          </div>
-          <div className="panel">
-            <h3>What we don&apos;t do</h3>
-            <p style={{ color: 'var(--ink-2)' }}>
-              We don&apos;t grade votes, views or parties, and the same rules apply to everyone. No
-              ads, no tracking. The code is open source.
-            </p>
-          </div>
+          {PANELS.map(p => (
+            <div className="panel" key={p.title}>
+              <h3>{p.title}</h3>
+              <p style={{ color: 'var(--ink-2)' }}>{p.text}</p>
+            </div>
+          ))}
         </div>
       </section>
     </>

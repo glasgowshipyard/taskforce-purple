@@ -12,9 +12,10 @@ function Missing() {
   useTitle('Page not found');
   return (
     <div className="wrap section">
-      <h1 className="display display-l">No receipt here</h1>
+      <h1 className="display display-l">Page not found</h1>
       <p className="lede" style={{ marginTop: 16 }}>
-        That page doesn&apos;t exist. <Link to="/">Find your representatives</Link>.
+        There&apos;s nothing at this address. You can{' '}
+        <Link to="/">look up your representatives</Link> from the home page.
       </p>
     </div>
   );

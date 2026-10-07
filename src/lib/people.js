@@ -122,11 +122,16 @@ export const MONEY_KINDS = {
     color: 'var(--small)',
     canvas: '#5B21B6',
   },
-  big: { label: 'Bigger checks', short: 'Bigger checks', color: 'var(--big)', canvas: '#B7A6F5' },
+  big: {
+    label: 'Large donors, over $200',
+    short: 'Large donors',
+    color: 'var(--big)',
+    canvas: '#B7A6F5',
+  },
   pac: { label: 'PACs', short: 'PACs', color: 'var(--pac)', canvas: '#15131C' },
   party: { label: 'Party committees', short: 'Party', color: 'var(--party)', canvas: '#9C98A6' },
   other: {
-    label: 'Other (loans, own money, transfers)',
+    label: 'Other (loans, transfers, own money)',
     short: 'Other',
     color: 'var(--other)',
     canvas: '#E2DFD8',
