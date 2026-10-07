@@ -23,8 +23,8 @@ moves only when a refresh changes grades (after FEC filing deadlines), not
 daily. If `S` contains names that make you squint, see §5.
 
 ```bash
-# How many grades are checked record by record vs still provisional
-curl -s "https://taskforce-purple-api.dev-a4b.workers.dev/api/members" | jq '[.members[].evidenceChecked] | group_by(.) | map({(tostring): length}) | add'
+# How many grades are checked record by record (true) vs still provisional (false); null = no grade
+curl -s "https://taskforce-purple-api.dev-a4b.workers.dev/api/members" | jq '[.members[].evidenceChecked] | group_by(.) | map({(.[0] | tostring): length}) | add'
 ```
 
 ## 2. Health and the refresh job
