@@ -549,6 +549,9 @@ while in office are dirty". The discussion is paused. What has been checked
 | Issue                          | Where it lands                                                                               |
 | ------------------------------ | -------------------------------------------------------------------------------------------- |
 | #47 umbrella                   | This spec                                                                                    |
+| #53 roster update              | New Year work (tabled by the owner 2026-10-07); needed by 3 Jan 2027                         |
+| #54 filing-calendar trigger    | Stage 3                                                                                      |
+| #55 race candidates' check     | ROADMAP Phase E follow-up                                                                    |
 | #46 CPU kills                  | **Closed 2026-10-06.** Stage 1 (serving) and Stage 2 (FEC work leaves Cloudflare)            |
 | #45 first alert                | Close; the alerting is replaced (§8)                                                         |
 | #44 big campaigns never finish | **Closed 2026-10-07.** Stage 2 (bulk file; AOC in the exit criteria)                         |
