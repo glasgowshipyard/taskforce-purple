@@ -4,6 +4,23 @@
 
 ---
 
+## 2026-10-07: reference members locked in tests
+
+`workers/reference-cases.test.js` grades four reference members from their
+real inputs, frozen today (`workers/fixtures/reference-members.json`: only
+the fields the grade reads, no donor names). It runs in CI on every push:
+
+- Sanders S, as a movement donor base;
+- AOC S, itemized money counted as support;
+- Pelosi B, on all her committees ($5.9M), never her campaign alone ($2.5M),
+  the same when provisional;
+- no letter grade on an unconfirmed FEC identity (Armstrong).
+
+Regenerate the fixture only after a scoring change has been simulated and
+agreed (`scripts/verify/make-reference-fixtures.mjs`).
+
+---
+
 ## 2026-10-07: the FEC upgraded our key to 120 calls a minute
 
 The owner asked; the FEC upgraded the same key in place. Its

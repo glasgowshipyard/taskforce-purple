@@ -439,7 +439,9 @@ remainder).
     on every grade and the "being double-checked" note; the D3 note; the
     member page reading the results database.
   - **To do:** cycle labels and the rollover rule (§9).
-  - **To do:** reference cases as CI tests on a frozen real-data snapshot:
+  - **Done 2026-10-07:** reference cases as CI tests on a frozen real-data
+    snapshot (`workers/reference-cases.test.js`, fixture from
+    `scripts/verify/make-reference-fixtures.mjs`):
     - Sanders is graded as a movement donor base;
     - Pelosi is never graded on campaign-only evidence;
     - a member whose FEC identity isn't confirmed is never given a letter

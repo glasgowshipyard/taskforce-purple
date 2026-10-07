@@ -158,4 +158,13 @@ raw grassroots percent against the unshifted thresholds. Members with
 | Pelosi (2.6k donors, Nakamoto 4.4%)  | 35%            | 25% (elite)    | 5       | A    |
 | Zero-donor snapshot (junk data)      | any            | 40% (default)  | bounded | —    |
 
+**Real-data reference members** (`workers/reference-cases.test.js`,
+2026-10-07): the live grading inputs of Sanders (S, movement donor base),
+AOC (S, itemized money as support), Pelosi (B, graded on all her committees,
+never her campaign alone) and Armstrong (no confirmed FEC identity, so no
+letter), frozen in `workers/fixtures/reference-members.json`. A failing one
+means a change moved a settled grade. Simulate it across all members and
+agree it with the owner before regenerating the fixture
+(`node scripts/verify/make-reference-fixtures.mjs`).
+
 Run `npm test` before changing any of this.

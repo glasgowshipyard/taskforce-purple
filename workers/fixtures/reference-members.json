@@ -1,0 +1,269 @@
+{
+  "frozenAt": "2026-10-07T17:07:11.361Z",
+  "members": {
+    "S000033": {
+      "why": "Sanders: a movement donor base, S",
+      "record": {
+        "bioguideId": "S000033",
+        "name": "Sanders, Bernard",
+        "fecIdentityVerified": true,
+        "financialsVerified": true,
+        "financialsVerifiedCycle": 2026,
+        "dataCycle": 2026,
+        "totalRaised": 24928186.19,
+        "grassrootsDonations": 17272177.16,
+        "largeDonorDonations": 6505715.83,
+        "grassrootsPercent": 69,
+        "pacMoney": 27,
+        "partyMoney": 0,
+        "tier": "S",
+        "pacContributions": [
+          {
+            "committee_type": "P",
+            "designation": "P",
+            "amount": 41930.5
+          },
+          {
+            "committee_type": "P",
+            "designation": "P",
+            "amount": 37727.97
+          },
+          {
+            "committee_type": "P",
+            "designation": "P",
+            "amount": 12494.77
+          }
+        ]
+      },
+      "personFunding": {
+        "totalRaised": 25186898.330000002,
+        "grassrootsDonations": 17470673.3,
+        "largeDonorDonations": 6550831.83,
+        "pacMoney": 15027,
+        "partyMoney": 0,
+        "grassrootsPercent": 69,
+        "invariantsHold": true
+      },
+      "analysis": {
+        "uniqueDonors": 20261,
+        "totalAmount": 6549731,
+        "nakamotoCoefficient": 3145,
+        "top10Concentration": 0.013124813828232029
+      },
+      "expected": {
+        "tier": "S",
+        "gradeBasis": "all-committees",
+        "trustAnchorBasis": "movement"
+      }
+    },
+    "O000172": {
+      "why": "AOC: itemized money counts as support (ballroom principle), S",
+      "record": {
+        "bioguideId": "O000172",
+        "name": "Ocasio-Cortez, Alexandria",
+        "fecIdentityVerified": true,
+        "financialsVerified": true,
+        "financialsVerifiedCycle": 2026,
+        "dataCycle": 2026,
+        "totalRaised": 32607753.66,
+        "grassrootsDonations": 21547856.32,
+        "largeDonorDonations": 10415442.23,
+        "grassrootsPercent": 66,
+        "pacMoney": 28050,
+        "partyMoney": 0,
+        "tier": "S",
+        "pacContributions": [
+          {
+            "committee_type": "P",
+            "designation": "P",
+            "amount": 106600.5
+          },
+          {
+            "committee_type": "P",
+            "designation": "P",
+            "amount": 14812.61
+          },
+          {
+            "committee_type": "P",
+            "designation": "P",
+            "amount": 9547.53
+          },
+          {
+            "committee_type": "Q",
+            "designation": "U",
+            "amount": 5000
+          },
+          {
+            "committee_type": "Q",
+            "designation": "B",
+            "amount": 5000
+          },
+          {
+            "committee_type": "W",
+            "designation": "U",
+            "amount": 5000
+          },
+          {
+            "committee_type": "P",
+            "designation": "P",
+            "amount": 4525
+          }
+        ]
+      },
+      "personFunding": {
+        "totalRaised": 32921786.3,
+        "grassrootsDonations": 21838985.78284748,
+        "largeDonorDonations": 10523068.607152523,
+        "pacMoney": 28050,
+        "partyMoney": 0,
+        "grassrootsPercent": 66,
+        "invariantsHold": true
+      },
+      "analysis": {
+        "uniqueDonors": 31236,
+        "totalAmount": 10471936.39,
+        "nakamotoCoefficient": 4609,
+        "top10Concentration": 0.00819800625240429
+      },
+      "expected": {
+        "tier": "S",
+        "gradeBasis": "all-committees",
+        "trustAnchorBasis": "movement"
+      }
+    },
+    "P000197": {
+      "why": "Pelosi: graded on all her committees, never her campaign alone",
+      "record": {
+        "bioguideId": "P000197",
+        "name": "Pelosi, Nancy",
+        "fecIdentityVerified": true,
+        "financialsVerified": true,
+        "financialsVerifiedCycle": 2026,
+        "dataCycle": 2026,
+        "totalRaised": 2465830.24,
+        "grassrootsDonations": 1411326.97,
+        "largeDonorDonations": 808796.43,
+        "grassrootsPercent": 57,
+        "pacMoney": 33000,
+        "partyMoney": 0,
+        "tier": "A",
+        "pacContributions": [
+          {
+            "committee_type": "P",
+            "designation": "P",
+            "amount": 25656.31
+          },
+          {
+            "committee_type": "P",
+            "designation": "P",
+            "amount": 13534.35
+          },
+          {
+            "committee_type": "Q",
+            "designation": "B",
+            "amount": 5000
+          },
+          {
+            "committee_type": "Q",
+            "designation": "B",
+            "amount": 5000
+          },
+          {
+            "committee_type": "P",
+            "designation": "P",
+            "amount": 5000
+          },
+          {
+            "committee_type": "Q",
+            "designation": "U",
+            "amount": 3000
+          },
+          {
+            "committee_type": "Q",
+            "designation": "U",
+            "amount": 2500
+          },
+          {
+            "committee_type": "Q",
+            "designation": "B",
+            "amount": 2500
+          },
+          {
+            "committee_type": "Q",
+            "designation": "B",
+            "amount": 2500
+          },
+          {
+            "committee_type": "P",
+            "designation": "P",
+            "amount": 2500
+          },
+          {
+            "committee_type": "Q",
+            "designation": "B",
+            "amount": 2000
+          },
+          {
+            "committee_type": "Q",
+            "designation": "U",
+            "amount": 1000
+          },
+          {
+            "committee_type": "Q",
+            "designation": "U",
+            "amount": 1000
+          },
+          {
+            "committee_type": "Q",
+            "designation": "B",
+            "amount": 1000
+          }
+        ]
+      },
+      "personFunding": {
+        "totalRaised": 5925906.8100000005,
+        "grassrootsDonations": 3821355.4009702303,
+        "largeDonorDonations": 1967752.6852017397,
+        "pacMoney": 47714.952626839,
+        "partyMoney": 0,
+        "grassrootsPercent": 64,
+        "invariantsHold": true
+      },
+      "analysis": {
+        "uniqueDonors": 5002,
+        "totalAmount": 4299991,
+        "nakamotoCoefficient": 25,
+        "top10Concentration": 0.3345123280490587
+      },
+      "expected": {
+        "tier": "B",
+        "gradeBasis": "all-committees",
+        "trustAnchorBasis": "dinner-party"
+      }
+    },
+    "A000383": {
+      "why": "Armstrong: no confirmed FEC identity, so no letter grade",
+      "record": {
+        "bioguideId": "A000383",
+        "name": "Armstrong, Alan",
+        "fecIdentityVerified": false,
+        "financialsVerified": null,
+        "financialsVerifiedCycle": null,
+        "dataCycle": 2026,
+        "totalRaised": 0,
+        "grassrootsDonations": 0,
+        "largeDonorDonations": null,
+        "grassrootsPercent": 0,
+        "pacMoney": 0,
+        "partyMoney": 0,
+        "tier": "F",
+        "pacContributions": []
+      },
+      "personFunding": null,
+      "analysis": null,
+      "expected": {
+        "tier": "UNVERIFIED"
+      }
+    }
+  }
+}
