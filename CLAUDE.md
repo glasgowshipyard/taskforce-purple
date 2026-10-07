@@ -81,7 +81,12 @@ node scripts/refresh/publish.mjs --dry-run      # what publishing would change
 ```
 
 Frontend deploys automatically when main is pushed to GitHub (Pages
-integration) — there is no manual frontend deploy step.
+integration) — there is no manual frontend deploy step. The site (`src/`,
+redesigned 2026-10-07) has no UI framework: `src/styles/app.css` holds the
+design tokens, `src/lib/grades.js` everything said about a grade. The
+district lookup files in `public/geo/` are built once from the Census
+Bureau's (`node scripts/geo/build-geo.mjs <folder>`, inputs listed in the
+script); rebuild only when district lines change.
 
 ## Settled decisions — do not re-derive
 

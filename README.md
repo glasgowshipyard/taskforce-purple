@@ -1,146 +1,94 @@
 # Task Force Purple
 
-A political transparency platform that cuts through partisan theater by tracking money in politics. Rate Congress members like video game characters based on funding integrity.
+**Who's paying your representatives?** Every member of Congress, graded S
+to F on where their campaign money really comes from: lots of regular
+people, or PACs and a few big donors. Straight from public FEC filings,
+checked record by record. Live at **https://taskforcepurple.com**.
 
-## Overview
+We grade money, not views. No party, no ads, the same rules for everyone.
 
-Task Force Purple exposes how politicians from both parties often serve the same corporate interests while performing fake fights to distract voters. We make campaign finance data as accessible as checking sports stats.
+## What the site does
 
-### Core Features
+- **Your receipts.** Enter a ZIP code or tap "use my location" to see your
+  House member and senators, each as an itemized receipt with a grade
+  stamped on it. The lookup runs in the browser against the Census
+  Bureau's district files: a ZIP code or location is never sent anywhere.
+- **The full receipt** for every member: where the money came from, every
+  committee raising money in their name (each linked to its FEC filings),
+  their biggest donors, who bundled the money, money from people at
+  registered foreign-agent firms, and how few donors gave half the big
+  money.
+- **All of Congress**, searchable and filterable by grade and chamber.
+- **Your ballot** (from 23 October 2026): everyone running for Congress
+  where you live, graded the same way, side by side.
+- **Share cards**, drawn in the visitor's browser, for any receipt.
 
-- **Congressional Tier List**: S-D tier rankings based on grassroots funding percentage
-- **Member Profiles**: Detailed funding breakdowns and voting records
-- **Bipartisan Overlap Tracker**: Issues where red/blue actually converge
-- **Auto-Updates**: Daily data refresh from government APIs
+## How a grade works
 
-## Tier System
+1. **Who paid?** Everything raised in the person's name counts: campaign,
+   leadership PAC and joint funds, with money moved between them counted
+   once. Money from people counts in their favor, whatever the check size.
+   PAC money doesn't.
+2. **How few people?** Big checks are fine when thousands of people write
+   them. When a handful of donors supply half the big-check money, the part
+   above an allowance stops counting.
+3. **Checked.** Grades are computed from the FEC's bulk files, then every
+   donation is checked against the FEC's own records. Until that's done
+   the site says the grade is being double-checked.
 
-Rankings based on **individual funding %** (grassroots + itemized donations from people), with **coordination risk penalties** applied:
+The exact method, with thresholds: [GRASSROOTS_CALCULATION_GUIDE.md](./GRASSROOTS_CALCULATION_GUIDE.md).
 
-- **S Tier (90%+)**: Clean, people-funded representatives
-- **A Tier (75-89%)**: Mostly grassroots with low coordination risk
-- **B Tier (60-74%)**: Majority individual funded
-- **C Tier (45-59%)**: Mixed sources, moderate coordination risk
-- **D Tier (30-44%)**: PAC heavy or high donor coordination risk
-- **E Tier (15-29%)** / **F Tier (<15%)**: Corporate captured
+## How it's built
 
-Thresholds shift upward by up to 30 points for concerning PAC funding (Super PACs, leadership/lobbyist PACs).
+```
+FEC bulk files + OpenFEC API ─> refresh job (GitHub Actions, scripts/refresh/)
+                                   │  grades into D1, publishes to KV
+                                   ▼
+            API worker (workers/data-pipeline.js, read-only)
+                                   │
+                                   ▼
+        React site (src/, Cloudflare Pages, deploys on push to main)
+```
 
-### Dynamic Trust Anchor System
+- **Site:** React and Vite, no UI framework. `src/pages/` (home, member,
+  all of Congress, ballot, method), `src/components/`, `src/lib/`.
+  Self-hosted fonts (Archivo, IBM Plex Mono, Public Sans).
+- **District lookup:** `public/geo/`, built by `scripts/geo/build-geo.mjs`
+  from the Census Bureau's 119th Congress files. Rebuild only when district
+  lines change.
+- **Everything runs on free tiers** (Cloudflare Workers, KV, D1, Pages;
+  GitHub Actions).
 
-Not all itemized donations are equal. The system applies a **sliding threshold** based on donor coordination risk:
+Start with [CLAUDE.md](./CLAUDE.md) and [IMPLEMENTATION_STATUS.md](./IMPLEMENTATION_STATUS.md)
+for the current system, and [RUNBOOK.md](./RUNBOOK.md) to check its health.
 
-- **Movement-scale** (≥10% Nakamoto): 50% itemization limit - too many donors to coordinate
-- **Standard** (5-10% Nakamoto): 40% limit - requires organization to coordinate
-- **Elite capture** (<5% Nakamoto): 25% limit - donors fit in a country club
-- **Dinner party** (<50 total donors): 10% limit - coordination trivial
-
-**Quadratic penalty** (P = E²/20, capped at 40 points) applies for exceeding your specific limit, punishing structural capture harder than minor slips. Scores floor at 0, and concentration snapshots that don't credibly cover a member's itemized total fall back to the standard 40% limit instead of the strictest one.
-
-**Itemized percentage is calculated from individual funding only**, not total raised. This isolates the "human element" - of the people who gave, how many wrote big checks?
-
-**Real-world example**: Bernie Sanders vs Nancy Pelosi (2026 cycle):
-
-**Bernie Sanders: S-tier**
-
-- Grassroots (<$200): $14.7M (80% of individual funding)
-- Large donations (≥$200): $3.7M (20% of individual funding)
-- Nakamoto %: 11.7% → Trust anchor: 50%
-- Itemized 20% < 50% → No penalty → S-tier
-
-**Nancy Pelosi: A-tier**
-
-- Grassroots (<$200): $1.3M (65% of individual funding)
-- Large donations (≥$200): $0.7M (35% of individual funding)
-- Nakamoto %: 4.4% → Trust anchor: 25%
-- Itemized 35% > 25% → 10% excess → 5% penalty → A-tier
-
-The key: Pelosi has 75% more large donation reliance (35% vs 20%), which the dynamic trust anchor catches.
-
-## Tech Stack
-
-- **Frontend**: React (deployed on Cloudflare Pages)
-- **Backend**: Cloudflare Workers (data pipeline, API endpoints)
-- **Storage**: Cloudflare KV (processed member data)
-- **Data Sources**: Congress.gov API, OpenFEC API
-
-## Getting Started
-
-### Local Development
+## Local development
 
 ```bash
-# Clone repository
 git clone https://github.com/glasgowshipyard/taskforce-purple.git
 cd taskforce-purple
-
-# Install dependencies
 npm install
-
-# Start development server
-npm run dev
+npm run dev      # the site on http://localhost:3000, reading the live API
+npm test         # unit tests, including the grading reference cases
+npm run lint
 ```
 
-## Data Sources
+To see the ballot pages before the races are published, point
+`VITE_RACES_URL` (in a gitignored `.env.local`) at a races file written by
+`node scripts/refresh/races.mjs --field test --out <file>`.
 
-### Government APIs (All Free)
+## Data sources
 
-- **Congress.gov API**: Current members, voting records
-- **OpenFEC API**: Campaign finance data, contribution records
-- **Rate Limits**: 5,000 requests/hour (Congress), no official limits (FEC)
+- **OpenFEC API and FEC bulk files:** campaign money and donor records.
+- **Congress.gov:** the member list.
+- **Justice Department FARA registry:** foreign-agent firms.
+- **Census Bureau:** congressional district boundaries and ZIP code areas.
 
-### Data Pipeline
+## Writing
 
-1. **Daily**: Fetch current member list from Congress.gov
-2. **Weekly**: Pull latest FEC financial data for all committees
-3. **Processing**: Calculate grassroots percentage from contributions <$200
-4. **Storage**: Store processed tier rankings in Cloudflare KV
-
-## Live Platform
-
-Visit **https://taskforce-purple.pages.dev** to see the platform in action with real congressional data.
-
-## Development
-
-### Project Structure
-
-```
-/src
-  /components     # React components
-  /lib           # Utilities, API clients
-  /data          # Mock data for development
-/workers         # Cloudflare Workers
-/docs           # Documentation
-```
-
-### Key Files
-
-- `taskforce-purple.tsx`: Main React demo component
-- `taskforce-purple.md`: Complete technical specification
-- `/workers/data-pipeline.js`: Scheduled data fetching
-- `/workers/api.js`: Backend API endpoints
-
-## Contributing
-
-1. Fork the repository
-2. Create feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit changes (`git commit -m 'Add amazing feature'`)
-4. Push to branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
-
-## Philosophy
-
-**The Problem**: Citizens are told they live in incompatible political camps, but corporate money influences both parties while manufactured culture wars distract from shared struggles.
-
-**The Solution**: Evidence-based transparency tool that shows who actually serves people vs. money, regardless of party affiliation.
-
-**Writing Tone**: Extremely plain English. Explain like talking to your neighbor. Connect theory to "here's who voted for what yesterday."
+Extremely plain English: explain it like talking to your neighbor.
+Apolitical, and no politician names in examples on the site.
 
 ## License
 
-MIT License - see LICENSE file for details
-
-## Links
-
-- **Live Site**: https://taskforcepurple.com
-- **Specification**: [taskforce-purple.md](./taskforce-purple.md)
-- **Demo Component**: [taskforce-purple.tsx](./taskforce-purple.tsx)
+MIT

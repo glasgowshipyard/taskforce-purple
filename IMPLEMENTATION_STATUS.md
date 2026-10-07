@@ -1,6 +1,57 @@
 # Task Force Purple - Implementation Status
 
-**Last Updated**: 2026-10-04
+**Last Updated**: 2026-10-07
+
+---
+
+## 2026-10-07: the site redesigned ("Receipts", owner approved)
+
+The whole frontend was rebuilt from the owner-approved design canvas.
+Every member's money is an itemized receipt and the grade is a rubber
+stamp.
+
+- **Find your representatives.** The home page starts with a ZIP code box
+  and "use my location". Both are looked up in the browser against static
+  files built from the Census Bureau's 119th Congress files
+  (`scripts/geo/build-geo.mjs` → `public/geo/`, 3.4 MB in all; a lookup
+  loads at most about 100 KB compressed). Nothing is sent anywhere; only
+  the district (for example `OH-3`) is remembered, in the visitor's
+  browser. A ZIP that crosses a district line offers each district, and so
+  does a location within 250 m of a line. ZIPs that aren't Census ZIP areas
+  (PO boxes, single buildings) fall back to location or a state picker.
+- **Pages:** home (your receipts, all of Congress as one dot per member,
+  how a grade is made), member (the full receipt, "N people gave half the
+  big-check money", why the grade, every committee linked to its FEC
+  filings, biggest donors, bundlers, foreign-agent money, biggest PACs,
+  notes on the numbers), all of Congress (search, chamber, grade, sort;
+  filters in the address), your ballot and each race (receipts side by
+  side, a comparison table, a countdown, vote.gov), candidate receipts, and
+  the method in plain English. Deep links work (`/member/{id}`,
+  `/race/{key}`, `/candidate/{id}`).
+- **Share cards** are drawn in the visitor's browser (1200×630) and handed
+  to the phone's share sheet, or saved, with the link copied. No server
+  work.
+- **No pronouns.** The site doesn't know members' pronouns, so its wording
+  uses names.
+- **Same rules as before:** UNVERIFIED shows no figures or analyses,
+  DISPUTED hides the breakdown but keeps concentration and bundlers (#40,
+  #41), and every figure goes through `gradedFigures` so a page never
+  contradicts its grade (#32).
+- **Removed:** the old leaderboard, the Tailwind CDN script, and the
+  "Overlap Tracker", which showed sample data rather than real votes.
+- **Tests:** `src/lib/geo.test.js` (real places land in their districts,
+  using the built files), `people.test.js` (names, seats, receipt lines,
+  places), and `tier-display.test.js`, moved to the new grade module with
+  the same guarantees.
+- **Checked** in the browser on desktop and at phone width (375 px): no
+  sideways scrolling, every control named, one h1 a page, and the ballot
+  pages against a test race file.
+
+**Known limits:** link previews on social sites show a text card, not a
+picture (a static `og:image` is a follow-up). House race numbers on the
+ballot come from the current district map; some states redrew their lines
+for 2026, and the race page says so. Until 23 October `/api/races` answers
+404, which browsers log as a console error; it's harmless.
 
 ---
 

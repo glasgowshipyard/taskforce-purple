@@ -13,10 +13,13 @@ why). Ordering reflects dependencies — Phase A unblocks most of Phase C.
     after);
   - the record check running itself;
   - alerts with proposed fixes;
-  - the FEC key upgraded to 120 calls a minute.
+  - the FEC key upgraded to 120 calls a minute;
+  - the redesigned site ("Receipts", 2026-10-07): find your
+    representatives by ZIP code or location, share cards, the ballot pages
+    ready for 23 October.
 - **Next:**
-  - the UI redesign (proposal 2026-10-07);
   - the 2026 races go live on 23 October (Phase E);
+  - a picture for link previews (`og:image`) so shared links show a card;
   - the filing-calendar trigger (Stage 3).
 - **Tabled by the owner (2026-10-07):** the New Year work. That means cycle
   labels and the rollover rule (REBUILD_SPEC §9), and the roster update:
