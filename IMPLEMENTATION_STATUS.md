@@ -45,11 +45,21 @@ and the write cap was only checked between batches. `gap_records` reached
 - Health alerts at 400 MB (`d1-size-high`).
 - `node scripts/refresh/gap-records.mjs C00857615` unpacks a committee's
   records to a file for DuckDB (RUNBOOK §6).
-- To apply after 17:00 PDT on 2026-10-06: `migrations/2026-10-06-gap-packs.sql`,
-  then `scripts/migrations/2026-10-06-pack-gap-records.mjs --apply`, then
-  `--drop` (it re-verifies every committee before dropping `gap_records`;
-  the owner OKs the drop). First, test on a scratch table that a drop
-  doesn't cost a write per row.
+- **Applied 2026-10-06 at 17:51 PDT** on GitHub's machines (one-off
+  workflow `d1-repack.yml`, started by hand when the 00:05 UTC schedule
+  hadn't fired by 17:50; it disabled itself afterwards). The database was
+  full, so the order was: test the drop, pack in memory, drop, then write
+  (`scripts/migrations/2026-10-06-repack.mjs`). Owner's OK: "you have to
+  self approve".
+  - Drop test on a throwaway database: 0 rows written, 4.2 MB freed.
+  - 117,450 records from 166 committees packed in memory, 438.4 MB to
+    7.6 MB, every one unpacking identical.
+  - `gap_records` dropped (2 rows written): the database went from 500 MB to
+    6.3 MB.
+  - 264 pack rows written, all 166 committees checked byte for byte; 13.5 MB
+    of 500.
+  - The repack used 6,539 rows written and 238,016 read.
+  - The record check restarted (run 37554375546); report in issue #52.
 
 ---
 
