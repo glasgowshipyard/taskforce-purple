@@ -4,6 +4,36 @@
 
 ---
 
+## 2026-10-07: issue sweep, and two fixes it turned up (#41, #40)
+
+**Fixes (744bd04):**
+
+- **Julie Johnson** (J000310) was graded on all her committees but shown
+  UNVERIFIED: her record carried a stale "identity not verified" flag from
+  2026-09-26, and I had the refresh job pass it through. The job only grades
+  members it looked up in the crosswalk, so it now grades them as verified.
+  She is graded E, checked.
+- **Alan Armstrong** (A000383) has no FEC ID in the crosswalk's source yet,
+  but still showed an old F. A member not graded by the job now keeps their
+  stored grade only on a confirmed identity; otherwise UNVERIFIED (list and
+  member page).
+- **#40:** a ringfenced member's bundling line no longer shows a percentage
+  of the disputed individual total; the dollar amount stays.
+
+**Issues closed with evidence:** #52, #46 (2026-10-06), #44, #43, #41, #40,
+#38, #34, #32, #20, #19, #14, #12.
+
+**Left open:**
+
+- #47, the rebuild umbrella.
+- #42, now down to 1 member at 0%, on the fallback path (Stage 3 item).
+- #39, cycle labels (Stage 3).
+- #33, connected-organisation lookups deferred.
+- #31, stocks (paused).
+- Deferred: #21, #18, #16 (Stage 4 sweep) and #1.
+
+---
+
 ## 2026-10-05: Stage 1 exit check passed
 
 `node scripts/verify/stage1-exit-check.mjs`, 50.9 h from the migration (Oct 3

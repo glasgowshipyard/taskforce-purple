@@ -531,28 +531,28 @@ while in office are dirty". The discussion is paused. What has been checked
 
 ## 14. Every open issue, and where it goes
 
-| Issue                          | Where it lands                                                         |
-| ------------------------------ | ---------------------------------------------------------------------- |
-| #47 umbrella                   | This spec                                                              |
-| #46 CPU kills                  | Stage 1 (serving) and Stage 2 (FEC work leaves Cloudflare)             |
-| #45 first alert                | Close; the alerting is replaced (§8)                                   |
-| #44 big campaigns never finish | Stage 2 (bulk file; AOC in the exit criteria)                          |
-| #43 D1 holes                   | Stage 2 (records checked by count and `SUB_ID`; no copy to lose)       |
-| #42 145 at 0%                  | Step 4 fix deployed (145 → 4); Stage 3 makes the fallback path pending |
-| #41 wrong FEC candidate        | Fixed by the crosswalk; close after Stage 3                            |
-| #40 disputed denominators      | Stage 3                                                                |
-| #39 prior-cycle grades         | Stage 3 (§9)                                                           |
-| #38 frozen lastUpdated         | Stage 1                                                                |
-| #34 FARA                       | Stage 2 (DuckDB match across all committees)                           |
-| #33 network / conduits         | Stage 2 analysis; connected-organisation lookups deferred              |
-| #32 person-level funding       | Stages 2–3                                                             |
-| #31 STOCK Act composite        | §13, paused                                                            |
-| #21 PAC colour coding          | Deferred                                                               |
-| #20 donor concentration        | Superseded by Stage 2; close at its exit                               |
-| #19 tier calc broken           | Superseded; close                                                      |
-| #18 bio data                   | Deferred                                                               |
-| #16 hardcoded fallbacks        | Keys done 2026-09-27; the rest in Stage 4's sweep                      |
-| #14 delete plus FEC cache      | `fec_mapping_*` retired with the old pipeline paths in Stage 2; close  |
-| #12 cron control API           | Close: no Worker crons remain                                          |
-| #5 force-update endpoint       | Stage 1 (admin endpoints on `saveMember`)                              |
-| #1 voting data                 | Deferred                                                               |
+| Issue                          | Where it lands                                                                               |
+| ------------------------------ | -------------------------------------------------------------------------------------------- |
+| #47 umbrella                   | This spec                                                                                    |
+| #46 CPU kills                  | **Closed 2026-10-06.** Stage 1 (serving) and Stage 2 (FEC work leaves Cloudflare)            |
+| #45 first alert                | Close; the alerting is replaced (§8)                                                         |
+| #44 big campaigns never finish | **Closed 2026-10-07.** Stage 2 (bulk file; AOC in the exit criteria)                         |
+| #43 D1 holes                   | **Closed 2026-10-07.** Stage 2 (records checked by count and `SUB_ID`; no copy to lose)      |
+| #42 145 at 0%                  | Step 4 fix deployed (145 → 4); Stage 3 makes the fallback path pending                       |
+| #41 wrong FEC candidate        | **Closed 2026-10-07.** Fixed by the crosswalk; close after Stage 3                           |
+| #40 disputed denominators      | **Closed 2026-10-07.** Stage 3                                                               |
+| #39 prior-cycle grades         | Stage 3 (§9)                                                                                 |
+| #38 frozen lastUpdated         | **Closed 2026-10-07.** Stage 1                                                               |
+| #34 FARA                       | **Closed 2026-10-07.** Stage 2 (DuckDB match across all committees)                          |
+| #33 network / conduits         | Stage 2 analysis; connected-organisation lookups deferred                                    |
+| #32 person-level funding       | **Closed 2026-10-07.** Stages 2–3                                                            |
+| #31 STOCK Act composite        | §13, paused                                                                                  |
+| #21 PAC colour coding          | Deferred                                                                                     |
+| #20 donor concentration        | **Closed 2026-10-07.** Superseded by Stage 2; close at its exit                              |
+| #19 tier calc broken           | **Closed 2026-10-07.** Superseded; close                                                     |
+| #18 bio data                   | Deferred                                                                                     |
+| #16 hardcoded fallbacks        | Keys done 2026-09-27; the rest in Stage 4's sweep                                            |
+| #14 delete plus FEC cache      | **Closed 2026-10-07.** `fec_mapping_*` retired with the old pipeline paths in Stage 2; close |
+| #12 cron control API           | **Closed 2026-10-07.** Close: no Worker crons remain                                         |
+| #5 force-update endpoint       | Stage 1 (admin endpoints on `saveMember`)                                                    |
+| #1 voting data                 | Deferred                                                                                     |
