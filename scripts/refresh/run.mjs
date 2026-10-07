@@ -14,7 +14,8 @@
  *                 marked unchecked and the grade is provisional.
  *   (default)     the check: reconciles every committee's records with the
  *                 FEC's, fills what the bulk file lacks, and confirms or
- *                 shifts the grade. Takes days at 1,000 FEC calls an hour.
+ *                 shifts the grade. Hours for a whole pass at our key's 120
+ *                 FEC calls a minute (days at the standard 1,000 an hour).
  *
  * Discovery (each member's committees and money) comes from the FEC's bulk
  * files by default (lib/discovery.mjs); --discovery api uses the per-member

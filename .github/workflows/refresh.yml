@@ -2,7 +2,7 @@ name: Refresh
 
 # The refresh job (REBUILD_SPEC.md §5): all FEC work, off Cloudflare.
 # Stage 2: started by hand, and it records results without publishing them.
-# A pass that outlasts one run (the FEC allows 1,000 calls an hour) starts its
+# A pass that outlasts one run (the FEC allows our key 120 calls a minute) starts its
 # own next run until every member is done. The filing-calendar trigger (§8)
 # comes in Stage 3; every scheduled job is paused for the rebuild (owner's
 # decision, 2026-10-03).

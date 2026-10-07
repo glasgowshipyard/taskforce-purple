@@ -162,7 +162,7 @@ source.
 - Grading from the zips: about 150-250 FEC calls and minutes of runtime for
   about 1,000 candidates.
 - The record-by-record check for challengers: about 1-2 more days of FEC
-  calls at 1,000 an hour, or hours with the upgraded key.
+  calls: a few hours at our key's 120 calls a minute.
 - D1 and KV stay far under the free limits.
 
 **Timing.** Built in a few days. Graded from the zips straight after the 22

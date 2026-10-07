@@ -121,16 +121,16 @@ around them is broken at the foundation:
 
 ## 4. Platform limits and current usage
 
-| Limit                                                   | Value                                                                                                                     |
-| ------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------- |
-| Workers Free CPU per invocation                         | 10 ms (over it: error 1102 `exceededResources`)                                                                           |
-| KV per day, per account (operations fail when exceeded) | 1,000 writes, 100,000 reads, 1,000 deletes, 1,000 lists                                                                   |
-| KV value size / storage                                 | 25 MiB / 1 GB                                                                                                             |
-| D1 per day                                              | 100,000 rows written (self-capped at 85,000), 5,000,000 rows read                                                         |
-| D1 database size                                        | 500 MB per database (`taskforce-purple-donors` is at 414 MB)                                                              |
-| Cloudflare service calls per invocation                 | 1,000                                                                                                                     |
-| FEC API                                                 | **1,000 calls per hour** per personal key (FEC 429 message, 2026-10-03); free upgrade to 120 a minute via apiinfo@fec.gov |
-| GitHub Actions (public repo)                            | Free; up to 6 h per job; runners with ~14 GB free disk and 16 GB memory (**VERIFY** current runner specs)                 |
+| Limit                                                   | Value                                                                                                                   |
+| ------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------- |
+| Workers Free CPU per invocation                         | 10 ms (over it: error 1102 `exceededResources`)                                                                         |
+| KV per day, per account (operations fail when exceeded) | 1,000 writes, 100,000 reads, 1,000 deletes, 1,000 lists                                                                 |
+| KV value size / storage                                 | 25 MiB / 1 GB                                                                                                           |
+| D1 per day                                              | 100,000 rows written (self-capped at 85,000), 5,000,000 rows read                                                       |
+| D1 database size                                        | 500 MB per database (`taskforce-purple-donors` is at 414 MB)                                                            |
+| Cloudflare service calls per invocation                 | 1,000                                                                                                                   |
+| FEC API                                                 | **120 calls a minute** for our key, upgraded by the FEC 2026-10-07 (was 1,000 an hour, the standard personal-key limit) |
+| GitHub Actions (public repo)                            | Free; up to 6 h per job; runners with ~14 GB free disk and 16 GB memory (**VERIFY** current runner specs)               |
 
 **Writes made through the Cloudflare API count against the same KV and D1
 limits** as writes made from Workers. The job's diff writing (§7) is what
@@ -227,11 +227,11 @@ created once by the owner; Claude never handles the values.
   committees costs about 1½ minutes, and big campaigns' gap searches cost
   300–2,000 calls each, mostly chasing joint-fund memo lines the bulk file
   leaves out (IMPLEMENTATION_STATUS 2026-10-04).
-  - **At the personal key's 1,000 calls an hour:** about 3 hours per batch
-    of 25 senators, so roughly 2–3 days. Each run stops before GitHub's
+  - **Now, at 120 calls a minute** (the FEC upgraded our key 2026-10-07):
+    roughly half a day for a whole pass. Each run stops before GitHub's
     6-hour limit and starts the next run of the pass itself.
-  - **With the upgraded key** (granted 2026-10-07: 120 a minute): roughly
-    half a day.
+  - Before the upgrade, at 1,000 calls an hour: about 3 hours per batch of
+    25 senators, roughly 2–3 days for a pass.
   - My earlier estimate (7–10 hours, from Williams alone) was wrong.
 - **Later runs:** stored gap records are reloaded, so only new filings are
   searched.
@@ -434,17 +434,21 @@ variable `CLOUDFLARE_ACCOUNT_ID` stored and verified; measurements done.
 remainder).
 
 - Build:
-  - `PENDING` and the frontend "Grade pending";
-  - the evidence guard and the D3 note;
-  - cycle labels and the rollover rule;
-  - reference cases as CI tests on a frozen real-data snapshot:
+  - **Done 2026-10-05:** grades published on all committees, grade first
+    and confirm after (D7, replacing "Grade pending"); the evidence state
+    on every grade and the "being double-checked" note; the D3 note; the
+    member page reading the results database.
+  - **To do:** cycle labels and the rollover rule (§9).
+  - **To do:** reference cases as CI tests on a frozen real-data snapshot:
     - Sanders is graded as a movement donor base;
     - Pelosi is never graded on campaign-only evidence;
-    - a member without evidence is never given a letter.
-- Then person-level grades are switched on.
+    - a member whose FEC identity isn't confirmed is never given a letter
+      (UNVERIFIED). This replaced "a member without evidence is never given
+      a letter" when the owner chose grade first, confirm after (D7).
 - Exit criteria:
   - CI reference cases pass;
-  - no published letter without complete evidence (checked by query).
+  - no published letter on an unconfirmed FEC identity, and every grade
+    not yet checked carries the note (checked by query).
 - **Before 1 January 2027, whatever else is late.**
 
 **Stage 4: history and clean-up.**

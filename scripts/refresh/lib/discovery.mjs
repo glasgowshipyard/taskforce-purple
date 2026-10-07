@@ -2,7 +2,8 @@
 // joint funds, transfers and money totals, for every member at once.
 //
 // The API version (workers/person-funding.js fetchPersonFunding) costs about
-// 24 FEC calls per member - 13 hours for Congress at 1,000 calls an hour.
+// 24 FEC calls per member - 13 hours for Congress at the standard 1,000 calls an
+// hour (our key allows 120 a minute since 2026-10-07; still about 2 hours).
 // Here the same answers come from three zips plus a few batched API calls:
 //
 //   ccl{yy}.zip  candidate-committee linkages: campaigns and registered joint
