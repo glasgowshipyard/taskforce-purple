@@ -113,6 +113,70 @@ funding routes visible, behavior included. Same rules for all 537.
 
 ---
 
+## Phase E — 2026 races: grade the challengers too (scoped 2026-10-07; owner to decide)
+
+**Today** the site grades the 539 sitting members only, on the 2026 cycle.
+Challengers and open-seat candidates aren't graded, so a voter can't compare
+a seat's candidates. Election Day is 3 November 2026.
+
+**The field** (FEC `weball26`, 2026-10-07): about 4,200 House and Senate
+candidates have filed. Excluding incumbents:
+
+- about 1,070 have raised $100,000 or more;
+- about 500 have raised $500,000 or more;
+- 360 races have two or more candidates over $100,000.
+
+Many of these lost primaries.
+
+**Who's on the November ballot.** The FEC's data has no ballot list, but
+only general-election candidates file the pre-general report (type 12G,
+due 22 October, covering through 14 October). After the 22nd, "filed a
+12G" picks out the November field from FEC data alone, with no outside
+source.
+
+**How it would work.** Mostly what exists already:
+
+- **Identity:** a challenger has an FEC candidate ID and no Congress
+  ID. The identity is the FEC's own, so nothing is inferred (settled
+  rule).
+- **Grading:** zip discovery and grade-only work from candidate IDs. Each
+  candidate is graded exactly as members are: all their committees, the
+  same tiers, the same evidence notes.
+- **Storage:** a `candidates` results table in `tfp-results`, keyed by FEC
+  candidate ID, about 5 MB. One extra KV value (`races:list`), written once
+  per publish.
+- **Site:** a "Races" view: pick a state and seat and see its candidates
+  side by side, grade and money mix, with sitting members linking to their
+  profiles. Plain English, no names in UI examples.
+
+**Cost:**
+
+- Grading from the zips: about 150-250 FEC calls and minutes of runtime for
+  about 1,000 candidates.
+- The record-by-record check for challengers: about 1-2 more days of FEC
+  calls at 1,000 an hour, or hours with the upgraded key.
+- D1 and KV stay far under the free limits.
+
+**Timing.** Built in a few days. Graded from the zips straight after the 22
+October filings, it's live about 10 days before the election. After the
+election (post-general reports due 3 December), winners become members in
+January, through the crosswalk rebuild and the New Year rule (Stage 3).
+
+**Decisions for the owner:**
+
+1. **Which candidates:** everyone on the November ballot (filed a 12G),
+   or everyone over a money threshold (includes primary losers)?
+2. **Checked or provisional:** grade challengers from the zips and show
+   them as "being double-checked", or also run the record check (1-2
+   days)?
+3. **Where:** a Races view, or challengers mixed into the main list?
+4. **Third-party and independent candidates:** in, if they filed a 12G?
+
+**Depends on:** nothing new, it reuses Stage 2-3 code. It competes for time
+with Stage 3's rollover, which must be live before 1 January.
+
+---
+
 ## Options on hold (owner's call, not scheduled)
 
 - **Upgraded FEC key (noted 2026-10-04).** The FEC's own API page offers
