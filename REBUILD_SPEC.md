@@ -1,11 +1,20 @@
 # Rebuild spec: collection, storage and grading around the person
 
-**Status: v3, APPROVED by the owner 2026-10-03. Stage 0 COMPLETE.
-Stage 1 COMPLETE (exit check passed 2026-10-05: 0 CPU kills in 51 h, KV
-writes at most 103/day). Stage 2 IN PROGRESS: job built; the full check of
-Congress is under way. Stage 3 PARTLY LIVE: grades published 2026-10-05
-(grade first, confirm after, D7); cycle labels, rollover, reference tests
-and the filing-calendar trigger to come.**
+**Status: v3, APPROVED by the owner 2026-10-03.**
+
+- **Stage 0:** COMPLETE.
+- **Stage 1:** COMPLETE (exit check passed 2026-10-05: 0 CPU kills in 51 h, KV
+  writes at most 103/day).
+- **Stage 2:** IN PROGRESS. The job is built and the full record check of
+  Congress is running itself (462 of 539 done, none failed, 2026-10-07).
+- **Stage 3:** LIVE apart from three items.
+  - Done: grades published 2026-10-05 (grade first, confirm after, D7) and
+    the reference tests (2026-10-07).
+  - Tabled by the owner 2026-10-07: cycle labels, the rollover and the
+    roster update (the New Year work).
+  - To come: the filing-calendar trigger.
+- **The 2026 races** (ROADMAP Phase E): built; they publish themselves on
+  23 October.
 
 Written by Claude, who wrote the code this replaces. This version replaces
 v1 and v2 (git history has them). Everything about the API backfill, lanes,

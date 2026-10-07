@@ -6,6 +6,26 @@ why). Ordering reflects dependencies — Phase A unblocks most of Phase C.
 
 ---
 
+## Where things stand (2026-10-07)
+
+- **Live:**
+  - every member graded on all their committees (grade first, confirm
+    after);
+  - the record check running itself;
+  - alerts with proposed fixes;
+  - the FEC key upgraded to 120 calls a minute.
+- **Next:**
+  - the UI redesign (proposal 2026-10-07);
+  - the 2026 races go live on 23 October (Phase E);
+  - the filing-calendar trigger (Stage 3).
+- **Tabled by the owner (2026-10-07):** the New Year work. That means cycle
+  labels and the rollover rule (REBUILD_SPEC §9), and the roster update:
+  nothing adds new members since the old pipeline was retired, and about
+  60 join on 3 January 2027.
+- **Parked:** stock trading (§13 of the spec) and Phase D (security).
+
+---
+
 ## Phase A — Data freshness and integrity
 
 > **✅ SHIPPED 2026-07-14** (both A1 and A2; see IMPLEMENTATION_STATUS for
