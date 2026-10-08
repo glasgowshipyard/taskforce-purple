@@ -6,7 +6,9 @@ import { Barcode, Evidence, MoneyLines, PowerBar, Skeleton, Stamp } from '../com
 import { api } from '../lib/api.js';
 import { classifyOrganization, foreignInterestFor, sectorInfo } from '../lib/donor-taxonomy.js';
 import { CYCLE_LABEL } from '../lib/election.js';
+import { concentrationVerdict, explainGrade, gradeBands } from '../lib/explain.js';
 import {
+  GRADES,
   gradeInfo,
   isIdentityUnverified,
   isLetter,
@@ -127,6 +129,54 @@ function findRace(races, pred) {
   return null;
 }
 
+// The grade scale, 0 to 100% people-funded, with this person's share from
+// people and the share that counts after the large-donor allowance
+function ScoreScale({ raw, score, shift, tier }) {
+  const bands = gradeBands(shift);
+  return (
+    <figure className="scale">
+      <div
+        className="scale-track"
+        role="img"
+        aria-label={`${raw}% of the money came from people and ${score}% counts, which is grade ${tier}`}
+      >
+        {bands.map(b => (
+          <span
+            key={b.letter}
+            className={`scale-band${b.letter === tier ? ' is-current' : ''}`}
+            style={{
+              left: `${b.from}%`,
+              width: `${b.to - b.from}%`,
+              '--g': GRADES[b.letter].color,
+            }}
+          >
+            {b.letter}
+          </span>
+        ))}
+        <span className="scale-raw" style={{ width: `${Math.min(100, raw)}%` }} />
+        <span className="scale-score" style={{ width: `${Math.min(100, score)}%` }} />
+      </div>
+      <div className="scale-ticks" aria-hidden="true">
+        {bands
+          .filter(b => b.from > 0)
+          .map(b => (
+            <span key={b.letter} style={{ left: `${b.from}%` }}>
+              {b.from}
+            </span>
+          ))}
+      </div>
+      <figcaption className="scale-key">
+        <span>
+          <i className="key-raw" aria-hidden="true" /> From people: {raw}%
+        </span>
+        <span>
+          <i className="key-score" aria-hidden="true" /> Counts toward the grade: {score}%
+        </span>
+      </figcaption>
+    </figure>
+  );
+}
+
 function ConcentrationBars({ n, of }) {
   const many = of ? Math.max(0, of - n) : null;
   return (
@@ -238,6 +288,8 @@ export default function Member({ id, kind = 'member' }) {
     ? `${conc.n === 1 ? 'One person' : `${count(conc.n)} people`} gave half the large\u2011donor money.`
     : `${smallPct}% of the money came from small donors.`;
   const standing = hasMoney ? pacStanding(f.pacMoney / f.totalRaised, members) : null;
+  const why = hasMoney ? explainGrade({ tier: m.tier, lines, grade: d?.grade, conc, name }) : null;
+  const verdict = conc ? concentrationVerdict(d?.grade?.detail?.trustAnchorBasis) : null;
   const passedOn = committees
     .filter(c => c.role === 'joint' && c.ownFund)
     .reduce((s, c) => s + (c.passedElsewhere || 0), 0);
@@ -366,6 +418,11 @@ export default function Member({ id, kind = 'member' }) {
                         : `Half of the money from large donors came from ${fromWhom(conc.n)}.`}
                     </p>
                     <ConcentrationBars n={conc.n} of={conc.of} />
+                    {verdict && (
+                      <p className={`verdict tone-${verdict.tone}`}>
+                        <strong>{verdict.label}.</strong> {verdict.text}
+                      </p>
+                    )}
                   </>
                 )}
               </div>
@@ -374,25 +431,52 @@ export default function Member({ id, kind = 'member' }) {
                 <h2 id="why-title" className="display display-m" style={{ marginBottom: 8 }}>
                   Why {withArticle(g.mark)}
                 </h2>
-                <p style={{ marginBottom: 16, color: 'var(--ink-2)' }}>{g.meaning}</p>
-                <div className="facts">
-                  <div className="fact">
-                    <b>{smallPct}%</b>
-                    <p>of the money came from small donors giving under $200.</p>
-                  </div>
-                  <div className="fact">
-                    <b>{pacPct}%</b>
-                    <p>came from PACs.{standing ? ` ${standing}` : ''}</p>
-                  </div>
-                  {conc && (
-                    <div className="fact">
-                      <b>{count(conc.n)}</b>
-                      <p>
-                        {conc.n === 1 ? 'donor gave' : 'donors gave'} half of the large-donor money.
+                {why ? (
+                  <>
+                    <ScoreScale raw={why.raw} score={why.score} shift={why.shift} tier={m.tier} />
+                    <ol className="why-steps">
+                      {why.steps.map((step, k) => (
+                        <li key={step.title} className={`why-step tone-${step.tone}`}>
+                          <span className="why-num" aria-hidden="true">
+                            {k + 1}
+                          </span>
+                          <div>
+                            <h3>{step.title}</h3>
+                            <p>{step.text}</p>
+                          </div>
+                        </li>
+                      ))}
+                    </ol>
+                    {standing && pacPct > 0 && (
+                      <p className="fine" style={{ marginTop: 12 }}>
+                        {pacPct}% of the money came from PACs. {standing}
                       </p>
+                    )}
+                  </>
+                ) : (
+                  <>
+                    <p style={{ marginBottom: 16, color: 'var(--ink-2)' }}>{g.meaning}</p>
+                    <div className="facts">
+                      <div className="fact">
+                        <b>{smallPct}%</b>
+                        <p>of the money came from small donors giving under $200.</p>
+                      </div>
+                      <div className="fact">
+                        <b>{pacPct}%</b>
+                        <p>came from PACs.{standing ? ` ${standing}` : ''}</p>
+                      </div>
+                      {conc && (
+                        <div className="fact">
+                          <b>{count(conc.n)}</b>
+                          <p>
+                            {conc.n === 1 ? 'donor gave' : 'donors gave'} half of the large-donor
+                            money.
+                          </p>
+                        </div>
+                      )}
                     </div>
-                  )}
-                </div>
+                  </>
+                )}
               </section>
 
               <section aria-labelledby="trail-title">

@@ -249,7 +249,7 @@ export default function Home() {
   return (
     <>
       <section className="hero dark on-dark" aria-labelledby="hero-title">
-        <div className="wrap">
+        <div className="wrap hero-grid">
           <div className="hero-copy">
             <p className="eyebrow" style={{ marginBottom: 20, fontSize: 14 }}>
               2026 election{list.length ? ` · ${list.length} members graded` : ''}
@@ -262,18 +262,22 @@ export default function Home() {
               funded by lots of ordinary donors get high grades. Members who rely on PACs or a small
               group of wealthy donors get low grades. All the figures come from public FEC filings.
             </p>
-            <Lookup onFound={found} idPrefix="home" />
           </div>
           <div className="hero-stamps" aria-hidden="true">
-            <div style={{ position: 'absolute', right: 150, top: 10 }}>
-              <Stamp tier="S" size={170} rot={-12} dark animate delay={0.2} />
+            <div className="stamp-cluster">
+              <div style={{ position: 'absolute', right: '45%', top: '3%' }}>
+                <Stamp tier="S" size="var(--s-big)" rot={-12} dark animate delay={0.2} />
+              </div>
+              <div style={{ position: 'absolute', right: '6%', top: '23%' }}>
+                <Stamp tier="C" size="var(--s-small)" rot={9} dark animate delay={0.45} />
+              </div>
+              <div style={{ position: 'absolute', right: '33%', top: '50%' }}>
+                <Stamp tier="F" size="var(--s-small)" rot={-4} dark animate delay={0.7} />
+              </div>
             </div>
-            <div style={{ position: 'absolute', right: 20, top: 70 }}>
-              <Stamp tier="C" size={150} rot={9} dark animate delay={0.45} />
-            </div>
-            <div style={{ position: 'absolute', right: 110, top: 150 }}>
-              <Stamp tier="F" size={150} rot={-4} dark animate delay={0.7} />
-            </div>
+          </div>
+          <div className="hero-lookup">
+            <Lookup onFound={found} idPrefix="home" />
           </div>
         </div>
       </section>

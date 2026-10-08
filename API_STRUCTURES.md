@@ -492,7 +492,13 @@ nakamotoCoefficient, faraEmployerTotal, pacDetailsStatus, lastUpdated`, plus
   - `donorPoolCommitteeIds`;
   - `evidence: { checked, notes }`. `checked` is true when every record has
     been checked against the FEC's, false while the grade comes from the bulk
-    files only. `notes` lists where the FEC's own figures disagree (D3).
+    files only. `notes` lists where the FEC's own figures disagree (D3);
+  - `grade: { score, detail }` (added 2026-10-07, letter grades only, null
+    otherwise): the grade's working from `workers/tier-calculation.js`.
+    `detail` holds `rawIndividualFundingPercent`, `itemizedPercent`,
+    `trustAnchor` and `trustAnchorBasis` (dinner-party, elite-capture,
+    standard, movement, default), `itemizationPenalty` and
+    `transparencyPenalty`. The member page explains the grade from it.
 
   Members not graded by the job (no FEC identity, or pending) get the old
   stored record, with `evidence: null`. One D1 read per request.

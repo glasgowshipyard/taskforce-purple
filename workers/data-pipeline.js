@@ -346,9 +346,21 @@ function publishedDetail(bioguideId, record, result) {
   const a = result.analysis || {};
   const pf = result.grade.personFigures;
   const pool = result.pool || {};
+  const member = record ? servedMember(publishedMember(record, result)) : null;
   return {
     bioguideId,
-    member: record ? servedMember(publishedMember(record, result)) : null,
+    member,
+    // How the grade was worked out (workers/tier-calculation.js detail: share
+    // from people, large-donor allowance and why, points lost, how far PAC
+    // money raised the bar), so the page can explain it. Only for a letter
+    // grade: a withheld one shows no working (#41)
+    grade:
+      member && /^[SABCDEF]$/.test(member.tier)
+        ? {
+            score: result.grade.individualFundingPercent ?? null,
+            detail: result.grade.detail ?? null,
+          }
+        : null,
     donorPoolCommitteeIds: pool.donorCommitteeIds || [],
     personLevel: true,
     collectedAt: result.computed_at,

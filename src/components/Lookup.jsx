@@ -149,10 +149,6 @@ export default function Lookup({
             onChange={e => setZip(e.target.value)}
           />
         </div>
-        <button type="submit" className="btn btn-big btn-purple" disabled={busy !== null}>
-          {busy === 'zip' ? 'Finding…' : submitLabel}
-          <ArrowRight size={22} aria-hidden="true" />
-        </button>
         <span className="lookup-alt">
           <span className="lookup-or">or</span>
           <button
@@ -165,6 +161,10 @@ export default function Lookup({
             {busy === 'location' ? 'Finding you…' : 'Use my location'}
           </button>
         </span>
+        <button type="submit" className="btn btn-big btn-purple" disabled={busy !== null}>
+          {busy === 'zip' ? 'Finding…' : submitLabel}
+          <ArrowRight size={22} aria-hidden="true" />
+        </button>
       </form>
       <p className="lookup-privacy">
         We look up your district on your own device. Your ZIP code and location aren&apos;t sent

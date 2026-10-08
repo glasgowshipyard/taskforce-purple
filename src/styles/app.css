@@ -804,17 +804,60 @@ p {
 .hero-stamps {
   flex: 1 1 320px;
   min-width: 0;
-  height: 300px;
+  container-type: inline-size;
+}
+
+/* Three stamps drawn for a 330 x 300 box, scaled to whatever width the
+   column has, so they show on any laptop window */
+.stamp-cluster {
+  --w: min(330px, 100cqi);
+  --s-big: calc(var(--w) * 0.515);
+  --s-small: calc(var(--w) * 0.455);
   position: relative;
+  width: var(--w);
+  aspect-ratio: 330 / 300;
+  margin-left: auto;
+}
+
+/* Home: headline and stamps side by side, the lookup on one line below.
+   The headline sizes to its column, so "REPRESENTATIVES?" always fits on
+   one line (it sets at 8.1 times the font size) */
+.hero .wrap.hero-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.7fr) minmax(0, 1fr);
+  gap: 24px 48px;
+  align-items: center;
+}
+
+.hero-grid .hero-copy {
+  container-type: inline-size;
+}
+
+.hero-grid .display-xl {
+  font-size: clamp(36px, 10.5vw, 120px);
+  font-size: min(120px, 12cqi);
+}
+
+.hero-lookup {
+  grid-column: 1 / -1;
+}
+
+.hero-lookup .lookup {
+  margin-top: 8px;
+}
+
+@media (max-width: 700px) {
+  .hero .wrap.hero-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
 }
 
 .hero-stamps .stamp {
-  position: absolute;
   background: transparent;
   box-shadow: none;
 }
 
-@media (max-width: 1000px) {
+@media (max-width: 700px) {
   .hero-stamps {
     display: none;
   }
@@ -1680,4 +1723,181 @@ p {
 
 .icon-button:hover {
   background: rgba(21, 19, 28, 0.08);
+}
+
+/* ---------- Why a grade ---------- */
+
+.scale {
+  margin: 16px 0 28px;
+}
+
+.scale-track {
+  position: relative;
+  height: 72px;
+  border-radius: 8px;
+  overflow: hidden;
+  background: var(--white);
+  border: 1px solid var(--line);
+}
+
+.scale-band {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  background: color-mix(in srgb, var(--g) 12%, white);
+  border-left: 1px solid rgba(21, 19, 28, 0.08);
+  display: flex;
+  justify-content: center;
+  padding-top: 6px;
+  font-family: var(--display);
+  font-weight: 900;
+  font-size: 16px;
+  line-height: 1;
+  color: var(--g);
+}
+
+.scale-band.is-current {
+  background: color-mix(in srgb, var(--g) 32%, white);
+}
+
+.scale-raw,
+.scale-score {
+  position: absolute;
+  left: 0;
+  bottom: 12px;
+  height: 20px;
+}
+
+.scale-raw {
+  background: repeating-linear-gradient(135deg, rgba(21, 19, 28, 0.35) 0 2px, transparent 2px 6px);
+  border: 2px solid var(--ink);
+  border-left: 0;
+}
+
+.scale-score {
+  background: var(--ink);
+}
+
+.scale-ticks {
+  position: relative;
+  height: 18px;
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.scale-ticks span {
+  position: absolute;
+  top: 2px;
+  transform: translateX(-50%);
+}
+
+.scale-key {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 20px;
+  font-family: var(--mono);
+  font-size: 13px;
+}
+
+.scale-key span {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.scale-key i {
+  display: inline-block;
+  width: 22px;
+  height: 12px;
+}
+
+.key-raw {
+  background: repeating-linear-gradient(135deg, rgba(21, 19, 28, 0.35) 0 2px, transparent 2px 6px);
+  border: 2px solid var(--ink);
+}
+
+.key-score {
+  background: var(--ink);
+}
+
+.why-steps {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.why-step {
+  display: flex;
+  gap: 16px;
+  background: var(--white);
+  border: 1px solid var(--line);
+  border-left: 6px solid var(--tone);
+  border-radius: var(--radius);
+  padding: 16px 18px;
+  --tone: var(--muted);
+}
+
+.why-step h3 {
+  font-size: 19px;
+  margin-bottom: 4px;
+}
+
+.why-step p {
+  color: var(--ink-2);
+}
+
+.why-num {
+  flex: 0 0 auto;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: var(--tone);
+  color: var(--white);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--display);
+  font-weight: 900;
+}
+
+.tone-good {
+  --tone: #0c8e6b;
+}
+
+.tone-bad {
+  --tone: #c2412b;
+}
+
+.tone-neutral {
+  --tone: #8a5a00;
+}
+
+/* The verdict under the large-donor bars, on the dark card */
+.verdict {
+  margin-top: 18px;
+  padding: 12px 14px;
+  border-radius: 8px;
+  border-left: 5px solid var(--tone-light);
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--on-dark);
+}
+
+.verdict strong {
+  color: var(--tone-light);
+}
+
+.verdict.tone-good {
+  --tone-light: #34d3a6;
+}
+
+.verdict.tone-bad {
+  --tone-light: #f6836d;
+}
+
+.verdict.tone-neutral {
+  --tone-light: #e9b824;
 }

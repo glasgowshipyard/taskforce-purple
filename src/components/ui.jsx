@@ -18,7 +18,8 @@ export function Stamp({
     <div
       className={`stamp${animate ? ' stamp-in' : ''}${dark ? ' is-dark' : ''}`}
       style={{
-        '--size': `${size}px`,
+        // A number of pixels, or any CSS length (the home page scales its stamps)
+        '--size': typeof size === 'number' ? `${size}px` : size,
         '--rot': `${rot}deg`,
         '--g': dark ? g.light : g.color,
         '--delay': `${delay}s`,

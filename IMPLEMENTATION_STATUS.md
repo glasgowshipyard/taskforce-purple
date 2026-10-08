@@ -4,6 +4,44 @@
 
 ---
 
+## 2026-10-07 (evening): every member page explains its grade
+
+The owner's test: why does Sara Jacobs get an F? The page said "34 people
+gave half the large-donor money" for an F and "4,609 people gave half"
+for an S, with nothing to say which was good or bad, or why.
+
+- **The API serves each grade's working.** `/api/member-detail` (and
+  candidate detail) now carries `grade: { score, detail }`: the share from
+  people, the large-donor allowance and why, points lost, and how far PAC
+  money raised the bar, exactly as `workers/tier-calculation.js` computed
+  it. It comes from the D1 row the endpoint already reads: no extra reads
+  or writes. Letter grades only. Worker deployed.
+- **"Why an F" on every member page**: a 0 to 100 scale with the grade
+  bands (moved up by the PAC bar), the share from people and the share that
+  counts, then numbered steps in plain words, marked good or bad.
+  `src/lib/explain.js` only words the stored working; nothing is
+  recalculated. Tested on Sara Jacobs, AOC and Martin Heinrich's real
+  working.
+- **The large-donor card says what the number means**: very concentrated,
+  concentrated, typical spread, or broad base.
+- **Home:** the headline sizes to its column, so "REPRESENTATIVES?" fits on
+  one line at any width (on wide screens the earlier fix broke it
+  mid-word). The stamps sit beside it and scale down with the window rather
+  than disappearing, and the lookup is one row: ZIP, or use my location,
+  then find my representatives.
+
+**Sara Jacobs' F, from the FEC's own totals:** $929,347 of her $1.87M
+(half) is her own money (candidate contributions). The method counts only
+money from donors as people-funded, so her own money counts the same as PAC
+money. Of the money from people, 78% is large donations, and 34 people gave
+half of it (under 50, so a 10% allowance). 37% from people becomes 12%,
+and the PAC bar is 3 points higher: F. **Open question for the owner:**
+should a candidate's own money count against them like PAC money, or be
+left out of the grade and shown on its own line? A change to the tier
+maths: simulate across all members first, and the owner decides.
+
+---
+
 ## 2026-10-07 (later): the TFP mark, red into blue, and plainer words
 
 Owner's notes on the redesign, the same day:
