@@ -117,14 +117,14 @@ function shares(values, total) {
 
 export const MONEY_KINDS = {
   small: {
-    label: 'Small donors, under $200',
-    short: 'Small donors',
+    label: 'Small donations, under $200',
+    short: 'Small donations',
     color: 'var(--small)',
     canvas: '#5B21B6',
   },
   big: {
-    label: 'Large donors, over $200',
-    short: 'Large donors',
+    label: 'Big donations, over $200',
+    short: 'Big donations',
     color: 'var(--big)',
     canvas: '#B7A6F5',
   },

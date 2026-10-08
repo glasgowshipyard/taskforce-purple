@@ -86,7 +86,7 @@ export default function How() {
                   <span className="member-row-name">
                     {l}: {GRADES[l].name}
                   </span>
-                  <span className="count-line">{GRADES[l].range} people-funded</span>
+                  <span className="count-line">{GRADES[l].range} of every $100 counts</span>
                   <span className="small" style={{ color: 'var(--ink-2)' }}>
                     {GRADES[l].meaning}
                   </span>

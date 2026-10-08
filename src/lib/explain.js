@@ -1,12 +1,17 @@
-// Why a member got their grade, in plain English, from the grade's own
-// working (workers/tier-calculation.js detail, served by /api/member-detail
-// as `grade`). Nothing is recalculated here: the page only explains numbers
-// the grading already produced.
+// Why a member got their grade, in words anyone can follow, from the grade's
+// own working (workers/tier-calculation.js detail, served by
+// /api/member-detail as `grade`). Nothing is recalculated here: the page
+// only puts numbers the grading already produced into plain sentences.
+//
+// Everything is said in dollars out of every $100 raised, because "36% of
+// the money" and "points" lose people; "$36 out of every $100" doesn't.
 import { GRADES, LETTERS } from './grades.js';
 
 const BANDS = { S: 90, A: 75, B: 60, C: 45, D: 30, E: 15, F: 0 };
+const article = tier => (['A', 'E', 'F', 'S'].includes(tier) ? 'an' : 'a');
+const count = n => n.toLocaleString('en-US');
 
-/** Grade bands on 0-100 after PAC money raised the bar by `shift` points. */
+/** Grade bands on 0-100 after concerning PAC money raised them by `shift`. */
 export function gradeBands(shift = 0) {
   return LETTERS.map(letter => {
     const from = letter === 'F' ? 0 : Math.min(100, BANDS[letter] + shift);
@@ -16,79 +21,62 @@ export function gradeBands(shift = 0) {
   }).filter(b => b.to > b.from);
 }
 
-function bandSentence(score, tier, shift) {
-  const band = gradeBands(shift).find(b => b.letter === tier);
-  if (!band) {
-    return '';
-  }
-  const article = ['A', 'E', 'F', 'S'].includes(tier) ? 'an' : 'a';
-  if (tier === 'F') {
-    return `Anything under ${band.to}% is an F.`;
-  }
-  if (band.to >= 100) {
-    return `${band.from}% or more is ${article} ${tier}.`;
-  }
-  return `Between ${band.from}% and ${band.to - 1}% is ${article} ${tier}.`;
-}
-
-const pct = n => `${Math.round(n)}%`;
-
-/** How concentrated the large donors are, in a few words, and whether it's good. */
+/** What the big-donor number on the dark card means, and whether it's good. */
 export function concentrationVerdict(basis) {
   switch (basis) {
     case 'dinner-party':
       return {
         tone: 'bad',
-        label: 'Very concentrated',
-        text: "That's fewer than 50 people. When so few give half the money, most large donations stop counting toward the grade.",
+        label: 'Very few people.',
+        text: "When that few people give that much, they could have a lot of sway. Most of their big donations don't count toward the grade.",
       };
     case 'elite-capture':
       return {
         tone: 'bad',
-        label: 'Concentrated',
-        text: "That's under 5% of their named donors, a narrow group, so part of the large-donor money stops counting.",
+        label: 'A small group.',
+        text: "That's a small group compared with all the donors, so some of the big donations don't count toward the grade.",
       };
     case 'standard':
       return {
         tone: 'neutral',
-        label: 'Typical spread',
-        text: "That's between 5% and 10% of their named donors, a typical spread.",
+        label: 'A normal spread.',
+        text: "That's a normal spread of donors.",
       };
     case 'movement':
       return {
         tone: 'good',
-        label: 'Broad base',
-        text: "That's a broad base of donors, so large donations count in their favor.",
+        label: 'Lots of people.',
+        text: "That's a broad group of donors, which is good for the grade.",
       };
     default:
       return null;
   }
 }
 
-function allowanceText(basis, d, conc) {
-  const n = conc?.n;
-  const share = d.nakamotoPercent ? pct(d.nakamotoPercent) : null;
-  const of = conc?.of ? ` of the ${conc.of.toLocaleString('en-US')} donors the FEC names` : '';
-  const who = n
-    ? `${n.toLocaleString('en-US')} ${n === 1 ? 'person' : 'people'} gave half the large-donor money`
-    : '';
+// How much of the money people gave can come in big donations before the
+// rest stops counting, in words
+const SHARE_WORDS = { 10: 'a tenth', 25: 'a quarter', 40: '4 in every 10 dollars', 50: 'half' };
+
+function whoGaveText(basis, conc) {
+  const n = conc?.n ? count(conc.n) : null;
+  const outOf = conc?.of ? `, out of ${count(conc.of)} big donors` : '';
   switch (basis) {
     case 'dinner-party':
-      return `${who}. That's fewer than 50 people, so large donations can only make up ${d.trustAnchor}% of the money from people before the rest stops counting.`;
+      return `Half of the big-donation money came from just ${n} people. When that few people give that much, they could have a lot of sway.`;
     case 'elite-capture':
-      return `${who}, ${share}${of}. That's a narrow group, so large donations can make up ${d.trustAnchor}% of the money from people before the rest stops counting.`;
+      return `Half of the big-donation money came from ${n} people${outOf}. That's a small group.`;
     case 'standard':
-      return `${who}, ${share}${of}. That's a typical spread, so large donations can make up ${d.trustAnchor}% of the money from people before the rest stops counting.`;
+      return `Half of the big-donation money came from ${n} people${outOf}. That's a normal spread.`;
     case 'movement':
-      return `${who}, ${share}${of}. That's a broad base, so large donations can make up ${d.trustAnchor}% of the money from people, the most we allow.`;
+      return `Half of the big-donation money came from ${n} different people. That's a broad group.`;
     default:
-      return `We don't have enough donor records yet to measure how concentrated the large donors are, so we use the standard allowance: large donations can make up ${d.trustAnchor}% of the money from people.`;
+      return "We can't tell yet how many people gave the big donations, so we use the middle rule.";
   }
 }
 
 /**
  * The steps from "money raised" to the grade.
- *   lines: the receipt's lines (moneyLines), whole percentages of the total
+ *   lines: the receipt's lines (moneyLines), whole dollars out of every $100
  *   grade: { score, detail } from /api/member-detail
  *   conc:  { n, of } from concentration()
  * Returns { steps: [{ title, text, tone }], raw, score, shift } or null when
@@ -107,51 +95,64 @@ export function explainGrade({ tier, lines, grade, conc, name }) {
   const shift = d.transparencyPenalty || 0;
   const steps = [];
 
-  const others = [
-    by('pac') && `PACs (${by('pac')}%)`,
-    by('party') && `party committees (${by('party')}%)`,
-    by('other') &&
-      `other sources (${by('other')}%), such as the candidate's own money, loans or transfers`,
+  // 1. Where each $100 came from
+  const parts = [
+    small && `$${small} from small donations`,
+    big && `$${big} from big donations`,
+    by('pac') && `$${by('pac')} from PACs`,
+    by('party') && `$${by('party')} from party committees`,
+    by('other') && `$${by('other')} from other places, such as the candidate's own money or loans`,
   ].filter(Boolean);
+  const list =
+    parts.length > 1 ? `${parts.slice(0, -1).join(', ')} and ${parts[parts.length - 1]}` : parts[0];
   steps.push({
-    title: `${raw}% came from people`,
+    title: 'Where each $100 came from',
     tone: raw >= 75 ? 'good' : raw < 45 ? 'bad' : 'neutral',
     text:
-      `${small}% from small donors and ${big}% from large donors.` +
-      (others.length
-        ? ` The other ${100 - raw}% came from ${others.join(' and ')}. That money doesn't count as people-funded.`
-        : ''),
+      raw >= 100
+        ? `${list}. All of it was donated by people, so we start with $${raw}.`
+        : `${list}. Only money donated by people counts toward the grade, so we start with $${raw}.`,
   });
 
-  if (d.path === 'enhanced') {
-    const lost = Math.max(0, raw - score);
-    const over = d.itemizedPercent > d.trustAnchor;
+  // 2. Big donations: do they all count?
+  if (d.path === 'enhanced' && big > 0) {
+    const counted = Math.max(0, Math.min(big, score - small));
+    const lost = big - counted;
+    const cap = SHARE_WORDS[d.trustAnchor] || `${d.trustAnchor} in every 100 dollars`;
     steps.push({
-      title: over ? `${lost} points stop counting` : 'All of it counts',
-      tone: over ? 'bad' : 'good',
+      title: lost > 0 ? 'Some big donations don’t count' : 'All the big donations count',
+      tone: lost > 0 ? 'bad' : 'good',
       text:
-        `${allowanceText(d.trustAnchorBasis, d, conc)} ` +
-        (over
-          ? `Large donations are ${pct(d.itemizedPercent)} of ${name}'s money from people, over the ${d.trustAnchor}% allowance. The amount over it doesn't count.`
-          : `Large donations are ${pct(d.itemizedPercent)} of ${name}'s money from people, within the allowance, so it all counts.`),
+        `${whoGaveText(d.trustAnchorBasis, conc)} ` +
+        (lost > 0
+          ? `So big donations can only make up ${cap} of what people gave. Of the $${big} in big donations, we count $${counted}. That leaves $${score}.`
+          : `Big donations can make up ${cap} of what people gave, and here they're under that, so all $${big} counts.`),
     });
   }
 
-  if (shift > 0) {
-    steps.push({
-      title: `The bar is ${shift} points higher`,
-      tone: 'bad',
-      text: `Some of the PAC money came from super PACs, leadership PACs or lobbyists' PACs, which counts against a grade more heavily. That raises the bar for every grade by ${shift} points: an S needs ${Math.min(100, 90 + shift)}% and anything under ${15 + shift}% is an F.`,
-    });
+  // 3. The grade, and the line for it
+  const bands = gradeBands(shift);
+  const band = bands.find(b => b.letter === tier);
+  const next = bands[bands.indexOf(band) - 1];
+  let line;
+  if (tier === 'S') {
+    line = `An S needs $${band.from}, so this is an S.`;
+  } else if (tier === 'F') {
+    line = `${name} would need $${next.from} to get an E.`;
+  } else {
+    line = `${tier === 'A' || tier === 'E' ? 'An' : 'A'} ${tier} needs $${band.from} and ${article(next.letter)} ${next.letter} needs $${next.from}.`;
   }
-
+  const shiftNote =
+    shift > 0
+      ? ` ${tier === 'S' || tier === 'F' ? "That's" : 'Both are'} $${shift} more than usual, because some of the PAC money came from super PACs, lobbyists' PACs or other politicians' PACs, which we count as worse.`
+      : '';
   steps.push({
-    title: `${score}% counts, so ${tier === 'A' || tier === 'E' || tier === 'F' || tier === 'S' ? 'an' : 'a'} ${tier}`,
+    title: `$${score} out of $100 is ${article(tier)} ${tier}`,
     tone: GRADES[tier].rank >= 6 ? 'good' : GRADES[tier].rank <= 4 ? 'bad' : 'neutral',
     text:
       d.path === 'enhanced'
-        ? `${score}% of the money counts as people-funded. ${bandSentence(score, tier, shift)}`
-        : `We don't have the detailed donor records for this grade yet, so it's based on the share from small donors alone: ${score}%. ${bandSentence(score, tier, shift)}`,
+        ? `In the end, $${score} out of every $100 counts as coming from ordinary people. ${line}${shiftNote}`
+        : `We don't have the full donor records for this grade yet, so it only counts small donations: $${score} out of every $100. ${line}${shiftNote}`,
   });
 
   return { steps, raw, score, shift };

@@ -62,7 +62,7 @@ export default function Receipt({ person, delay = 0, animate = true, headingLeve
             {count(conc.n)} <small>{conc.n === 1 ? 'person' : 'people'}</small>
           </p>
           <p className="small" style={{ marginTop: 6, color: 'var(--ink-2)' }}>
-            gave half of the large-donor money
+            gave half of the big-donation money
             {conc.of ? `, out of ${count(conc.of)} donors named in FEC records.` : '.'}
           </p>
         </div>

@@ -153,8 +153,8 @@ function CongressDots({ members }) {
               </h2>
             </div>
             <p style={{ flex: '1 1 320px' }}>
-              {low} of the {graded.length} members we&apos;ve graded rely mostly on PACs or on a
-              small number of large donors. Only {counts.S} are funded mainly by ordinary people.
+              {low} of the {graded.length} members we&apos;ve graded rely mostly on PACs or on a few
+              wealthy donors. Only {counts.S} are funded mainly by ordinary people.
               {unchecked > 0 &&
                 ` ${unchecked} more aren't graded yet while we confirm their records.`}{' '}
               Click a grade to see who&apos;s in it.

@@ -73,7 +73,7 @@ function Row({ m }) {
             {withheld
               ? gradeInfo(m.tier).name
               : n > 0
-                ? `Half of large-donor money from ${n === 1 ? 'one person' : `${count(n)} people`}`
+                ? `Half the big-donation money from ${n === 1 ? 'one person' : `${count(n)} people`}`
                 : gradeInfo(m.tier).name}
           </span>
         </span>

@@ -1,6 +1,19 @@
 # Task Force Purple - Implementation Status
 
-**Last Updated**: 2026-10-07
+**Last Updated**: 2026-10-08
+
+---
+
+## 2026-10-08: grade explanations rewritten so anyone can follow them
+
+The owner read Sara Jacobs' page and found the steps unreadable
+("allowance", "points", "the bar"). They now count in dollars out of every
+$100 and say which line the member missed: "$8 from small donations, $28
+from big donations, $13 from PACs and $51 from other places… so we start
+with $36", "Of the $28 in big donations, we count $4. That leaves $12",
+"Sara Jacobs would need $18 to get an E". One set of words everywhere:
+small donations, big donations, PACs. Grade meanings use dollars too. The
+tests check the actual sentences.
 
 ---
 

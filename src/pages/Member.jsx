@@ -78,10 +78,10 @@ function pacStanding(share, members) {
   }
   const below = shares.filter(s => s < share).length / shares.length;
   if (below >= 0.6) {
-    return `That's a higher share than ${Math.round(below * 100)}% of members of Congress.`;
+    return `That's more than ${Math.round(below * 100)} out of every 100 members of Congress.`;
   }
   if (below <= 0.4) {
-    return "That's a lower share than most members of Congress.";
+    return "That's less than most members of Congress.";
   }
   return "That's about average for Congress.";
 }
@@ -130,7 +130,7 @@ function findRace(races, pred) {
 }
 
 // The grade scale, 0 to 100% people-funded, with this person's share from
-// people and the share that counts after the large-donor allowance
+// people and the share that counts after big donations from a few people are cut
 function ScoreScale({ raw, score, shift, tier }) {
   const bands = gradeBands(shift);
   return (
@@ -167,10 +167,10 @@ function ScoreScale({ raw, score, shift, tier }) {
       </div>
       <figcaption className="scale-key">
         <span>
-          <i className="key-raw" aria-hidden="true" /> From people: {raw}%
+          <i className="key-raw" aria-hidden="true" /> Donated by people: ${raw} of every $100
         </span>
         <span>
-          <i className="key-score" aria-hidden="true" /> Counts toward the grade: {score}%
+          <i className="key-score" aria-hidden="true" /> Counts toward the grade: ${score}
         </span>
       </figcaption>
     </figure>
@@ -283,9 +283,9 @@ export default function Member({ id, kind = 'member' }) {
   const gradedOn = dateText(d?.collectedAt || m.gradedAt);
   const canShare = isLetter(m.tier) && hasMoney;
   const fromWhom = n => (n === 1 ? 'one person' : `${count(n)} people`);
-  // Leads with the number; the non-breaking hyphen keeps "large-donor" on one line
+  // Leads with the number; the non-breaking hyphen keeps "big-donation" on one line
   const headline = conc
-    ? `${conc.n === 1 ? 'One person' : `${count(conc.n)} people`} gave half the large\u2011donor money.`
+    ? `${conc.n === 1 ? 'One person' : `${count(conc.n)} people`} gave half the big\u2011donation money.`
     : `${smallPct}% of the money came from small donors.`;
   const standing = hasMoney ? pacStanding(f.pacMoney / f.totalRaised, members) : null;
   const why = hasMoney ? explainGrade({ tier: m.tier, lines, grade: d?.grade, conc, name }) : null;
@@ -403,7 +403,7 @@ export default function Member({ id, kind = 'member' }) {
 
             <div className="member-main">
               <div className="headline dark on-dark">
-                <p className="eyebrow">Large donors</p>
+                <p className="eyebrow">Big donations</p>
                 <p
                   className="display"
                   style={{ marginTop: 12, fontSize: 'clamp(40px, 6vw, 84px)', lineHeight: 0.9 }}
@@ -414,13 +414,13 @@ export default function Member({ id, kind = 'member' }) {
                   <>
                     <p className="lede">
                       {conc.of
-                        ? `The FEC lists ${count(conc.of)} people by name as donors to ${name}. It names anyone who gives more than $200. Half of their money came from ${conc.n === 1 ? 'one of them' : `${count(conc.n)} of them`}, and the other ${count(conc.of - conc.n)} gave the rest.`
-                        : `Half of the money from large donors came from ${fromWhom(conc.n)}.`}
+                        ? `${count(conc.of)} people each gave ${name} more than $200. Half of that money came from just ${conc.n === 1 ? 'one of them' : `${count(conc.n)} of them`}. The other ${count(conc.of - conc.n)} gave the other half.`
+                        : `Half of the big-donation money came from ${fromWhom(conc.n)}.`}
                     </p>
                     <ConcentrationBars n={conc.n} of={conc.of} />
                     {verdict && (
                       <p className={`verdict tone-${verdict.tone}`}>
-                        <strong>{verdict.label}.</strong> {verdict.text}
+                        <strong>{verdict.label}</strong> {verdict.text}
                       </p>
                     )}
                   </>
@@ -449,7 +449,7 @@ export default function Member({ id, kind = 'member' }) {
                     </ol>
                     {standing && pacPct > 0 && (
                       <p className="fine" style={{ marginTop: 12 }}>
-                        {pacPct}% of the money came from PACs. {standing}
+                        ${pacPct} of every $100 came from PACs. {standing}
                       </p>
                     )}
                   </>
@@ -469,7 +469,7 @@ export default function Member({ id, kind = 'member' }) {
                         <div className="fact">
                           <b>{count(conc.n)}</b>
                           <p>
-                            {conc.n === 1 ? 'donor gave' : 'donors gave'} half of the large-donor
+                            {conc.n === 1 ? 'donor gave' : 'donors gave'} half of the big-donation
                             money.
                           </p>
                         </div>
@@ -689,7 +689,7 @@ export default function Member({ id, kind = 'member' }) {
                 <p className="fine">
                   <strong>How we count:</strong> Money moved between someone&apos;s own committees
                   is only counted once. Money received from a joint fundraising committee is split
-                  into small donors, large donors and PACs in the same proportions as that
+                  into small donations, big donations and PACs in the same proportions as that
                   committee&apos;s own fundraising.{' '}
                   {f.allCommittees
                     ? 'This grade includes all of the committees listed above.'

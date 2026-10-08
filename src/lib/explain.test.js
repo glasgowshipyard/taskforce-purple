@@ -55,31 +55,45 @@ const aoc = {
 };
 
 describe('explainGrade', () => {
-  it('an F says where the money came from and what stopped counting', () => {
+  it('an F says where the money came from, what stopped counting, and the line it missed', () => {
     const e = explainGrade(jacobs);
     expect(e.raw).toBe(36);
     expect(e.score).toBe(12);
-    const [people, allowance, bar, result] = e.steps;
-    expect(people.title).toBe('36% came from people');
-    expect(people.tone).toBe('bad');
-    expect(people.text).toMatch(/other sources \(51%\), such as the candidate's own money/);
-    expect(allowance.title).toBe('24 points stop counting');
-    expect(allowance.text).toMatch(/fewer than 50 people/);
-    expect(allowance.text).toMatch(/only make up 10%/);
-    expect(bar.title).toBe('The bar is 3 points higher');
-    expect(result.title).toBe('12% counts, so an F');
-    expect(result.text).toMatch(/Anything under 18% is an F/);
+    const [where, big, result] = e.steps;
+    expect(e.steps).toHaveLength(3);
+    expect(where.title).toBe('Where each $100 came from');
+    expect(where.tone).toBe('bad');
+    expect(where.text).toBe(
+      "$8 from small donations, $28 from big donations, $13 from PACs and $51 from other places, such as the candidate's own money or loans. Only money donated by people counts toward the grade, so we start with $36."
+    );
+    expect(big.title).toBe('Some big donations don’t count');
+    expect(big.text).toBe(
+      'Half of the big-donation money came from just 34 people. When that few people give that much, they could have a lot of sway. So big donations can only make up a tenth of what people gave. Of the $28 in big donations, we count $4. That leaves $12.'
+    );
+    expect(result.title).toBe('$12 out of $100 is an F');
+    expect(result.text).toMatch(/Sara Jacobs would need \$18 to get an E\./);
+    expect(result.text).toMatch(/That's \$3 more than usual, because/);
   });
 
   it('an S says why it is good', () => {
     const e = explainGrade(aoc);
-    const [people, allowance, result] = e.steps;
+    const [where, big, result] = e.steps;
     expect(e.steps).toHaveLength(3);
-    expect(people.tone).toBe('good');
-    expect(allowance.title).toBe('All of it counts');
-    expect(allowance.text).toMatch(/broad base/);
-    expect(result.title).toBe('98% counts, so an S');
-    expect(result.text).toMatch(/90% or more is an S/);
+    expect(where.tone).toBe('good');
+    expect(big.title).toBe('All the big donations count');
+    expect(big.text).toMatch(/from 4,609 different people\. That's a broad group/);
+    expect(result.title).toBe('$98 out of $100 is an S');
+    expect(result.text).toMatch(/An S needs \$90, so this is an S\./);
+  });
+
+  it('a middle grade names its line and the next one up', () => {
+    const e = explainGrade({
+      ...aoc,
+      tier: 'D',
+      name: 'A member',
+      grade: { score: 38, detail: { ...aoc.grade.detail, transparencyPenalty: 6 } },
+    });
+    expect(e.steps.at(-1).text).toMatch(/A D needs \$36 and a C needs \$51\./);
   });
 
   it('explains nothing without the working, or for a withheld grade', () => {

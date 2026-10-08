@@ -88,7 +88,7 @@ function CompareTable({ cands }) {
       score: c => (c.tier && Number.isFinite(c.pac) ? -c.pac / c.totalRaised : -Infinity),
     },
     {
-      label: 'Donors who gave half the large-donor money',
+      label: 'People who gave half the big-donation money',
       value: c => (c.nakamoto > 0 ? count(c.nakamoto) : '—'),
       score: c => (c.nakamoto > 0 ? c.nakamoto : -1),
     },
