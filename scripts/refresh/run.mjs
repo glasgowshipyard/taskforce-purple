@@ -58,7 +58,14 @@ import {
 import { cycleForYear } from '../../workers/tier-calculation.js';
 import { analyzePool, loadFara } from './lib/analysis.mjs';
 import { ensureFara } from './lib/fara.mjs';
-import { asPacContributions, pacGifts, pacProfiles, pacSummary } from './lib/pacs.mjs';
+import { gradeVariants, pacShares, untraced } from './lib/pac-sim.mjs';
+import {
+  asPacContributions,
+  pacGifts,
+  pacProfiles,
+  pacSummary,
+  upstreamGifts,
+} from './lib/pacs.mjs';
 import { discoverPeople, loadDiscoveryFiles } from './lib/discovery.mjs';
 import { apiRowToBulkShape, ensureBulkFile, insertApiRows, loadBulk } from './lib/bulk.mjs';
 import { RESULTS_DB, createCloudflare } from './lib/cloudflare.mjs';
@@ -212,6 +219,9 @@ async function main() {
   // Every PAC gift to each member, and each giving PAC's own donors (#57)
   const giftsFor = new Map();
   let profiles = new Map();
+  let upstream = new Map();
+  let shares = new Map();
+  const pacTypes = {}; // report: PAC dollars and traced people dollars by kind and organisation type
   if (arg('--discovery', 'zips') === 'zips') {
     db = await loadDiscoveryFiles(cycle, bulkDir, log);
     discovered = await discoverPeople({
@@ -236,9 +246,22 @@ async function main() {
         .map(c => c.committeeId);
       giftsFor.set(id, await pacGifts(db, vehicles));
     }
-    const givers = [...giftsFor.values()].flatMap(g => g.slice(0, 30).map(x => x.id));
-    profiles = await pacProfiles(db, file.path, givers);
-    log(`PACs: ${new Set(givers).size} giving PACs profiled`);
+    // The page shows the 30 biggest per member; the simulation (--report)
+    // traces every giving PAC, and the committees that fund them (#57)
+    const givers = [...giftsFor.values()].flatMap(g =>
+      (reportPath ? g : g.slice(0, 30)).map(x => x.id)
+    );
+    if (reportPath) {
+      upstream = await upstreamGifts(db, givers);
+    }
+    const upIds = [...upstream.values()].flatMap(u => u.map(x => x.id));
+    profiles = await pacProfiles(db, file.path, [...givers, ...upIds]);
+    if (reportPath) {
+      shares = pacShares(profiles, upstream);
+    }
+    log(
+      `PACs: ${new Set(givers).size} giving PACs profiled${reportPath ? `, ${new Set(upIds).size} committees funding them` : ''}`
+    );
   }
   const conduitName = async id => {
     if (!conduitNames.has(id)) {
@@ -557,6 +580,11 @@ async function main() {
               0
             ),
             pacFullTotal: gifts ? gifts.reduce((t, x) => t + x.amount, 0) : null,
+            variants:
+              gifts && member
+                ? gradeVariants({ member, asStored, gifts, shares, gradeMember })
+                : null,
+            untraced: gifts ? untraced(gifts, shares) : null,
             faraEmployerTotal: analysis.faraEmployerTotal,
             faraAgentTotal: analysis.faraAgentTotal,
           });
@@ -646,6 +674,17 @@ async function main() {
   }
 
   if (reportPath) {
+    for (const gifts of giftsFor.values()) {
+      for (const g of gifts) {
+        const k = `${g.kind}/${g.orgType || '-'}`;
+        const t = (pacTypes[k] ||= { dollars: 0, people1: 0, people2: 0, untraced1: 0 });
+        t.dollars += g.amount;
+        t.people1 += g.amount * (shares.get(g.id)?.[1]?.share || 0);
+        t.people2 += g.amount * (shares.get(g.id)?.[2]?.share || 0);
+        t.untraced1 += g.amount * (1 - (shares.get(g.id)?.[1]?.traceable || 0));
+      }
+    }
+    writeFileSync(`${reportPath}.pacs.json`, JSON.stringify(pacTypes, null, 1));
     writeFileSync(reportPath, JSON.stringify(report, null, 1));
     const moved = key => report.filter(r => r[key] && r[key].tier !== r.before.tier);
     const byParty = list =>

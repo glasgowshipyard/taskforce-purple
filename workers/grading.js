@@ -3,13 +3,17 @@
 // (with the analysis it computes), so both grade exactly the same way.
 // The tier maths itself is in tier-calculation.js.
 
-import { calculateEnhancedTier as computeEnhancedTier } from './tier-calculation.js';
+import {
+  DEFAULT_OPTIONS,
+  calculateEnhancedTier as computeEnhancedTier,
+} from './tier-calculation.js';
 
 /**
  * `analysis` must already be known to belong to the member (same committee;
- * the caller rejects a mismatched one, issue #41), or be null.
+ * the caller rejects a mismatched one, issue #41), or be null. `options`
+ * (simulations only) override production's tier options.
  */
-export function gradeMember(member, analysis) {
+export function gradeMember(member, analysis, options = null) {
   // Grade basis (#32). Once a member's analysis pools donors from every
   // committee they run, grade on everything they received - campaign(s),
   // leadership PAC, and money transferred in from joint funds - so the
@@ -61,7 +65,11 @@ export function gradeMember(member, analysis) {
         individualFundingPercent: null,
         detail: { path: 'disputed' },
       }
-    : computeEnhancedTier(scored, analysis);
+    : computeEnhancedTier(
+        scored,
+        analysis,
+        options ? { ...DEFAULT_OPTIONS, ...options } : DEFAULT_OPTIONS
+      );
   result.gradeBasis = personLevel
     ? 'all-committees'
     : pf && !pf.failed && !reconciled

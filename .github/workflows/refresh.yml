@@ -95,7 +95,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: grade-report
-          path: ${{ runner.temp }}/grade-report.json
+          path: ${{ runner.temp }}/grade-report.json*
           if-no-files-found: warn
 
       # Opens, updates or closes the system-alert issue from /api/health

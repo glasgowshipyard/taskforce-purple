@@ -152,3 +152,27 @@ export function pacSummary(gifts, profiles, limit = 30) {
     list: gifts.slice(0, limit).map(g => ({ ...g, profile: profiles.get(g.id) || null })),
   };
 }
+
+/**
+ * Committees that gave to each PAC (the PACs' upstream money), from the
+ * giving committees' own reports: Map PAC id -> [{ id, amount }]. For
+ * tracing a PAC's money one level further (#57 simulation, depth 2).
+ */
+export async function upstreamGifts(db, pacIds) {
+  const ids = [...new Set(pacIds)].filter(id => IDS.test(id));
+  const out = new Map(ids.map(id => [id, []]));
+  if (!ids.length) {
+    return out;
+  }
+  const list = ids.map(id => `('${id}')`).join(',');
+  const rows = await db.read(`
+    WITH ids(id) AS (VALUES ${list})
+    SELECT o.other_id AS pac, o.committee_id AS id, sum(o.amount) AS amount
+    FROM oth o JOIN ids ON ids.id = o.other_id
+    WHERE o.tx_type IN ('24K', '24G', '24Z') AND o.committee_id <> o.other_id
+    GROUP BY 1, 2 HAVING sum(o.amount) > 0`);
+  for (const r of rows) {
+    out.get(r.pac).push({ id: r.id, amount: cents(r.amount) });
+  }
+  return out;
+}

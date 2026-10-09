@@ -32,6 +32,10 @@ const PANELS = [
     title: "What we don't grade",
     text: "We don't look at votes, positions or party, and the same rules apply to every member. The site has no ads and no tracking, and the code is open source.",
   },
+  {
+    title: 'Outside spending',
+    text: "Super PACs and other outside groups can spend unlimited money on ads for or against a member. That money never goes through the member's own campaign, so it isn't part of the grade. A grade only covers money given to the member's own committees.",
+  },
 ];
 
 export default function How() {

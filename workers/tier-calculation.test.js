@@ -13,6 +13,8 @@ import {
   getTrustAnchor,
   isConcentrationReliable,
   LEGACY_OPTIONS,
+  PAC_WEIGHTS,
+  pacPeopleShare,
 } from './tier-calculation.js';
 
 // Reference members built from the documented Bernie/Pelosi examples
@@ -427,5 +429,75 @@ describe('Step 4 corrected: excess-money penalty (issue #42)', () => {
       'S'
     );
     expect(['E', 'F']).toContain(calculateEnhancedTier(verifiedOver, dinnerParty, opts).tier);
+  });
+});
+
+describe('pacPeopleShare: looking through a PAC to its donors (#57)', () => {
+  it('a PAC funded by many small donors counts mostly as people', () => {
+    // 50,000 receipts: 48,000 from individuals, 10,000 of it itemized from 400 donors
+    const { share, traceable } = pacPeopleShare({
+      receipts: 50000,
+      individuals: 48000,
+      itemized: 10000,
+      donors: 400,
+      nakamoto: 120,
+    });
+    expect(share).toBeCloseTo(0.96, 2);
+    expect(traceable).toBeCloseTo(0.96, 2);
+  });
+
+  it('a PAC funded by a few executives counts as concentrated big money', () => {
+    // All itemized, half of it from 2 of 12 donors: the strictest allowance
+    const { share } = pacPeopleShare({
+      receipts: 100000,
+      individuals: 100000,
+      itemized: 100000,
+      donors: 12,
+      nakamoto: 2,
+    });
+    expect(share).toBeCloseTo(0.1, 2);
+  });
+
+  it('money from other committees counts only as far as it can be traced', () => {
+    const base = { receipts: 100000, individuals: 50000, itemized: 0, donors: 0, nakamoto: null };
+    expect(pacPeopleShare(base)).toEqual({ share: 0.5, traceable: 0.5 });
+    const traced = pacPeopleShare({ ...base, upstream: [{ amount: 50000, share: 0.8 }] });
+    expect(traced.share).toBeCloseTo(0.9, 5);
+    expect(traced.traceable).toBe(1);
+  });
+
+  it('no summary from the FEC: nothing traced', () => {
+    expect(pacPeopleShare(null)).toEqual({ share: 0, traceable: 0 });
+  });
+});
+
+describe('PAC weights and PAC credit (simulation options, #57)', () => {
+  it('production weights are unchanged', () => {
+    expect(getPACTransparencyWeight('Q', 'B')).toBe(1.5);
+    expect(getPACTransparencyWeight('O', 'U')).toBe(2.0);
+    expect(getPACTransparencyWeight('Q', 'D')).toBe(1.5);
+  });
+
+  it('a simulation can drop the extra weight on lobbyist PACs', () => {
+    const w = { ...PAC_WEIGHTS, lobbyist: 1.0 };
+    expect(getPACTransparencyWeight('Q', 'B', w)).toBe(1.0);
+    expect(getPACTransparencyWeight('Q', 'D', w)).toBe(1.5);
+  });
+
+  it('PAC money traced to people adds to the people-funded share', () => {
+    const member = {
+      fecIdentityVerified: true,
+      totalRaised: 1000000,
+      grassrootsDonations: 200000,
+      largeDonorDonations: 200000,
+      grassrootsPercent: 20,
+      pacMoney: 600000,
+      pacContributions: [{ committee_type: 'Q', designation: 'U', amount: 600000 }],
+    };
+    const plain = calculateEnhancedTier(member, null);
+    const credited = calculateEnhancedTier({ ...member, pacPeopleCredit: 300000 }, null);
+    expect(credited.individualFundingPercent - plain.individualFundingPercent).toBe(30);
+    expect(credited.detail.pacCredit).toBe(30);
+    expect(plain.detail.pacCredit).toBeUndefined();
   });
 });

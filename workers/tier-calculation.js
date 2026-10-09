@@ -67,19 +67,34 @@ export function cycleForYear(year) {
   return year % 2 === 0 ? year : year + 1;
 }
 
-export function getPACTransparencyWeight(committee_type, designation) {
+// How much more (or less) concerning each kind of PAC money is, for the PAC
+// bar (calculateTransparencyPenalty). Production uses these. A simulation
+// can pass its own (options.pacWeights), e.g. lobbyist: 1.0 to test dropping
+// the extra weight on FEC designation B, which covers about 77% of PAC money
+// to members (#57, 2026-10-09).
+export const PAC_WEIGHTS = {
+  super: 2.0, // committee type O: Super PACs are 2x more concerning
+  candidate: 0.3, // committee type P: candidate committees 70% less concerning
+  leadership: 1.5, // designation D: another politician's PAC
+  lobbyist: 1.5, // designation B: lobbyist/registrant PAC
+  authorized: 0.15, // designation P/A: candidate/authorized, 85% less concerning
+};
+
+export function getPACTransparencyWeight(committee_type, designation, w = PAC_WEIGHTS) {
   let weight = 1.0;
 
   if (committee_type === 'O') {
-    weight *= 2.0; // Super PACs are 2x more concerning
+    weight *= w.super;
   } else if (committee_type === 'P') {
-    weight *= 0.3; // Candidate committees are 70% less concerning
+    weight *= w.candidate;
   }
 
-  if (designation === 'D' || designation === 'B') {
-    weight *= 1.5; // Leadership/Lobbyist PACs 50% more concerning
+  if (designation === 'D') {
+    weight *= w.leadership;
+  } else if (designation === 'B') {
+    weight *= w.lobbyist;
   } else if (designation === 'P' || designation === 'A') {
-    weight *= 0.15; // Candidate/Authorized committees 85% less concerning
+    weight *= w.authorized;
   }
 
   return weight;
@@ -215,7 +230,8 @@ export function calculateItemizationPenalty(
 }
 
 // Penalty points from concerning PAC funding; shifts tier thresholds upward
-export function calculateTransparencyPenalty(member) {
+export function calculateTransparencyPenalty(member, options = DEFAULT_OPTIONS) {
+  const weights = options.pacWeights || PAC_WEIGHTS;
   if (!member.totalRaised) {
     return 0;
   }
@@ -226,7 +242,7 @@ export function calculateTransparencyPenalty(member) {
     for (const pac of member.pacContributions) {
       const weight =
         pac.committee_type || pac.designation
-          ? getPACTransparencyWeight(pac.committee_type, pac.designation)
+          ? getPACTransparencyWeight(pac.committee_type, pac.designation, weights)
           : 1.0;
 
       if (weight > 1.0) {
@@ -348,7 +364,17 @@ export function calculateEnhancedTier(member, concentration = null, options = DE
   // it stays readable, and keep the raw figure for the card's footnote.
   individualFundingPercent = Math.min(100, individualFundingPercent);
 
-  const transparencyPenalty = calculateTransparencyPenalty(member);
+  // PAC money traced back to the people who funded each PAC (#57; only in
+  // simulations until the owner decides: production members carry no
+  // pacPeopleCredit). It's already been through each PAC's own
+  // concentration test, so it adds straight to the people-funded share.
+  const pacCreditPercent =
+    member.pacPeopleCredit > 0 ? (member.pacPeopleCredit / member.totalRaised) * 100 : 0;
+  if (pacCreditPercent > 0) {
+    individualFundingPercent = Math.min(100, individualFundingPercent + pacCreditPercent);
+  }
+
+  const transparencyPenalty = calculateTransparencyPenalty(member, options);
   const thresholds = getAdjustedThresholds(transparencyPenalty);
 
   let tier;
@@ -383,6 +409,53 @@ export function calculateEnhancedTier(member, concentration = null, options = DE
       nakamotoPercent,
       itemizationPenalty: Math.round(itemizationPenalty * 10) / 10,
       transparencyPenalty,
+      ...(pacCreditPercent > 0 ? { pacCredit: Math.round(pacCreditPercent * 10) / 10 } : {}),
     },
+  };
+}
+
+/**
+ * How much of a PAC's money counts as coming from people, looking through it
+ * to its own donors with the same rules as a member's (#57): its share from
+ * individuals, less big donations above the allowance its donor
+ * concentration earns. Money it got from other committees counts only as far
+ * as it can be traced to them (`profile.upstream`: [{ amount, share }], each
+ * upstream committee's own share, one level further); the rest is untraced
+ * and counts as not-people.
+ *   profile: { receipts, individuals, itemized, donors, nakamoto, upstream? }
+ * Returns { share, traceable }, both 0-1.
+ */
+export function pacPeopleShare(profile, options = DEFAULT_OPTIONS) {
+  const receipts = profile?.receipts || 0;
+  if (receipts <= 0) {
+    return { share: 0, traceable: 0 };
+  }
+  const individuals = Math.max(0, Math.min(profile.individuals || 0, receipts));
+  const itemized = Math.max(0, Math.min(profile.itemized || 0, individuals));
+  const raw = (individuals / receipts) * 100;
+  const itemizedPercent = individuals > 0 ? (itemized / individuals) * 100 : 0;
+  const { anchor } = getTrustAnchor(
+    { largeDonorDonations: itemized },
+    {
+      nakamotoCoefficient: profile.nakamoto ?? undefined,
+      uniqueDonors: profile.donors ?? undefined,
+      totalAmount: itemized,
+    },
+    options
+  );
+  const fromPeople = raw - calculateItemizationPenalty(itemizedPercent, anchor, options, raw);
+  const upstream = (profile.upstream || []).filter(u => u.amount > 0);
+  const traced = Math.min(
+    receipts - individuals,
+    upstream.reduce((t, u) => t + u.amount, 0)
+  );
+  const upstreamShare =
+    traced > 0
+      ? (upstream.reduce((t, u) => t + u.amount * u.share, 0) / receipts) *
+        (traced / upstream.reduce((t, u) => t + u.amount, 0))
+      : 0;
+  return {
+    share: Math.max(0, Math.min(1, fromPeople / 100 + upstreamShare)),
+    traceable: Math.min(1, (individuals + traced) / receipts),
   };
 }
