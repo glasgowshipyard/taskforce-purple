@@ -29,6 +29,7 @@
   --big: #b7a6f5;
   --pac: #15131c;
   --party: #9c98a6;
+  --own: #e3a008;
   --other: #e2dfd8;
 
   --checked: #0b7a5c;
@@ -1950,4 +1951,74 @@ p {
   font-size: 14px;
   letter-spacing: 0.02em;
   color: var(--ink-2);
+}
+
+/* ---------- Self-funding, PAC kinds, foreign agents (#57, #59, #60) ---------- */
+
+.self-funded {
+  margin-top: 12px;
+  max-width: 46em;
+  padding: 12px 14px;
+  border-left: 5px solid var(--own);
+  background: #fff8e1;
+  border-radius: 6px;
+  font-size: 15px;
+  color: var(--ink-2);
+}
+
+.self-funded strong {
+  color: var(--ink);
+}
+
+.pac-split {
+  display: flex;
+  height: 16px;
+  border-radius: 3px;
+  overflow: hidden;
+  background: var(--other);
+}
+
+.pac-split-key {
+  list-style: none;
+  margin: 12px 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 14px;
+}
+
+.pac-split-key li {
+  display: flex;
+  gap: 8px;
+  align-items: baseline;
+}
+
+.pac-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.pac-list-top {
+  display: flex;
+  gap: 8px;
+  align-items: baseline;
+  font-family: var(--mono);
+  font-size: 14px;
+}
+
+.pac-list-top .name {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.pac-list-sub {
+  margin-top: 2px;
+  padding-left: 22px;
+  font-size: 13px;
+  color: var(--muted);
 }

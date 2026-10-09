@@ -70,7 +70,7 @@ describe('explainGrade', () => {
     expect(where.title).toBe('Where each $100 came from');
     expect(where.tone).toBe('bad');
     expect(where.text).toBe(
-      "$8 from small donations, $28 from big donations, $13 from PACs and $51 from other places, such as the candidate's own money or loans. Only money donated by people counts toward the grade, so we start with $36."
+      '$8 from small donations, $28 from big donations, $13 from PACs and $51 from other places, such as loans or transfers. Only money donated by people counts toward the grade, so we start with $36.'
     );
     expect(big.title).toBe('Some big donations don’t count');
     expect(big.text).toBe(
@@ -142,7 +142,7 @@ describe('headlineFor: lead with what decided the grade (#56)', () => {
     expect(h.tone).toBe('bad');
     expect(h.eyebrow).toBe('What hurt the grade most');
     expect(h.big).toBe("51% of the money didn't come from donors.");
-    expect(h.text).toMatch(/Sara Jacobs's own money/);
+    expect(h.text).toMatch(/loans or transfers/);
   });
 
   it('PAC money leads when it is the biggest cause', () => {
@@ -174,5 +174,14 @@ describe('rankLine', () => {
     expect(rankLine(5, scores.slice(0, 10))).toBeNull();
     // The top member isn't "more than 100 in 100"
     expect(rankLine(1000, scores)).toBe('More people-funded than 99 in 100 members of Congress.');
+  });
+});
+
+describe('own money is set aside first (#59)', () => {
+  it('says so, then counts per $100 from others', () => {
+    const e = explainGrade({ ...jacobs, ownPct: 50 });
+    expect(e.steps[0].text).toMatch(
+      /^Sara Jacobs paid \$50 of every \$100 personally\. We leave that out, so these amounts are per \$100 from others: /
+    );
   });
 });

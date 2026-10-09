@@ -35,7 +35,13 @@ export function ensureFara(dir, log = console.log) {
       execFileSync('curl', ['-sL', '--fail', '--max-time', '300', '-o', zip, url(name)]);
     }
     if (!existsSync(csv) || statSync(csv).mtimeMs < statSync(zip).mtimeMs) {
-      execFileSync('sh', ['-c', `unzip -p '${zip}' '${name}.csv' > '${csv}'`]);
+      // The DOJ's files carry the odd byte that isn't valid UTF-8 (an
+      // address in line 174 of the short forms, 2026-10-09), which DuckDB
+      // refuses: drop such bytes
+      execFileSync('sh', [
+        '-c',
+        `unzip -p '${zip}' '${name}.csv' | iconv -c -f UTF-8 -t UTF-8 > '${csv}'`,
+      ]);
     }
     out[name] = csv;
   }

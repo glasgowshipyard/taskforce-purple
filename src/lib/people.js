@@ -95,7 +95,18 @@ export function gradedFigures(m) {
     pacMoney: f.pacMoney || 0,
     partyMoney: f.partyMoney || 0,
     grassrootsPercent: f.grassrootsPercent ?? 0,
+    // The candidate's own gifts and loans (#59): shown, not graded
+    ownMoney: (f.ownMoney?.contributions || 0) + (f.ownMoney?.loans || 0),
+    ownRepaid: f.ownMoney?.repaid || 0,
   };
+}
+
+/**
+ * The figures the grade was worked out on: the money from others, with the
+ * candidate's own money set aside (workers/grading.js, #59).
+ */
+export function othersFigures(f) {
+  return { ...f, totalRaised: Math.max(0, f.totalRaised - (f.ownMoney || 0)), ownMoney: 0 };
 }
 
 // Whole percentages that add up to what they share (largest remainder)
@@ -130,8 +141,14 @@ export const MONEY_KINDS = {
   },
   pac: { label: 'PACs', short: 'PACs', color: 'var(--pac)', canvas: '#15131C' },
   party: { label: 'Party committees', short: 'Party', color: 'var(--party)', canvas: '#9C98A6' },
+  own: {
+    label: 'Their own money',
+    short: 'Own money',
+    color: 'var(--own)',
+    canvas: '#E3A008',
+  },
   other: {
-    label: 'Other (loans, transfers, own money)',
+    label: 'Other (loans, transfers, refunds)',
     short: 'Other',
     color: 'var(--other)',
     canvas: '#E2DFD8',
@@ -145,13 +162,15 @@ export const MONEY_KINDS = {
 export function moneyLines(f) {
   const total = f.totalRaised;
   const big = f.largeDonorDonations;
-  const known = f.grassrootsDonations + (big || 0) + f.pacMoney + f.partyMoney;
+  const own = f.ownMoney || 0;
+  const known = f.grassrootsDonations + (big || 0) + f.pacMoney + f.partyMoney + own;
   const other = Math.max(0, total - known);
   const amounts = {
     small: f.grassrootsDonations,
     big,
     pac: f.pacMoney,
     party: f.partyMoney,
+    own,
     other,
   };
   const keys = Object.keys(amounts);
@@ -162,7 +181,7 @@ export function moneyLines(f) {
   return keys
     .map((key, i) => ({ key, ...MONEY_KINDS[key], amount: amounts[key], pct: pcts[i] }))
     .filter(l => {
-      if (l.key === 'party' || l.key === 'other') {
+      if (l.key === 'party' || l.key === 'other' || l.key === 'own') {
         return l.pct >= 1;
       }
       return true;

@@ -34,17 +34,28 @@ export async function loadFara(bulk, rows, files = null, cycle = null) {
       batch.flatMap(r => [r.employer, r.fara_firm, String(r.registration_number ?? '')])
     );
   }
-  // Active at any time in the two years of the cycle
+  // Active at any time in the two years of the cycle. The DOJ's CSVs carry
+  // unescaped quotes inside names (L.A. "Skip" ...): read them leniently
   const since = cycle ? `${cycle - 1}-01-01` : '1900-01-01';
   const ended = col =>
     `(coalesce(${col}, '') = '' OR try_strptime(${col}, '%m/%d/%Y') >= DATE '${since}')`;
+  try {
+    await loadRegister(bulk, files, ended);
+  } catch (error) {
+    // A malformed register must not stop a grading run: match employers only
+    console.log(`FARA register unreadable (${error.message}): matching employers only`);
+    await loadRegister(bulk, null, ended);
+  }
+}
+
+async function loadRegister(bulk, files, ended) {
   await bulk.conn.run(
     files
       ? `CREATE OR REPLACE TABLE fara_agents AS
          SELECT "Registration Number" AS reg, ${LETTERS('"Short Form Last Name"')} AS last,
            ${LETTERS(`split_part(trim("Short Form First Name"), ' ', 1)`)} AS first,
            trim("Short Form First Name") || ' ' || trim("Short Form Last Name") AS name
-         FROM read_csv('${files.shortForms}', header=true, all_varchar=true)
+         FROM read_csv('${files.shortForms}', header=true, all_varchar=true, strict_mode=false)
          WHERE ${ended('"Short Form Termination Date"')}`
       : 'CREATE OR REPLACE TABLE fara_agents (reg VARCHAR, last VARCHAR, first VARCHAR, name VARCHAR)'
   );
@@ -53,7 +64,7 @@ export async function loadFara(bulk, rows, files = null, cycle = null) {
       ? `CREATE OR REPLACE TABLE fara_clients AS
          SELECT DISTINCT "Registration Number" AS reg, trim("Foreign Principal") AS client,
            trim("Country/Location Represented") AS country
-         FROM read_csv('${files.principals}', header=true, all_varchar=true)
+         FROM read_csv('${files.principals}', header=true, all_varchar=true, strict_mode=false)
          WHERE ${ended('"Foreign Principal Termination Date"')}`
       : 'CREATE OR REPLACE TABLE fara_clients (reg VARCHAR, client VARCHAR, country VARCHAR)'
   );

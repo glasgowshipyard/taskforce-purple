@@ -82,7 +82,7 @@ function whoGaveText(basis, conc) {
  * Returns { steps: [{ title, text, tone }], raw, score, shift } or null when
  * there's no working to explain.
  */
-export function explainGrade({ tier, lines, grade, conc, name }) {
+export function explainGrade({ tier, lines, grade, conc, name, ownPct = 0 }) {
   const d = grade?.detail;
   if (!d || !GRADES[tier] || !LETTERS.includes(tier) || !Number.isFinite(grade.score)) {
     return null;
@@ -101,7 +101,7 @@ export function explainGrade({ tier, lines, grade, conc, name }) {
     big && `$${big} from big donations`,
     by('pac') && `$${by('pac')} from PACs`,
     by('party') && `$${by('party')} from party committees`,
-    by('other') && `$${by('other')} from other places, such as the candidate's own money or loans`,
+    by('other') && `$${by('other')} from other places, such as loans or transfers`,
   ].filter(Boolean);
   const list =
     parts.length > 1 ? `${parts.slice(0, -1).join(', ')} and ${parts[parts.length - 1]}` : parts[0];
@@ -109,9 +109,13 @@ export function explainGrade({ tier, lines, grade, conc, name }) {
     title: 'Where each $100 came from',
     tone: raw >= 75 ? 'good' : raw < 45 ? 'bad' : 'neutral',
     text:
-      raw >= 100
+      // Own money is set aside before anything else (#59)
+      (ownPct > 0
+        ? `${name} paid $${ownPct} of every $100 personally. We leave that out, so these amounts are per $100 from others: `
+        : '') +
+      (raw >= 100
         ? `${list}. All of it was donated by people, so we start with $${raw}.`
-        : `${list}. Only money donated by people counts toward the grade, so we start with $${raw}.`,
+        : `${list}. Only money donated by people counts toward the grade, so we start with $${raw}.`),
   });
 
   // 2. Big donations: do they all count?
@@ -233,7 +237,7 @@ export function headlineFor({ tier, lines, grade, conc, name }) {
       tone: 'bad',
       eyebrow,
       big: `${other}% of the money didn't come from donors.`,
-      text: `It came from other places, such as ${by('party') ? 'party committees, ' : ''}loans or ${name}'s own money. Only money people donate counts toward the grade.`,
+      text: `It came from other places, such as ${by('party') ? 'party committees, ' : ''}loans or transfers. Only money people donate counts toward the grade.`,
       showConc: false,
     };
   }

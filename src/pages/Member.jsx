@@ -1,12 +1,13 @@
 // One person's full receipt: a sitting member, or a candidate on the ballot.
 import React, { useMemo, useState } from 'react';
 import { ExternalLink, Share2 } from 'lucide-react';
+import ForeignAgentPanel from '../components/ForeignAgentPanel.jsx';
+import PacPanel from '../components/PacPanel.jsx';
 import ShareDialog from '../components/ShareDialog.jsx';
 import { Barcode, Evidence, MoneyLines, PowerBar, Skeleton, Stamp } from '../components/ui.jsx';
 import { api } from '../lib/api.js';
 import { classifyOrganization, foreignInterestFor, sectorInfo } from '../lib/donor-taxonomy.js';
 import { CYCLE_LABEL } from '../lib/election.js';
-import { PAC_TYPES, pacRows } from '../lib/pacs.js';
 import {
   concentrationVerdict,
   explainGrade,
@@ -28,6 +29,7 @@ import {
   count,
   displayName,
   gradedFigures,
+  othersFigures,
   moneyLines,
   partyName,
   roleTitle,
@@ -59,8 +61,6 @@ function describe(c) {
 }
 
 const fecCommitteeUrl = (id, cycle) => `https://www.fec.gov/data/committee/${id}/?cycle=${cycle}`;
-const faraUrl = reg =>
-  `https://efile.fara.gov/ords/fara/f?p=1381:200:::NO:RP,200:P200_REG_NUMBER:${reg}`;
 const dateText = d =>
   d
     ? new Date(d).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })
@@ -267,6 +267,9 @@ export default function Member({ id, kind = 'member' }) {
   const withheld = isRingfenced(m.tier);
   const hasMoney = f.totalRaised > 0 && !withheld;
   const lines = hasMoney ? moneyLines(f) : [];
+  // The grade is worked out on the money from others: own money set aside (#59)
+  const gradeLines = hasMoney ? moneyLines(othersFigures(f)) : [];
+  const ownPct = lines.find(l => l.key === 'own')?.pct ?? 0;
   const conc = unverified
     ? null
     : concentration({
@@ -275,8 +278,8 @@ export default function Member({ id, kind = 'member' }) {
       });
   const trail = d?.moneyTrail;
   const committees = trail ? [...trail.committees].sort((a, b) => b.raised - a.raised) : [];
-  const smallPct = lines.find(l => l.key === 'small')?.pct ?? 0;
-  const pacPct = lines.find(l => l.key === 'pac')?.pct ?? 0;
+  const smallPct = gradeLines.find(l => l.key === 'small')?.pct ?? 0;
+  const pacPct = gradeLines.find(l => l.key === 'pac')?.pct ?? 0;
   const seat = isCandidate ? `Candidate · ${seatLabel(m)}` : seatLabel(m);
   const title = isCandidate ? 'Candidate' : roleTitle(m);
   const checked = d?.evidence?.checked ?? m.evidenceChecked ?? null;
@@ -284,7 +287,9 @@ export default function Member({ id, kind = 'member' }) {
   const canShare = isLetter(m.tier) && hasMoney;
   // Leads with the number; the non-breaking hyphen keeps "big-donation" on one line
   // Leads with whatever decided the grade, good or bad (#56)
-  const lead = hasMoney ? headlineFor({ tier: m.tier, lines, grade: d?.grade, conc, name }) : null;
+  const lead = hasMoney
+    ? headlineFor({ tier: m.tier, lines: gradeLines, grade: d?.grade, conc, name })
+    : null;
   const headline = lead?.big ?? `${smallPct}% of the money came from small donations.`;
   const rank = isLetter(m.tier)
     ? rankLine(
@@ -295,9 +300,9 @@ export default function Member({ id, kind = 'member' }) {
       )
     : null;
   const standing = hasMoney ? pacStanding(f.pacMoney / f.totalRaised, members) : null;
-  const pacs = unverified ? [] : pacRows(m.pacContributions);
-  const pacCollected = pacs.reduce((t, p) => t + p.amount, 0);
-  const why = hasMoney ? explainGrade({ tier: m.tier, lines, grade: d?.grade, conc, name }) : null;
+  const why = hasMoney
+    ? explainGrade({ tier: m.tier, lines: gradeLines, grade: d?.grade, conc, name, ownPct })
+    : null;
   const verdict = conc ? concentrationVerdict(d?.grade?.detail?.trustAnchorBasis) : null;
   const passedOn = committees
     .filter(c => c.role === 'joint' && c.ownFund)
@@ -337,6 +342,15 @@ export default function Member({ id, kind = 'member' }) {
               {name}
             </h1>
             {rank && <p className="rank-line">{rank}</p>}
+            {ownPct >= 5 && (
+              <p className="self-funded">
+                <strong>Self-funded.</strong> {name} put {usd(f.ownMoney)} of their own money into
+                this campaign: {ownPct}% of everything raised. Candidates can spend as much of their
+                own money as they like. We leave it out of the grade, because it doesn&apos;t make
+                them depend on anyone.
+                {f.ownRepaid > 0 && ` Their campaign has paid ${usd(f.ownRepaid)} back to them.`}
+              </p>
+            )}
           </div>
           <div className="row">
             {canShare && (
@@ -614,81 +628,9 @@ export default function Member({ id, kind = 'member' }) {
                       </ul>
                     </div>
                   )}
-                  {m.faraEmployerTotal > 0 && (
-                    <div className="panel panel-alert">
-                      <h3>Donors at foreign-agent firms</h3>
-                      <p style={{ color: 'var(--ink-2)' }}>
-                        <strong style={{ color: 'var(--ink)' }}>{usd(m.faraEmployerTotal)}</strong>{' '}
-                        came from people who work at firms registered with the Justice Department as
-                        agents of foreign clients, such as foreign governments. These donations are
-                        legal and publicly reported.
-                      </p>
-                      {m.faraFirms?.length > 0 && (
-                        <ul className="ranked" style={{ marginTop: 12 }}>
-                          {m.faraFirms.slice(0, 6).map(firm => (
-                            <li key={firm.registrationNumber}>
-                              <a
-                                className="name"
-                                href={faraUrl(firm.registrationNumber)}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                              >
-                                {firm.name}
-                              </a>
-                              <span className="leader" aria-hidden="true" />
-                              <strong>{usd(firm.amount)}</strong>
-                            </li>
-                          ))}
-                        </ul>
-                      )}
-                    </div>
-                  )}
+                  <ForeignAgentPanel member={m} />
                 </div>
-                {pacs.length > 0 && (
-                  <div className="panel">
-                    <h3>PAC donations</h3>
-                    <p className="small" style={{ color: 'var(--ink-2)', marginBottom: 12 }}>
-                      A PAC (political action committee) pools money and gives it to candidates.
-                      Some are run by companies, unions or trade groups, some by lobbyists, and some
-                      by other politicians. They don&apos;t all count the same against the grade.
-                    </p>
-                    <ol className="ranked">
-                      {pacs.slice(0, 10).map((p, i) => (
-                        <li key={p.id}>
-                          <span className="muted">{i + 1}.</span>
-                          <span className="name">
-                            {p.name}{' '}
-                            <span
-                              className={`pac-chip${PAC_TYPES[p.type].heavier ? ' is-heavier' : ''}`}
-                            >
-                              {PAC_TYPES[p.type].label}
-                            </span>
-                          </span>
-                          <span className="leader" aria-hidden="true" />
-                          <strong>{usd(p.amount)}</strong>
-                        </li>
-                      ))}
-                    </ol>
-                    <ul className="pac-key">
-                      {[...new Set(pacs.slice(0, 10).map(p => p.type))].map(type => (
-                        <li key={type}>
-                          <span
-                            className={`pac-chip${PAC_TYPES[type].heavier ? ' is-heavier' : ''}`}
-                          >
-                            {PAC_TYPES[type].label}
-                          </span>{' '}
-                          {PAC_TYPES[type].why}
-                          {PAC_TYPES[type].heavier && ' This kind counts more against the grade.'}
-                        </li>
-                      ))}
-                    </ul>
-                    <p className="fine" style={{ marginTop: 12 }}>
-                      This is only part of the PAC money: the donations to the campaign committee
-                      we&apos;ve collected so far, {usd(pacCollected)} of the {usd(f.pacMoney)}{' '}
-                      {name} took from PACs in all. We&apos;re working on the complete list.
-                    </p>
-                  </div>
-                )}
+                <PacPanel member={m} name={name} pacMoney={f.pacMoney} />
               </div>
 
               <section
