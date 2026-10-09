@@ -44,6 +44,7 @@ export const LIST_FIELDS = [
   'fecIdentityVerified',
   'nakamotoCoefficient',
   'faraEmployerTotal',
+  'faraAgentTotal',
   'pacDetailsStatus',
   'lastUpdated',
 ];
@@ -145,6 +146,10 @@ export function publishedMember(record, result) {
     earmarkedIndividualTotal: a.earmarkedTotal ?? null,
     faraFirms: a.faraFirms || [],
     faraEmployerTotal: a.faraEmployerTotal ?? null,
+    faraAgentTotal: a.faraAgentTotal ?? null,
+    // Every PAC gift, by kind, with each PAC's own donors (#57); the
+    // record's old top-20 list stays for members graded before it
+    ...(a.pacs ? { pacSummary: a.pacs } : {}),
   };
 }
 

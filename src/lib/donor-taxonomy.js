@@ -86,7 +86,9 @@ export function quicklookSectors(member) {
       sectors.add(s);
     }
   }
-  if ((member?.faraEmployerTotal || 0) > 0) {
+  // Only donors personally registered as foreign agents (#60). Working at a
+  // registered firm flagged 488 of 539 members, which said nothing
+  if ((member?.faraAgentTotal || 0) > 0) {
     sectors.add('foreign-agent');
   }
   return [...sectors];

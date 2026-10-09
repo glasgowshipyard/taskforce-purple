@@ -56,3 +56,69 @@ describe('gradeMember: grade basis and evidence', () => {
     expect({ ...b, evidenceChecked: true }).toEqual(a);
   });
 });
+
+describe("gradeMember: a candidate's own money (#59, #62)", () => {
+  // Shaped like Sara Jacobs' 2026 figures: half her money is her own
+  const jacobs = {
+    totalRaised: 1867293,
+    grassrootsDonations: 153583,
+    largeDonorDonations: 528678,
+    pacMoney: 245165,
+    partyMoney: 0,
+    grassrootsPercent: 8,
+    invariantsHold: true,
+  };
+  const own = { contributions: 929347, loans: 0, repaid: 0 };
+  // Her donor analysis, so the full grading path runs
+  const grade = pf =>
+    gradeMember(
+      { ...member, fecIdentityVerified: true },
+      {
+        personLevel: true,
+        personFunding: pf,
+        reconciliation: { ok: true },
+        uniqueDonors: 339,
+        nakamotoCoefficient: 34,
+        totalAmount: 528678,
+      }
+    );
+
+  it('is left out of the grade, so it neither helps nor hurts', () => {
+    const without = grade(jacobs);
+    const withOwn = grade({ ...jacobs, ownMoney: own });
+    // The grade is worked out on the money from others only
+    expect(withOwn.detail.rawIndividualFundingPercent).toBe(
+      Math.round(((153583 + 528678) / (1867293 - 929347)) * 100)
+    );
+    expect(withOwn.individualFundingPercent).toBeGreaterThan(without.individualFundingPercent);
+  });
+
+  it('is kept in the figures, so the receipt can show it', () => {
+    const g = grade({ ...jacobs, ownMoney: own });
+    expect(g.personFigures.totalRaised).toBe(1867293);
+    expect(g.personFigures.ownMoney).toEqual(own);
+  });
+
+  it('a member without own money is graded exactly as before', () => {
+    const a = grade(jacobs);
+    const b = grade({ ...jacobs, ownMoney: { contributions: 0, loans: 0, repaid: 0 } });
+    expect(b).toEqual(a);
+    expect(a.personFigures.ownMoney).toBeUndefined();
+  });
+
+  it("own money that doesn't fit inside the total withholds the grade (#62)", () => {
+    // Shaped like Shri Thanedar's: $2.15M of loans against $390K net receipts
+    const g = grade({
+      totalRaised: 390276,
+      grassrootsDonations: 18989,
+      largeDonorDonations: 600204,
+      pacMoney: 85500,
+      partyMoney: 0,
+      grassrootsPercent: 5,
+      invariantsHold: true,
+      ownMoney: { contributions: 300, loans: 2150000, repaid: 0 },
+    });
+    expect(g.tier).toBe('DISPUTED');
+    expect(g.disputeReason).toBe('own-money-exceeds-receipts');
+  });
+});

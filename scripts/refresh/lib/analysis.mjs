@@ -9,9 +9,21 @@
 // Rows: bulk-file rows plus API gap fills, only those that count as itemized
 // individual money.
 
+import { isGovernment } from './fara.mjs';
+
 const IDS = /^C\d{8}$/;
 
-export async function loadFara(bulk, rows) {
+// A name reduced to letters only, upper case: for matching a donor to a
+// registered agent ("O'Neil, John P." and "ONEIL, JOHN" are the same)
+const LETTERS = x => `regexp_replace(upper(coalesce(${x}, '')), '[^A-Z]', '', 'g')`;
+
+/**
+ * The foreign-agent tables for this batch: employer -> registered firm (the
+ * old pipeline's matches, D1 fara_employer_matches) and, from the DOJ's own
+ * files (lib/fara.mjs), each firm's registered individuals and foreign
+ * clients, active at any time in the cycle (#60).
+ */
+export async function loadFara(bulk, rows, files = null, cycle = null) {
   await bulk.conn.run(
     'CREATE OR REPLACE TABLE fara (employer VARCHAR, fara_firm VARCHAR, registration_number VARCHAR)'
   );
@@ -22,6 +34,29 @@ export async function loadFara(bulk, rows) {
       batch.flatMap(r => [r.employer, r.fara_firm, String(r.registration_number ?? '')])
     );
   }
+  // Active at any time in the two years of the cycle
+  const since = cycle ? `${cycle - 1}-01-01` : '1900-01-01';
+  const ended = col =>
+    `(coalesce(${col}, '') = '' OR try_strptime(${col}, '%m/%d/%Y') >= DATE '${since}')`;
+  await bulk.conn.run(
+    files
+      ? `CREATE OR REPLACE TABLE fara_agents AS
+         SELECT "Registration Number" AS reg, ${LETTERS('"Short Form Last Name"')} AS last,
+           ${LETTERS(`split_part(trim("Short Form First Name"), ' ', 1)`)} AS first,
+           trim("Short Form First Name") || ' ' || trim("Short Form Last Name") AS name
+         FROM read_csv('${files.shortForms}', header=true, all_varchar=true)
+         WHERE ${ended('"Short Form Termination Date"')}`
+      : 'CREATE OR REPLACE TABLE fara_agents (reg VARCHAR, last VARCHAR, first VARCHAR, name VARCHAR)'
+  );
+  await bulk.conn.run(
+    files
+      ? `CREATE OR REPLACE TABLE fara_clients AS
+         SELECT DISTINCT "Registration Number" AS reg, trim("Foreign Principal") AS client,
+           trim("Country/Location Represented") AS country
+         FROM read_csv('${files.principals}', header=true, all_varchar=true)
+         WHERE ${ended('"Foreign Principal Termination Date"')}`
+      : 'CREATE OR REPLACE TABLE fara_clients (reg VARCHAR, client VARCHAR, country VARCHAR)'
+  );
 }
 
 /**
@@ -80,11 +115,29 @@ export async function analyzePool(bulk, poolIds, { conduitName }) {
     conduitTotals.set(name, c);
   }
 
-  // Donations from employees of registered foreign agents (issue #34)
+  // Donations from people at firms registered as foreign agents (issue #34),
+  // and which of those donors are personally registered as agents (#60):
+  // their name is on the firm's own short-form list at the DOJ
+  const faraRows = `(SELECT r.*, f.fara_firm, f.registration_number,
+      EXISTS (SELECT 1 FROM fara_agents a WHERE a.reg = f.registration_number
+        AND a.last = ${LETTERS(`split_part(r.name, ',', 1)`)}
+        AND a.first = ${LETTERS(`split_part(trim(split_part(r.name, ',', 2)), ' ', 1)`)}) AS is_agent
+      FROM ${rows} r JOIN fara f ON r.employer = f.employer)`;
   const fara = await read(`
-    SELECT f.fara_firm, f.registration_number, round(sum(r.amount), 2) AS total, count(*)::INTEGER AS donations
-    FROM ${rows} r JOIN fara f ON r.employer = f.employer
-    GROUP BY 1, 2 ORDER BY total DESC LIMIT 8`);
+    SELECT fara_firm, registration_number, round(sum(amount), 2) AS total, count(*)::INTEGER AS donations,
+      round(sum(amount) FILTER (WHERE is_agent), 2) AS agent_total
+    FROM ${faraRows} GROUP BY 1, 2 ORDER BY total DESC`);
+  const agents = await read(`
+    SELECT registration_number, upper(trim(split_part(name, ',', 2))) || ' ' || upper(trim(split_part(name, ',', 1))) AS donor,
+      round(sum(amount), 2) AS total
+    FROM ${faraRows} WHERE is_agent GROUP BY 1, 2 ORDER BY total DESC LIMIT 20`);
+  const shown = fara.slice(0, 8).map(f => f.registration_number);
+  const clients = shown.length
+    ? await read(
+        `SELECT reg, client, country FROM fara_clients WHERE reg IN (${shown.map(() => '?').join(',')}) ORDER BY country, client`,
+        ...shown
+      )
+    : [];
 
   const totalAmount = Number(s.totalAmount);
   return {
@@ -105,13 +158,31 @@ export async function analyzePool(bulk, poolIds, { conduitName }) {
       .map(c => ({ ...c, amount: Math.round(c.amount * 100) / 100 })),
     earmarkedTotal: Math.round(earmarks.reduce((t, e) => t + Number(e.amount), 0) * 100) / 100,
     earmarkedCount: earmarks.reduce((t, e) => t + e.n, 0),
-    faraFirms: fara.map(f => ({
-      name: f.fara_firm,
-      registrationNumber: f.registration_number,
-      amount: Number(f.total),
-      donations: f.donations,
-    })),
+    faraFirms: fara.slice(0, 8).map(f => {
+      const mine = clients.filter(c => c.reg === f.registration_number);
+      return {
+        name: f.fara_firm,
+        registrationNumber: f.registration_number,
+        amount: Number(f.total),
+        donations: f.donations,
+        agentAmount: Number(f.agent_total || 0),
+        agents: agents
+          .filter(a => a.registration_number === f.registration_number)
+          .slice(0, 5)
+          .map(a => ({ name: a.donor, amount: Number(a.total) })),
+        clientCount: mine.length,
+        countries: [...new Set(mine.map(c => c.country).filter(Boolean))].sort(),
+        clients: mine.slice(0, 8).map(c => ({
+          name: c.client,
+          country: c.country,
+          government: isGovernment(c.client),
+        })),
+      };
+    }),
+    // Everyone at a registered firm, and those personally registered (#60)
     faraEmployerTotal: Math.round(fara.reduce((t, f) => t + Number(f.total), 0) * 100) / 100,
+    faraAgentTotal:
+      Math.round(fara.reduce((t, f) => t + Number(f.agent_total || 0), 0) * 100) / 100,
     topDonors: topDonors.map(d => {
       const [first, last, state, zip] = d.donor.split('|');
       return { name: `${first} ${last}`.trim(), state, zip, amount: Number(d.total) };

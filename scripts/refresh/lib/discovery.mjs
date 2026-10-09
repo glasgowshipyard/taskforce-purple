@@ -9,8 +9,15 @@
 //   ccl{yy}.zip  candidate-committee linkages: campaigns and registered joint
 //                funds per candidate, for this cycle
 //   cm{yy}.zip   committee master: name, designation (P/A/J/D), type
-//   oth{yy}.zip  transactions between committees: transfers in (18G) and a
-//                fund's transfers out (24G/24K)
+//   oth{yy}.zip  transactions between committees: transfers in (18G), a
+//                fund's transfers out (24G/24K), and every PAC's gifts to
+//                a member's committees (24K, in kind 24Z), as the PAC reports
+//                them (the file holds no recipient-side 18K rows)
+//   weball{yy}   candidate summary: each candidate's own gifts and loans to
+//                their campaign, and repayments to them (#59)
+//   webk{yy}     PAC summary: each PAC's own receipts and how much came
+//                from individuals, for looking through a PAC to its donors
+//                (#57)
 //   API          leadership PACs with their sponsors (/committees/,
 //                designation D: about 10 calls), totals for up to 100
 //                committees per call (/totals/{type}/), and the FEC's size
@@ -69,24 +76,38 @@ const csv = (path, columns) =>
     .map(c => `'${c}':'VARCHAR'`)
     .join(',')}})`;
 
-/** Load the three zips into DuckDB. Returns { read }. */
+/** Load the zips into DuckDB. Returns { read }. */
 export async function loadDiscoveryFiles(cycle, dir, log = console.log) {
   const cm = ensureZip('cm', 'cm.txt', cycle, dir, log);
   const ccl = ensureZip('ccl', 'ccl.txt', cycle, dir, log);
   const oth = ensureZip('oth', 'itoth.txt', cycle, dir, log);
+  const weball = ensureZip('weball', `weball${yy(cycle)}.txt`, cycle, dir, log);
+  const webk = ensureZip('webk', `webk${yy(cycle)}.txt`, cycle, dir, log);
   const instance = await DuckDBInstance.create(':memory:');
   const conn = await instance.connect();
+  // ORG_TP: C company, L labor union, M membership group, T trade group,
+  // V cooperative, W company without capital stock (blank for many)
   await conn.run(`CREATE TABLE cm AS SELECT CMTE_ID AS id, CMTE_NM AS name, CMTE_DSGN AS designation,
-      CMTE_TP AS type FROM ${csv(cm, 'CMTE_ID,CMTE_NM,TRES_NM,CMTE_ST1,CMTE_ST2,CMTE_CITY,CMTE_ST,CMTE_ZIP,CMTE_DSGN,CMTE_TP,CMTE_PTY_AFFILIATION,CMTE_FILING_FREQ,ORG_TP,CONNECTED_ORG_NM,CAND_ID'.split(','))}`);
+      CMTE_TP AS type, ORG_TP AS org_type, CONNECTED_ORG_NM AS connected_org
+      FROM ${csv(cm, 'CMTE_ID,CMTE_NM,TRES_NM,CMTE_ST1,CMTE_ST2,CMTE_CITY,CMTE_ST,CMTE_ZIP,CMTE_DSGN,CMTE_TP,CMTE_PTY_AFFILIATION,CMTE_FILING_FREQ,ORG_TP,CONNECTED_ORG_NM,CAND_ID'.split(','))}`);
+  await conn.run(`CREATE TABLE weball AS SELECT CAND_ID AS candidate_id,
+      TRY_CAST(CAND_CONTRIB AS DOUBLE) AS own_contributions, TRY_CAST(CAND_LOANS AS DOUBLE) AS own_loans,
+      TRY_CAST(CAND_LOAN_REPAY AS DOUBLE) AS repaid_to_candidate
+      FROM ${csv(weball, 'CAND_ID,CAND_NAME,CAND_ICI,PTY_CD,CAND_PTY_AFFILIATION,TTL_RECEIPTS,TRANS_FROM_AUTH,TTL_DISB,TRANS_TO_AUTH,COH_BOP,COH_COP,CAND_CONTRIB,CAND_LOANS,OTHER_LOANS,CAND_LOAN_REPAY,OTHER_LOAN_REPAY,DEBTS_OWED_BY,TTL_INDIV_CONTRIB,CAND_OFFICE_ST,CAND_OFFICE_DISTRICT,SPEC_ELECTION,PRIM_ELECTION,RUN_ELECTION,GEN_ELECTION,GEN_ELECTION_PRECENT,OTHER_POL_CMTE_CONTRIB,POL_PTY_CONTRIB,CVG_END_DT,INDIV_REFUNDS,CMTE_REFUNDS'.split(','))}`);
+  await conn.run(`CREATE TABLE webk AS SELECT CMTE_ID AS id,
+      TRY_CAST(TTL_RECEIPTS AS DOUBLE) AS receipts, TRY_CAST(TRANS_FROM_AFF AS DOUBLE) AS from_affiliates,
+      TRY_CAST(INDV_CONTB AS DOUBLE) AS individuals, TRY_CAST(OTH_CMTE_CONTB AS DOUBLE) AS other_committees
+      FROM ${csv(webk, 'CMTE_ID,CMTE_NM,CMTE_TP,CMTE_DSGN,CMTE_FILING_FREQ,TTL_RECEIPTS,TRANS_FROM_AFF,INDV_CONTB,OTH_CMTE_CONTB,CAND_CONTB,CAND_LOANS,TTL_LOANS_RECEIVED,TTL_DISB,TRANF_TO_AFF,INDV_REFUNDS,OTH_CMTE_REFUNDS,CAND_LOAN_REPAY,LOAN_REPAY,COH_BOY,COH_COY,DEBTS_OWED_BY,NONFED_TRANS_RECEIVED,CONTB_TO_OTHER_CMTE,IND_EXP,PTY_COORD_EXP,NONFED_SHARE_EXP,CVG_END_DT'.split(','))}`);
   await conn.run(`CREATE TABLE ccl AS SELECT CAND_ID AS candidate_id, CMTE_ID AS committee_id,
       CMTE_DSGN AS designation, FEC_ELECTION_YR AS cycle
       FROM ${csv(ccl, 'CAND_ID,CAND_ELECTION_YR,FEC_ELECTION_YR,CMTE_ID,CMTE_TP,CMTE_DSGN,LINKAGE_ID'.split(','))}`);
-  // Only what discovery reads: transfers in (18G, and the rare non-memo 18J)
-  // and transfers out (24G, 24K), between committees, memos dropped
+  // Only what discovery reads: transfers in (18G, and the rare non-memo 18J),
+  // transfers out (24G, 24K) and in-kind gifts (24Z), between committees,
+  // memos dropped
   await conn.run(`CREATE TABLE oth AS SELECT CMTE_ID AS committee_id, OTHER_ID AS other_id,
       TRANSACTION_TP AS tx_type, TRY_CAST(TRANSACTION_AMT AS DOUBLE) AS amount
       FROM ${csv(oth, 'CMTE_ID,AMNDT_IND,RPT_TP,TRANSACTION_PGI,IMAGE_NUM,TRANSACTION_TP,ENTITY_TP,NAME,CITY,STATE,ZIP_CODE,EMPLOYER,OCCUPATION,TRANSACTION_DT,TRANSACTION_AMT,OTHER_ID,TRAN_ID,FILE_NUM,MEMO_CD,MEMO_TEXT,SUB_ID'.split(','))}
-      WHERE TRANSACTION_TP IN ('18G', '18J', '24G', '24K') AND coalesce(MEMO_CD, '') <> 'X'
+      WHERE TRANSACTION_TP IN ('18G', '18J', '24G', '24K', '24Z') AND coalesce(MEMO_CD, '') <> 'X'
         AND OTHER_ID LIKE 'C%'`);
   const read = async (sql, ...params) => {
     const reader = await conn.runAndReadAll(sql, params);
@@ -294,6 +315,30 @@ export async function discoverPeople({
     ? await bigChequesFor(fec, [...new Set([...withTotals, ...jfcIds])], cycle)
     : new Map();
 
+  // The candidate's own gifts and loans to their campaign, and what their
+  // campaign repaid them, across every candidate ID they have (#59)
+  const ownRows = candidateIds.length
+    ? await read(
+        `SELECT candidate_id, own_contributions, own_loans, repaid_to_candidate FROM weball
+         WHERE candidate_id IN (${candidateIds.map(() => '?').join(',')})`,
+        ...candidateIds
+      )
+    : [];
+  const ownMoney = new Map(
+    people.map(p => {
+      const mine = ownRows.filter(r => p.ids.includes(r.candidate_id));
+      const sum = key => Math.round(mine.reduce((t, r) => t + num(r[key]), 0) * 100) / 100;
+      return [
+        p.id,
+        {
+          contributions: sum('own_contributions'),
+          loans: sum('own_loans'),
+          repaid: sum('repaid_to_candidate'),
+        },
+      ];
+    })
+  );
+
   // Each member's campaigns and leadership PACs belong to them, so a fund's
   // payments to any of them add up to one person
   const memberOf = new Map(plans.flatMap(p => p.moneyVehicles.map(v => [v.committeeId, p.id])));
@@ -328,7 +373,11 @@ export async function discoverPeople({
       }
     }
     const result = combineVehicleTotals(p.moneyVehicles, p.transfers);
-    results.set(p.id, { ...result, donorCommitteeIds: donorCommitteeIds(result) });
+    results.set(p.id, {
+      ...result,
+      donorCommitteeIds: donorCommitteeIds(result),
+      ownMoney: ownMoney.get(p.id) || null,
+    });
   }
   return results;
 }

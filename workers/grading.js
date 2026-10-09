@@ -30,19 +30,38 @@ export function gradeMember(member, analysis) {
   const personLevel = Boolean(
     pf && !pf.failed && pf.totalRaised > 0 && pf.invariantsHold && (reconciled || awaitingCheck)
   );
+  // A candidate's own money (gifts and loans to their own campaign) is left
+  // out of the grade (#59, owner 2026-10-08): being rich or driven makes
+  // them depend on no one. It's still shown, so it's kept in personFigures.
+  // It must fit inside what they raised; if it doesn't, the figures don't
+  // reconcile to source and no grade is published (#62).
+  const own = personLevel ? ownMoneyTotal(pf.ownMoney) : 0;
+  const fromOthers = personLevel ? pf.totalRaised - own : 0;
+  const ownDoesntFit = own > 0 && fromOthers < fundedByOthers(pf) * 0.98 - 1;
   const scored = personLevel
     ? {
         ...member,
-        totalRaised: pf.totalRaised,
+        totalRaised: fromOthers,
         grassrootsDonations: pf.grassrootsDonations,
         largeDonorDonations: pf.largeDonorDonations,
-        grassrootsPercent: pf.grassrootsPercent,
+        grassrootsPercent:
+          own > 0 && fromOthers > 0
+            ? Math.round((pf.grassrootsDonations / fromOthers) * 100)
+            : pf.grassrootsPercent,
         pacMoney: pf.pacMoney,
         partyMoney: pf.partyMoney,
       }
     : member;
 
-  const result = computeEnhancedTier(scored, analysis);
+  const result = ownDoesntFit
+    ? {
+        tier: 'DISPUTED',
+        disputed: true,
+        disputeReason: 'own-money-exceeds-receipts',
+        individualFundingPercent: null,
+        detail: { path: 'disputed' },
+      }
+    : computeEnhancedTier(scored, analysis);
   result.gradeBasis = personLevel
     ? 'all-committees'
     : pf && !pf.failed && !reconciled
@@ -59,7 +78,20 @@ export function gradeMember(member, analysis) {
         pacMoney: pf.pacMoney,
         partyMoney: pf.partyMoney,
         grassrootsPercent: pf.grassrootsPercent,
+        ...(own > 0 ? { ownMoney: pf.ownMoney } : {}),
       }
     : null;
   return result;
 }
+
+/** A candidate's own money in their receipts: their gifts plus their loans. */
+export function ownMoneyTotal(ownMoney) {
+  return ownMoney ? (ownMoney.contributions || 0) + (ownMoney.loans || 0) : 0;
+}
+
+// Money we know came from someone other than the candidate
+const fundedByOthers = pf =>
+  (pf.grassrootsDonations || 0) +
+  (pf.largeDonorDonations || 0) +
+  (pf.pacMoney || 0) +
+  (pf.partyMoney || 0);

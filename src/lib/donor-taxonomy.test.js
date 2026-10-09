@@ -95,12 +95,18 @@ describe('quicklookSectors', () => {
         { name: 'ACTBLUE', amount: 100 },
         { name: 'AMERICAN ISRAEL PUBLIC AFFAIRS COMMITTEE PAC - CONDUIT', amount: 500 },
       ],
-      faraEmployerTotal: 1000,
+      faraAgentTotal: 1000,
     };
     const s = quicklookSectors(member);
     expect(s).toContain('pro-israel');
     expect(s).toContain('foreign-agent');
     expect(s).not.toContain('platform');
+  });
+
+  it('working at a registered firm is not enough for the foreign-agent flag (#60)', () => {
+    expect(quicklookSectors({ faraEmployerTotal: 50000, faraAgentTotal: 0 })).not.toContain(
+      'foreign-agent'
+    );
   });
 
   it('empty member yields empty quicklook', () => {

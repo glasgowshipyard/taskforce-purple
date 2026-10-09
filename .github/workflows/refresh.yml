@@ -25,6 +25,15 @@ on:
         description: 'Grade every member from the FEC bulk files now, without the record check (minutes)'
         type: boolean
         default: false
+      pac_weights:
+        description: "Which PAC list the grade's PAC weighting reads (#57): stored (as before) or full (every PAC gift). Switching is the owner's decision"
+        type: choice
+        options: [stored, full]
+        default: stored
+      report:
+        description: "Write every member's grade three ways (now / stored PAC list / full) as a downloadable report: the simulation before a grading change"
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -62,6 +71,8 @@ jobs:
           DRY_RUN: ${{ inputs.dry_run }}
           NEW_ROUND: ${{ inputs.new_round }}
           GRADE_ONLY: ${{ inputs.grade_only }}
+          PAC_WEIGHTS: ${{ inputs.pac_weights }}
+          REPORT: ${{ inputs.report }}
           # The key allows 120 FEC calls a minute (upgraded 2026-10-07). The
           # check takes about 86 of them, leaving room for a grade-only or
           # races run alongside it (30 a minute each)
@@ -75,7 +86,17 @@ jobs:
           if [ "$DRY_RUN" = "true" ]; then args+=(--dry-run); fi
           # Grading only reads the bulk file: bigger batches mean fewer scans of it
           if [ "$GRADE_ONLY" = "true" ]; then args+=(--grade-only --batch 100); fi
+          args+=(--pac-weights "${PAC_WEIGHTS:-stored}")
+          if [ "$REPORT" = "true" ]; then args+=(--report "$RUNNER_TEMP/grade-report.json"); fi
           node scripts/refresh/run.mjs "${args[@]}"
+
+      - name: Keep the report
+        if: always() && inputs.report
+        uses: actions/upload-artifact@v4
+        with:
+          name: grade-report
+          path: ${{ runner.temp }}/grade-report.json
+          if-no-files-found: warn
 
       # Opens, updates or closes the system-alert issue from /api/health
       # (failing members, unreconciled committees, D1 budget) plus this job's

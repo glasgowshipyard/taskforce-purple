@@ -6,6 +6,17 @@
  *   node scripts/refresh/run.mjs [--members ID,ID] [--cycle 2026] [--dry-run]
  *     [--bulk-dir DIR] [--trigger manual|calendar|event] [--new-round REASON]
  *     [--budget-minutes 300] [--batch 25] [--grade-only] [--discovery zips|api]
+ *     [--pac-weights stored|full] [--report FILE]
+ *
+ * --pac-weights  which PAC list the grade's PAC weighting reads: `stored`
+ *                (default, as before: the old pipeline's top-20 gifts to the
+ *                campaign) or `full` (every PAC gift to the member's campaign
+ *                and leadership PAC, from the bulk files, #57). Switching is
+ *                a grading change: simulate it and the owner decides.
+ * --report FILE  writes every member's grade three ways (published now; this
+ *                run's grade with the stored PAC list; with the full one) as
+ *                JSON, with a summary: the simulation the settled decisions
+ *                require before any grading change is published.
  *
  * Two modes (owner, 2026-10-04: grade first, confirm after):
  *   --grade-only  grades every member from the FEC's bulk files, with no
@@ -32,7 +43,7 @@
  * GitHub Actions secrets). Run locally, the FEC key falls back to API_KEYS.md
  * and Cloudflare to the wrangler login. Nothing secret is ever printed.
  */
-import { appendFileSync, existsSync, mkdirSync, readFileSync } from 'node:fs';
+import { appendFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { FEC_CROSSWALK } from '../../workers/fec-crosswalk.js';
@@ -46,6 +57,8 @@ import {
 } from '../../workers/schedule-a-classify.js';
 import { cycleForYear } from '../../workers/tier-calculation.js';
 import { analyzePool, loadFara } from './lib/analysis.mjs';
+import { ensureFara } from './lib/fara.mjs';
+import { asPacContributions, pacGifts, pacProfiles, pacSummary } from './lib/pacs.mjs';
 import { discoverPeople, loadDiscoveryFiles } from './lib/discovery.mjs';
 import { apiRowToBulkShape, ensureBulkFile, insertApiRows, loadBulk } from './lib/bulk.mjs';
 import { RESULTS_DB, createCloudflare } from './lib/cloudflare.mjs';
@@ -85,6 +98,9 @@ function fecKey() {
   return existsSync(local) ? readFileSync(local, 'utf8').match(/`([A-Za-z0-9]{40})`/)?.[1] : null;
 }
 
+// Grades best first, for "up" and "down" in the report; withheld grades last
+const gradeRank = t => ({ S: 8, A: 7, B: 6, C: 5, D: 4, E: 3, F: 2, 'N/A': 1 })[t] ?? 0;
+
 // Set once the run is recorded: on a crash, marks it failed and charges the
 // D1 rows already written, so health sees the failure and the ledger is right
 let recordCrash = null;
@@ -101,6 +117,9 @@ async function main() {
   const bulkDir = arg('--bulk-dir', join(tmpdir(), 'tfp-bulk'));
   const budgetMs = Number(arg('--budget-minutes', 300)) * 60000;
   const batchSize = Number(arg('--batch', 25));
+  const pacWeights = arg('--pac-weights', 'stored');
+  const reportPath = arg('--report', null);
+  const report = [];
   mkdirSync(bulkDir, { recursive: true });
 
   const cf = createCloudflare();
@@ -178,11 +197,23 @@ async function main() {
   const fara = await d1(
     'SELECT employer, fara_firm, registration_number FROM fara_employer_matches'
   );
+  // The DOJ's register: who at each firm is personally registered, and the
+  // firms' foreign clients (#60). Without it, only employers are matched
+  let faraFiles = null;
+  try {
+    faraFiles = ensureFara(bulkDir, log);
+  } catch (error) {
+    log(`FARA register unavailable (${error.message}): matching employers only`);
+  }
   // Each member's committees and money, for every target at once
   let discovered = null;
+  let db = null;
   const conduitNames = new Map();
+  // Every PAC gift to each member, and each giving PAC's own donors (#57)
+  const giftsFor = new Map();
+  let profiles = new Map();
   if (arg('--discovery', 'zips') === 'zips') {
-    const db = await loadDiscoveryFiles(cycle, bulkDir, log);
+    db = await loadDiscoveryFiles(cycle, bulkDir, log);
     discovered = await discoverPeople({
       fec,
       db,
@@ -196,6 +227,18 @@ async function main() {
       conduitNames.set(c.id, c.name);
     }
     log(`discovery done: ${discovered.size} member(s), ${fec.calls} FEC calls`);
+    // Gifts to the member's campaigns and leadership PAC: the committees
+    // whose money is theirs in full (a joint fund's PAC money reaches them
+    // split by the fund's mix, in personFunding)
+    for (const [id, pf] of discovered) {
+      const vehicles = (pf.committees || [])
+        .filter(c => c.role === 'campaign' || c.role === 'leadership')
+        .map(c => c.committeeId);
+      giftsFor.set(id, await pacGifts(db, vehicles));
+    }
+    const givers = [...giftsFor.values()].flatMap(g => g.slice(0, 30).map(x => x.id));
+    profiles = await pacProfiles(db, file.path, givers);
+    log(`PACs: ${new Set(givers).size} giving PACs profiled`);
   }
   const conduitName = async id => {
     if (!conduitNames.has(id)) {
@@ -274,7 +317,7 @@ async function main() {
     // 2. The bulk file, loaded for this batch's committees
     const ids = [...new Set(people.flatMap(p => p.pool || []))];
     const bulk = await loadBulk(file.path, ids.length ? ids : ['C00000000']);
-    await loadFara(bulk, fara);
+    await loadFara(bulk, fara, faraFiles, cycle);
 
     // 3. Reconcile each committee once per round
     const committees = new Map();
@@ -457,6 +500,10 @@ async function main() {
           .filter(r => r.note && r.status === 'reconciled-with-note')
           .map(r => `${r.committeeId}: ${r.note}`);
         const analysis = await analyzePool(bulk, p.pool, { conduitName });
+        const gifts = giftsFor.get(p.id);
+        if (gifts) {
+          analysis.pacs = pacSummary(gifts, profiles);
+        }
         const member = JSON.parse((await cf.kvGet(memberKey(p.id))) || 'null');
         const asStored = {
           ...analysis,
@@ -467,9 +514,53 @@ async function main() {
         // Every member graded here was looked up in the FEC crosswalk (members
         // without an identity are skipped above), so the figures are theirs.
         // A record's older flag (stamped once, 2026-09-26) doesn't override it.
-        const grade = member
-          ? gradeMember({ ...member, fecIdentityVerified: true }, asStored)
-          : null;
+        // The PAC weighting reads either the stored list or every gift (#57)
+        const gradeWith = list =>
+          member
+            ? gradeMember(
+                {
+                  ...member,
+                  fecIdentityVerified: true,
+                  ...(list ? { pacContributions: asPacContributions(list) } : {}),
+                },
+                asStored
+              )
+            : null;
+        const storedGrade = gradeWith(null);
+        const fullGrade = gifts ? gradeWith(gifts) : null;
+        const grade = pacWeights === 'full' && fullGrade ? fullGrade : storedGrade;
+        if (reportPath) {
+          const before = targets.find(t => t.bioguideId === p.id) || {};
+          const brief = g =>
+            g && {
+              tier: g.tier,
+              score: g.individualFundingPercent,
+              pacBar: g.detail?.transparencyPenalty ?? null,
+              path: g.detail?.path ?? null,
+            };
+          const own = p.pf.ownMoney;
+          report.push({
+            id: p.id,
+            name: p.name,
+            party: before.party,
+            chamber: before.chamber,
+            state: before.state,
+            before: { tier: before.tier, score: before.individualFundingPercent ?? null },
+            stored: brief(storedGrade),
+            full: brief(fullGrade),
+            totalRaised: p.pf.totalRaised,
+            ownMoney: own,
+            ownShare:
+              own && p.pf.totalRaised ? (own.contributions + own.loans) / p.pf.totalRaised : 0,
+            pacStoredTotal: (member?.pacContributions || []).reduce(
+              (t, x) => t + (x.amount || 0),
+              0
+            ),
+            pacFullTotal: gifts ? gifts.reduce((t, x) => t + x.amount, 0) : null,
+            faraEmployerTotal: analysis.faraEmployerTotal,
+            faraAgentTotal: analysis.faraAgentTotal,
+          });
+        }
         const status = !grade ? 'pending' : ok ? 'complete' : pending ? 'provisional' : 'pending';
         summary[status]++;
         log(
@@ -552,6 +643,35 @@ async function main() {
       stopReason = 'time';
       break;
     }
+  }
+
+  if (reportPath) {
+    writeFileSync(reportPath, JSON.stringify(report, null, 1));
+    const moved = key => report.filter(r => r[key] && r[key].tier !== r.before.tier);
+    const byParty = list =>
+      Object.entries(
+        list.reduce((m, r) => {
+          const dir =
+            gradeRank(r.after.tier) > gradeRank(r.before.tier)
+              ? 'up'
+              : gradeRank(r.after.tier) < gradeRank(r.before.tier)
+                ? 'down'
+                : 'other';
+          const k = `${r.party || '?'} ${dir}`;
+          m[k] = (m[k] || 0) + 1;
+          return m;
+        }, {})
+      )
+        .map(([k, v]) => `${k} ${v}`)
+        .join(', ');
+    for (const key of ['stored', 'full']) {
+      const list = moved(key).map(r => ({ ...r, after: r[key] }));
+      log(`report: ${key} PAC list: ${list.length} grade(s) change (${byParty(list)})`);
+      for (const r of list.slice(0, 60)) {
+        log(`  ${r.before.tier} -> ${r.after.tier}  ${r.name} (${r.party}, ${r.state})`);
+      }
+    }
+    log(`report written to ${reportPath}`);
   }
 
   const remaining = targets.length - processed;
