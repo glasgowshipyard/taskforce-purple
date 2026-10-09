@@ -4,13 +4,15 @@
 // designation, organisation type and sponsor; the PAC summary (webk) and the
 // itemized file (indiv) say where each PAC's own money came from.
 //
-// What the grade uses: the full list of gifts, so the PAC weighting
-// (tier-calculation.js calculateTransparencyPenalty) sees all of a member's
-// PAC money instead of the old pipeline's top 20 to the campaign alone.
-// What only the page uses, until the owner decides how much credit a
-// people-funded PAC gets: each PAC's own donor picture (looking through it).
+// What the grade uses (version A, owner 2026-10-09): the full list of
+// gifts, so the PAC weighting (tier-calculation.js
+// calculateTransparencyPenalty) sees all of a member's PAC money instead of
+// the old pipeline's top 20 to the campaign alone; and each PAC's own donor
+// picture, so the money a PAC passes on from people counts in part as
+// people money (tier-calculation.js tracePacs, pacPeopleCredit).
 
 import { pacType } from '../../../src/lib/pacs.js';
+import { PAC_TRACING, pacPeopleCredit } from '../../../workers/tier-calculation.js';
 import { ITEMIZED_TYPES } from './reconcile.mjs';
 
 const IDS = /^C\d{8}$/;
@@ -137,26 +139,35 @@ export async function pacProfiles(db, itcontPath, pacIds) {
 }
 
 /**
- * The member's PAC money for the page: totals by kind, and the largest
- * PACs with each one's own donor picture.
+ * The member's PAC money for the page: totals by kind, how much of it counts
+ * as people money (`counted`, dollars, as the grade counts it), and the
+ * largest PACs with each one's own donor picture and the share of its money
+ * traced to people (`peopleShare`, 0-1, null when the FEC has no summary).
+ * `traced`: tier-calculation.js tracePacs().
  */
-export function pacSummary(gifts, profiles, limit = 30) {
+export function pacSummary(gifts, profiles, traced = new Map(), limit = 30) {
   const byKind = {};
   for (const g of gifts) {
     byKind[g.kind] = cents((byKind[g.kind] || 0) + g.amount);
   }
+  const depth = PAC_TRACING.depth;
   return {
     total: cents(gifts.reduce((t, g) => t + g.amount, 0)),
     count: gifts.length,
     byKind,
-    list: gifts.slice(0, limit).map(g => ({ ...g, profile: profiles.get(g.id) || null })),
+    counted: pacPeopleCredit(gifts, traced),
+    list: gifts.slice(0, limit).map(g => ({
+      ...g,
+      profile: profiles.get(g.id) || null,
+      peopleShare: traced.has(g.id) ? Math.round(traced.get(g.id)[depth].share * 1000) / 1000 : null,
+    })),
   };
 }
 
 /**
  * Committees that gave to each PAC (the PACs' upstream money), from the
  * giving committees' own reports: Map PAC id -> [{ id, amount }]. For
- * tracing a PAC's money one level further (#57 simulation, depth 2).
+ * tracing a PAC's money one level further (#57, depth 2).
  */
 export async function upstreamGifts(db, pacIds) {
   const ids = [...new Set(pacIds)].filter(id => IDS.test(id));

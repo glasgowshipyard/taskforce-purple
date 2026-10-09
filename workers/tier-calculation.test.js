@@ -13,8 +13,11 @@ import {
   getTrustAnchor,
   isConcentrationReliable,
   LEGACY_OPTIONS,
+  PAC_TRACING,
   PAC_WEIGHTS,
+  pacPeopleCredit,
   pacPeopleShare,
+  tracePacs,
 } from './tier-calculation.js';
 
 // Reference members built from the documented Bernie/Pelosi examples
@@ -71,7 +74,8 @@ describe('calculateTier (fallback)', () => {
 describe('getPACTransparencyWeight', () => {
   it('doubles Super PACs and multiplies designations', () => {
     expect(getPACTransparencyWeight('O', undefined)).toBe(2.0);
-    expect(getPACTransparencyWeight('O', 'B')).toBe(3.0);
+    expect(getPACTransparencyWeight('O', 'D')).toBe(3.0);
+    expect(getPACTransparencyWeight('O', 'B')).toBe(2.0); // B no longer counts extra (version A)
     expect(getPACTransparencyWeight('P', 'A')).toBeCloseTo(0.045);
   });
 });
@@ -471,17 +475,32 @@ describe('pacPeopleShare: looking through a PAC to its donors (#57)', () => {
   });
 });
 
-describe('PAC weights and PAC credit (simulation options, #57)', () => {
-  it('production weights are unchanged', () => {
-    expect(getPACTransparencyWeight('Q', 'B')).toBe(1.5);
+describe('PAC weights and PAC credit (version A, owner 2026-10-09, #57)', () => {
+  it("lobbyist PACs (designation B) no longer count extra; super and politicians' PACs do", () => {
+    expect(getPACTransparencyWeight('Q', 'B')).toBe(1.0);
     expect(getPACTransparencyWeight('O', 'U')).toBe(2.0);
     expect(getPACTransparencyWeight('Q', 'D')).toBe(1.5);
+    expect(PAC_TRACING).toEqual({ credit: 0.5, depth: 2 });
   });
 
-  it('a simulation can drop the extra weight on lobbyist PACs', () => {
-    const w = { ...PAC_WEIGHTS, lobbyist: 1.0 };
-    expect(getPACTransparencyWeight('Q', 'B', w)).toBe(1.0);
-    expect(getPACTransparencyWeight('Q', 'D', w)).toBe(1.5);
+  it('a simulation can pass its own weights', () => {
+    const w = { ...PAC_WEIGHTS, leadership: 1.25 };
+    expect(getPACTransparencyWeight('Q', 'D', w)).toBe(1.25);
+  });
+
+  it('a complete PAC list with no PAC money grades on the full model, not the fallback', () => {
+    const member = {
+      fecIdentityVerified: true,
+      totalRaised: 100000,
+      grassrootsDonations: 10000,
+      largeDonorDonations: 80000,
+      grassrootsPercent: 10,
+      pacContributions: [],
+    };
+    expect(calculateEnhancedTier(member, null).detail.path).toBe('fallback');
+    const full = calculateEnhancedTier({ ...member, pacListComplete: true }, null);
+    expect(full.detail.path).toBe('enhanced');
+    expect(full.individualFundingPercent).toBeGreaterThan(10);
   });
 
   it('PAC money traced to people adds to the people-funded share', () => {
@@ -499,5 +518,35 @@ describe('PAC weights and PAC credit (simulation options, #57)', () => {
     expect(credited.individualFundingPercent - plain.individualFundingPercent).toBe(30);
     expect(credited.detail.pacCredit).toBe(30);
     expect(plain.detail.pacCredit).toBeUndefined();
+  });
+});
+
+describe('tracePacs and pacPeopleCredit (#57)', () => {
+  // C2 got half its money from C3, a committee funded wholly by people
+  const profiles = new Map([
+    ['C1', { receipts: 50000, individuals: 48000, itemized: 10000, donors: 400, nakamoto: 120 }],
+    ['C2', { receipts: 100000, individuals: 50000, itemized: 0, donors: 0, nakamoto: null }],
+    ['C3', { receipts: 10000, individuals: 10000, itemized: 0, donors: 0, nakamoto: null }],
+  ]);
+  const upstream = new Map([['C2', [{ id: 'C3', amount: 50000 }]]]);
+  const traced = tracePacs(profiles, upstream);
+
+  it('one level deeper traces what a PAC got from other committees', () => {
+    expect(traced.get('C2')[1]).toEqual({ share: 0.5, traceable: 0.5 });
+    expect(traced.get('C2')[2]).toEqual({ share: 1, traceable: 1 });
+  });
+
+  it('counts half of the traced people money, at depth 2', () => {
+    const gifts = [
+      { id: 'C1', amount: 300000 },
+      { id: 'C2', amount: 300000 },
+      { id: 'C9', amount: 100000 }, // no FEC summary: nothing traced
+    ];
+    expect(pacPeopleCredit(gifts, traced)).toBeCloseTo((300000 * 0.96 + 300000) * 0.5, 0);
+    expect(pacPeopleCredit(gifts, traced, { credit: 0.5, depth: 1 })).toBeCloseTo(
+      (300000 * 0.96 + 300000 * 0.5) * 0.5,
+      0
+    );
+    expect(pacPeopleCredit(gifts, traced, { credit: 0, depth: 2 })).toBe(0);
   });
 });

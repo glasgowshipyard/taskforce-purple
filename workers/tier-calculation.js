@@ -68,17 +68,28 @@ export function cycleForYear(year) {
 }
 
 // How much more (or less) concerning each kind of PAC money is, for the PAC
-// bar (calculateTransparencyPenalty). Production uses these. A simulation
-// can pass its own (options.pacWeights), e.g. lobbyist: 1.0 to test dropping
-// the extra weight on FEC designation B, which covers about 77% of PAC money
-// to members (#57, 2026-10-09).
+// bar (calculateTransparencyPenalty). A simulation can pass its own
+// (options.pacWeights).
+//
+// Version A (owner, 2026-10-09, #57): FEC designation B ("lobbyist or
+// registrant PAC") no longer counts extra. It covers about 77% of PAC money
+// to members, union and company PACs alike, so it told us nothing; how far
+// a PAC's money comes from people is now measured directly (PAC_TRACING).
 export const PAC_WEIGHTS = {
   super: 2.0, // committee type O: Super PACs are 2x more concerning
   candidate: 0.3, // committee type P: candidate committees 70% less concerning
-  leadership: 1.5, // designation D: another politician's PAC
-  lobbyist: 1.5, // designation B: lobbyist/registrant PAC
+  leadership: 1.5, // designation D: another politician's PAC (1.0-1.5 being simulated)
+  lobbyist: 1.0, // designation B: lobbyist/registrant PAC (1.5 until 2026-10-09)
   authorized: 0.15, // designation P/A: candidate/authorized, 85% less concerning
 };
+
+// PAC money traced back to the people who funded each PAC (#57, owner
+// 2026-10-09). `credit`: the share of a PAC's people-funded money that
+// counts toward the member, because a PAC's leaders choose where its donors'
+// money goes, not the donors (sensitivity simulated at 25% and 100%).
+// `depth`: how far back money is followed: 1 is the PAC's own donors, 2 also
+// the donors of the committees that gave to the PAC ("one level deeper").
+export const PAC_TRACING = { credit: 0.5, depth: 2 };
 
 export function getPACTransparencyWeight(committee_type, designation, w = PAC_WEIGHTS) {
   let weight = 1.0;
@@ -290,10 +301,13 @@ export function calculateEnhancedTier(member, concentration = null, options = DE
     };
   }
 
+  // A complete PAC list (every gift, from the FEC's bulk files) is data even
+  // when it's empty: no PAC money is a finding, not a gap (#57)
   const hasEnhancedPACData =
-    member.pacContributions &&
-    member.pacContributions.length > 0 &&
-    member.pacContributions.some(pac => pac.committee_type || pac.designation);
+    member.pacListComplete === true ||
+    (member.pacContributions &&
+      member.pacContributions.length > 0 &&
+      member.pacContributions.some(pac => pac.committee_type || pac.designation));
 
   const hasUsableConcentration = isConcentrationReliable(member, concentration, options);
 
@@ -364,10 +378,10 @@ export function calculateEnhancedTier(member, concentration = null, options = DE
   // it stays readable, and keep the raw figure for the card's footnote.
   individualFundingPercent = Math.min(100, individualFundingPercent);
 
-  // PAC money traced back to the people who funded each PAC (#57; only in
-  // simulations until the owner decides: production members carry no
-  // pacPeopleCredit). It's already been through each PAC's own
-  // concentration test, so it adds straight to the people-funded share.
+  // PAC money traced back to the people who funded each PAC (#57,
+  // pacPeopleCredit: dollars, already through each PAC's own concentration
+  // test and times PAC_TRACING.credit), so it adds straight to the
+  // people-funded share.
   const pacCreditPercent =
     member.pacPeopleCredit > 0 ? (member.pacPeopleCredit / member.totalRaised) * 100 : 0;
   if (pacCreditPercent > 0) {
@@ -458,4 +472,39 @@ export function pacPeopleShare(profile, options = DEFAULT_OPTIONS) {
     share: Math.max(0, Math.min(1, fromPeople / 100 + upstreamShare)),
     traceable: Math.min(1, (individuals + traced) / receipts),
   };
+}
+
+/**
+ * Every PAC's people share, traced to `PAC_TRACING.depth` (#57): Map id ->
+ * { 1: { share, traceable }, 2: { share, traceable } }. Depth 2 counts money
+ * a PAC got from other committees as far as those committees' own donors
+ * pass the test. `profiles`: Map id -> pacPeopleShare profile; `upstream`:
+ * Map id -> [{ id, amount }], the committees that gave to each PAC.
+ */
+export function tracePacs(profiles, upstream = new Map(), options = DEFAULT_OPTIONS) {
+  const one = new Map([...profiles].map(([id, p]) => [id, pacPeopleShare(p, options)]));
+  const out = new Map();
+  for (const [id, p] of profiles) {
+    const up = (upstream.get(id) || [])
+      .filter(u => one.get(u.id)?.traceable > 0)
+      .map(u => ({ amount: u.amount, share: one.get(u.id).share }));
+    out.set(id, { 1: one.get(id), 2: pacPeopleShare({ ...p, upstream: up }, options) });
+  }
+  return out;
+}
+
+/**
+ * The PAC money that counts as people money for a member: each gift times
+ * its PAC's traced people share, times the credit. Dollars, for
+ * `member.pacPeopleCredit`. `gifts`: [{ id, amount }]; `traced`: tracePacs().
+ */
+export function pacPeopleCredit(gifts, traced, tracing = PAC_TRACING) {
+  if (!tracing.credit || !tracing.depth) {
+    return 0;
+  }
+  const people = gifts.reduce(
+    (t, g) => t + g.amount * (traced.get(g.id)?.[tracing.depth]?.share || 0),
+    0
+  );
+  return Math.round(people * tracing.credit * 100) / 100;
 }

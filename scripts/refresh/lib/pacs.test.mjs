@@ -4,6 +4,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { DuckDBInstance } from '@duckdb/node-api';
 import { describe, expect, it } from 'vitest';
+import { pacPeopleCredit, tracePacs } from '../../../workers/tier-calculation.js';
 import { asPacContributions, pacGifts, pacProfiles, pacSummary } from './pacs.mjs';
 
 const dir = mkdtempSync(join(tmpdir(), 'tfp-pacs-'));
@@ -95,12 +96,19 @@ describe('PAC gifts (#57)', () => {
       nakamoto: 20,
     });
     expect(profiles.get('C00000020')).toMatchObject({ itemized: 10000, donors: 2, nakamoto: 1 });
-    const summary = pacSummary(await pacGifts(d, ['C00000099']), profiles);
+    const gifts = await pacGifts(d, ['C00000099']);
+    const traced = tracePacs(profiles);
+    const summary = pacSummary(gifts, profiles, traced);
     expect(summary).toMatchObject({
       total: 13500,
       count: 3,
       byKind: { lobbyist: 7500, group: 5000, politician: 1000 },
+      counted: pacPeopleCredit(gifts, traced),
     });
+    expect(summary.counted).toBeGreaterThan(0);
     expect(summary.list[0].profile.donors).toBe(40);
+    // Each PAC's share traced to people, as the grade counts it
+    expect(summary.list[0].peopleShare).toBeCloseTo(traced.get(summary.list[0].id)[2].share, 3);
+    expect(summary.list.find(p => !profiles.has(p.id)).peopleShare).toBeNull();
   });
 });

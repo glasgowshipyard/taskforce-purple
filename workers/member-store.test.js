@@ -208,19 +208,43 @@ describe('publishedMember', () => {
     expect(m.pacContributions).toEqual(record.pacContributions);
   });
 
-  it('a member without a graded result is published as stored', () => {
+  it('a member with no result yet is published as stored', () => {
     const verified = { ...record, fecIdentityVerified: true };
     expect(publishedMember(verified, null)).toBe(verified);
-    expect(publishedMember(verified, { status: 'pending', grade: null })).toBe(verified);
   });
 
-  it('but never with a letter grade on an unconfirmed FEC identity (#41)', () => {
-    expect(publishedMember({ ...record, fecIdentityVerified: false }, null).tier).toBe(
-      'UNVERIFIED'
-    );
+  it('never with a letter grade on an unconfirmed FEC identity (#41)', () => {
+    const m = publishedMember({ ...record, fecIdentityVerified: false }, null);
+    expect(m.tier).toBe('UNVERIFIED');
+    expect(m.withheldReason).toBe('identity-not-confirmed');
     expect(publishedMember(record, null).tier).toBe('UNVERIFIED'); // never stamped
     // a ringfence already in place is left alone
     expect(publishedMember({ ...record, tier: 'DISPUTED' }, null).tier).toBe('DISPUTED');
+  });
+
+  it('nor keeps an old letter grade the refresh job could not confirm (owner, 2026-10-09)', () => {
+    // A member whose only committee for the cycle is an ordinary PAC: the
+    // job records why and grades nothing; the stored B from the old
+    // pipeline is withheld, not shown
+    const verified = { ...record, tier: 'B', fecIdentityVerified: true };
+    const pending = {
+      status: 'pending',
+      grade: null,
+      reconciliation: {
+        ok: false,
+        reason: 'no campaign committee, leadership PAC or joint fund registered for the cycle',
+      },
+    };
+    const m = publishedMember(verified, pending);
+    expect(m.tier).toBe('UNVERIFIED');
+    expect(m.withheldReason).toBe('no-campaign-committee');
+    expect(listEntry(m)).toMatchObject({
+      tier: 'UNVERIFIED',
+      withheldReason: 'no-campaign-committee',
+    });
+    expect(publishedMember(verified, { status: 'pending', grade: null }).withheldReason).toBe(
+      'not-graded'
+    );
   });
 
   it('the list entry carries the evidence state', () => {

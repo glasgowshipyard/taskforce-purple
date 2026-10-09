@@ -46,6 +46,7 @@ export const LIST_FIELDS = [
   'faraEmployerTotal',
   'faraAgentTotal',
   'pacDetailsStatus',
+  'withheldReason',
   'lastUpdated',
 ];
 
@@ -116,11 +117,25 @@ export function servedMember(member) {
 export function publishedMember(record, result) {
   const g = result?.grade;
   if (!g?.tier) {
-    // Not graded by the refresh job: shown as stored, except that a letter
-    // grade on figures whose FEC identity was never confirmed is not
-    // published (identity is looked up, never inferred, #41)
-    if (record && record.fecIdentityVerified !== true && /^[SABCDEF]$/.test(record.tier || '')) {
-      return { ...record, tier: 'UNVERIFIED' };
+    // Not graded by the refresh job. The rule (owner, 2026-10-09): a letter
+    // grade is published only when it was worked out from this cycle's FEC
+    // records, matched to the member (#41) and reconciled with the FEC's
+    // own totals. Otherwise it is withheld (shown as "?") with the reason:
+    //   - no confirmed FEC identity: UNVERIFIED (identity is looked up,
+    //     never inferred)
+    //   - the refresh job looked and found nothing it could grade (no
+    //     campaign committee registered for the cycle): withheld
+    //   - figures that don't reconcile come graded as DISPUTED (grading.js)
+    // A member with no result at all (D1 unreadable, or not yet run) is
+    // shown as stored unless the identity is unconfirmed.
+    if (!record || !/^[SABCDEF]$/.test(record.tier || '')) {
+      return record;
+    }
+    if (record.fecIdentityVerified !== true) {
+      return { ...record, tier: 'UNVERIFIED', withheldReason: 'identity-not-confirmed' };
+    }
+    if (result) {
+      return { ...record, tier: 'UNVERIFIED', withheldReason: withheldReason(result) };
     }
     return record;
   }
@@ -151,6 +166,12 @@ export function publishedMember(record, result) {
     // record's old top-20 list stays for members graded before it
     ...(a.pacs ? { pacSummary: a.pacs } : {}),
   };
+}
+
+// Why the refresh job couldn't grade a member, as a code the site explains
+function withheldReason(result) {
+  const why = result.reconciliation?.reason || '';
+  return /no campaign committee/.test(why) ? 'no-campaign-committee' : 'not-graded';
 }
 
 /**

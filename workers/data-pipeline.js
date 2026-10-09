@@ -241,7 +241,7 @@ async function handleMemberDetail(env, corsHeaders, url) {
   ]);
   const body = result?.grade?.tier
     ? publishedDetail(bioguideId, record, result)
-    : await legacyDetail(env, bioguideId, record);
+    : await legacyDetail(env, bioguideId, record, result);
   return new Response(JSON.stringify(body), {
     headers: {
       ...corsHeaders,
@@ -391,8 +391,8 @@ function publishedDetail(bioguideId, record, result) {
 }
 
 // The detail from the old KV analysis, for a member the refresh job hasn't
-// graded (no FEC identity, or pending)
-async function legacyDetail(env, bioguideId, record) {
+// graded (no FEC identity, or pending: `result` says why)
+async function legacyDetail(env, bioguideId, record, result = null) {
   const raw = await env.MEMBER_DATA.get(`itemized_analysis_v2:${bioguideId}`);
   const a = raw ? JSON.parse(raw) : null;
   const pf = a?.personFunding && !a.personFunding.failed ? a.personFunding : null;
@@ -400,7 +400,7 @@ async function legacyDetail(env, bioguideId, record) {
     bioguideId,
     // The member's full served record: the profile's heavy fields (PAC
     // donations, FARA firms, conduits) live here, not in the list (Stage 1)
-    member: record ? servedMember(publishedMember(record, null)) : null,
+    member: record ? servedMember(publishedMember(record, result)) : null,
     // Donor-level figures come from the committees this analysis pooled
     donorPoolCommitteeIds: a?.committeeIds || (a?.committeeId ? [a.committeeId] : []),
     personLevel: Boolean(a?.personLevel),

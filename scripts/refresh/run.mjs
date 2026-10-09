@@ -6,15 +6,15 @@
  *   node scripts/refresh/run.mjs [--members ID,ID] [--cycle 2026] [--dry-run]
  *     [--bulk-dir DIR] [--trigger manual|calendar|event] [--new-round REASON]
  *     [--budget-minutes 300] [--batch 25] [--grade-only] [--discovery zips|api]
- *     [--pac-weights stored|full] [--report FILE]
+ *     [--report FILE]
  *
- * --pac-weights  which PAC list the grade's PAC weighting reads: `stored`
- *                (default, as before: the old pipeline's top-20 gifts to the
- *                campaign) or `full` (every PAC gift to the member's campaign
- *                and leadership PAC, from the bulk files, #57). Switching is
- *                a grading change: simulate it and the owner decides.
- * --report FILE  writes every member's grade three ways (published now; this
- *                run's grade with the stored PAC list; with the full one) as
+ * PAC money (#57, version A, owner 2026-10-09): the grade reads every PAC
+ * gift to the member's campaign and leadership PAC from the bulk files, and
+ * counts half of each PAC's people-funded money as people money, traced one
+ * level deeper (tier-calculation.js PAC_TRACING). With --discovery api there
+ * is no bulk PAC list, and the grade falls back to the record's stored one.
+ * --report FILE  writes every member's grade (published now; this run's) and
+ *                the PAC settings still being chosen (lib/pac-sim.mjs) as
  *                JSON, with a summary: the simulation the settled decisions
  *                require before any grading change is published.
  *
@@ -55,10 +55,14 @@ import {
   classifyScheduleARow,
   countsAsItemizedIndividual,
 } from '../../workers/schedule-a-classify.js';
-import { cycleForYear } from '../../workers/tier-calculation.js';
+import {
+  cycleForYear,
+  pacPeopleCredit,
+  tracePacs,
+} from '../../workers/tier-calculation.js';
 import { analyzePool, loadFara } from './lib/analysis.mjs';
 import { ensureFara } from './lib/fara.mjs';
-import { gradeVariants, pacShares, untraced } from './lib/pac-sim.mjs';
+import { PRODUCTION_VARIANT, VARIANTS, gradeVariants, untraced } from './lib/pac-sim.mjs';
 import {
   asPacContributions,
   pacGifts,
@@ -124,7 +128,6 @@ async function main() {
   const bulkDir = arg('--bulk-dir', join(tmpdir(), 'tfp-bulk'));
   const budgetMs = Number(arg('--budget-minutes', 300)) * 60000;
   const batchSize = Number(arg('--batch', 25));
-  const pacWeights = arg('--pac-weights', 'stored');
   const reportPath = arg('--report', null);
   const report = [];
   mkdirSync(bulkDir, { recursive: true });
@@ -219,8 +222,7 @@ async function main() {
   // Every PAC gift to each member, and each giving PAC's own donors (#57)
   const giftsFor = new Map();
   let profiles = new Map();
-  let upstream = new Map();
-  let shares = new Map();
+  let traced = new Map();
   const pacTypes = {}; // report: PAC dollars and traced people dollars by kind and organisation type
   if (arg('--discovery', 'zips') === 'zips') {
     db = await loadDiscoveryFiles(cycle, bulkDir, log);
@@ -246,21 +248,16 @@ async function main() {
         .map(c => c.committeeId);
       giftsFor.set(id, await pacGifts(db, vehicles));
     }
-    // The page shows the 30 biggest per member; the simulation (--report)
-    // traces every giving PAC, and the committees that fund them (#57)
-    const givers = [...giftsFor.values()].flatMap(g =>
-      (reportPath ? g : g.slice(0, 30)).map(x => x.id)
-    );
-    if (reportPath) {
-      upstream = await upstreamGifts(db, givers);
-    }
+    // Every giving PAC's own donors, and the donors of the committees that
+    // fund them (one level deeper): how much of each PAC's money came from
+    // people (#57)
+    const givers = [...giftsFor.values()].flatMap(g => g.map(x => x.id));
+    const upstream = await upstreamGifts(db, givers);
     const upIds = [...upstream.values()].flatMap(u => u.map(x => x.id));
     profiles = await pacProfiles(db, file.path, [...givers, ...upIds]);
-    if (reportPath) {
-      shares = pacShares(profiles, upstream);
-    }
+    traced = tracePacs(profiles, upstream);
     log(
-      `PACs: ${new Set(givers).size} giving PACs profiled${reportPath ? `, ${new Set(upIds).size} committees funding them` : ''}`
+      `PACs: ${new Set(givers).size} giving PACs traced, ${new Set(upIds).size} committees funding them`
     );
   }
   const conduitName = async id => {
@@ -525,7 +522,7 @@ async function main() {
         const analysis = await analyzePool(bulk, p.pool, { conduitName });
         const gifts = giftsFor.get(p.id);
         if (gifts) {
-          analysis.pacs = pacSummary(gifts, profiles);
+          analysis.pacs = pacSummary(gifts, profiles, traced);
         }
         const member = JSON.parse((await cf.kvGet(memberKey(p.id))) || 'null');
         const asStored = {
@@ -537,21 +534,23 @@ async function main() {
         // Every member graded here was looked up in the FEC crosswalk (members
         // without an identity are skipped above), so the figures are theirs.
         // A record's older flag (stamped once, 2026-09-26) doesn't override it.
-        // The PAC weighting reads either the stored list or every gift (#57)
-        const gradeWith = list =>
-          member
-            ? gradeMember(
-                {
-                  ...member,
-                  fecIdentityVerified: true,
-                  ...(list ? { pacContributions: asPacContributions(list) } : {}),
-                },
-                asStored
-              )
-            : null;
-        const storedGrade = gradeWith(null);
-        const fullGrade = gifts ? gradeWith(gifts) : null;
-        const grade = pacWeights === 'full' && fullGrade ? fullGrade : storedGrade;
+        // Every PAC gift, and the PAC money traced back to people (#57)
+        const grade = member
+          ? gradeMember(
+              {
+                ...member,
+                fecIdentityVerified: true,
+                ...(gifts
+                  ? {
+                      pacContributions: asPacContributions(gifts),
+                      pacListComplete: true,
+                      pacPeopleCredit: pacPeopleCredit(gifts, traced),
+                    }
+                  : {}),
+              },
+              asStored
+            )
+          : null;
         if (reportPath) {
           const before = targets.find(t => t.bioguideId === p.id) || {};
           const brief = g =>
@@ -569,22 +568,18 @@ async function main() {
             chamber: before.chamber,
             state: before.state,
             before: { tier: before.tier, score: before.individualFundingPercent ?? null },
-            stored: brief(storedGrade),
-            full: brief(fullGrade),
+            grade: brief(grade),
             totalRaised: p.pf.totalRaised,
             ownMoney: own,
             ownShare:
               own && p.pf.totalRaised ? (own.contributions + own.loans) / p.pf.totalRaised : 0,
-            pacStoredTotal: (member?.pacContributions || []).reduce(
-              (t, x) => t + (x.amount || 0),
-              0
-            ),
-            pacFullTotal: gifts ? gifts.reduce((t, x) => t + x.amount, 0) : null,
+            pacTotal: gifts ? gifts.reduce((t, x) => t + x.amount, 0) : null,
+            pacByKind: gifts ? analysis.pacs.byKind : null,
             variants:
               gifts && member
-                ? gradeVariants({ member, asStored, gifts, shares, gradeMember })
+                ? gradeVariants({ member, asStored, gifts, traced, gradeMember })
                 : null,
-            untraced: gifts ? untraced(gifts, shares) : null,
+            untraced: gifts ? untraced(gifts, traced) : null,
             faraEmployerTotal: analysis.faraEmployerTotal,
             faraAgentTotal: analysis.faraAgentTotal,
           });
@@ -679,14 +674,14 @@ async function main() {
         const k = `${g.kind}/${g.orgType || '-'}`;
         const t = (pacTypes[k] ||= { dollars: 0, people1: 0, people2: 0, untraced1: 0 });
         t.dollars += g.amount;
-        t.people1 += g.amount * (shares.get(g.id)?.[1]?.share || 0);
-        t.people2 += g.amount * (shares.get(g.id)?.[2]?.share || 0);
-        t.untraced1 += g.amount * (1 - (shares.get(g.id)?.[1]?.traceable || 0));
+        t.people1 += g.amount * (traced.get(g.id)?.[1]?.share || 0);
+        t.people2 += g.amount * (traced.get(g.id)?.[2]?.share || 0);
+        t.untraced1 += g.amount * (1 - (traced.get(g.id)?.[1]?.traceable || 0));
       }
     }
     writeFileSync(`${reportPath}.pacs.json`, JSON.stringify(pacTypes, null, 1));
     writeFileSync(reportPath, JSON.stringify(report, null, 1));
-    const moved = key => report.filter(r => r[key] && r[key].tier !== r.before.tier);
+    const moved = pick => report.filter(r => pick(r) && pick(r).tier !== r.before.tier);
     const byParty = list =>
       Object.entries(
         list.reduce((m, r) => {
@@ -703,12 +698,30 @@ async function main() {
       )
         .map(([k, v]) => `${k} ${v}`)
         .join(', ');
-    for (const key of ['stored', 'full']) {
-      const list = moved(key).map(r => ({ ...r, after: r[key] }));
-      log(`report: ${key} PAC list: ${list.length} grade(s) change (${byParty(list)})`);
-      for (const r of list.slice(0, 60)) {
-        log(`  ${r.before.tier} -> ${r.after.tier}  ${r.name} (${r.party}, ${r.state})`);
-      }
+    const tally = list =>
+      Object.entries(
+        list.reduce((m, t) => ((m[t] = (m[t] || 0) + 1), m), {})
+      )
+        .sort((a, b) => gradeRank(b[0]) - gradeRank(a[0]))
+        .map(([k, v]) => `${k}${v}`)
+        .join(' ');
+    const off = report.filter(
+      r => r.variants && r.grade && r.variants[PRODUCTION_VARIANT].score !== r.grade.score
+    );
+    log(
+      `report: production grade matches ${PRODUCTION_VARIANT} for all but ${off.length} member(s)${off.length ? `: ${off.map(r => r.name).join('; ')}` : ''}`
+    );
+    for (const key of Object.keys(VARIANTS)) {
+      const pick = r => r.variants?.[key];
+      const list = moved(pick).map(r => ({ ...r, after: pick(r) }));
+      log(
+        `report: ${key}: ${tally(report.filter(pick).map(r => pick(r).tier))}; ${list.length} change from now (${byParty(list)})`
+      );
+    }
+    const list = moved(r => r.grade).map(r => ({ ...r, after: r.grade }));
+    log(`report: this run's grades: ${list.length} change (${byParty(list)})`);
+    for (const r of list.slice(0, 60)) {
+      log(`  ${r.before.tier} -> ${r.after.tier}  ${r.name} (${r.party}, ${r.state})`);
     }
     log(`report written to ${reportPath}`);
   }
