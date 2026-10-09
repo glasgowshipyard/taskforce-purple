@@ -1,6 +1,6 @@
 # Tier Calculation Guide
 
-**Last Updated**: 2026-10-04
+**Last Updated**: 2026-10-09
 **Implementation**: `workers/tier-calculation.js` (pure functions, unit-tested in `workers/tier-calculation.test.js`)
 
 > Historical note: this guide previously described an adaptive-percentile
@@ -55,6 +55,21 @@ grade is provisional (`evidenceChecked: false`); the check confirms it or
 shifts it.
 
 ## The Calculation
+
+### Step 0: The candidate's own money is set aside (#59, owner 2026-10-08)
+
+A candidate's own gifts and loans to their campaign (FEC candidate summary
+file `weball`: `CAND_CONTRIB` + `CAND_LOANS`, across every candidate ID they
+have) are taken out of `totalRaised` before anything else. Being rich or
+driven makes a member depend on no one, so own money neither helps nor
+hurts the grade. It's kept in `personFigures.ownMoney` and shown on the
+receipt, with the loans their campaign repaid them (`CAND_LOAN_REPAY`).
+
+If the own money doesn't fit inside what the FEC says they raised (money
+from others would be smaller than the donations, PAC and party money we know
+came from others, with 2% tolerance), the figures don't reconcile to
+source: no grade, `DISPUTED` with `disputeReason: own-money-exceeds-receipts`
+(#62). `workers/grading.js`.
 
 ### Step 1: Individual funding percent
 
@@ -143,6 +158,18 @@ pacPenalty = min(floor(concerningPercent), 30)
 ```
 S ≥ 90+pacPenalty   A ≥ 75+…   B ≥ 60+…   C ≥ 45+…   D ≥ 30+…   E ≥ 15+…   else F
 ```
+
+**Which PAC list (#57, 2026-10-09).** The penalty reads
+`member.pacContributions`. Until 2026-10-09 that was only the old pipeline's
+top-20 gifts to the campaign committee (Martin Heinrich: $100,000 of $1.1M).
+The refresh job now collects every PAC gift to a member's campaigns and
+leadership PAC from the FEC bulk files (`oth` 24K/24Z, with `cm` type,
+designation and organisation type), and `--pac-weights full` grades on it.
+The default stays `stored` until the owner decides, because the full list
+moves grades a lot: most company, union and trade-group PACs carry FEC
+designation `B` (lobbyist/registrant), which weighs 1.5x, so the full list
+pushes many members' thresholds up by the 30-point maximum. Each PAC's own
+donors (looking through it) are collected and shown, not graded.
 
 ### Fallback path
 

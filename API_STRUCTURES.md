@@ -499,6 +499,21 @@ nakamotoCoefficient, faraEmployerTotal, pacDetailsStatus, lastUpdated`, plus
     `trustAnchor` and `trustAnchorBasis` (dinner-party, elite-capture,
     standard, movement, default), `itemizationPenalty` and
     `transparencyPenalty`. The member page explains the grade from it.
+  - `member.personFigures.ownMoney` (added 2026-10-09, #59): `{ contributions,
+loans, repaid }`, the candidate's own gifts and loans to their campaign
+    and what it repaid them, from the FEC candidate summary. Left out of the
+    grade, shown on the receipt. Present only when non-zero.
+  - `member.pacSummary` (added 2026-10-09, #57): every PAC gift to the
+    member's campaigns and leadership PAC: `{ total, count, byKind, list }`,
+    `list` the 30 largest with each PAC's FEC type, designation, organisation
+    type, sponsor and `profile` (its own receipts, money from individuals,
+    named donors and how few gave half). Members graded before it keep the
+    record's old `pacContributions` only.
+  - `member.faraAgentTotal` (added 2026-10-09, #60): money from donors
+    personally registered as foreign agents (named on their firm's DOJ
+    short-form list); `faraEmployerTotal` stays everyone at a registered
+    firm. Each `faraFirms` entry adds `agentAmount`, `agents`, `clientCount`,
+    `countries` and `clients` (name, country, government or not).
 
   Members not graded by the job (no FEC identity, or pending) get the old
   stored record, with `evidence: null`. One D1 read per request.
