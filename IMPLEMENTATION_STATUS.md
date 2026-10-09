@@ -4,6 +4,28 @@
 
 ---
 
+## 2026-10-09 (evening): PAC tracing simulated; owner to choose (#57)
+
+Owner's framing: PACs aren't the problem, who fills them is. The grade
+should trace PAC money to the people behind it, with the members' rules.
+Built as simulation options only (`pacPeopleShare` and `options.pacWeights`
+in tier-calculation.js; `--report` in the refresh job runs every version).
+Production grades are unchanged. Full results on #57 (run 37998209219):
+
+- F grades: 163 now. The full PAC list with today's weights gives 367.
+  Dropping the extra weight on FEC designation B gives 151. Tracing at 25%,
+  50% and 100% credit gives 114, 56 and 12, keeping the extra weight on
+  super PACs and other politicians' PACs (A). With no extra weights (B) it
+  gives 89, 15 and 1.
+- Reference members hold everywhere (Sanders, AOC, Cantwell S; Pelosi B).
+- Union PAC money traces 88% to people, company PACs 49%, trade groups 42%,
+  other politicians' PACs 9% (40% one level further).
+- Tracing lifts Democrats more often (A 50%: 154 of 262 up, against 108 of
+  275 Republicans): the data, not a judgement.
+- /how now says outside spending (super PAC ads) isn't in the grade.
+
+---
+
 ## 2026-10-09 (later): self-funding out of the grade; every PAC; foreign agents split (#57, #59, #60, #62)
 
 Owner: "smash out the rest". Simulated across all 536 graded members first
