@@ -4,6 +4,48 @@
 
 ---
 
+## 2026-10-09 (later): self-funding out of the grade; every PAC; foreign agents split (#57, #59, #60, #62)
+
+Owner: "smash out the rest". Simulated across all 536 graded members first
+(GitHub Actions dry run with `--report`, run 37971367095).
+
+- **Self-funding (#59), graded.** A candidate's own gifts and loans (FEC
+  `weball`) are set aside before grading and shown on the receipt as
+  "Their own money", with a plain "Self-funded" note when it's 5% or more.
+  Simulation: 19 grades change; 14 self-funders move up (e.g. April
+  McClain Delaney F to D, Rick Scott D to B, Sara Jacobs F to E, Doris
+  Matsui F to E), 9 Democrats and 7 Republicans up. Five of the 19 aren't
+  self-funders: newer FEC data since the last grading.
+- **Figures that don't add up (#62).** Own money larger than fits inside
+  the FEC's receipts withholds the grade (`?`): Shri Thanedar (was B) and
+  Buddy Carter (was E).
+- **Every PAC gift (#57), shown, not graded.** The refresh job collects
+  every PAC gift to a member's campaigns and leadership PAC from the bulk
+  files (the PACs' own reports, `oth` 24K/24Z): $445M across members,
+  against $76M in the old top-20 lists. Each PAC's FEC type, organisation
+  type (company, union, trade group, membership) and sponsor, and its own
+  donors (how much from people, how much in small donations, how few gave
+  half): "looking through" the PAC. Member pages show the split by kind and
+  the biggest PACs with their own donors.
+- **PAC weighting on the full list: NOT switched on, owner to decide.**
+  Simulated: 321 grades change, 316 down (160 Democrats, 156 Republicans);
+  F grades would go from 167 to 367. Most company, union and trade-group
+  PACs carry FEC designation B (lobbyist/registrant), which the grade
+  weighs 1.5x, so on full data the PAC bar averages 25 points (363 members
+  at the 30 maximum) against 5 on the old lists. The weighting needs
+  redesigning with the look-through, not switching on as it stands.
+  `--pac-weights stored` stays the default.
+- **Foreign agents (#60).** The DOJ's FARA register (bulk CSVs, read
+  leniently: odd bytes and unescaped quotes) tells donors personally
+  registered as agents (on their firm's short-form list) from colleagues
+  at the same firm, and names each firm's foreign clients and countries.
+  402 members have at least one donor personally registered ($2.7M in
+  all). The foreign-agent flag now needs a registered agent.
+- **Reference members** unchanged under both versions: Sanders S, AOC S,
+  Pelosi B.
+
+---
+
 ## 2026-10-09: grade names, what decided the grade, and PAC types (#56, #57, #58)
 
 Presentation only: no grade changed.

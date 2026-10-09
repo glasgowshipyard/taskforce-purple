@@ -19,7 +19,12 @@ function Chips({ pac }) {
     <>
       {' '}
       <span className={`pac-chip${heavier ? ' is-heavier' : ''}`}>{pacLabel(pac)}</span>
-      {pac.kind === 'lobbyist' && <span className="pac-chip is-heavier">Lobbies Congress</span>}
+      {pac.kind === 'lobbyist' && (
+        <>
+          {' '}
+          <span className="pac-chip is-heavier">Lobbies Congress</span>
+        </>
+      )}
     </>
   );
 }

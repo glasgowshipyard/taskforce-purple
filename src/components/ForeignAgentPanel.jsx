@@ -12,6 +12,10 @@ const titleCase = s =>
     .toLowerCase()
     .replace(/(^|[\s,'-])([a-z])/g, (_, p, c) => p + c.toUpperCase());
 
+// The DOJ writes some countries back to front ("KOREA, SOUTH"), which breaks
+// a comma-separated list: "South Korea"
+const country = c => titleCase(String(c || '').replace(/^([^,]+),\s*(.+)$/, '$2 $1'));
+
 function Clients({ firm }) {
   if (!firm.clientCount) {
     return null;
@@ -20,7 +24,7 @@ function Clients({ firm }) {
   return (
     <p className="pac-list-sub">
       {firm.clientCount === 1 ? 'One foreign client' : `${firm.clientCount} foreign clients`}
-      {firm.countries?.length ? `, in ${firm.countries.map(titleCase).join(', ')}` : ''}
+      {firm.countries?.length ? `, in ${firm.countries.map(country).join(', ')}` : ''}
       {governments ? `. ${governments} of those shown are governments or government bodies` : ''}.
     </p>
   );
