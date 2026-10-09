@@ -57,7 +57,9 @@ const RULES = [
     sector: 'industry',
     patterns: ['ASSOCIATION OF BROADCASTERS', 'NABPAC', 'COUNCIL OF ENGINEERING'],
   },
-  { sector: 'tribal', patterns: [' TRIBE', ' NATION', 'BAND OF', 'INDIAN COMMUNITY'] },
+  // ' NATION ' with both spaces: plain ' NATION' also matched NATIONAL, and
+  // labelled the National Association of Realtors a tribal nation (#58)
+  { sector: 'tribal', patterns: [' TRIBE', ' NATION ', 'BAND OF', 'INDIAN COMMUNITY'] },
 ];
 
 export function classifyOrganization(name) {

@@ -6,7 +6,14 @@ import { Barcode, Evidence, MoneyLines, PowerBar, Skeleton, Stamp } from '../com
 import { api } from '../lib/api.js';
 import { classifyOrganization, foreignInterestFor, sectorInfo } from '../lib/donor-taxonomy.js';
 import { CYCLE_LABEL } from '../lib/election.js';
-import { concentrationVerdict, explainGrade, gradeBands } from '../lib/explain.js';
+import { PAC_TYPES, pacRows } from '../lib/pacs.js';
+import {
+  concentrationVerdict,
+  explainGrade,
+  gradeBands,
+  headlineFor,
+  rankLine,
+} from '../lib/explain.js';
 import {
   GRADES,
   gradeInfo,
@@ -60,9 +67,15 @@ const dateText = d =>
     : null;
 
 // A note reads "C00123456: The FEC's ..."; show the committee's name
+// Both figures are the FEC's own, so the grade can be checked and the note
+// still stand: say so, so they don't read as contradicting each other
 function evidenceNote(note, committees) {
   const [id, ...rest] = note.split(': ');
   const c = committees.find(x => x.committeeId === id);
+  const m = /differs from the sum of its own records by (\$[\d,.]+)/.exec(rest.join(': '));
+  if (m) {
+    return `For ${c ? c.name : id}, the FEC's summary total and the sum of its own individual records differ by ${m[1]}. Both numbers come from the FEC. Every record is checked, so the gap is in the FEC's own figures.`;
+  }
   return rest.length ? `${c ? c.name : id}: ${rest.join(': ')}.` : note;
 }
 
@@ -84,19 +97,6 @@ function pacStanding(share, members) {
     return "That's less than most members of Congress.";
   }
   return "That's about average for Congress.";
-}
-
-function topPacs(contributions = []) {
-  const byName = new Map();
-  for (const p of contributions) {
-    const name = p.pacName || 'Unnamed committee';
-    byName.set(name, (byName.get(name) || 0) + (p.amount || 0));
-  }
-  return [...byName]
-    .map(([name, amount]) => ({ name, amount }))
-    .filter(p => p.amount > 0)
-    .sort((a, b) => b.amount - a.amount)
-    .slice(0, 8);
 }
 
 // A candidate in races:list, in the shape the page reads for a member
@@ -282,12 +282,21 @@ export default function Member({ id, kind = 'member' }) {
   const checked = d?.evidence?.checked ?? m.evidenceChecked ?? null;
   const gradedOn = dateText(d?.collectedAt || m.gradedAt);
   const canShare = isLetter(m.tier) && hasMoney;
-  const fromWhom = n => (n === 1 ? 'one person' : `${count(n)} people`);
   // Leads with the number; the non-breaking hyphen keeps "big-donation" on one line
-  const headline = conc
-    ? `${conc.n === 1 ? 'One person' : `${count(conc.n)} people`} gave half the big\u2011donation money.`
-    : `${smallPct}% of the money came from small donors.`;
+  // Leads with whatever decided the grade, good or bad (#56)
+  const lead = hasMoney ? headlineFor({ tier: m.tier, lines, grade: d?.grade, conc, name }) : null;
+  const headline = lead?.big ?? `${smallPct}% of the money came from small donations.`;
+  const rank = isLetter(m.tier)
+    ? rankLine(
+        d?.grade?.score ?? m.individualFundingPercent,
+        members
+          .filter(x => isLetter(x.tier) && Number.isFinite(x.individualFundingPercent))
+          .map(x => x.individualFundingPercent)
+      )
+    : null;
   const standing = hasMoney ? pacStanding(f.pacMoney / f.totalRaised, members) : null;
+  const pacs = unverified ? [] : pacRows(m.pacContributions);
+  const pacCollected = pacs.reduce((t, p) => t + p.amount, 0);
   const why = hasMoney ? explainGrade({ tier: m.tier, lines, grade: d?.grade, conc, name }) : null;
   const verdict = conc ? concentrationVerdict(d?.grade?.detail?.trustAnchorBasis) : null;
   const passedOn = committees
@@ -327,6 +336,7 @@ export default function Member({ id, kind = 'member' }) {
             <h1 className="display display-xl" style={{ fontSize: 'clamp(48px, 8vw, 112px)' }}>
               {name}
             </h1>
+            {rank && <p className="rank-line">{rank}</p>}
           </div>
           <div className="row">
             {canShare && (
@@ -402,21 +412,17 @@ export default function Member({ id, kind = 'member' }) {
             </div>
 
             <div className="member-main">
-              <div className="headline dark on-dark">
-                <p className="eyebrow">Big donations</p>
+              <div className={`headline dark on-dark tone-${lead?.tone ?? 'neutral'}`}>
+                <p className="eyebrow">{lead?.eyebrow ?? 'Big donations'}</p>
                 <p
                   className="display"
                   style={{ marginTop: 12, fontSize: 'clamp(40px, 6vw, 84px)', lineHeight: 0.9 }}
                 >
                   {headline}
                 </p>
-                {conc && (
+                {lead?.text && <p className="lede">{lead.text}</p>}
+                {conc && lead?.showConc && (
                   <>
-                    <p className="lede">
-                      {conc.of
-                        ? `${count(conc.of)} people each gave ${name} more than $200. Half of that money came from just ${conc.n === 1 ? 'one of them' : `${count(conc.n)} of them`}. The other ${count(conc.of - conc.n)} gave the other half.`
-                        : `Half of the big-donation money came from ${fromWhom(conc.n)}.`}
-                    </p>
                     <ConcentrationBars n={conc.n} of={conc.of} />
                     {verdict && (
                       <p className={`verdict tone-${verdict.tone}`}>
@@ -638,22 +644,48 @@ export default function Member({ id, kind = 'member' }) {
                     </div>
                   )}
                 </div>
-                {m.pacContributions?.length > 0 && (
+                {pacs.length > 0 && (
                   <div className="panel">
-                    <h3>Biggest PACs</h3>
+                    <h3>PAC donations</h3>
+                    <p className="small" style={{ color: 'var(--ink-2)', marginBottom: 12 }}>
+                      A PAC (political action committee) pools money and gives it to candidates.
+                      Some are run by companies, unions or trade groups, some by lobbyists, and some
+                      by other politicians. They don&apos;t all count the same against the grade.
+                    </p>
                     <ol className="ranked">
-                      {topPacs(m.pacContributions).map((p, i) => (
-                        <li key={p.name}>
+                      {pacs.slice(0, 10).map((p, i) => (
+                        <li key={p.id}>
                           <span className="muted">{i + 1}.</span>
-                          <span className="name">{p.name}</span>
+                          <span className="name">
+                            {p.name}{' '}
+                            <span
+                              className={`pac-chip${PAC_TYPES[p.type].heavier ? ' is-heavier' : ''}`}
+                            >
+                              {PAC_TYPES[p.type].label}
+                            </span>
+                          </span>
                           <span className="leader" aria-hidden="true" />
                           <strong>{usd(p.amount)}</strong>
                         </li>
                       ))}
                     </ol>
+                    <ul className="pac-key">
+                      {[...new Set(pacs.slice(0, 10).map(p => p.type))].map(type => (
+                        <li key={type}>
+                          <span
+                            className={`pac-chip${PAC_TYPES[type].heavier ? ' is-heavier' : ''}`}
+                          >
+                            {PAC_TYPES[type].label}
+                          </span>{' '}
+                          {PAC_TYPES[type].why}
+                          {PAC_TYPES[type].heavier && ' This kind counts more against the grade.'}
+                        </li>
+                      ))}
+                    </ul>
                     <p className="fine" style={{ marginTop: 12 }}>
-                      Money from super PACs, leadership PACs and lobbyists&apos; PACs counts more
-                      heavily against the grade.
+                      This is only part of the PAC money: the donations to the campaign committee
+                      we&apos;ve collected so far, {usd(pacCollected)} of the {usd(f.pacMoney)}{' '}
+                      {name} took from PACs in all. We&apos;re working on the complete list.
                     </p>
                   </div>
                 )}

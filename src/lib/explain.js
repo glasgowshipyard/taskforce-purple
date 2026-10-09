@@ -157,3 +157,97 @@ export function explainGrade({ tier, lines, grade, conc, name }) {
 
   return { steps, raw, score, shift };
 }
+
+/** Where a score stands in Congress, in words (#56). `scores`: every graded member's. */
+export function rankLine(score, scores) {
+  if (!Number.isFinite(score) || scores.length < 50) {
+    return null;
+  }
+  // Never "than 100 in 100": the member is one of them
+  const share = n => Math.min(99, Math.round((n / scores.length) * 100));
+  const more = share(scores.filter(s => s < score).length);
+  const less = share(scores.filter(s => s > score).length);
+  return more >= less
+    ? `More people-funded than ${more} in 100 members of Congress.`
+    : `Less people-funded than ${less} in 100 members of Congress.`;
+}
+
+/**
+ * The one thing that decided the grade, said in its own direction (#56): a
+ * good grade leads with what's good, a poor one with what hurt it most. The
+ * candidates for "what hurt" are measured the same way, in share of the
+ * money: PAC money, money that didn't come from donors, and big donations
+ * that stopped counting because few people gave them.
+ * Returns { tone, eyebrow, big, text, showConc }.
+ */
+export function headlineFor({ tier, lines, grade, conc, name }) {
+  const by = key => lines.find(l => l.key === key)?.pct ?? 0;
+  const small = by('small');
+  const big = by('big');
+  const raw = small + big;
+  const fewPeople = conc
+    ? `${count(conc.n)} ${conc.n === 1 ? 'person' : 'people'} gave half the big‑donation money.`
+    : null;
+
+  if (['S', 'A', 'B'].includes(tier)) {
+    return {
+      tone: 'good',
+      eyebrow: 'What helped the grade',
+      big: `${raw}% of the money came from people.`,
+      text:
+        `${small}% came in small donations under $200 and ${big}% in big donations over $200.` +
+        (conc
+          ? ` Half of the big-donation money came from ${count(conc.n)} different people.`
+          : ''),
+      showConc: Boolean(conc),
+    };
+  }
+
+  const d = grade?.detail;
+  const lost =
+    d?.path === 'enhanced' && Number.isFinite(grade.score) ? Math.max(0, raw - grade.score) : 0;
+  const pac = by('pac');
+  const other = by('other') + by('party');
+  const worst = [
+    ['conc', conc ? lost : 0],
+    ['pac', pac],
+    ['other', other],
+  ].sort((a, b) => b[1] - a[1])[0][0];
+  const eyebrow = tier === 'C' ? 'What held the grade back' : 'What hurt the grade most';
+
+  if (worst === 'pac') {
+    return {
+      tone: 'bad',
+      eyebrow,
+      big: `${pac}% of the money came from PACs.`,
+      text:
+        "PAC money doesn't count as coming from people." +
+        (d?.transparencyPenalty > 0
+          ? " Some of it came from lobbyists' PACs, other politicians' PACs or super PACs, which count more heavily."
+          : ''),
+      showConc: false,
+    };
+  }
+  if (worst === 'other') {
+    return {
+      tone: 'bad',
+      eyebrow,
+      big: `${other}% of the money didn't come from donors.`,
+      text: `It came from other places, such as ${by('party') ? 'party committees, ' : ''}loans or ${name}'s own money. Only money people donate counts toward the grade.`,
+      showConc: false,
+    };
+  }
+  return {
+    tone: 'bad',
+    eyebrow,
+    big: fewPeople || `${raw}% of the money came from people.`,
+    // Says the share from people first, so a member with most of their money
+    // from people and a poor grade doesn't read as a contradiction
+    text:
+      `${raw}% of the money came from people, but few of them gave most of it.` +
+      (conc?.of
+        ? ` ${count(conc.of)} people each gave ${name} more than $200. Half of that money came from just ${conc.n === 1 ? 'one of them' : `${count(conc.n)} of them`}. The other ${count(conc.of - conc.n)} gave the other half.`
+        : ''),
+    showConc: Boolean(conc),
+  };
+}

@@ -1,7 +1,13 @@
 // The explanations use real members' working as served by /api/member-detail
 // on 2026-10-07.
 import { describe, expect, it } from 'vitest';
-import { concentrationVerdict, explainGrade, gradeBands } from './explain.js';
+import {
+  concentrationVerdict,
+  explainGrade,
+  gradeBands,
+  headlineFor,
+  rankLine,
+} from './explain.js';
 import { moneyLines } from './people.js';
 
 const figures = (small, big, pac, total, party = 0) => ({
@@ -119,5 +125,54 @@ describe('concentration verdict', () => {
     expect(concentrationVerdict('dinner-party').tone).toBe('bad');
     expect(concentrationVerdict('movement').tone).toBe('good');
     expect(concentrationVerdict('default')).toBeNull();
+  });
+});
+
+describe('headlineFor: lead with what decided the grade (#56)', () => {
+  it('an S leads with what helped', () => {
+    const h = headlineFor(aoc);
+    expect(h.tone).toBe('good');
+    expect(h.eyebrow).toBe('What helped the grade');
+    expect(h.big).toBe('98% of the money came from people.');
+    expect(h.text).toMatch(/from 4,609 different people/);
+  });
+
+  it("an F leads with what hurt it most: for Sara Jacobs, money that didn't come from donors", () => {
+    const h = headlineFor(jacobs);
+    expect(h.tone).toBe('bad');
+    expect(h.eyebrow).toBe('What hurt the grade most');
+    expect(h.big).toBe("51% of the money didn't come from donors.");
+    expect(h.text).toMatch(/Sara Jacobs's own money/);
+  });
+
+  it('PAC money leads when it is the biggest cause', () => {
+    const h = headlineFor({
+      ...jacobs,
+      lines: moneyLines(figures(100000, 300000, 600000, 1000000)),
+      conc: null,
+    });
+    expect(h.big).toBe('60% of the money came from PACs.');
+    expect(h.text).toMatch(/lobbyists' PACs/);
+  });
+
+  it('few big donors lead when they cost the most', () => {
+    const h = headlineFor({
+      ...jacobs,
+      lines: moneyLines(figures(80000, 820000, 100000, 1000000)),
+    });
+    expect(h.big).toBe('34 people gave half the big\u2011donation money.');
+    expect(h.showConc).toBe(true);
+    expect(h.text).toMatch(/^90% of the money came from people, but few of them gave most of it\./);
+  });
+});
+
+describe('rankLine', () => {
+  const scores = Array.from({ length: 100 }, (_, i) => i);
+  it('says where a member stands, in words', () => {
+    expect(rankLine(92, scores)).toBe('More people-funded than 92 in 100 members of Congress.');
+    expect(rankLine(5, scores)).toBe('Less people-funded than 94 in 100 members of Congress.');
+    expect(rankLine(5, scores.slice(0, 10))).toBeNull();
+    // The top member isn't "more than 100 in 100"
+    expect(rankLine(1000, scores)).toBe('More people-funded than 99 in 100 members of Congress.');
   });
 });

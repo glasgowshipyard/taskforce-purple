@@ -1,6 +1,7 @@
 // Everything the site says about a grade: its name, colour, and what it
 // means in plain English. Grades come from workers/tier-calculation.js; this
-// file only presents them.
+// file only presents them. Names describe the money, never the member (#56):
+// "big money" is PACs and small groups of wealthy donors.
 
 export const LETTERS = ['S', 'A', 'B', 'C', 'D', 'E', 'F'];
 
@@ -17,7 +18,7 @@ export const GRADES = {
     meaning: 'At least $90 of every $100 counts as coming from ordinary people.',
   },
   A: {
-    name: 'Very clean',
+    name: 'Mostly people',
     color: '#4E9A2F',
     light: '#7BCB55',
     rank: 7,
@@ -25,7 +26,7 @@ export const GRADES = {
     meaning: '$75 to $89 of every $100 counts as coming from ordinary people.',
   },
   B: {
-    name: 'Above average',
+    name: 'Leans people',
     color: '#7D8710',
     light: '#C9D23A',
     rank: 6,
@@ -33,7 +34,7 @@ export const GRADES = {
     meaning: '$60 to $74 of every $100 counts as coming from ordinary people.',
   },
   C: {
-    name: 'Below average',
+    name: 'Mixed',
     color: '#A67C00',
     light: '#E9B824',
     rank: 5,
@@ -41,7 +42,7 @@ export const GRADES = {
     meaning: '$45 to $59 of every $100 counts as coming from ordinary people.',
   },
   D: {
-    name: 'PAC heavy',
+    name: 'Leans big money',
     color: '#C2601A',
     light: '#F0954A',
     rank: 4,
@@ -50,7 +51,7 @@ export const GRADES = {
       '$30 to $44 of every $100 counts as coming from ordinary people. Most of the rest comes from PACs or a few wealthy donors.',
   },
   E: {
-    name: 'Captured',
+    name: 'Mostly big money',
     color: '#C2412B',
     light: '#F06A50',
     rank: 3,
@@ -59,7 +60,7 @@ export const GRADES = {
       '$15 to $29 of every $100 counts as coming from ordinary people. Most of the rest comes from PACs or a few wealthy donors.',
   },
   F: {
-    name: 'Owned',
+    name: 'Big money',
     color: '#7B1E3A',
     light: '#E2566B',
     rank: 2,

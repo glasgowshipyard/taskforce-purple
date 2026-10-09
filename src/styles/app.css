@@ -1901,3 +1901,53 @@ p {
 .verdict.tone-neutral {
   --tone-light: #e9b824;
 }
+
+/* ---------- PAC types ---------- */
+
+.pac-chip {
+  display: inline-block;
+  font-family: var(--body);
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.4;
+  padding: 1px 7px;
+  border-radius: 999px;
+  background: #eceae4;
+  color: var(--ink-2);
+  white-space: nowrap;
+  vertical-align: 1px;
+}
+
+.pac-chip.is-heavier {
+  background: #fbe3dd;
+  color: #8f2a1a;
+}
+
+.pac-key {
+  list-style: none;
+  margin: 14px 0 0;
+  padding: 12px 0 0;
+  border-top: 1px solid var(--line);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--ink-2);
+}
+
+/* What decided the grade: the headline card says which way it cut (#56) */
+.headline.tone-good .eyebrow {
+  color: #34d3a6;
+}
+
+.headline.tone-bad .eyebrow {
+  color: #f6836d;
+}
+
+.rank-line {
+  margin-top: 12px;
+  font-family: var(--mono);
+  font-size: 14px;
+  letter-spacing: 0.02em;
+  color: var(--ink-2);
+}

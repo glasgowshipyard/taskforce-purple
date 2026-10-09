@@ -4,6 +4,7 @@ import React from 'react';
 import { Stamp } from '../components/ui.jsx';
 import { GRADES, LETTERS } from '../lib/grades.js';
 import { useTitle } from '../lib/hooks.js';
+import { PAC_TYPES } from '../lib/pacs.js';
 import { HowSteps } from './Home.jsx';
 
 const PANELS = [
@@ -70,10 +71,11 @@ export default function How() {
             The grades
           </h2>
           <p style={{ maxWidth: '44em', color: 'var(--ink-2)', marginBottom: 28 }}>
-            A grade is based on the share of a member&apos;s money that counts as coming from
-            ordinary people, after we&apos;ve checked how many people gave it. Money from super
-            PACs, leadership PACs and lobbyists&apos; PACs makes every grade harder to reach. The
-            more of it a member takes, the higher the share they need.
+            A grade is based on how much of a member&apos;s money counts as coming from ordinary
+            people, after we&apos;ve checked how many people gave it. The names describe the money,
+            not the member. &ldquo;Big money&rdquo; means PACs and small groups of wealthy donors.
+            Money from super PACs, other politicians&apos; PACs and lobbyists&apos; PACs makes every
+            grade harder to reach.
           </p>
           <ul
             className="member-rows"
@@ -90,6 +92,39 @@ export default function How() {
                   <span className="small" style={{ color: 'var(--ink-2)' }}>
                     {GRADES[l].meaning}
                   </span>
+                </span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      </section>
+
+      <section id="pacs" className="section" style={{ paddingTop: 0 }} aria-labelledby="pacs-title">
+        <div className="wrap">
+          <h2 id="pacs-title" className="display display-l" style={{ marginBottom: 12 }}>
+            What&apos;s a PAC?
+          </h2>
+          <p style={{ maxWidth: '44em', color: 'var(--ink-2)', marginBottom: 24 }}>
+            A PAC (political action committee) pools money and gives it to candidates. PAC money
+            never counts as coming from people, and some kinds count against a grade more than
+            others. We tell them apart using the codes the FEC gives every committee.
+          </p>
+          <ul
+            className="member-rows"
+            style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 340px), 1fr))' }}
+          >
+            {Object.entries(PAC_TYPES).map(([key, t]) => (
+              <li key={key} className="member-row" style={{ alignItems: 'flex-start' }}>
+                <span className="member-row-body">
+                  <span className="member-row-name">{t.label}</span>
+                  <span className="small" style={{ color: 'var(--ink-2)' }}>
+                    {t.why}
+                  </span>
+                  {t.heavier && (
+                    <span className="pac-chip is-heavier" style={{ alignSelf: 'flex-start' }}>
+                      Counts more against the grade
+                    </span>
+                  )}
                 </span>
               </li>
             ))}

@@ -1,6 +1,44 @@
 # Task Force Purple - Implementation Status
 
-**Last Updated**: 2026-10-08
+**Last Updated**: 2026-10-09
+
+---
+
+## 2026-10-09: grade names, what decided the grade, and PAC types (#56, #57, #58)
+
+Presentation only: no grade changed.
+
+- **Grade names describe the money, not the member** (#56): S People-funded,
+  A Mostly people, B Leans people, C Mixed, D Leans big money, E Mostly big
+  money, F Big money. "Above/Below average" were wrong (a B is about the top
+  11%), and "Captured"/"Owned" accused members of something we don't
+  measure. "Big money" is defined on /how as PACs and small groups of
+  wealthy donors.
+- **Member pages lead with what decided the grade.** S/A/B lead with what
+  helped; C to F with what hurt most, whichever of PAC money, money that
+  didn't come from donors, or big donations from few people cost the most.
+  A rank line under the name: "Less people-funded than 77 in 100 members of
+  Congress." (`headlineFor`, `rankLine` in `src/lib/explain.js`.)
+- **PACs labelled by type** (#57) from the FEC codes we hold: super PAC,
+  hybrid PAC, another politician's PAC, lobbyist PAC, another candidate's
+  campaign, company/union/group PAC. The kinds that count more against the
+  grade (super, politicians', lobbyists') are marked, with a key, and /how
+  explains what a PAC is. Rows that came from a person rather than a
+  committee are no longer listed as PACs: Sara Jacobs' own $925,760 was
+  showing as her biggest PAC.
+- **Found, not yet fixed** (#57): the PAC list, and the PAC weighting in the
+  grade, come from the old pipeline's top-20 donations to the campaign
+  committee only (Martin Heinrich: 20 rows, $100,000 of $1.1M). The page now
+  says it's partial. The fix is the refresh job collecting every PAC
+  donation from the FEC bulk files, with company/union/trade types; it
+  changes the grade's PAC weighting, so it's simulated and decided by the
+  owner, together with self-funding (#59) and the foreign-agent split (#60):
+  one re-grade for all three.
+- **Small fixes** (#58): "NATION" no longer matches "NATIONAL" (the
+  National Association of Realtors was labelled a tribal nation); the home
+  page counts graded members (537), not all members (539); the FEC-summary
+  note says both figures are the FEC's own, so it no longer reads as
+  contradicting "Checked".
 
 ---
 

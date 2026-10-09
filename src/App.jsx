@@ -37,6 +37,14 @@ export default function App() {
     main.current?.focus({ preventScroll: true });
   }, [path]);
 
+  // A link to a section (/how#pacs): scroll to it once the page has drawn
+  useEffect(() => {
+    const id = window.location.hash.slice(1);
+    if (id) {
+      requestAnimationFrame(() => document.getElementById(id)?.scrollIntoView());
+    }
+  }, [path]);
+
   let page;
   switch (route.page) {
     case 'home':

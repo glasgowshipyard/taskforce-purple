@@ -157,7 +157,7 @@ function CongressDots({ members }) {
               wealthy donors. Only {counts.S} are funded mainly by ordinary people.
               {unchecked > 0 &&
                 ` ${unchecked} more aren't graded yet while we confirm their records.`}{' '}
-              Click a grade to see who&apos;s in it.
+              Click a grade to see who&apos;s in it. <Link to="/how#pacs">What&apos;s a PAC?</Link>
             </p>
           </div>
           <div className="dots">
@@ -252,7 +252,10 @@ export default function Home() {
         <div className="wrap hero-grid">
           <div className="hero-copy">
             <p className="eyebrow" style={{ marginBottom: 20, fontSize: 14 }}>
-              2026 election{list.length ? ` · ${list.length} members graded` : ''}
+              2026 election
+              {list.length
+                ? ` · ${list.filter(m => LETTERS.includes(m.tier)).length} members graded`
+                : ''}
             </p>
             <h1 id="hero-title" className="display display-xl">
               Who&apos;s paying your representatives?

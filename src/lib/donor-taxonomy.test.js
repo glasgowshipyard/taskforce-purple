@@ -21,6 +21,10 @@ describe('classifyOrganization', () => {
     expect(classifyOrganization('EMILYS LIST')).toBe('party-machine');
     expect(classifyOrganization('NATIONAL ASSOCIATION OF BROADCASTERS PAC')).toBe('industry');
     expect(classifyOrganization('ONEIDA NATION TRIBE')).toBe('tribal');
+    // Whole word only: NATIONAL is not a tribal nation (#58)
+    expect(classifyOrganization('NATIONAL ASSOCIATION OF REALTORS PAC')).not.toBe('tribal');
+    expect(classifyOrganization('CHEROKEE NATION')).toBe('tribal');
+    expect(classifyOrganization('NAVAJO NATION PAC')).toBe('tribal');
   });
 
   it('unknown names fall back to other, never hidden', () => {
