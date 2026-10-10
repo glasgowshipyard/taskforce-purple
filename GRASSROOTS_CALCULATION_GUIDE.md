@@ -162,7 +162,7 @@ it (`oth` 24K/24G/24Z with OTHER_ID = the PAC). Party committees are left
 out (party money is counted on its own).
 
 Simulated across all 536 gradable members before deploying (2026-10-09,
-grade-report artifacts of runs 37998209219 and 38006203182): see
+grade-report artifacts of runs 37998209219 and 38010301349): see
 IMPLEMENTATION_STATUS.md for the tier distributions at 25/50/100% credit and
 the party split. The method page states the credit and its sensitivity.
 

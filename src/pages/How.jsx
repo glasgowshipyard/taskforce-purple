@@ -9,10 +9,10 @@ import { HowSteps } from './Home.jsx';
 
 // What the PAC rule does across Congress (#57): F grades under each credit,
 // and grades raised by party. From the simulation of 2026-10-09 (refresh
-// --report, run 38006203182, version A); update with any change to the rule.
+// --report, run 38010301349, version A); update with any change to the rule.
 const PAC_RULE_EFFECT = {
-  fWithout: 151,
-  fQuarter: 105,
+  fWithout: 152,
+  fQuarter: 104,
   fHalf: 45,
   fAll: 7,
   raisedD: 156,

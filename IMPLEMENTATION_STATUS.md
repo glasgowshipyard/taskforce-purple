@@ -8,7 +8,8 @@
 
 Owner's decision: version A, half credit, traced one level deeper, shipped
 straight away. Simulated across all 536 gradable members first (dry run
-38006203182; the production grade matched the simulated setting for all).
+38006203182), re-graded live (38007363337), then simulated again with the
+dry-run fix below (38010301349): it matches the live grades for all 536.
 
 - **The rule.** Every PAC gift to a member's campaigns and leadership PAC
   (FEC bulk files) is graded. Each PAC is looked through to its own donors
@@ -18,15 +19,23 @@ straight away. Simulated across all 536 gradable members first (dry run
   tier-calculation.js). Lobbyist/registrant PACs (FEC designation B, 77%
   of PAC money) no longer count extra; super PACs (2.0x) and other
   politicians' PACs (1.5x) still raise the bar.
-- **Effect.** F grades 163 to 45; S12 A22 B35 C113 D185 E122 F45, ?2. 290
-  grades change: 161 Democrats and 122 Republicans up, 2 and 4 down.
-  Sanders, AOC and Cantwell stay S, Pelosi B. Sensitivity: counting a
-  quarter gives 105 F grades, all of it 7, none of it 151.
-- **Politicians' PAC weight (owner to choose).** 1.5: F45. 1.25: F42
-  (S13 A21 B36 C121 D188 E113), 26 grades differ from 1.5 (14 D, 12 R),
-  all one step. 1.0: F9 (S14 A22 B40 C155 D171 E123), 128 differ from 1.5
-  (80 R, 48 D). Any weight above 1 counts the whole amount toward the bar,
+- **Effect (live).** F grades 163 to 45; S12 A21 B36 C113 D183 E124 F45,
+  plus 5 withheld. 286 grades change: 159 Democrats and 121 Republicans up,
+  1 and 4 down. Sanders, AOC and Cantwell stay S, Pelosi B. Sensitivity:
+  counting a quarter gives 104 F grades, all of it 7, none of it 152.
+- **Politicians' PAC weight (owner to choose).** 1.5 (live): F45. 1.25:
+  F42 (S13 A20 B37 C121 D187 E114), 27 grades differ from 1.5 (14 D, 13 R),
+  all one step. 1.0: F9 (S14 A21 B41 C155 D170 E124), 129 differ from 1.5
+  (81 R, 48 D). Any weight above 1 counts the whole amount toward the bar,
   so the real choice is whether this money raises the bar at all.
+- **Dry-run fix (mine).** A grade-only dry run didn't load the records the
+  check fetched from the FEC to fill gaps in the bulk file, so simulations
+  graded 9 members on the bulk file alone and differed from production for
+  them (e.g. Sheldon Whitehouse D 37 simulated, E 25 live). It now reads
+  them, as production does. Earlier simulations carry the same small error.
+- **Withheld reason in the list (mine).** The publish step didn't read why a
+  member wasn't graded, and never renewed a reason it already held; fixed,
+  and the list republished by hand (one KV write).
 - **Radewagen's 0% fixed.** A complete PAC list is data even when empty
   (`pacListComplete`), so no member graded by the job takes the old
   small-donors-only fallback any more. Radewagen, Norton, James and Hinson
