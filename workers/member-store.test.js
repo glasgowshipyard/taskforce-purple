@@ -245,6 +245,12 @@ describe('publishedMember', () => {
     expect(publishedMember(verified, { status: 'pending', grade: null }).withheldReason).toBe(
       'not-graded'
     );
+    // Already withheld (the list's entry): the reason is renewed
+    const listed = { ...verified, tier: 'UNVERIFIED', withheldReason: 'not-graded' };
+    expect(publishedMember(listed, pending).withheldReason).toBe('no-campaign-committee');
+    // Withheld for identity by the old rule (no reason): left alone
+    const old = { ...record, tier: 'UNVERIFIED' };
+    expect(publishedMember(old, null)).toBe(old);
   });
 
   it('the list entry carries the evidence state', () => {

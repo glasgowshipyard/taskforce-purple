@@ -127,8 +127,9 @@ export function publishedMember(record, result) {
     //     campaign committee registered for the cycle): withheld
     //   - figures that don't reconcile come graded as DISPUTED (grading.js)
     // A member with no result at all (D1 unreadable, or not yet run) is
-    // shown as stored unless the identity is unconfirmed.
-    if (!record || !/^[SABCDEF]$/.test(record.tier || '')) {
+    // shown as stored unless the identity is unconfirmed. A grade this rule
+    // already withheld (it carries withheldReason) gets its reason renewed.
+    if (!record || !(/^[SABCDEF]$/.test(record.tier || '') || record.withheldReason)) {
       return record;
     }
     if (record.fecIdentityVerified !== true) {
@@ -144,6 +145,7 @@ export function publishedMember(record, result) {
   return {
     ...record,
     tier: g.tier,
+    withheldReason: undefined, // graded: nothing withheld
     individualFundingPercent: g.individualFundingPercent ?? null,
     gradeBasis: g.gradeBasis,
     personFigures: g.personFigures ?? null,

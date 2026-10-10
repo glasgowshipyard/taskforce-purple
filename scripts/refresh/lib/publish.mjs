@@ -29,11 +29,20 @@ export async function publishGrades({ cf, d1, cycle, log = () => {}, dryRun = fa
     throw new Error('publish: members:list is missing; nothing to publish onto');
   }
   const rows = await d1(
-    'SELECT bioguide_id, cycle, computed_at, status, grade, analysis FROM results WHERE cycle = ?',
+    'SELECT bioguide_id, cycle, computed_at, status, grade, analysis, reconciliation FROM results WHERE cycle = ?',
     [cycle]
   );
+  // The reconciliation says why a member wasn't graded (withheldReason)
   const results = new Map(
-    rows.map(r => [r.bioguide_id, { ...r, grade: parse(r.grade), analysis: parse(r.analysis) }])
+    rows.map(r => [
+      r.bioguide_id,
+      {
+        ...r,
+        grade: parse(r.grade),
+        analysis: parse(r.analysis),
+        reconciliation: parse(r.reconciliation),
+      },
+    ])
   );
 
   const entries = [];
