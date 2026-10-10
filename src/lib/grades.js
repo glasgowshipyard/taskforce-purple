@@ -101,10 +101,29 @@ export const GRADES = {
 
 const UNKNOWN = { ...GRADES['N/A'], name: 'Not graded' };
 
-/** Display details for any tier, with its badge mark. Never throws. */
-export function gradeInfo(tier) {
+// Why a grade is withheld, when the general words don't fit
+// (workers/member-store.js publishedMember: one rule, owner 2026-10-09)
+const WITHHELD = {
+  'no-campaign-committee': {
+    name: 'No campaign records',
+    meaning:
+      "The FEC has no campaign committee on file for this member for this election, so there are no campaign records we can check and grade. It's a gap in the records, not something we found about this member.",
+  },
+  'not-graded': {
+    name: 'Checking records',
+    meaning:
+      "We couldn't confirm this member's campaign records for this election yet, so we're not showing a grade or any figures. It's a problem with our records, not something we found about this member.",
+  },
+};
+
+/**
+ * Display details for any tier, with its badge mark. Never throws.
+ * `withheldReason` (a withheld grade's, from the API) picks its own words.
+ */
+export function gradeInfo(tier, withheldReason = null) {
   const g = GRADES[tier] || UNKNOWN;
-  return { tier, mark: g.mark || tier || '–', ...g };
+  const why = RINGFENCED.includes(tier) ? WITHHELD[withheldReason] : null;
+  return { tier, mark: g.mark || tier || '–', ...g, ...why };
 }
 
 /** "an S", "a B": for headings like "Why an E" */

@@ -423,7 +423,11 @@ export function calculateEnhancedTier(member, concentration = null, options = DE
       nakamotoPercent,
       itemizationPenalty: Math.round(itemizationPenalty * 10) / 10,
       transparencyPenalty,
-      ...(pacCreditPercent > 0 ? { pacCredit: Math.round(pacCreditPercent * 10) / 10 } : {}),
+      // Present whenever PAC money was traced (a complete PAC list), 0 included:
+      // the page explains the PAC step only for grades worked out this way
+      ...(member.pacListComplete === true || pacCreditPercent > 0
+        ? { pacCredit: Math.round(pacCreditPercent * 10) / 10 }
+        : {}),
     },
   };
 }

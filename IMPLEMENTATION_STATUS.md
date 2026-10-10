@@ -4,6 +4,50 @@
 
 ---
 
+## 2026-10-09 (night): PAC version A live; one rule for withheld grades (#57)
+
+Owner's decision: version A, half credit, traced one level deeper, shipped
+straight away. Simulated across all 536 gradable members first (dry run
+38006203182; the production grade matched the simulated setting for all).
+
+- **The rule.** Every PAC gift to a member's campaigns and leadership PAC
+  (FEC bulk files) is graded. Each PAC is looked through to its own donors
+  with the members' rules, and one level further to the donors of the
+  committees that fund it; half of what traces back to people counts as
+  people money (`PAC_TRACING`, `tracePacs`, `pacPeopleCredit` in
+  tier-calculation.js). Lobbyist/registrant PACs (FEC designation B, 77%
+  of PAC money) no longer count extra; super PACs (2.0x) and other
+  politicians' PACs (1.5x) still raise the bar.
+- **Effect.** F grades 163 to 45; S12 A22 B35 C113 D185 E122 F45, ?2. 290
+  grades change: 161 Democrats and 122 Republicans up, 2 and 4 down.
+  Sanders, AOC and Cantwell stay S, Pelosi B. Sensitivity: counting a
+  quarter gives 105 F grades, all of it 7, none of it 151.
+- **Politicians' PAC weight (owner to choose).** 1.5: F45. 1.25: F42
+  (S13 A21 B36 C121 D188 E113), 26 grades differ from 1.5 (14 D, 12 R),
+  all one step. 1.0: F9 (S14 A22 B40 C155 D171 E123), 128 differ from 1.5
+  (80 R, 48 D). Any weight above 1 counts the whole amount toward the bar,
+  so the real choice is whether this money raises the bar at all.
+- **Radewagen's 0% fixed.** A complete PAC list is data even when empty
+  (`pacListComplete`), so no member graded by the job takes the old
+  small-donors-only fallback any more. Radewagen, Norton, James and Hinson
+  were on it. Radewagen is now F at 26 (her bar is 30: other politicians'
+  PACs are 31% of her money).
+- **Withheld grades, one rule** (`publishedMember`): a letter grade only
+  when worked out from this cycle's FEC records, matched to the member and
+  reconciled. Everton Blair kept an old B from the old pipeline: the FEC
+  lists no campaign committee for him, only a non-qualified PAC
+  (C00901157). He now shows "?" with the reason (`withheldReason:
+no-campaign-committee`).
+- **Site.** The grade explanation gains a PAC step ("Some PAC money
+  counts"), shown only for grades worked out this way. The PAC panel shows
+  what counts, per PAC. /how explains the rule with two diagrams, the 25%
+  and 100% sensitivity, why it affects parties differently (by law company
+  PACs may only ask managers and shareholders; 86% of union PAC money goes
+  to Democrats), and that outside spending isn't graded.
+- Previous-grade line held until the owner confirms the calculations.
+
+---
+
 ## 2026-10-09 (evening): PAC tracing simulated; owner to choose (#57)
 
 Owner's framing: PACs aren't the problem, who fills them is. The grade

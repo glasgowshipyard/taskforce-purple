@@ -6,6 +6,8 @@
 // Everything is said in dollars out of every $100 raised, because "36% of
 // the money" and "points" lose people; "$36 out of every $100" doesn't.
 import { GRADES, LETTERS } from './grades.js';
+import { CREDIT_WORDS } from './pacs.js';
+import { PAC_TRACING } from '../../workers/tier-calculation.js';
 
 const BANDS = { S: 90, A: 75, B: 60, C: 45, D: 30, E: 15, F: 0 };
 const article = tier => (['A', 'E', 'F', 'S'].includes(tier) ? 'an' : 'a');
@@ -93,6 +95,12 @@ export function explainGrade({ tier, lines, grade, conc, name, ownPct = 0 }) {
   const raw = small + big;
   const score = grade.score;
   const shift = d.transparencyPenalty || 0;
+  const pac = by('pac');
+  // PAC money traced back to people, counted in part (#57). Grades worked
+  // out before the PAC money was traced carry no pacCredit
+  const pacTraced = d.path === 'enhanced' && Number.isFinite(d.pacCredit);
+  const credit = pacTraced ? Math.round(d.pacCredit) : 0;
+  const beforePacs = score - credit;
   const steps = [];
 
   // 1. Where each $100 came from
@@ -115,12 +123,14 @@ export function explainGrade({ tier, lines, grade, conc, name, ownPct = 0 }) {
         : '') +
       (raw >= 100
         ? `${list}. All of it was donated by people, so we start with $${raw}.`
-        : `${list}. Only money donated by people counts toward the grade, so we start with $${raw}.`),
+        : pacTraced && pac > 0
+          ? `${list}. We start with the money people gave directly: $${raw}. Some of the PAC money is added later.`
+          : `${list}. Only money donated by people counts toward the grade, so we start with $${raw}.`),
   });
 
   // 2. Big donations: do they all count?
   if (d.path === 'enhanced' && big > 0) {
-    const counted = Math.max(0, Math.min(big, score - small));
+    const counted = Math.max(0, Math.min(big, beforePacs - small));
     const lost = big - counted;
     const cap = SHARE_WORDS[d.trustAnchor] || `${d.trustAnchor} in every 100 dollars`;
     steps.push({
@@ -129,12 +139,26 @@ export function explainGrade({ tier, lines, grade, conc, name, ownPct = 0 }) {
       text:
         `${whoGaveText(d.trustAnchorBasis, conc)} ` +
         (lost > 0
-          ? `So big donations can only make up ${cap} of what people gave. Of the $${big} in big donations, we count $${counted}. That leaves $${score}.`
+          ? `So big donations can only make up ${cap} of what people gave. Of the $${big} in big donations, we count $${counted}. That leaves $${beforePacs}.`
           : `Big donations can make up ${cap} of what people gave, and here they're under that, so all $${big} counts.`),
     });
   }
 
-  // 3. The grade, and the line for it
+  // 3. PAC money: the part that traces back to people counts in part
+  if (pacTraced && pac > 0) {
+    const traced = Math.min(pac, Math.round(d.pacCredit / PAC_TRACING.credit));
+    steps.push({
+      title: credit > 0 ? 'Some PAC money counts' : 'The PAC money adds nothing',
+      tone: credit > 0 ? 'neutral' : 'bad',
+      text:
+        `PACs pass on money that people gave them. We check who gave each PAC its money, the same way we check ${name}'s own donors. ` +
+        (credit > 0
+          ? `Of the $${pac} from PACs, about $${traced} traces back to ordinary people. A PAC's leaders choose who gets that money, not the people who gave it, so we count ${CREDIT_WORDS}: $${credit}. That makes $${score}.`
+          : `Of the $${pac} from PACs, almost none traces back to a broad group of ordinary people, so it adds less than $1.`),
+    });
+  }
+
+  // 4. The grade, and the line for it
   const bands = gradeBands(shift);
   const band = bands.find(b => b.letter === tier);
   const next = bands[bands.indexOf(band) - 1];
@@ -148,7 +172,7 @@ export function explainGrade({ tier, lines, grade, conc, name, ownPct = 0 }) {
   }
   const shiftNote =
     shift > 0
-      ? ` ${tier === 'S' || tier === 'F' ? "That's" : 'Both are'} $${shift} more than usual, because some of the PAC money came from super PACs, lobbyists' PACs or other politicians' PACs, which we count as worse.`
+      ? ` ${tier === 'S' || tier === 'F' ? "That's" : 'Both are'} $${shift} more than usual, because some of the PAC money came from super PACs or other politicians' PACs, which we count as worse.`
       : '';
   steps.push({
     title: `$${score} out of $100 is ${article(tier)} ${tier}`,
@@ -208,13 +232,18 @@ export function headlineFor({ tier, lines, grade, conc, name }) {
   }
 
   const d = grade?.detail;
-  const lost =
-    d?.path === 'enhanced' && Number.isFinite(grade.score) ? Math.max(0, raw - grade.score) : 0;
   const pac = by('pac');
+  // PAC money counted as people's (#57) is in the score, not lost to it
+  const pacTraced = d?.path === 'enhanced' && Number.isFinite(d.pacCredit);
+  const pacCounted = pacTraced ? Math.round(d.pacCredit) : 0;
+  const lost =
+    d?.path === 'enhanced' && Number.isFinite(grade.score)
+      ? Math.max(0, raw - (grade.score - pacCounted))
+      : 0;
   const other = by('other') + by('party');
   const worst = [
     ['conc', conc ? lost : 0],
-    ['pac', pac],
+    ['pac', pac - pacCounted],
     ['other', other],
   ].sort((a, b) => b[1] - a[1])[0][0];
   const eyebrow = tier === 'C' ? 'What held the grade back' : 'What hurt the grade most';
@@ -225,9 +254,13 @@ export function headlineFor({ tier, lines, grade, conc, name }) {
       eyebrow,
       big: `${pac}% of the money came from PACs.`,
       text:
-        "PAC money doesn't count as coming from people." +
+        (!pacTraced
+          ? "PAC money doesn't count as coming from people."
+          : pacCounted > 0
+            ? `Only part of it counts: ${CREDIT_WORDS} of what traces back to ordinary people who gave to the PACs, $${pacCounted} of every $100.`
+            : "Very little of it traces back to ordinary people who gave to the PACs, so it doesn't count toward the grade.") +
         (d?.transparencyPenalty > 0
-          ? " Some of it came from lobbyists' PACs, other politicians' PACs or super PACs, which count more heavily."
+          ? " Some of it came from other politicians' PACs or super PACs, which make the grade harder to reach."
           : ''),
       showConc: false,
     };

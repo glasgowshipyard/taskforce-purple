@@ -55,11 +55,7 @@ import {
   classifyScheduleARow,
   countsAsItemizedIndividual,
 } from '../../workers/schedule-a-classify.js';
-import {
-  cycleForYear,
-  pacPeopleCredit,
-  tracePacs,
-} from '../../workers/tier-calculation.js';
+import { cycleForYear, pacPeopleCredit, tracePacs } from '../../workers/tier-calculation.js';
 import { analyzePool, loadFara } from './lib/analysis.mjs';
 import { ensureFara } from './lib/fara.mjs';
 import { PRODUCTION_VARIANT, VARIANTS, gradeVariants, untraced } from './lib/pac-sim.mjs';
@@ -699,9 +695,7 @@ async function main() {
         .map(([k, v]) => `${k} ${v}`)
         .join(', ');
     const tally = list =>
-      Object.entries(
-        list.reduce((m, t) => ((m[t] = (m[t] || 0) + 1), m), {})
-      )
+      Object.entries(list.reduce((m, t) => ((m[t] = (m[t] || 0) + 1), m), {}))
         .sort((a, b) => gradeRank(b[0]) - gradeRank(a[0]))
         .map(([k, v]) => `${k}${v}`)
         .join(' ');

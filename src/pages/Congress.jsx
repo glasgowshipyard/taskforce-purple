@@ -71,10 +71,10 @@ function Row({ m }) {
           {lines && <PowerBar lines={lines} />}
           <span className="count-line">
             {withheld
-              ? gradeInfo(m.tier).name
+              ? gradeInfo(m.tier, m.withheldReason).name
               : n > 0
                 ? `Half the big-donation money from ${n === 1 ? 'one person' : `${count(n)} people`}`
-                : gradeInfo(m.tier).name}
+                : gradeInfo(m.tier, m.withheldReason).name}
           </span>
         </span>
       </Link>

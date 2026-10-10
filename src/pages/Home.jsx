@@ -7,6 +7,7 @@ import { api } from '../lib/api.js';
 import { ELECTION_DAY_TEXT, RACES_ARRIVE_TEXT } from '../lib/election.js';
 import { GRADES, LETTERS } from '../lib/grades.js';
 import { useAsync, useTitle } from '../lib/hooks.js';
+import { CREDIT_WORDS } from '../lib/pacs.js';
 import { displayName, fractionWords, memberPerson, seatLabel } from '../lib/people.js';
 import { repsFor, savePlace, savedPlace } from '../lib/place.js';
 import { Link, memberPath } from '../lib/router.js';
@@ -201,7 +202,8 @@ export function HowSteps() {
         <p>
           We count everything raised in the member&apos;s name, including their campaign, their
           leadership PAC and any joint fundraising committees. Donations from individuals count in
-          their favor, whether the check is for $5 or $5,000. Money from PACs doesn&apos;t.
+          their favor, whether the check is for $5 or $5,000. PAC money counts only in part: we look
+          at who gave each PAC its money, and count {CREDIT_WORDS} of what traces back to people.
         </p>
       </div>
       <div className="step">

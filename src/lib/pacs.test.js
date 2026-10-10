@@ -16,7 +16,9 @@ describe('pacType', () => {
     const heavier = Object.entries(PAC_TYPES)
       .filter(([, t]) => t.heavier)
       .map(([k]) => k);
-    expect(heavier.sort()).toEqual(['lobbyist', 'politician', 'super']);
+    // Lobbyist PACs (FEC designation B) stopped counting extra in version A
+    // (owner, 2026-10-09, #57)
+    expect(heavier.sort()).toEqual(['politician', 'super']);
   });
 });
 
@@ -64,7 +66,7 @@ describe('pacRows', () => {
   it("leaves out the candidate's own money and adds up each PAC", () => {
     const out = pacRows(rows);
     expect(out.map(r => r.name)).toEqual(['SUGAR PAC', 'UNION FUND']);
-    expect(out[0]).toMatchObject({ amount: 10000, type: 'lobbyist', weight: 1.5 });
+    expect(out[0]).toMatchObject({ amount: 10000, type: 'lobbyist', weight: 1 });
     expect(out[1]).toMatchObject({ amount: 5000, type: 'group', weight: 1 });
   });
 });

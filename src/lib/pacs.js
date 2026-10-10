@@ -1,9 +1,8 @@
 // What kind of PAC gave the money, in plain words, from the FEC's own codes
 // (committee type and designation). The weights are the grading's
-// (workers/tier-calculation.js getPACTransparencyWeight): this file only
-// names them. Companies and unions aren't told apart here: the FEC's
-// organisation type isn't in our data yet (#57).
-import { getPACTransparencyWeight } from '../../workers/tier-calculation.js';
+// (workers/tier-calculation.js getPACTransparencyWeight, PAC_TRACING): this
+// file only names them.
+import { PAC_TRACING, getPACTransparencyWeight } from '../../workers/tier-calculation.js';
 
 export const PAC_TYPES = {
   super: {
@@ -23,13 +22,13 @@ export const PAC_TYPES = {
   },
   lobbyist: {
     label: 'Lobbyist PAC',
-    heavier: true,
-    why: 'Run by a registered lobbyist or by a group that lobbies Congress.',
+    heavier: false,
+    why: 'Run by a group that lobbies Congress, such as a company, union or trade group. Most PAC money comes from these. Like any PAC, what counts is who funds it.',
   },
   campaign: {
     label: "Another candidate's campaign",
     heavier: false,
-    why: "Money from another candidate's own campaign. It counts much less against the grade.",
+    why: "Money from another candidate's own campaign. It isn't checked like a PAC, but it doesn't make the grade harder to reach.",
   },
   group: {
     label: 'Company, union or group PAC',
@@ -112,6 +111,22 @@ export const PAC_KINDS = [
 ];
 
 const pct = x => `${Math.round(x * 100)}%`;
+
+/** How much of a PAC's people money counts, in words: "half" */
+export const CREDIT_WORDS =
+  { 0.25: 'a quarter', 0.5: 'half', 1: 'all' }[PAC_TRACING.credit] ||
+  `${Math.round(PAC_TRACING.credit * 100)}%`;
+
+/**
+ * Dollars of a PAC's gift that count toward the grade as money from people
+ * (#57): the gift times the share of the PAC's money traced to people, times
+ * the credit. Null when the PAC wasn't traced.
+ */
+export function countedDollars(pac) {
+  return Number.isFinite(pac.peopleShare)
+    ? pac.amount * pac.peopleShare * PAC_TRACING.credit
+    : null;
+}
 
 /**
  * Where a PAC's own money came from, in a line (looking through it, #57):

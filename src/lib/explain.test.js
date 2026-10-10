@@ -152,7 +152,8 @@ describe('headlineFor: lead with what decided the grade (#56)', () => {
       conc: null,
     });
     expect(h.big).toBe('60% of the money came from PACs.');
-    expect(h.text).toMatch(/lobbyists' PACs/);
+    expect(h.text).toMatch(/other politicians' PACs or super PACs/);
+    expect(h.text).not.toMatch(/lobbyist/);
   });
 
   it('few big donors lead when they cost the most', () => {
@@ -183,5 +184,63 @@ describe('own money is set aside first (#59)', () => {
     expect(e.steps[0].text).toMatch(
       /^Sara Jacobs paid \$50 of every \$100 personally\. We leave that out, so these amounts are per \$100 from others: /
     );
+  });
+});
+
+describe('PAC money traced to people counts in part (#57, version A)', () => {
+  // A member with $40 of every $100 from PACs, $14 of it traced to people
+  // and counted at half: $7
+  const member = {
+    tier: 'D',
+    name: 'A member',
+    lines: moneyLines(figures(200000, 300000, 400000, 1000000)),
+    conc: { n: 900, of: 4000 },
+    grade: {
+      score: 57,
+      detail: {
+        path: 'enhanced',
+        itemizedPercent: 60,
+        rawIndividualFundingPercent: 50,
+        trustAnchor: 40,
+        trustAnchorBasis: 'standard',
+        itemizationPenalty: 0,
+        transparencyPenalty: 15,
+        pacCredit: 7.2,
+      },
+    },
+  };
+
+  it('starts with what people gave directly, then adds the PAC money that counts', () => {
+    const e = explainGrade(member);
+    expect(e.steps).toHaveLength(4);
+    expect(e.steps[0].text).toMatch(
+      /We start with the money people gave directly: \$50\. Some of the PAC money is added later\./
+    );
+    expect(e.steps[1].title).toBe('All the big donations count');
+    const pacs = e.steps[2];
+    expect(pacs.title).toBe('Some PAC money counts');
+    expect(pacs.text).toMatch(/Of the \$40 from PACs, about \$14 traces back to ordinary people\./);
+    expect(pacs.text).toMatch(/so we count half: \$7\. That makes \$57\./);
+    expect(e.steps[3].title).toBe('$57 out of $100 is a D');
+    expect(e.steps[3].text).toMatch(/super PACs or other politicians' PACs/);
+  });
+
+  it('big donations that stop counting are worked out before the PAC money', () => {
+    const e = explainGrade({
+      ...member,
+      grade: { score: 40, detail: { ...member.grade.detail, itemizationPenalty: 17 } },
+    });
+    // 40 - 7 from PACs = 33 before them; 33 - 20 small = 13 of the 30 big
+    expect(e.steps[1].text).toMatch(/we count \$13\. That leaves \$33\./);
+  });
+
+  it('the headline says only part of the PAC money counts', () => {
+    const h = headlineFor({
+      ...member,
+      lines: moneyLines(figures(100000, 300000, 600000, 1000000)),
+      conc: null,
+    });
+    expect(h.big).toBe('60% of the money came from PACs.');
+    expect(h.text).toMatch(/^Only part of it counts: half of what traces back to ordinary people/);
   });
 });

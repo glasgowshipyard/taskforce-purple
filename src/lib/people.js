@@ -252,6 +252,7 @@ export function memberPerson(m, detail) {
     seat: seatLabel(m),
     party: partyName(m.party),
     tier: m.tier,
+    withheldReason: m.withheldReason ?? null,
     figures: gradedFigures(m),
     evidenceChecked: m.evidenceChecked ?? null,
     nakamotoCoefficient: detail?.nakamotoCoefficient ?? m.nakamotoCoefficient,

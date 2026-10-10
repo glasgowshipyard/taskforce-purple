@@ -159,7 +159,9 @@ export function pacSummary(gifts, profiles, traced = new Map(), limit = 30) {
     list: gifts.slice(0, limit).map(g => ({
       ...g,
       profile: profiles.get(g.id) || null,
-      peopleShare: traced.has(g.id) ? Math.round(traced.get(g.id)[depth].share * 1000) / 1000 : null,
+      peopleShare: traced.has(g.id)
+        ? Math.round(traced.get(g.id)[depth].share * 1000) / 1000
+        : null,
     })),
   };
 }

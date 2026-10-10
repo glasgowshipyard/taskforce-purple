@@ -261,7 +261,7 @@ export default function Member({ id, kind = 'member' }) {
     );
   }
 
-  const g = gradeInfo(m.tier);
+  const g = gradeInfo(m.tier, m.withheldReason);
   const f = gradedFigures(m);
   const unverified = isIdentityUnverified(m.tier);
   const withheld = isRingfenced(m.tier);

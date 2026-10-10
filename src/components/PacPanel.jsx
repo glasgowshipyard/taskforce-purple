@@ -1,15 +1,26 @@
-// Every PAC that gave to a member, by kind, and where each PAC's own money
-// came from (#57). Falls back to the old partial list for members graded
-// before the full one was collected.
+// Every PAC that gave to a member, by kind, where each PAC's own money came
+// from, and how much of it counts toward the grade as money from people
+// (#57). Falls back to the old partial list for members graded before the
+// full one was collected.
 import React from 'react';
-import { PAC_KINDS, PAC_TYPES, pacLabel, pacRows, peopleLine } from '../lib/pacs.js';
+import { Link } from '../lib/router.js';
+import {
+  CREDIT_WORDS,
+  PAC_KINDS,
+  PAC_TYPES,
+  countedDollars,
+  pacLabel,
+  pacRows,
+  peopleLine,
+} from '../lib/pacs.js';
 import { usd } from '../lib/people.js';
 
 const Explainer = () => (
   <p className="small" style={{ color: 'var(--ink-2)', marginBottom: 12 }}>
     A PAC (political action committee) pools money and gives it to candidates. Some are run by
-    companies, unions or trade groups, some by other politicians. They don&apos;t all count the same
-    against the grade.
+    companies, unions or trade groups, some by other politicians. We check who gave each PAC its
+    money: the part that traces back to ordinary people counts {CREDIT_WORDS} toward the grade.{' '}
+    <Link to="/how#pacs">How PAC money counts</Link>
   </p>
 );
 
@@ -22,7 +33,7 @@ function Chips({ pac }) {
       {pac.kind === 'lobbyist' && (
         <>
           {' '}
-          <span className="pac-chip is-heavier">Lobbies Congress</span>
+          <span className="pac-chip">Lobbies Congress</span>
         </>
       )}
     </>
@@ -72,6 +83,12 @@ export default function PacPanel({ member, name, pacMoney }) {
       <p style={{ marginBottom: 12 }}>
         {name} took <strong>{usd(s.total)}</strong> from{' '}
         {s.count === 1 ? 'one PAC' : `${s.count.toLocaleString('en-US')} PACs`}.
+        {Number.isFinite(s.counted) && (
+          <>
+            {' '}
+            <strong>{usd(s.counted)}</strong> of it counts toward the grade as money from people.
+          </>
+        )}
       </p>
       <div
         className="pac-split"
@@ -106,6 +123,7 @@ export default function PacPanel({ member, name, pacMoney }) {
       <ol className="pac-list">
         {s.list.slice(0, 10).map((p, i) => {
           const line = peopleLine(p.profile);
+          const counted = countedDollars(p);
           return (
             <li key={p.id}>
               <div className="pac-list-top">
@@ -117,10 +135,11 @@ export default function PacPanel({ member, name, pacMoney }) {
                 <span className="leader" aria-hidden="true" />
                 <strong>{usd(p.amount)}</strong>
               </div>
-              {(p.connectedOrg || line) && (
+              {(p.connectedOrg || line || counted !== null) && (
                 <p className="pac-list-sub">
                   {p.connectedOrg && p.connectedOrg !== 'NONE' && `Run by ${p.connectedOrg}. `}
                   {line}
+                  {counted !== null && ` Counts toward the grade: ${usd(counted)}.`}
                 </p>
               )}
             </li>
@@ -129,9 +148,10 @@ export default function PacPanel({ member, name, pacMoney }) {
       </ol>
       <p className="fine" style={{ marginTop: 12 }}>
         Every PAC gift to {name}&apos;s campaign and leadership PAC this cycle, from the PACs&apos;
-        own FEC reports. Where each PAC&apos;s money came from is from its own filings. For now, the
-        grade counts all PAC money the same way whoever funds the PAC; how much credit a PAC funded
-        by many ordinary people should get is still being decided.
+        own FEC reports. Where each PAC&apos;s money came from is from its own filings, and from the
+        filings of any committees that gave to it. Only money that traces back to a broad group of
+        people counts, and only {CREDIT_WORDS} of it: a PAC&apos;s leaders choose who gets the
+        money, not the people who gave it.
       </p>
     </div>
   );

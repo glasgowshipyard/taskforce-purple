@@ -515,8 +515,23 @@ loans, repaid }`, the candidate's own gifts and loans to their campaign
     firm. Each `faraFirms` entry adds `agentAmount`, `agents`, `clientCount`,
     `countries` and `clients` (name, country, government or not).
 
+  - `grade.detail.pacCredit` (added 2026-10-09, #57 version A): points of the
+    score that come from PAC money traced back to people (half of it counts).
+    Present, 0 included, on every grade worked out with the full PAC list;
+    absent on older grades, and the page then leaves the PAC step out.
+  - `member.pacSummary.counted` and `list[].peopleShare` (added 2026-10-09):
+    dollars of the member's PAC money that count toward the grade, and each
+    PAC's share of money traced to people (0-1, traced one level deeper;
+    null when the FEC has no summary for it).
+  - `member.withheldReason` (added 2026-10-09; also on `/api/members`
+    entries): why a grade is withheld, for "?" grades only:
+    `identity-not-confirmed`, `no-campaign-committee` (the FEC lists no
+    campaign committee for the cycle), `not-graded`.
+
   Members not graded by the job (no FEC identity, or pending) get the old
-  stored record, with `evidence: null`. One D1 read per request.
+  stored record, with `evidence: null`, and never its old letter grade: a
+  member the job looked at and couldn't grade is withheld with the reason.
+  One D1 read per request.
 
 - **`GET /api/members`** list entries carry `evidenceChecked`.
 - **Retired (HTTP 410):** `/api/recalculate-tiers`, `/api/process-candidate`
