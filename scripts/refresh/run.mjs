@@ -340,11 +340,14 @@ async function main() {
     for (const id of ids) {
       try {
         // Already checked this round (a grade-only run takes any check of
-        // this cycle)
-        const [prior] = dryRun
-          ? []
-          : gradeOnly
-            ? await d1('SELECT * FROM committees WHERE committee_id = ? AND cycle = ?', [id, cycle])
+        // this cycle). A grade-only dry run reads them too, so a simulation
+        // grades on the same records production does: without the records
+        // the check fetched, it graded 9 members on the bulk file alone
+        // (2026-10-09). A dry check run re-checks every committee.
+        const [prior] = gradeOnly
+          ? await d1('SELECT * FROM committees WHERE committee_id = ? AND cycle = ?', [id, cycle])
+          : dryRun
+            ? []
             : await d1(
                 'SELECT * FROM committees WHERE committee_id = ? AND cycle = ? AND round_id = ?',
                 [id, cycle, roundId]
