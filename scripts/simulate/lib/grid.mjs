@@ -42,16 +42,67 @@ export const LIVE = {
   // The coverage test without reports the FEC's totals include but our
   // records don't (snapshot flags): Map committee id -> missing big-donor $
   withoutMissing: null,
+  // Second round (owner, 2026-10-11):
+  // PAC money by who the PAC answers to (sponsorGroup): null, or
+  // { credit: { people, nosponsor, money, politician }, unclearAs, upstreamZero }
+  groups: null,
+  jfcProRata: false, // item 6: joint-fund gifts counted only for what reached the member
+  noMinDonors: false, // item 7: no "fewer than 10 donors" fallback
+  fixedInvariant: false, // item 9: the transfer check net of own-committee transfers
+};
+
+/**
+ * Who a PAC answers to, from FEC fields only (owner, 2026-10-11):
+ *   politician  leadership PACs (designation D), joint funds (J), candidates'
+ *               committees (type H/S/P or designation P/A)
+ *   people      sponsor is a labor (ORG_TP L) or membership (M) organisation
+ *   money       sponsor is a corporation (C) or trade association (T)
+ *   unclear     cooperative (V), corporation without capital stock (W), or a
+ *               connected organisation named with no type given
+ *   nosponsor   no sponsor type and no connected organisation
+ */
+export function sponsorGroup(p) {
+  const desig = p?.designation;
+  if (
+    desig === 'D' ||
+    desig === 'J' ||
+    desig === 'P' ||
+    desig === 'A' ||
+    ['H', 'S', 'P'].includes(p?.type)
+  ) {
+    return 'politician';
+  }
+  const org = p?.orgType;
+  if (org === 'L' || org === 'M') {
+    return 'people';
+  }
+  if (org === 'C' || org === 'T') {
+    return 'money';
+  }
+  if (org === 'V' || org === 'W') {
+    return 'unclear';
+  }
+  const conn = String(p?.connectedOrg || '')
+    .trim()
+    .toUpperCase();
+  return conn && conn !== 'NONE' ? 'unclear' : 'nosponsor';
+}
+const resolveGroup = (p, cfg) => {
+  const g = sponsorGroup(p);
+  return g === 'unclear' ? cfg.groups.unclearAs : g;
 };
 
 /**
  * The allowance (0-1) from n (fewest donors holding half the big-donor
  * money) and N (number of big donors). Unreliable data: 0.40.
  */
-export function allowance(kind, n, N, reliable) {
+export function allowance(kind, n0, N0, reliable) {
   if (!reliable) {
     return FALLBACK;
   }
+  // No records: no donors (only reached with no big money to test)
+  const n = Number(n0) || 0;
+  const N = Number(N0) || 0;
   const share = N > 0 ? n / N : 0;
   // As tier-calculation.js getTrustAnchor computes it, to the last bit
   const percent = N > 0 ? (n / N) * 100 : 0;
@@ -99,7 +150,10 @@ function pacView(p, cfg) {
   const records = prof.itemized || 0; // the PAC's donors' money in our records
   const N = prof.donors ?? 0;
   const n = prof.nakamoto;
-  let reliable = n !== null && n !== undefined && N >= 10;
+  const hasRecords = n !== null && n !== undefined && N > 0;
+  // Item 7: no minimum number of donors; big money with no records at all
+  // still can't be tested
+  let reliable = cfg.noMinDonors ? hasRecords || it <= 0 : hasRecords && N >= 10;
   if (reliable && cfg.F8cov && p.fec && num(p.fec.itemized) > 0) {
     const fecItemized = num(p.fec.itemized) - num(cfg.withoutMissing?.get(p.id));
     reliable = fecItemized <= 0 || records >= 0.5 * fecItemized;
@@ -146,8 +200,13 @@ export function pacShares(pacs, cfg) {
       const up = (p.upstream || []).filter(u => u.amount > 0 && one.get(u.id)?.traceable > 0);
       const B = up.reduce((t, u) => t + u.amount, 0);
       const traced = Math.min(v.R - v.ind, B);
+      // E-S: money a PAC got from a MONEY or ONE POLITICIAN committee counts 0
+      const upShare = u =>
+        cfg.groups?.upstreamZero && ['money', 'politician'].includes(resolveGroup(pacs[u.id], cfg))
+          ? 0
+          : one.get(u.id).share;
       if (traced > 0) {
-        s2 = s1 + (up.reduce((t, u) => t + u.amount * one.get(u.id).share, 0) / v.R) * (traced / B);
+        s2 = s1 + (up.reduce((t, u) => t + u.amount * upShare(u), 0) / v.R) * (traced / B);
       }
     }
     out.set(id, { 1: s1, 2: clamp(s2, 0, 1), fallback: Boolean(v && !v.reliable) });
@@ -161,13 +220,23 @@ const vehiclePac = pf =>
     .filter(c => c.role === 'campaign' || c.role === 'leadership')
     .reduce((t, c) => t + num(c.pac), 0);
 
-/** Is the member graded on all their committees (gate G3 passed)? */
-export function personLevel(m) {
+/**
+ * Is the member graded on all their committees (gate G3 passed)? With
+ * `cfg.fixedInvariant` (item 9) the check allows for money a committee got
+ * from the member's other committees: total >= the largest committee's
+ * receipts less those transfers.
+ */
+export function personLevel(m, cfg = {}) {
   const pf = m.pf;
   const rec = m.reconciliation || {};
-  return Boolean(
-    pf && !pf.failed && pf.totalRaised > 0 && pf.invariantsHold && (rec.ok || rec.pending)
-  );
+  let invariant = pf?.invariantsHold;
+  if (pf && !invariant && cfg.fixedInvariant && m.internalIn) {
+    const vehicles = (pf.committees || []).filter(c => c.role !== 'joint');
+    const gross = vehicles.reduce((t, c) => t + num(c.raised), 0);
+    const largest = Math.max(0, ...vehicles.map(c => num(c.raised) - num(m.internalIn[c.id])));
+    invariant = pf.totalRaised <= gross + 1 && pf.totalRaised >= largest - 1;
+  }
+  return Boolean(pf && !pf.failed && pf.totalRaised > 0 && invariant && (rec.ok || rec.pending));
 }
 
 /** A grade from a score and a bar. */
@@ -188,7 +257,7 @@ export function band(score, bar) {
 export function gradeOne(m, pacs, shares, cfg, opts = {}) {
   const pf = m.pf;
   const out = { id: m.id };
-  if (!personLevel(m) && !opts.ignoreInvariant) {
+  if (!personLevel(m, cfg) && !opts.ignoreInvariant) {
     // G3: the live grade read the stored campaign figures; F2 withholds it
     if (cfg.F2) {
       return { ...out, tier: 'WITHHELD', reason: 'mixed-source', withheld: true };
@@ -237,8 +306,9 @@ export function gradeOne(m, pacs, shares, cfg, opts = {}) {
     };
   }
 
-  // Concentration: the live count, or only donors who net above $0 (F11)
-  const sh = m.shape;
+  // Concentration: the live count, or only donors who net above $0 (F11);
+  // item 6: joint-fund gifts counted only for what reached the member
+  const sh = cfg.jfcProRata && m.shapeJfc ? m.shapeJfc : m.shape;
   const N = cfg.F11 ? (sh?.donors ?? 0) : num(m.analysis?.uniqueDonors);
   const n = cfg.F11 ? sh?.nakamoto : m.analysis?.nakamotoCoefficient;
   const collected = cfg.F11 ? num(sh?.total) : num(m.analysis?.totalAmount);
@@ -246,7 +316,10 @@ export function gradeOne(m, pacs, shares, cfg, opts = {}) {
     ? (pf.committees || []).reduce((t, c) => t + num(cfg.withoutMissing.get(c.id)), 0)
     : 0;
   const covered = b - missing <= 0 || collected >= 0.5 * (b - missing);
-  const reliable = n !== null && n !== undefined && N >= 10 && (covered || cfg.recordsOnly);
+  const hasRecords = n !== null && n !== undefined && N > 0;
+  const reliable = cfg.noMinDonors
+    ? (hasRecords || b <= 0) && (covered || cfg.recordsOnly)
+    : hasRecords && N >= 10 && (covered || cfg.recordsOnly);
   const a = allowance(cfg.allowance === 'cap' ? 'table' : cfg.allowance, n, N, reliable);
   const cappedShare =
     cfg.allowance === 'cap' && sh?.total > 0
@@ -279,7 +352,23 @@ export function gradeOne(m, pacs, shares, cfg, opts = {}) {
     const jfcPac = Math.max(0, p - vehiclePac(pf));
     people += campaigns * f + y + jfcPac;
   }
-  const C = Math.round(people * cfg.credit * 100) / 100;
+  let C = Math.round(people * cfg.credit * 100) / 100;
+  if (cfg.groups) {
+    // E-S: each PAC's traced money at its group's credit
+    C =
+      Math.round(
+        gifts.reduce(
+          (t, [id, amt]) =>
+            t +
+            amt *
+              (shares.get(id)?.[cfg.trace] || 0) *
+              (cfg.groups.credit[resolveGroup(pacs[id], cfg)] ?? 0),
+          0
+        ) *
+          f *
+          100
+      ) / 100;
+  }
   const credit = C > 0 ? (C / D) * 100 : 0;
   x = Math.min(100, x + credit);
 

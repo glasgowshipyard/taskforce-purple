@@ -5,7 +5,16 @@ import { describe, expect, it } from 'vitest';
 import { gradeMember } from '../../../workers/grading.js';
 import { pacPeopleCredit, tracePacs } from '../../../workers/tier-calculation.js';
 import { asPacContributions } from '../../refresh/lib/pacs.mjs';
-import { LIVE, allowance, band, gradeOne, pacShares, spearman } from './grid.mjs';
+import {
+  LIVE,
+  allowance,
+  band,
+  gradeOne,
+  pacShares,
+  personLevel,
+  sponsorGroup,
+  spearman,
+} from './grid.mjs';
 
 const pacs = {
   C00000001: {
@@ -168,5 +177,93 @@ describe('simulation grid', () => {
     expect(band(Math.round(29.6), 0)).toBe('D');
     expect(spearman([1, 2, 3, 4], [10, 20, 30, 40])).toBe(1);
     expect(spearman([1, 2, 3, 4], [4, 3, 2, 1])).toBe(-1);
+  });
+});
+
+describe('second round: sponsor groups, joint funds, donor minimum, transfer check', () => {
+  it('sorts PACs by who they answer to', () => {
+    expect(sponsorGroup({ type: 'Q', designation: 'B', orgType: 'L' })).toBe('people');
+    expect(sponsorGroup({ type: 'Q', designation: 'B', orgType: 'M' })).toBe('people');
+    expect(sponsorGroup({ type: 'Q', designation: 'B', orgType: 'C' })).toBe('money');
+    expect(sponsorGroup({ type: 'Q', designation: 'U', orgType: 'T' })).toBe('money');
+    expect(sponsorGroup({ type: 'Q', designation: 'D', orgType: 'L' })).toBe('politician');
+    expect(sponsorGroup({ type: 'H', designation: 'P' })).toBe('politician');
+    expect(sponsorGroup({ type: 'N', designation: 'J' })).toBe('politician');
+    expect(sponsorGroup({ type: 'Q', designation: 'B', orgType: 'W' })).toBe('unclear');
+    expect(sponsorGroup({ type: 'Q', designation: 'B', connectedOrg: 'A COLLEGE' })).toBe(
+      'unclear'
+    );
+    expect(sponsorGroup({ type: 'Q', designation: 'U', connectedOrg: 'NONE' })).toBe('nosponsor');
+    expect(sponsorGroup({ type: 'W', designation: 'U' })).toBe('nosponsor');
+  });
+
+  it("E-S: union PAC money at full credit, company and politicians' PAC money at 0", () => {
+    const m = member({ uniqueDonors: 640, nakamotoCoefficient: 60, totalAmount: 290000 });
+    const E = {
+      ...LIVE,
+      F1: true,
+      F2: true,
+      F8cov: true,
+      F8split: true,
+      F9: true,
+      F11: true,
+      bar: false,
+      denominator: 'given',
+      allowance: 'min',
+    };
+    const groups = {
+      credit: { people: 1, nosponsor: 1, money: 0, politician: 0 },
+      unclearAs: 'people',
+      upstreamZero: true,
+    };
+    const ES = { ...E, groups };
+    const sh = pacShares(pacs, ES);
+    const r = gradeOne(m, pacs, sh, ES);
+    // Only the union PAC (C00000001, $300,000) counts, in full, scaled by the credit cap
+    const f = Math.min(1, 580000 / 600000);
+    expect(r.creditDollars).toBeCloseTo(300000 * sh.get('C00000001')[2] * f, 0);
+    // The company PAC's upstream committee is unsorted (no sponsor): it still counts
+    expect(sh.get('C00000002')[2]).toBeGreaterThan(sh.get('C00000002')[1]);
+  });
+
+  it("item 9: the transfer check allows for money from the member's own committees", () => {
+    const m = {
+      pf: {
+        totalRaised: 16000000,
+        invariantsHold: false,
+        committees: [
+          { id: 'C1', role: 'campaign', raised: 4000000 },
+          { id: 'C2', role: 'campaign', raised: 31500000 },
+        ],
+      },
+      reconciliation: { ok: true },
+      internalIn: { C2: 19500000 },
+    };
+    expect(personLevel(m)).toBe(false);
+    expect(personLevel(m, { fixedInvariant: true })).toBe(true);
+    expect(personLevel({ ...m, internalIn: {} }, { fixedInvariant: true })).toBe(false);
+  });
+
+  it('item 7: few donors get at most n% instead of the 40% fallback; poor records keep it', () => {
+    const few = { uniqueDonors: 8, nakamotoCoefficient: 2, totalAmount: 290000 };
+    const base = member(few);
+    const m = { ...base, shape: { ...base.shape, donors: 8, nakamoto: 2, total: 290000 } };
+    const E = { ...LIVE, F11: true, allowance: 'min' };
+    expect(gradeOne(m, pacs, pacShares(pacs, E), E).allowance).toBe(0.4);
+    expect(
+      gradeOne(m, pacs, pacShares(pacs, E), { ...E, noMinDonors: true }).allowance
+    ).toBeCloseTo(0.02, 10);
+    const poor = { ...m, shape: { ...m.shape, total: 100000 } };
+    expect(gradeOne(poor, pacs, pacShares(pacs, E), { ...E, noMinDonors: true }).allowance).toBe(
+      0.4
+    );
+  });
+
+  it('item 6: the donor test on joint-fund gifts scaled to what reached the member', () => {
+    const base = member({ uniqueDonors: 640, nakamotoCoefficient: 60, totalAmount: 290000 });
+    const m = { ...base, shapeJfc: { ...base.shape, donors: 900, nakamoto: 200, total: 280000 } };
+    const E = { ...LIVE, F11: true, allowance: 'min' };
+    expect(gradeOne(m, pacs, pacShares(pacs, E), E).n).toBe(60);
+    expect(gradeOne(m, pacs, pacShares(pacs, E), { ...E, jfcProRata: true }).n).toBe(200);
   });
 });

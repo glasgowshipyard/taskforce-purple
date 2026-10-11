@@ -4,6 +4,26 @@
 
 ---
 
+## 2026-10-11 (later): simulation round 2, PACs by who they answer to (nothing published)
+
+Same frozen snapshot; inputs re-exported (run 38176064307) to add the donor
+test with joint-fund gifts scaled to what reached the member, and each
+committee's transfers from the member's own committees.
+`scripts/simulate/report-sponsors.mjs`; `sponsorGroup` in lib/grid.mjs.
+
+- PAC money to members: PEOPLE $76.6M, MONEY $272.5M, ONE POLITICIAN
+  $49.7M, NO SPONSOR $29.6M, UNCLEAR $21.2M. Many FEC sponsor fields are
+  blank or loose (the Big Four's PACs land in NO SPONSOR).
+- E-S against E: Democrats 28 up, 48 down; Republicans 0 up, 100 down.
+- Transfer check fixed: Krishnamoorthi, Robin Kelly and Hoyer gradable.
+  Hinson isn't: her Senate candidate ID (S6IA00314) is missing from the
+  crosswalk, so her campaign committee C00706267 isn't counted.
+- Scaling joint-fund gifts (would reverse the 26 Sept rule) shrinks the
+  weak-spot list 19 to 5 but lifts leaders whose big donors gave through
+  joint funds (Collins E to A, Cornyn E to A, Pelosi A to S).
+
+---
+
 ## 2026-10-11: simplification simulation (owner's brief; nothing published)
 
 One frozen snapshot for every run: FEC bulk files dated 11 Oct and every
