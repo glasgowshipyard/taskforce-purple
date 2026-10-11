@@ -177,15 +177,48 @@ export function recordingFec(fec, cache) {
 }
 
 /**
- * A client that only answers from a recorded `cache`. A call that wasn't
- * recorded goes to `onMissing(path, params)` (default: throw), and is
+ * A client that only answers from a recorded `cache`. Calls for a list of
+ * committees (`committee_id`) can come in different batches than they were
+ * recorded in (discovery reads the FEC's linkages in no fixed order), so
+ * those are answered from every row recorded for each committee on that
+ * path, as one page (counted in `fec.assembled`). Anything else that wasn't
+ * recorded goes to `onMissing(path, params)` (default: throw) and is
  * counted in `fec.missing`.
  */
 export function replayFec(cache, { onMissing = null } = {}) {
+  let index = null;
+  const rowsFor = path => {
+    if (!index) {
+      index = new Map();
+      for (const [key, body] of Object.entries(cache)) {
+        const p = key.slice(0, key.indexOf('?'));
+        const byId = index.get(p) || new Map();
+        for (const row of body?.results || []) {
+          if (row?.committee_id) {
+            const rows = byId.get(row.committee_id) || new Map();
+            rows.set(JSON.stringify(row), row);
+            byId.set(row.committee_id, rows);
+          }
+        }
+        index.set(p, byId);
+      }
+    }
+    return index.get(path);
+  };
   const fec = async (path, params = {}) => {
     const key = fecCacheKey(path, params);
     if (Object.prototype.hasOwnProperty.call(cache, key)) {
       return cache[key];
+    }
+    const ids = params.committee_id;
+    const byId = ids ? rowsFor(path) : null;
+    if (byId?.size) {
+      fec.assembled.push(key);
+      const results =
+        Number(params.page || 1) > 1
+          ? []
+          : [].concat(...[].concat(ids).map(id => [...(byId.get(String(id))?.values() || [])]));
+      return { results, pagination: { pages: 1, count: results.length } };
     }
     fec.missing.push(key);
     if (onMissing) {
@@ -195,5 +228,6 @@ export function replayFec(cache, { onMissing = null } = {}) {
   };
   fec.calls = 0;
   fec.missing = [];
+  fec.assembled = [];
   return fec;
 }

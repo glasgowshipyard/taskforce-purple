@@ -825,6 +825,7 @@ async function main() {
         pacs,
         live,
         replayMissing: fec.missing || [],
+        replayAssembled: fec.assembled || [],
       })
     );
     writeFileSync(reportPath, JSON.stringify(report, null, 1));

@@ -79,4 +79,27 @@ describe('frozen snapshots: record and replay', () => {
     const lenient = replayFec(cache, { onMissing: () => ({ results: [] }) });
     expect(await lenient('/b/', {})).toEqual({ results: [] });
   });
+
+  it('answers a list of committees from the rows recorded for each, whatever the batches', async () => {
+    const cache = {
+      [fecCacheKey('/totals/pac-party/', { committee_id: ['C1', 'C2'], page: 1 })]: {
+        results: [
+          { committee_id: 'C1', receipts: 1 },
+          { committee_id: 'C2', receipts: 2 },
+        ],
+      },
+      [fecCacheKey('/totals/pac-party/', { committee_id: ['C3'], page: 1 })]: {
+        results: [{ committee_id: 'C3', receipts: 3 }],
+      },
+    };
+    const replay = replayFec(cache);
+    const d = await replay('/totals/pac-party/', { committee_id: ['C3', 'C1'], page: 1 });
+    expect(d.results.map(r => r.receipts)).toEqual([3, 1]);
+    expect(d.pagination.pages).toBe(1);
+    expect((await replay('/totals/pac-party/', { committee_id: ['C3'], page: 2 })).results).toEqual(
+      []
+    );
+    expect(replay.assembled).toHaveLength(2);
+    expect(replay.missing).toHaveLength(0);
+  });
 });
