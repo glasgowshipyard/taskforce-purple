@@ -798,7 +798,7 @@ say('');
 say('## Itemization periods (FEC source)');
 say('');
 say(
-  '11 CFR 104.3(a)(4)(i): committees itemize each person whose contributions aggregate in excess of $200 per calendar year, or per election cycle in the case of an authorized committee. Candidate committees (authorized committees): over $200 per two-year election cycle. PACs: over $200 per calendar year.'
+  '11 CFR 104.3(a)(4)(i) (eCFR, read 2026-10-11): a committee reports "each person, other than any political committee, who makes a contribution to the reporting political committee during the reporting period, whose contribution or contributions aggregate in excess of $200 per calendar year (or per election cycle in the case of an authorized committee)". So a candidate\'s campaign (an authorized committee) itemizes a donor once they pass $200 in the two-year election cycle; a PAC once they pass $200 in a calendar year. A donor giving a PAC $150 in each year is never itemized; the same gifts to a campaign would be.'
 );
 say('');
 
