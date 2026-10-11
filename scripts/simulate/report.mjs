@@ -347,6 +347,10 @@ for (const m of inputs.members) {
     live?.pacGifts,
     (m.gifts || []).reduce((t, [, a]) => t + a, 0)
   );
+  // What the PAC gifts count for depends on each PAC's own donors and
+  // receipts, which change with every bulk file
+  diff("PAC money counted as people's", live?.pacCounted, r.creditDollars);
+  diff('PAC bar', live?.grade?.detail?.transparencyPenalty, r.bar, { tol: 0, fmt: count });
   mismatches.push({
     id: m.id,
     name: m.name,
@@ -462,40 +466,49 @@ say('');
 say('## Records behind the FEC totals');
 say('');
 const flags = inputs.flags || [];
-say(`${flags.length} committees' FEC totals include a report our itemized records don't have yet.`);
-if (flags.length) {
-  say('');
+const missingBy = new Map(flags.map(f => [f.id, f.missingItemized]));
+const memberFlags = flags.filter(f => f.member);
+const pacFlags = flags.filter(f => !f.member);
+say(
+  `${flags.length} committees' FEC totals include a report whose big-donor records our files don't have yet: ${memberFlags.length} of members' own committees and ${pacFlags.length} PACs. Most are reports filed in the days before the snapshot (October quarterly and monthly); some are amended older reports, which a new filing number makes look missing, so the missing amounts are an upper bound. The FEC totals are what the grade divides by; the records are what the donor test is measured on. The allowance can change only through the coverage test (records at least half the FEC's big-donor total), so that test was rerun with the missing reports left out.`
+);
+say('');
+{
+  const cfgs = [['R1b', R1b], ...Object.entries(VARIANTS)];
   say(
-    '| Committee | Member or PAC | Latest report | Missing big-donor money | Share of its total | Allowance changed? |'
+    '| Run | Members whose allowance changes | PACs whose allowance changes | Grades that change |'
   );
-  say('|---|---|---|---|---|---|');
-  for (const f of flags) {
-    const owners = inputs.members.filter(m => (m.pf.committees || []).some(c => c.id === f.id));
-    let changed = '–';
-    if (owners.length) {
-      changed = owners
-        .map(m => {
-          const b = num(m.pf.largeDonorDonations);
-          const collected = num(m.shape?.total);
-          const was = b <= 0 || collected >= 0.5 * b;
-          const now = b - f.missingItemized <= 0 || collected >= 0.5 * (b - f.missingItemized);
-          return `${m.name}: ${was === now ? 'no' : `yes (records ${now ? 'cover' : "don't cover"} half without it)`}`;
-        })
-        .join('; ');
-    } else if (inputs.pacs[f.id]) {
-      const p = inputs.pacs[f.id];
-      const rec = num(p.profile?.itemized);
-      const total = num(p.fec?.itemized);
-      const was = total <= 0 || rec >= 0.5 * total;
-      const now = total - f.missingItemized <= 0 || rec >= 0.5 * (total - f.missingItemized);
-      changed = was === now ? 'no' : 'yes';
-    }
+  say('|---|---|---|---|');
+  for (const [label, cfg] of cfgs) {
+    const alt = { ...cfg, withoutMissing: missingBy };
+    const a = run(cfg);
+    const b = run(alt);
+    const members = inputs.members.filter(
+      m => a.results.get(m.id)?.reliable !== b.results.get(m.id)?.reliable
+    );
+    const pacsChanged = [...a.shares.keys()].filter(
+      id => a.shares.get(id)?.fallback !== b.shares.get(id)?.fallback
+    );
+    const grades = inputs.members.filter(
+      m => a.results.get(m.id)?.tier !== b.results.get(m.id)?.tier
+    );
     say(
-      `| ${inputs.pacs[f.id]?.name || f.id} | ${owners.map(m => m.name).join(', ') || 'PAC'} | ${f.latestReport || ''} | ${usd(f.missingItemized)} | ${pct(f.missingItemized / f.itemizedTotal)} | ${changed} |`
+      `| ${label} | ${members.length}${members.length ? `: ${members.map(m => m.name).join('; ')}` : ''} | ${pacsChanged.length} | ${grades.length}${grades.length ? `: ${grades.map(m => `${m.name} ${a.results.get(m.id).tier}→${b.results.get(m.id).tier}`).join('; ')}` : ''} |`
     );
   }
+  say('');
+  say("Members' own committees flagged:");
+  say('');
+  say('| Committee | Member | Latest report | Missing big-donor money (upper bound) |');
+  say('|---|---|---|---|');
+  for (const f of memberFlags) {
+    const owners = inputs.members.filter(m => (m.pf.committees || []).some(c => c.id === f.id));
+    say(
+      `| ${f.id} | ${owners.map(m => m.name).join(', ')} | ${f.latestReport || ''} | ${usd(f.missingItemized)} |`
+    );
+  }
+  say('');
 }
-say('');
 
 // ---- The ladder ----
 say('## The ladder');

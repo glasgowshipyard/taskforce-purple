@@ -4,6 +4,30 @@
 
 ---
 
+## 2026-10-11: simplification simulation (owner's brief; nothing published)
+
+One frozen snapshot for every run: FEC bulk files dated 11 Oct and every
+FEC API answer recorded once (`scripts/simulate/snapshot.mjs`, workflow
+`simulate.yml`, run 38163902277, artifact kept to 10 Nov). The refresh job
+gained `--frozen DIR` (dry, grade-only runs on a snapshot: frozen files,
+replayed API answers) and `--report` now exports each member's and PAC's
+inputs (run 38165965485). `scripts/simulate/lib/grid.mjs` grades any
+setting; under the live rules it equals the production grade for every
+member. `scripts/simulate/report.mjs` builds the ladder (R0 live, R1a/R1b
+fixes, R2 no bar, R3 money-given denominator), variants A-E and the credit
+and tracing grid.
+
+- R0 reproduces live: 44 differ, all with changed FEC inputs; 2 grades.
+- Leading candidate E (allowance = lower of the spread test and the
+  number test): S58 A118 B85 C108 D120 E40 F1. A fails on scale (Clyde E to
+  A), B on concentration (Mike Johnson S 90), D cuts big donors however many.
+- Live grades held 15-22 Oct (owner); the owner chooses by 19 Oct, then one
+  refresh after 22 Oct under the chosen rules, before the 23 Oct races.
+- Two of my bugs on the way, fixed: replay batches (discovery reads FEC
+  linkages in no fixed order) and the snapshot-flag test.
+
+---
+
 ## 2026-10-09 (night): PAC version A live; one rule for withheld grades (#57)
 
 Owner's decision: version A, half credit, traced one level deeper, shipped

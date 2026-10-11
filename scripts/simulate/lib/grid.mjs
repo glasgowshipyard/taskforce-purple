@@ -39,6 +39,9 @@ export const LIVE = {
   trace: 2, // 1: a PAC's own donors; 2: also the donors of committees that fund it
   untracedAsPeople: false, // party, other campaigns and joint-fund PAC money at 100%
   recordsOnly: false, // amendment 4: test concentration on the records we have
+  // The coverage test without reports the FEC's totals include but our
+  // records don't (snapshot flags): Map committee id -> missing big-donor $
+  withoutMissing: null,
 };
 
 /**
@@ -98,7 +101,8 @@ function pacView(p, cfg) {
   const n = prof.nakamoto;
   let reliable = n !== null && n !== undefined && N >= 10;
   if (reliable && cfg.F8cov && p.fec && num(p.fec.itemized) > 0) {
-    reliable = records >= 0.5 * num(p.fec.itemized);
+    const fecItemized = num(p.fec.itemized) - num(cfg.withoutMissing?.get(p.id));
+    reliable = fecItemized <= 0 || records >= 0.5 * fecItemized;
   }
   const cappedShare =
     cfg.allowance === 'cap' && records > 0 && p.extras?.capped
@@ -115,7 +119,7 @@ export function pacShares(pacs, cfg) {
   const one = new Map();
   const views = new Map();
   for (const [id, p] of Object.entries(pacs)) {
-    const v = pacView(p, cfg);
+    const v = pacView({ ...p, id }, cfg);
     views.set(id, v);
     if (!v) {
       one.set(id, { share: 0, traceable: 0 });
@@ -238,7 +242,10 @@ export function gradeOne(m, pacs, shares, cfg, opts = {}) {
   const N = cfg.F11 ? (sh?.donors ?? 0) : num(m.analysis?.uniqueDonors);
   const n = cfg.F11 ? sh?.nakamoto : m.analysis?.nakamotoCoefficient;
   const collected = cfg.F11 ? num(sh?.total) : num(m.analysis?.totalAmount);
-  const covered = b <= 0 || collected >= 0.5 * b;
+  const missing = cfg.withoutMissing
+    ? (pf.committees || []).reduce((t, c) => t + num(cfg.withoutMissing.get(c.id)), 0)
+    : 0;
+  const covered = b - missing <= 0 || collected >= 0.5 * (b - missing);
   const reliable = n !== null && n !== undefined && N >= 10 && (covered || cfg.recordsOnly);
   const a = allowance(cfg.allowance === 'cap' ? 'table' : cfg.allowance, n, N, reliable);
   const cappedShare =
