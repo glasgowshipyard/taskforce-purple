@@ -1,0 +1,65 @@
+name: Simulate
+
+# The simplification simulation (owner's brief, 2026-10-11). Started by hand
+# only. Reads KV and D1, writes nothing to either, publishes nothing.
+#   snapshot: download the FEC's bulk files once and record every FEC API
+#             answer the simulation needs; keep them as this run's artifact
+#   export:   grade every member on a saved snapshot (frozen files, replayed
+#             API answers) and export each member's and PAC's inputs
+on:
+  workflow_dispatch:
+    inputs:
+      step:
+        description: 'snapshot, or export from a saved snapshot'
+        type: choice
+        options: [snapshot, export]
+        default: snapshot
+      snapshot_run:
+        description: 'For export: the run ID of the snapshot to use'
+        required: false
+        default: ''
+
+permissions:
+  contents: read
+  actions: read # to download a saved snapshot
+
+concurrency:
+  group: simulate
+  cancel-in-progress: false
+
+jobs:
+  simulate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 300
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install
+        run: npm ci
+
+      - name: Capture the snapshot
+        if: inputs.step == 'snapshot'
+        env:
+          FEC_API_KEY: ${{ secrets.FEC_API_KEY }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
+          # Nothing else is running: most of the key's 120 a minute
+          FEC_MIN_INTERVAL_MS: '700'
+        run: node scripts/simulate/snapshot.mjs --dir "$RUNNER_TEMP/snapshot"
+
+      - name: Keep the snapshot
+        if: inputs.step == 'snapshot'
+        uses: actions/upload-artifact@v4
+        with:
+          name: snapshot
+          path: |
+            ${{ runner.temp }}/snapshot/*.zip
+            ${{ runner.temp }}/snapshot/*.json
+          compression-level: 0
+          retention-days: 30
+          if-no-files-found: error

@@ -149,3 +149,51 @@ export async function scheduleACount(fec, params) {
   const d = await fec('/schedules/schedule_a/', { per_page: 1, ...params });
   return { count: d.pagination?.count ?? 0, exact: d.pagination?.is_count_exact === true };
 }
+
+// --- Frozen snapshots (simulations) ---
+//
+// A simulation must grade every variant on one set of data. The FEC's API
+// only serves current figures, so a snapshot job records every answer it
+// gets, and later runs replay them instead of asking again.
+
+/** The cache key for a call: path plus parameters, sorted, never the key. */
+export function fecCacheKey(path, params = {}) {
+  const parts = Object.entries(params)
+    .filter(([k, v]) => k !== 'api_key' && v !== undefined && v !== null)
+    .map(([k, v]) => [k, Array.isArray(v) ? [...v].map(String).sort().join(',') : String(v)])
+    .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0));
+  return `${path}?${parts.map(([k, v]) => `${k}=${v}`).join('&')}`;
+}
+
+/** Wrap a client so every answer is also stored in `cache` (an object). */
+export function recordingFec(fec, cache) {
+  const wrapped = async (path, params = {}) => {
+    const body = await fec(path, params);
+    cache[fecCacheKey(path, params)] = body;
+    return body;
+  };
+  Object.defineProperty(wrapped, 'calls', { get: () => fec.calls });
+  return wrapped;
+}
+
+/**
+ * A client that only answers from a recorded `cache`. A call that wasn't
+ * recorded goes to `onMissing(path, params)` (default: throw), and is
+ * counted in `fec.missing`.
+ */
+export function replayFec(cache, { onMissing = null } = {}) {
+  const fec = async (path, params = {}) => {
+    const key = fecCacheKey(path, params);
+    if (Object.prototype.hasOwnProperty.call(cache, key)) {
+      return cache[key];
+    }
+    fec.missing.push(key);
+    if (onMissing) {
+      return onMissing(path, params);
+    }
+    throw new Error(`replay: no recorded answer for ${key}`);
+  };
+  fec.calls = 0;
+  fec.missing = [];
+  return fec;
+}

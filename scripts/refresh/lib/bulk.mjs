@@ -5,7 +5,7 @@
 // GitHub runner's 14 GB disk.
 
 import { execFileSync } from 'node:child_process';
-import { existsSync, statSync } from 'node:fs';
+import { existsSync, readFileSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import { DuckDBInstance } from '@duckdb/node-api';
 import { ITEMIZED_TYPES } from './reconcile.mjs';
@@ -40,9 +40,22 @@ export function bulkFileInfo(cycle) {
  * itcont.txt.
  */
 export function ensureBulkFile(cycle, dir, log = console.log) {
-  const info = bulkFileInfo(cycle);
   const zip = join(dir, `indiv${String(cycle).slice(2)}.zip`);
   const txt = join(dir, 'itcont.txt');
+  // A simulation on a saved snapshot uses the zip it has, and the date the
+  // snapshot recorded for it (TFP_FROZEN_BULK, snapshot manifest.json)
+  if (process.env.TFP_FROZEN_BULK && existsSync(zip)) {
+    const manifest = join(dir, 'manifest.json');
+    const recorded = existsSync(manifest)
+      ? JSON.parse(readFileSync(manifest, 'utf8')).files?.[`indiv${String(cycle).slice(2)}`]
+      : null;
+    if (!existsSync(txt) || statSync(txt).mtimeMs < statSync(zip).mtimeMs) {
+      log('extracting itcont.txt (frozen snapshot)');
+      execFileSync('sh', ['-c', `unzip -p '${zip}' itcont.txt > '${txt}'`]);
+    }
+    return { path: txt, lastModified: recorded?.lastModified || null };
+  }
+  const info = bulkFileInfo(cycle);
   if (!existsSync(zip) || statSync(zip).size !== info.size) {
     log(`downloading ${bulkUrl(cycle)} (${(info.size / 1e9).toFixed(1)} GB)`);
     execFileSync('curl', ['-sL', '--fail', '--max-time', '3600', '-o', zip, bulkUrl(cycle)]);

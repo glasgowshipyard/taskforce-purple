@@ -56,12 +56,17 @@ function zipSize(url) {
   return Number(last.match(/^content-length:\s*(\d+)/im)?.[1] || 0);
 }
 
-/** Download {name}{yy}.zip if missing or changed, and extract `inner`. */
+/**
+ * Download {name}{yy}.zip if missing or changed, and extract `inner`. With
+ * TFP_FROZEN_BULK set (a simulation on a saved snapshot), a zip already in
+ * `dir` is used as it is, whatever the FEC now serves.
+ */
 export function ensureZip(name, inner, cycle, dir, log = console.log) {
   const url = zipUrl(name, cycle);
   const zip = join(dir, `${name}${yy(cycle)}.zip`);
   const txt = join(dir, inner);
-  if (!existsSync(zip) || statSync(zip).size !== zipSize(url)) {
+  const frozen = process.env.TFP_FROZEN_BULK && existsSync(zip);
+  if (!frozen && (!existsSync(zip) || statSync(zip).size !== zipSize(url))) {
     log(`downloading ${url}`);
     execFileSync('curl', ['-sL', '--fail', '--max-time', '1800', '-o', zip, url]);
   }
@@ -117,7 +122,7 @@ export async function loadDiscoveryFiles(cycle, dir, log = console.log) {
 }
 
 // Committee type -> the /totals/{entity_type}/ endpoint that holds it
-const totalsType = type =>
+export const totalsType = type =>
   ['H', 'S'].includes(type) ? 'house-senate' : type === 'P' ? 'presidential' : 'pac-party';
 
 async function totalsFor(fec, ids, types, cycle) {
