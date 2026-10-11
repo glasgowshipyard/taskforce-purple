@@ -24,11 +24,17 @@ const ITCONT_COLUMNS = `{'CMTE_ID':'VARCHAR','AMNDT_IND':'VARCHAR','RPT_TP':'VAR
  * plus the record check's API rows). `liveN`: the live Nakamoto coefficient,
  * to add up what the same donors hold.
  */
-export async function memberDonorShape(bulk, poolIds, liveN) {
+export async function memberDonorShape(bulk, poolIds, liveN, weights = null) {
   if (!poolIds.length || !poolIds.every(id => IDS.test(id))) {
     return null;
   }
   const ids = poolIds.map(i => `'${i}'`).join(',');
+  // `weights` (committee id -> 0-1): each gift counted at that fraction, so a
+  // joint fund's donors count only for the money that reached the member
+  const w = Object.entries(weights || {}).filter(([id, x]) => IDS.test(id) && Number.isFinite(x));
+  const amount = w.length
+    ? `amount * CASE committee_id ${w.map(([id, x]) => `WHEN '${id}' THEN ${Math.max(0, Math.min(1, x))}`).join(' ')} ELSE 1 END`
+    : 'amount';
   const rows = `(SELECT * FROM bulk WHERE committee_id IN (${ids}) AND counts
                  AND sub_id NOT IN (SELECT sub_id FROM api)
                  UNION ALL
@@ -38,7 +44,7 @@ export async function memberDonorShape(bulk, poolIds, liveN) {
     WITH d AS (
       SELECT upper(trim(split_part(name, ',', 2))) || '|' || upper(trim(split_part(name, ',', 1)))
           || '|' || upper(trim(coalesce(state, ''))) || '|' || coalesce(zip5, '') AS donor,
-        sum(amount) AS amt
+        sum(${amount}) AS amt
       FROM ${rows} GROUP BY 1),
     pos AS (SELECT donor, amt FROM d WHERE amt > 0),
     ranked AS (

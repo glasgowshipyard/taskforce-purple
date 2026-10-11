@@ -61,6 +61,10 @@ describe('simulation donor measures', () => {
     expect(s.topLive).toBe(3000);
     expect(s.topPositive).toBe(3000);
     expect(s.capped).toEqual({ 500: 1650, 1000: 2650, 2000: 3650 });
+    // A joint fund that passed on a tenth of its money: its gifts at a tenth
+    const w = await memberDonorShape(bulk, ['C00000001'], 1, { C00000001: 0.1 });
+    expect(w.total).toBe(465);
+    expect(w.donors).toBe(4);
   });
 
   it("a PAC's capped money and its top employer's share", async () => {

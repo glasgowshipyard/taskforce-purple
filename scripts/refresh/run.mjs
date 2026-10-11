@@ -111,6 +111,22 @@ function fecKey() {
   return existsSync(local) ? readFileSync(local, 'utf8').match(/`([A-Za-z0-9]{40})`/)?.[1] : null;
 }
 
+/** Per committee: transfers it received from the member's other committees. */
+async function internalTransfers(db, pf) {
+  const vehicles = (pf.committees || []).filter(c => c.role !== 'joint').map(c => c.committeeId);
+  if (vehicles.length < 2) {
+    return {};
+  }
+  const marks = vehicles.map(() => '?').join(',');
+  const rows = await db.read(
+    `SELECT committee_id, sum(amount) AS amount FROM oth WHERE tx_type IN ('18G', '18J')
+     AND committee_id IN (${marks}) AND other_id IN (${marks}) AND committee_id <> other_id GROUP BY 1`,
+    ...vehicles,
+    ...vehicles
+  );
+  return Object.fromEntries(rows.map(r => [r.committee_id, Math.round(r.amount * 100) / 100]));
+}
+
 // Grades best first, for "up" and "down" in the report; withheld grades last
 const gradeRank = t => ({ S: 8, A: 7, B: 6, C: 5, D: 4, E: 3, F: 2, 'N/A': 1 })[t] ?? 0;
 
@@ -645,6 +661,20 @@ async function main() {
                 totalAmount: analysis.totalAmount,
               },
               shape: await memberDonorShape(bulk, p.pool, analysis.nakamotoCoefficient),
+              // The donor test with each own joint fund's gifts scaled to the
+              // share of the fund's money that reached the member
+              shapeJfc: await memberDonorShape(
+                bulk,
+                p.pool,
+                analysis.nakamotoCoefficient,
+                Object.fromEntries(
+                  (p.pf.committees || [])
+                    .filter(c => c.role === 'joint' && c.ownFund && c.raised > 0)
+                    .map(c => [c.committeeId, Math.min(1, (c.toMember || 0) / c.raised)])
+                )
+              ),
+              // Transfers each committee got from the member's own committees
+              internalIn: db ? await internalTransfers(db, p.pf) : null,
               gifts: (gifts || []).map(g => [g.id, g.amount]),
               record: member && {
                 fecIdentityVerified: member.fecIdentityVerified ?? null,
