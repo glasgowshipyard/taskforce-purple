@@ -63,3 +63,31 @@ jobs:
           compression-level: 0
           retention-days: 30
           if-no-files-found: error
+
+      - name: Fetch the saved snapshot
+        if: inputs.step == 'export'
+        uses: actions/download-artifact@v4
+        with:
+          name: snapshot
+          path: ${{ runner.temp }}/snapshot
+          run-id: ${{ inputs.snapshot_run }}
+          github-token: ${{ github.token }}
+
+      - name: Grade on the snapshot and export the inputs
+        if: inputs.step == 'export'
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          mkdir -p "$RUNNER_TEMP/out"
+          node scripts/refresh/run.mjs --frozen "$RUNNER_TEMP/snapshot" --dry-run --grade-only \
+            --batch 100 --budget-minutes 240 --report "$RUNNER_TEMP/out/grade-report.json"
+
+      - name: Keep the export
+        if: inputs.step == 'export'
+        uses: actions/upload-artifact@v4
+        with:
+          name: simulation-inputs
+          path: ${{ runner.temp }}/out/
+          retention-days: 30
+          if-no-files-found: error

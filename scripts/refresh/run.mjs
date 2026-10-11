@@ -16,7 +16,12 @@
  * --report FILE  writes every member's grade (published now; this run's) and
  *                the PAC settings still being chosen (lib/pac-sim.mjs) as
  *                JSON, with a summary: the simulation the settled decisions
- *                require before any grading change is published.
+ *                require before any grading change is published. Also writes
+ *                FILE.inputs.json: every member's and PAC's inputs, for
+ *                scripts/simulate (owner's brief, 2026-10-11).
+ * --frozen DIR   grade on a saved snapshot (scripts/simulate/snapshot.mjs):
+ *                its bulk files, its recorded FEC answers, its member list
+ *                and records. Dry, grade-only runs only.
  *
  * Two modes (owner, 2026-10-04: grade first, confirm after):
  *   --grade-only  grades every member from the FEC's bulk files, with no
@@ -70,7 +75,8 @@ import { discoverPeople, loadDiscoveryFiles } from './lib/discovery.mjs';
 import { apiRowToBulkShape, ensureBulkFile, insertApiRows, loadBulk } from './lib/bulk.mjs';
 import { RESULTS_DB, createCloudflare } from './lib/cloudflare.mjs';
 import { TimeBudgetError, reconcileCommittee } from './lib/committee.mjs';
-import { createFecClient } from './lib/fec.mjs';
+import { createFecClient, replayFec } from './lib/fec.mjs';
+import { memberDonorShape, pacExtras } from '../simulate/lib/inputs.mjs';
 import { loadStored, saveStored } from './lib/gap-store.mjs';
 import { publishGrades } from './lib/publish.mjs';
 
@@ -121,7 +127,16 @@ async function main() {
     .split(',')
     .map(s => s.trim())
     .filter(Boolean);
-  const bulkDir = arg('--bulk-dir', join(tmpdir(), 'tfp-bulk'));
+  // A saved snapshot: its files, its recorded FEC answers, its members
+  const frozen = arg('--frozen', null);
+  if (frozen && !(dryRun && gradeOnly)) {
+    throw new Error('--frozen is for dry, grade-only runs');
+  }
+  const snapshot = name => JSON.parse(readFileSync(join(frozen, name), 'utf8'));
+  if (frozen) {
+    process.env.TFP_FROZEN_BULK = '1';
+  }
+  const bulkDir = frozen || arg('--bulk-dir', join(tmpdir(), 'tfp-bulk'));
   const budgetMs = Number(arg('--budget-minutes', 300)) * 60000;
   const batchSize = Number(arg('--batch', 25));
   const reportPath = arg('--report', null);
@@ -129,7 +144,18 @@ async function main() {
   mkdirSync(bulkDir, { recursive: true });
 
   const cf = createCloudflare();
-  const fec = createFecClient(fecKey());
+  // Frozen: only recorded answers. A committee's name for a conduit isn't
+  // recorded (display only): the committee ID stands in for it
+  const fec = frozen
+    ? replayFec(snapshot('api-cache.json'), {
+        onMissing: path => {
+          if (/^\/committee\/C\d{8}\/$/.test(path)) {
+            return { results: [] };
+          }
+          throw new Error(`frozen run: no recorded FEC answer for ${path}`);
+        },
+      })
+    : createFecClient(fecKey());
   const runId = `${now()}-${Math.random().toString(36).slice(2, 6)}`;
   const today = now().slice(0, 10);
   const d1 = (sql, params) => cf.d1(RESULTS_DB, sql, params);
@@ -182,7 +208,10 @@ async function main() {
   }
 
   // Members still to do in this round
-  const list = JSON.parse((await cf.kvGet(LIST_KEY)) || '{"members":[]}').members;
+  const list = frozen
+    ? snapshot('members-list.json').members
+    : JSON.parse((await cf.kvGet(LIST_KEY)) || '{"members":[]}').members;
+  const frozenRecords = frozen ? snapshot('members.json') : null;
   let targets = only.length ? list.filter(m => only.includes(m.bioguideId)) : list;
   if (!dryRun && !gradeOnly && !only.length) {
     const done = new Set(
@@ -207,7 +236,8 @@ async function main() {
   // firms' foreign clients (#60). Without it, only employers are matched
   let faraFiles = null;
   try {
-    faraFiles = ensureFara(bulkDir, log);
+    // Not graded: a frozen run doesn't fetch it
+    faraFiles = frozen ? null : ensureFara(bulkDir, log);
   } catch (error) {
     log(`FARA register unavailable (${error.message}): matching employers only`);
   }
@@ -219,6 +249,8 @@ async function main() {
   const giftsFor = new Map();
   let profiles = new Map();
   let traced = new Map();
+  let upstream = new Map();
+  let extras = new Map(); // --report: each PAC's capped money and top employer (scripts/simulate)
   const pacTypes = {}; // report: PAC dollars and traced people dollars by kind and organisation type
   if (arg('--discovery', 'zips') === 'zips') {
     db = await loadDiscoveryFiles(cycle, bulkDir, log);
@@ -248,10 +280,13 @@ async function main() {
     // fund them (one level deeper): how much of each PAC's money came from
     // people (#57)
     const givers = [...giftsFor.values()].flatMap(g => g.map(x => x.id));
-    const upstream = await upstreamGifts(db, givers);
+    upstream = await upstreamGifts(db, givers);
     const upIds = [...upstream.values()].flatMap(u => u.map(x => x.id));
     profiles = await pacProfiles(db, file.path, [...givers, ...upIds]);
     traced = tracePacs(profiles, upstream);
+    if (reportPath) {
+      extras = await pacExtras(db, file.path, [...givers, ...upIds]);
+    }
     log(
       `PACs: ${new Set(givers).size} giving PACs traced, ${new Set(upIds).size} committees funding them`
     );
@@ -523,7 +558,9 @@ async function main() {
         if (gifts) {
           analysis.pacs = pacSummary(gifts, profiles, traced);
         }
-        const member = JSON.parse((await cf.kvGet(memberKey(p.id))) || 'null');
+        const member = frozen
+          ? frozenRecords[p.id] || null
+          : JSON.parse((await cf.kvGet(memberKey(p.id))) || 'null');
         const asStored = {
           ...analysis,
           personLevel: true,
@@ -581,6 +618,48 @@ async function main() {
             untraced: gifts ? untraced(gifts, traced) : null,
             faraEmployerTotal: analysis.faraEmployerTotal,
             faraAgentTotal: analysis.faraAgentTotal,
+            // Everything scripts/simulate grades from
+            inputs: {
+              pf: {
+                totalRaised: p.pf.totalRaised,
+                grassrootsDonations: p.pf.grassrootsDonations,
+                largeDonorDonations: p.pf.largeDonorDonations,
+                pacMoney: p.pf.pacMoney,
+                partyMoney: p.pf.partyMoney,
+                ownMoney: p.pf.ownMoney || null,
+                invariantsHold: p.pf.invariantsHold,
+                failed: Boolean(p.pf.failed),
+                committees: (p.pf.committees || []).map(c => ({
+                  id: c.committeeId,
+                  role: c.role,
+                  raised: c.raised,
+                  pac: c.pac ?? null,
+                  toMember: c.toMember ?? null,
+                  ownFund: c.ownFund ?? null,
+                })),
+              },
+              reconciliation: { ok, pending },
+              analysis: {
+                uniqueDonors: analysis.uniqueDonors,
+                nakamotoCoefficient: analysis.nakamotoCoefficient,
+                totalAmount: analysis.totalAmount,
+              },
+              shape: await memberDonorShape(bulk, p.pool, analysis.nakamotoCoefficient),
+              gifts: (gifts || []).map(g => [g.id, g.amount]),
+              record: member && {
+                fecIdentityVerified: member.fecIdentityVerified ?? null,
+                financialsVerified: member.financialsVerified ?? null,
+                financialsVerifiedCycle: member.financialsVerifiedCycle ?? null,
+                dataCycle: member.dataCycle ?? null,
+              },
+              grade: grade && {
+                tier: grade.tier,
+                score: grade.individualFundingPercent,
+                gradeBasis: grade.gradeBasis,
+                disputeReason: grade.disputeReason ?? null,
+                detail: grade.detail ?? null,
+              },
+            },
           });
         }
         const status = !grade ? 'pending' : ok ? 'complete' : pending ? 'provisional' : 'pending';
@@ -679,6 +758,75 @@ async function main() {
       }
     }
     writeFileSync(`${reportPath}.pacs.json`, JSON.stringify(pacTypes, null, 1));
+    // Every PAC's inputs, for scripts/simulate: its FEC summary and donors,
+    // the committees that funded it, and (frozen) the FEC's own totals
+    const pacIds = [
+      ...new Set([
+        ...[...giftsFor.values()].flatMap(g => g.map(x => x.id)),
+        ...[...upstream.values()].flatMap(u => u.map(x => x.id)),
+        ...profiles.keys(),
+      ]),
+    ];
+    const cmRows = pacIds.length
+      ? await db.read(
+          `SELECT id, name, type, designation, org_type, connected_org FROM cm WHERE id IN (${pacIds.map(() => '?').join(',')})`,
+          ...pacIds
+        )
+      : [];
+    const fecTotals = frozen ? snapshot('pac-totals.json') : {};
+    const pacs = {};
+    for (const c of cmRows) {
+      const t = fecTotals[c.id];
+      pacs[c.id] = {
+        name: c.name,
+        type: c.type,
+        designation: c.designation,
+        orgType: c.org_type,
+        connectedOrg: c.connected_org,
+        profile: profiles.get(c.id) || null,
+        extras: extras.get(c.id) || null,
+        upstream: upstream.get(c.id) || [],
+        fec: t
+          ? {
+              receipts: t.receipts,
+              individuals: t.individual_contributions,
+              itemized: t.individual_itemized_contributions,
+              unitemized: t.individual_unitemized_contributions,
+              coverageEnd: t.coverage_end_date,
+            }
+          : null,
+      };
+    }
+    // The live grades' own inputs, for checking R0 against them
+    const live = frozen
+      ? await d1(
+          `SELECT bioguide_id, grade, json_extract(analysis, '$.uniqueDonors') AS donors,
+             json_extract(analysis, '$.nakamotoCoefficient') AS nakamoto,
+             json_extract(analysis, '$.pacs.total') AS pacGifts,
+             json_extract(analysis, '$.pacs.counted') AS pacCounted
+           FROM results WHERE cycle = ?`,
+          [cycle]
+        )
+      : [];
+    writeFileSync(
+      `${reportPath}.inputs.json`,
+      JSON.stringify({
+        snapshot: frozen ? snapshot('manifest.json') : null,
+        flags: frozen ? snapshot('flags.json') : [],
+        members: report.map(r => ({
+          id: r.id,
+          name: r.name,
+          party: r.party,
+          chamber: r.chamber,
+          state: r.state,
+          published: r.before,
+          ...r.inputs,
+        })),
+        pacs,
+        live,
+        replayMissing: fec.missing || [],
+      })
+    );
     writeFileSync(reportPath, JSON.stringify(report, null, 1));
     const moved = pick => report.filter(r => pick(r) && pick(r).tier !== r.before.tier);
     const byParty = list =>
