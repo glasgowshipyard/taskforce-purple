@@ -1,0 +1,93 @@
+{
+  "_about": "Stated facts that decide a PAC's group where the FEC fields and the IRS master file don't (scripts/refresh/lib/sponsors.mjs). Each is a fact about the sponsor, checkable by anyone. Added 2026-10-11 for the final candidate; the owner reviews the list.",
+  "C00227744": {
+    "group": "business",
+    "fact": "Ernst & Young (EY) is an accounting firm, a partnership; this is its PAC."
+  },
+  "C00211318": {
+    "group": "business",
+    "fact": "Deloitte is an accounting and consulting firm, a partnership; this is its PAC."
+  },
+  "C00280222": {
+    "group": "business",
+    "fact": "KPMG is an accounting firm; this is the PAC of its partners, principals and employees."
+  },
+  "C00171330": {
+    "group": "business",
+    "fact": "Holland & Knight LLP is a law firm; this is its PAC."
+  },
+  "C00301929": {
+    "group": "business",
+    "fact": "Kelley Drye & Warren LLP is a law firm; this is its PAC."
+  },
+  "C00369660": { "group": "business", "fact": "Venable LLP is a law firm; this is its PAC." },
+  "C00395723": { "group": "business", "fact": "Alston & Bird LLP is a law firm; this is its PAC." },
+  "C00174227": {
+    "group": "business",
+    "fact": "Baker & Hostetler LLP is a law firm; this is its PAC."
+  },
+  "C00450692": {
+    "group": "business",
+    "fact": "POET is an ethanol producer (a company); this is its PAC."
+  },
+  "C00343137": {
+    "group": "business",
+    "fact": "Sponsor: the American Association of Orthopaedic Surgeons, a professional association; the IRS lists it as 'American Association of Orthopaedic Surgeons of America', a 501(c)(6)."
+  },
+  "C00364158": {
+    "group": "business",
+    "fact": "Sponsor: the American College of Obstetricians and Gynecologists, a professional association; the IRS lists it as a 501(c)(6)."
+  },
+  "C00358903": {
+    "group": "business",
+    "fact": "Sponsor: the American Association of Nurse Practitioners, a professional association."
+  },
+  "C00519371": {
+    "group": "business",
+    "fact": "Sponsor: the Society for Cardiovascular Angiography and Interventions, a professional association of physicians."
+  },
+  "C00368142": {
+    "group": "business",
+    "fact": "Sponsor: the Office of the Commissioner of Major League Baseball, the league's business office."
+  },
+  "C00131185": {
+    "group": "people",
+    "fact": "Sponsor: the Aircraft Owners and Pilots Association, a membership association of pilots; the IRS lists 'Aircraft Owners & Pilots Asso' as a 501(c)(4)."
+  },
+  "C00629709": {
+    "group": "people",
+    "fact": "No Labels is a political advocacy organization, not a business."
+  },
+  "C00466813": {
+    "group": "people",
+    "fact": "Sponsor: Humane World Action Fund, the advocacy arm of an animal-protection charity: an issue organization."
+  },
+  "C00305318": {
+    "group": "politician",
+    "fact": "The PAC of the Blue Dog Coalition, a caucus of House Democrats."
+  },
+  "C00409730": {
+    "group": "politician",
+    "fact": "The PAC of the New Democrat Coalition, a caucus of House Democrats."
+  },
+  "C00365536": {
+    "group": "politician",
+    "fact": "BOLD PAC is the campaign arm of the Congressional Hispanic Caucus."
+  },
+  "C00433060": {
+    "group": "politician",
+    "fact": "The PAC of the Republican Governance Group (the Tuesday Group), a caucus of House Republicans."
+  },
+  "C00513176": {
+    "group": "politician",
+    "fact": "The PAC of the Congressional Progressive Caucus."
+  },
+  "C00581785": {
+    "group": "politician",
+    "fact": "The PAC of the Sustainable Energy and Environment Coalition, a caucus of House Democrats."
+  },
+  "C00625988": {
+    "group": "politician",
+    "fact": "The PAC of Future Forum, a caucus of younger House Democrats."
+  }
+}

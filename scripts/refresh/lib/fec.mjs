@@ -181,50 +181,76 @@ export function recordingFec(fec, cache) {
  * committees (`committee_id`) can come in different batches than they were
  * recorded in (discovery reads the FEC's linkages in no fixed order), so
  * those are answered from every row recorded for each committee on that
- * path, as one page (counted in `fec.assembled`). Anything else that wasn't
- * recorded goes to `onMissing(path, params)` (default: throw) and is
- * counted in `fec.missing`.
+ * path, as one page (counted in `fec.assembled`). A committee the snapshot
+ * never asked about, and anything else not recorded, goes to
+ * `onMissing(path, params)` (default: throw) and is counted in
+ * `fec.missing`: never answered as if it had no data.
  */
 export function replayFec(cache, { onMissing = null } = {}) {
   let index = null;
-  const rowsFor = path => {
-    if (!index) {
-      index = new Map();
-      for (const [key, body] of Object.entries(cache)) {
-        const p = key.slice(0, key.indexOf('?'));
-        const byId = index.get(p) || new Map();
-        for (const row of body?.results || []) {
-          if (row?.committee_id) {
-            const rows = byId.get(row.committee_id) || new Map();
-            rows.set(JSON.stringify(row), row);
-            byId.set(row.committee_id, rows);
-          }
+  let asked = null;
+  const build = () => {
+    index = new Map();
+    asked = new Map();
+    for (const [key, body] of Object.entries(cache)) {
+      const p = key.slice(0, key.indexOf('?'));
+      const ids = key.match(/[?&]committee_id=([^&]*)/)?.[1];
+      if (ids) {
+        const set = asked.get(p) || new Set();
+        for (const id of ids.split(',')) {
+          set.add(id);
         }
-        index.set(p, byId);
+        asked.set(p, set);
       }
+      const byId = index.get(p) || new Map();
+      for (const row of body?.results || []) {
+        if (row?.committee_id) {
+          const rows = byId.get(row.committee_id) || new Map();
+          rows.set(JSON.stringify(row), row);
+          byId.set(row.committee_id, rows);
+        }
+      }
+      index.set(p, byId);
     }
-    return index.get(path);
+  };
+  const missing = async (path, params, key) => {
+    fec.missing.push(key);
+    if (onMissing) {
+      return onMissing(path, params);
+    }
+    throw new Error(`replay: no recorded answer for ${key}`);
   };
   const fec = async (path, params = {}) => {
     const key = fecCacheKey(path, params);
     if (Object.prototype.hasOwnProperty.call(cache, key)) {
       return cache[key];
     }
-    const ids = params.committee_id;
-    const byId = ids ? rowsFor(path) : null;
-    if (byId?.size) {
+    if (!index) {
+      build();
+    }
+    const ids = params.committee_id ? [].concat(params.committee_id).map(String) : null;
+    const known = ids && asked.get(path);
+    if (known?.size) {
+      const unknown = ids.filter(id => !known.has(id));
+      const byId = index.get(path) || new Map();
       fec.assembled.push(key);
-      const results =
-        Number(params.page || 1) > 1
-          ? []
-          : [].concat(...[].concat(ids).map(id => [...(byId.get(String(id))?.values() || [])]));
+      if (Number(params.page || 1) > 1) {
+        return { results: [], pagination: { pages: 1, count: 0 } };
+      }
+      const results = [].concat(
+        ...ids.filter(id => known.has(id)).map(id => [...(byId.get(id)?.values() || [])])
+      );
+      if (unknown.length) {
+        const extra = await missing(
+          path,
+          { ...params, committee_id: unknown, page: 1 },
+          fecCacheKey(path, { ...params, committee_id: unknown })
+        );
+        results.push(...(extra?.results || []));
+      }
       return { results, pagination: { pages: 1, count: results.length } };
     }
-    fec.missing.push(key);
-    if (onMissing) {
-      return onMissing(path, params);
-    }
-    throw new Error(`replay: no recorded answer for ${key}`);
+    return missing(path, params, key);
   };
   fec.calls = 0;
   fec.missing = [];

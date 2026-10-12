@@ -101,5 +101,17 @@ describe('frozen snapshots: record and replay', () => {
     );
     expect(replay.assembled).toHaveLength(2);
     expect(replay.missing).toHaveLength(0);
+    // A committee never asked about is missing, not empty
+    await expect(
+      replay('/totals/pac-party/', { committee_id: ['C1', 'C9'], page: 1 })
+    ).rejects.toThrow(/no recorded answer/);
+    const live = replayFec(cache, {
+      onMissing: (p, q) => ({
+        results: q.committee_id.map(id => ({ committee_id: id, receipts: 9 })),
+      }),
+    });
+    const d2 = await live('/totals/pac-party/', { committee_id: ['C1', 'C9'], page: 1 });
+    expect(d2.results.map(r => r.receipts)).toEqual([1, 9]);
+    expect(live.missing).toHaveLength(1);
   });
 });

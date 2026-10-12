@@ -111,3 +111,13 @@ describe('activeCandidates', () => {
     expect(activeCandidates([c], 2026)).toEqual([]);
   });
 });
+
+describe('crosswalk additions', () => {
+  it("adds a looked-up ID to the generated list (Hinson's Senate candidacy)", async () => {
+    const { crosswalkIdsFor: ids, isVerifiedIdentity: ok } = await import('./fec-identity.js');
+    expect(ids('H001091')).toEqual(['H0IA01174', 'S6IA00314']);
+    expect(ok('H001091', 'S6IA00314')).toBe(true);
+    // A crosswalk passed in explicitly is used as it is
+    expect(ids('H001091', { H001091: ['H0IA01174'] })).toEqual(['H0IA01174']);
+  });
+});
