@@ -267,3 +267,53 @@ describe('second round: sponsor groups, joint funds, donor minimum, transfer che
     expect(gradeOne(m, pacs, pacShares(pacs, E), { ...E, jfcProRata: true }).n).toBe(200);
   });
 });
+
+describe('final candidate: whole own funds and TFP groups', () => {
+  it("counts the member's own fund in full and its PAC gifts by group", () => {
+    const base = member({ uniqueDonors: 640, nakamotoCoefficient: 60, totalAmount: 290000 });
+    const m = {
+      ...base,
+      whole: {
+        totalRaised: 1600000,
+        grassrootsDonations: 300000,
+        largeDonorDonations: 500000,
+        pacMoney: 700000,
+        partyMoney: 0,
+        invariantsHold: true,
+        ownFunds: ['J1'],
+      },
+      giftsToFunds: [['C00000001', 100000]],
+    };
+    const tfpPacs = Object.fromEntries(
+      Object.entries(pacs).map(([id, p]) => [
+        id,
+        {
+          ...p,
+          sponsor: {
+            group: id === 'C00000001' ? 'people' : id === 'C00000004' ? 'politician' : 'business',
+          },
+        },
+      ])
+    );
+    const cfg = {
+      ...LIVE,
+      F9: true,
+      F11: true,
+      bar: false,
+      denominator: 'given',
+      allowance: 'min',
+      noMinDonors: true,
+      wholeFunds: true,
+      groups: {
+        credit: { people: 1, nosponsor: 1, business: 0, politician: 0 },
+        source: 'tfp',
+        upstreamZero: true,
+      },
+    };
+    const sh = pacShares(tfpPacs, cfg);
+    const r = gradeOne(m, tfpPacs, sh, cfg);
+    expect(r.denominator).toBe(300000 + 500000 + 700000);
+    // Only the union PAC counts: $300k to the campaign plus $100k to the fund, in full
+    expect(r.creditDollars).toBeCloseTo(400000 * sh.get('C00000001')[2], 0);
+  });
+});

@@ -49,6 +49,12 @@ export const LIVE = {
   jfcProRata: false, // item 6: joint-fund gifts counted only for what reached the member
   noMinDonors: false, // item 7: no "fewer than 10 donors" fallback
   fixedInvariant: false, // item 9: the transfer check net of own-committee transfers
+  // Final candidate (owner, 2026-10-11): own joint funds in full, their PAC
+  // gifts traced with the member's, PACs in TFP's own groups (the export's
+  // `sponsor.group`), and an upper bound on counting other politicians'
+  // joint-fund transfers as POLITICIAN money (`nonOwnFundsZero`)
+  wholeFunds: false,
+  nonOwnFundsZero: false,
 };
 
 /**
@@ -88,6 +94,9 @@ export function sponsorGroup(p) {
   return conn && conn !== 'NONE' ? 'unclear' : 'nosponsor';
 }
 const resolveGroup = (p, cfg) => {
+  if (cfg.groups?.source === 'tfp') {
+    return p?.sponsor?.group || 'nosponsor';
+  }
   const g = sponsorGroup(p);
   return g === 'unclear' ? cfg.groups.unclearAs : g;
 };
@@ -202,7 +211,8 @@ export function pacShares(pacs, cfg) {
       const traced = Math.min(v.R - v.ind, B);
       // E-S: money a PAC got from a MONEY or ONE POLITICIAN committee counts 0
       const upShare = u =>
-        cfg.groups?.upstreamZero && ['money', 'politician'].includes(resolveGroup(pacs[u.id], cfg))
+        cfg.groups?.upstreamZero &&
+        ['money', 'business', 'politician'].includes(resolveGroup(pacs[u.id], cfg))
           ? 0
           : one.get(u.id).share;
       if (traced > 0) {
@@ -229,8 +239,8 @@ const vehiclePac = pf =>
 export function personLevel(m, cfg = {}) {
   const pf = m.pf;
   const rec = m.reconciliation || {};
-  let invariant = pf?.invariantsHold;
-  if (pf && !invariant && cfg.fixedInvariant && m.internalIn) {
+  let invariant = cfg.wholeFunds && m.whole ? m.whole.invariantsHold : pf?.invariantsHold;
+  if (pf && !invariant && cfg.fixedInvariant && m.internalIn && !cfg.wholeFunds) {
     const vehicles = (pf.committees || []).filter(c => c.role !== 'joint');
     const gross = vehicles.reduce((t, c) => t + num(c.raised), 0);
     const largest = Math.max(0, ...vehicles.map(c => num(c.raised) - num(m.internalIn[c.id])));
@@ -255,7 +265,8 @@ export function band(score, bar) {
  * F2 side table). Returns everything the report and the CSV show.
  */
 export function gradeOne(m, pacs, shares, cfg, opts = {}) {
-  const pf = m.pf;
+  // Final: the member's own joint funds in full
+  const pf = cfg.wholeFunds && m.whole ? { ...m.pf, ...m.whole } : m.pf;
   const out = { id: m.id };
   if (!personLevel(m, cfg) && !opts.ignoreInvariant) {
     // G3: the live grade read the stored campaign figures; F2 withholds it
@@ -339,9 +350,12 @@ export function gradeOne(m, pacs, shares, cfg, opts = {}) {
   x = Math.min(100, x);
 
   // PAC money traced back to people, counted at the credit
-  const gifts = m.gifts || [];
+  const gifts = cfg.wholeFunds ? [...(m.gifts || []), ...(m.giftsToFunds || [])] : m.gifts || [];
   const giftTotal = gifts.reduce((t, [, amt]) => t + amt, 0);
-  const f = cfg.F9 && giftTotal > 0 ? Math.min(1, vehiclePac(pf) / giftTotal) : 1;
+  // The credit cap: credited gifts never above the PAC money received (with
+  // whole funds: all the PAC money in the member's figures)
+  const capBase = cfg.wholeFunds ? p : vehiclePac(pf);
+  const f = cfg.F9 && giftTotal > 0 ? Math.min(1, capBase / giftTotal) : 1;
   let people = gifts.reduce((t, [id, amt]) => t + amt * (shares.get(id)?.[cfg.trace] || 0), 0) * f;
   if (cfg.untracedAsPeople) {
     // Party money, other candidates' campaigns and joint-fund PAC money as if
@@ -380,6 +394,14 @@ export function gradeOne(m, pacs, shares, cfg, opts = {}) {
       return w > 1 ? t + amt * w : t;
     }, 0);
     bar = Math.min(30, Math.floor((weighted / fromOthers) * 100));
+  }
+  // Upper bound: money from other politicians' joint funds counted as
+  // POLITICIAN money (0) instead of by the fund's mix
+  if (cfg.nonOwnFundsZero) {
+    const nonOwn = (m.pf.committees || [])
+      .filter(c => c.role === 'joint' && !c.ownFund)
+      .reduce((t, c) => t + num(c.toMember), 0);
+    x = Math.max(0, x - (Math.min(nonOwn, s + counted) / D) * 100);
   }
   const score = Math.round(x);
   const tier = band(cfg.F1 ? score : x, bar);
