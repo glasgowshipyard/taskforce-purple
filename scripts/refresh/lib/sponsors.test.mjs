@@ -10,7 +10,20 @@ import {
 
 const index = buildIrsIndex([
   { EIN: '361520690', NAME: 'NATIONAL ASSOCIATION OF REALTORS', SUBSECTION: '06' },
-  { EIN: '521131735', NAME: 'AIR LINE PILOTS ASSOCIATION', SUBSECTION: '05' },
+  {
+    EIN: '521131735',
+    NAME: 'AIR LINE PILOTS ASSOCIATION',
+    SUBSECTION: '05',
+    CLASSIFICATION: '3000',
+  },
+  {
+    EIN: '421234567',
+    NAME: 'NATIONAL PORK PRODUCERS COUNCIL',
+    SUBSECTION: '05',
+    CLASSIFICATION: '1000',
+  },
+  { EIN: '777777777', NAME: 'GAP INC', SUBSECTION: '03' },
+  { EIN: '888888888', NAME: 'UNITED AIRLINES INC', SUBSECTION: '09' },
   { EIN: '541587464', NAME: 'AIR LINE PILOTS ASSOCIATION', SUBSECTION: '09' },
   { EIN: '530217164', NAME: 'AMERICAN ISRAEL PUBLIC AFFAIRS COMMITTEE', SUBSECTION: '04' },
   { EIN: '111111111', NAME: 'AMERICAS CREDIT UNIONS', SUBSECTION: '06' },
@@ -21,7 +34,7 @@ const index = buildIrsIndex([
     NAME: 'AMERICAN ACADEMY OF FAMILY PHYSICIANS',
     SUBSECTION: '06',
   })),
-  { EIN: '5CT', NAME: 'AMERICAN ACADEMY OF FAMILY PHYSICIANS', SUBSECTION: '03' },
+  { EIN: '5CT', NAME: 'AMERICAN ACADEMY OF FAMILY PHYSICIANS', SUBSECTION: '04' },
   { EIN: '666666666', NAME: 'NATIONAL VENTURE CAPITAL ASSOCIATION', SUBSECTION: '06' },
 ]);
 
@@ -53,6 +66,24 @@ describe('sponsor sorting', () => {
     });
     expect(irsStatus(index, 'SAME NAME GROUP').status).toBe('ambiguous');
     expect(irsStatus(index, 'NOBODY').status).toBe('unmatched');
+    // 501(c)(5): the FEC's sponsor type tells a union from a producers' association
+    expect(
+      classifyPac(
+        'C20',
+        { designation: 'B', orgType: 'T', connectedOrg: 'NATIONAL PORK PRODUCERS COUNCIL' },
+        index
+      ).group
+    ).toBe('business');
+    expect(
+      classifyPac(
+        'C21',
+        { designation: 'B', orgType: 'L', connectedOrg: 'AIR LINE PILOTS ASSOCIATION' },
+        index
+      ).group
+    ).toBe('people');
+    // A charity or a benefit trust can't sponsor a PAC: no match
+    expect(irsStatus(index, 'GAP INC').status).toBe('unmatched');
+    expect(irsStatus(index, 'UNITED AIRLINES, INC.').status).toBe('unmatched');
     // A national body and its chapters: most of the records settle it
     expect(irsStatus(index, 'AMERICAN ACADEMY OF FAMILY PHYSICIANS')).toMatchObject({
       status: 'majority',
@@ -125,8 +156,11 @@ describe('sponsor sorting', () => {
       )
     ).toMatchObject({ group: 'politician', settledBy: 'FEC record' });
     expect(
-      classifyPac('C12', { name: 'EMILYS LIST', designation: 'U', connectedOrg: 'WOMEN VOTE' }, index)
-        .group
+      classifyPac(
+        'C12',
+        { name: 'EMILYS LIST', designation: 'U', connectedOrg: 'WOMEN VOTE' },
+        index
+      ).group
     ).toBe('nosponsor');
   });
 

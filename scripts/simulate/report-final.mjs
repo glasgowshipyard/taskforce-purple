@@ -177,7 +177,9 @@ say('');
   const cE = counts(run(E).results);
   say('| Run | S | A | B | C | D | E | F | withheld |');
   say('|---|---|---|---|---|---|---|---|---|');
-  say(`| E (round one) | ${LETTERS.map(l => cE[l] || 0).join(' | ')} | ${cE['?'] || 0} |`);
+  say(
+    `| E (round one's rules, on this export) | ${LETTERS.map(l => cE[l] || 0).join(' | ')} | ${cE['?'] || 0} |`
+  );
   say(`| **Final** | ${LETTERS.map(l => `**${c[l] || 0}**`).join(' | ')} | ${c['?'] || 0} |`);
   say('');
   const withheld = inputs.members.filter(m => !isLetter(F.get(m.id)?.tier));
@@ -404,18 +406,42 @@ say('');
   );
   say('');
   const unmatched = sponsors.filter(
-    p =>
-      p.sponsor.settledBy !== 'IRS' &&
-      p.sponsor.settledBy !== 'stated fact' &&
-      p.sponsor.group !== 'nosponsor'
+    p => p.sponsor.settledBy !== 'IRS' && p.sponsor.group !== 'nosponsor'
   );
-  say(`Not matched in the IRS file (${unmatched.length}), and how each was decided:`);
+  const rule = p =>
+    p.sponsor.settledBy === 'stated fact'
+      ? 'a stated fact'
+      : p.sponsor.settledBy === 'name'
+        ? "the sponsor's name is a company's"
+        : p.sponsor.unsettled
+          ? 'not settled'
+          : `FEC sponsor type: ${p.orgType || 'none'}`;
+  const byRule = {};
+  for (const p of unmatched) {
+    const k = `${rule(p)} → ${GROUP[p.sponsor.group]}`;
+    byRule[k] ||= { n: 0, amt: 0 };
+    byRule[k].n++;
+    byRule[k].amt += pacGiven.get(idOf(p)) || 0;
+  }
+  say(
+    `Not matched in the IRS file: ${unmatched.length} giving PACs outside NO SPONSOR (a corporation, partnership or LLC isn't tax-exempt, so it has no IRS record; nearly all of these are companies). How each was decided:`
+  );
+  say('');
+  say('| Decided by | PACs | Given |');
+  say('|---|---|---|');
+  for (const [k, v] of Object.entries(byRule).sort((a, b) => b[1].amt - a[1].amt)) {
+    say(`| ${k} | ${v.n} | ${usdM(v.amt)} |`);
+  }
+  say('');
+  say(
+    'Every one decided by a stated fact, by name, or not settled (the rest, decided by the FEC sponsor type, are in PACs.csv with their reasons):'
+  );
   say('');
   say('| PAC | Given | Sponsor | Group | Decided by |');
   say('|---|---|---|---|---|');
-  for (const p of unmatched.sort(
-    (a, b) => (pacGiven.get(idOf(b)) || 0) - (pacGiven.get(idOf(a)) || 0)
-  )) {
+  for (const p of unmatched
+    .filter(q => !rule(q).startsWith('FEC'))
+    .sort((a, b) => (pacGiven.get(idOf(b)) || 0) - (pacGiven.get(idOf(a)) || 0))) {
     say(
       `| ${p.name} | ${usd(pacGiven.get(idOf(p)) || 0)} | ${p.connectedOrg || '–'} | ${GROUP[p.sponsor.group]}${p.sponsor.unsettled ? ' (not settled)' : ''} | ${p.sponsor.reason} |`
     );
@@ -519,7 +545,7 @@ say('');
     'How earmarks are found: in the FEC itemized records of a member\'s own committees, a gift is earmarked when its transaction type is 15E (earmarked contribution) or its memo says "earmarked"; the record names the committee that passed it on (the conduit) in its OTHER_ID field. Only gifts the member\'s committees itemize appear (donors over $200 in the cycle), so smaller earmarked gifts are not in these figures.'
   );
   say('');
-  const PLATFORM = /\b(ACTBLUE|WINRED)\b/;
+  const PLATFORM = /\b(ACTBLUE|WINRED|DEMOCRACY ENGINE)\b/;
   const conduits = new Map();
   let platform = 0;
   let directing = 0;
@@ -544,7 +570,7 @@ say('');
     }
   }
   say(
-    `Processing platforms (ActBlue, WinRed: they forward to any candidate the donor picks): ${usdM(platform)}. PACs and other committees that direct gifts to candidates they choose: ${usdM(directing)}, through ${conduits.size} committees. No conduit named: ${usdM(unknown)}.`
+    `Processing platforms (ActBlue, WinRed and Democracy Engine: they forward to any candidate the donor picks): ${usdM(platform)}. PACs and other committees that direct gifts to candidates they choose: ${usdM(directing)}, through ${conduits.size} committees. No conduit named: ${usdM(unknown)}.`
   );
   say('');
   say('The 20 largest directing committees:');
@@ -607,7 +633,7 @@ say('');
     'cause',
   ];
   const rows = [cols.join(',')];
-  const PLATFORM = /\b(ACTBLUE|WINRED)\b/;
+  const PLATFORM = /\b(ACTBLUE|WINRED|DEMOCRACY ENGINE)\b/;
   for (const m of inputs.members) {
     const r = F.get(m.id);
     const byG = { people: 0, nosponsor: 0, business: 0, politician: 0 };

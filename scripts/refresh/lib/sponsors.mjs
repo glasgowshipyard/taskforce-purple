@@ -75,10 +75,12 @@ export function stripPacWords(name) {
   return s.trim();
 }
 
-// IRS subsection codes for trusts that can't be a PAC's sponsor (employee
-// benefit and pension trusts): set aside when a sponsor's name also matches
-// an organization of another kind
-const BENEFIT_TRUSTS = new Set(['09', '17', '18', '20', '21', '22', '23']);
+// IRS records that can't be a PAC's sponsor, so a name matching only these
+// is no match: 501(c)(3) charities (barred from campaign activity, so they
+// can't set up a PAC; a company's namesake foundation often shares its name)
+// and employee benefit and pension trusts (a company's own trust often
+// shares its name)
+const NOT_SPONSORS = new Set(['03', '09', '17', '18', '20', '21', '22', '23']);
 // Businesses although exempt: the owner names co-ops and mutual insurers
 // as businesses (01 federal credit unions, 12 co-ops, 14 credit unions, 15
 // small mutual insurers, 16 crop financing)
@@ -99,13 +101,20 @@ const SUBSECTION_WORDS = {
   19: "a veterans' organization",
 };
 
-/** Group for an IRS subsection. */
+/**
+ * Group for an IRS subsection. 501(c)(5) covers labor, agricultural and
+ * horticultural groups alike, and the IRS's own sub-codes don't tell them
+ * apart reliably (unions coded as farm groups and the reverse), so a
+ * 501(c)(5) sponsor is decided by the FEC's sponsor type in classifyPac.
+ */
 export function groupForSubsection(code) {
   if (code === '06' || EXEMPT_BUSINESS.has(code)) {
     return 'business';
   }
   return 'people';
 }
+const codeWords = code => SUBSECTION_WORDS[code] || 'an exempt organization';
+const codeLabel = code => `501(c)(${String(code).replace(/^0/, '')})`;
 
 /** Index of IRS records: tidied name -> Map(subsection -> EIN). `rows`: { EIN, NAME, SUBSECTION }. */
 export function buildIrsIndex(rows) {
@@ -115,9 +124,10 @@ export function buildIrsIndex(rows) {
     if (!key) {
       continue;
     }
+    const code = r.SUBSECTION;
     const subs = index.get(key) || new Map();
-    const seen = subs.get(r.SUBSECTION);
-    subs.set(r.SUBSECTION, { ein: seen?.ein || r.EIN, count: (seen?.count || 0) + 1 });
+    const seen = subs.get(code);
+    subs.set(code, { ein: seen?.ein || r.EIN, count: (seen?.count || 0) + 1 });
     index.set(key, subs);
   }
   return index;
@@ -129,32 +139,35 @@ export function irsStatus(index, name) {
   if (!subs) {
     return { status: 'unmatched' };
   }
-  let codes = [...subs.keys()];
-  if (codes.some(c => !BENEFIT_TRUSTS.has(c))) {
-    codes = codes.filter(c => !BENEFIT_TRUSTS.has(c));
+  const codes = [...subs.keys()].filter(c => !NOT_SPONSORS.has(c));
+  if (!codes.length) {
+    return { status: 'unmatched', note: 'only charity or benefit-trust records under this name' };
   }
-  const groups = [...new Set(codes.map(groupForSubsection))];
+  const groupOf = c => groupForSubsection(c);
+  const groups = [...new Set(codes.map(groupOf))];
   if (groups.length === 1) {
+    const top = [...codes].sort((a, b) => subs.get(b).count - subs.get(a).count)[0];
     return {
       status: codes.length === 1 ? 'matched' : 'matched-same-kind',
-      subsection: codes.length === 1 ? codes[0] : codes.join('/'),
-      ein: subs.get(codes[0]).ein,
+      subsection: top,
+      ein: subs.get(top).ein,
       group: groups[0],
+      counts: codes.map(c => `${codeLabel(c)}:${subs.get(c).count}`).join(', '),
     };
   }
   // Records of different kinds under one name (a national body and its
   // chapters): the kind most of them are, when most clearly are
   const byGroup = new Map();
   for (const c of codes) {
-    const g = groupForSubsection(c);
+    const g = groupOf(c);
     byGroup.set(g, (byGroup.get(g) || 0) + subs.get(c).count);
   }
   const ranked = [...byGroup].sort((a, b) => b[1] - a[1]);
   const total = ranked.reduce((t, [, n]) => t + n, 0);
-  const counts = codes.map(c => `${c}:${subs.get(c).count}`).join(', ');
+  const counts = codes.map(c => `${codeLabel(c)}:${subs.get(c).count}`).join(', ');
   if (ranked[0][1] >= total * 0.75 && ranked[0][1] > (ranked[1]?.[1] || 0)) {
     const code = codes
-      .filter(c => groupForSubsection(c) === ranked[0][0])
+      .filter(c => groupOf(c) === ranked[0][0])
       .sort((a, b) => subs.get(b).count - subs.get(a).count)[0];
     return {
       status: 'majority',
@@ -272,11 +285,20 @@ export function classifyPac(id, p, index, facts = {}, fecRecord = null) {
     }
   }
   if (irs.status === 'matched' || irs.status === 'matched-same-kind' || irs.status === 'majority') {
-    const words =
-      SUBSECTION_WORDS[irs.subsection] || `IRS 501(c)(${String(irs.subsection).replace(/^0/, '')})`;
+    const several = irs.status !== 'matched' ? `; records under this name: ${irs.counts}` : '';
+    // 501(c)(5): labor or farm group? The FEC's sponsor type says
+    if (irs.subsection === '05') {
+      const producers = ['T', 'C', 'W', 'V'].includes(org);
+      return {
+        group: producers ? 'business' : 'people',
+        reason: `IRS: 501(c)(5), a labor, agricultural or horticultural organization (matched on ${matchedOn}${several}); FEC: sponsor is ${FEC_ORG[org] || 'given no type'}, so ${producers ? "a producers' association: business" : 'counted as a labor or member organization'}`,
+        irs: { ...irs, matchedOn },
+        settledBy: 'IRS',
+      };
+    }
     return {
       group: irs.group,
-      reason: `IRS: 501(c)(${String(irs.subsection).replace(/(^|\/)0/g, '$1')}), ${words} (matched on ${matchedOn}${irs.status === 'majority' ? `; most of the records under this name: ${irs.counts}` : ''})`,
+      reason: `IRS: ${codeLabel(irs.subsection)}, ${codeWords(irs.subsection)} (matched on ${matchedOn}${several})`,
       irs: { ...irs, matchedOn },
       settledBy: 'IRS',
     };
@@ -366,7 +388,7 @@ export function loadFacts() {
 export async function loadIrsIndex(read, files) {
   const list = files.map(f => `'${f}'`).join(',');
   const rows = await read(
-    `SELECT EIN, NAME, SUBSECTION FROM read_csv([${list}], header=true, all_varchar=true)`
+    `SELECT EIN, NAME, SUBSECTION, CLASSIFICATION FROM read_csv([${list}], header=true, all_varchar=true)`
   );
   return buildIrsIndex(rows);
 }
