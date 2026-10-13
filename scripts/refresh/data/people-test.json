@@ -1,0 +1,399 @@
+{
+  "_about": "The people test's stated facts (FINAL-2, owner 2026-10-12), by committee: 'ein' where the sponsor's IRS record was identified by hand (its Form 990 then decides), or 'elected' with the fact used where no Form 990 is found. scripts/refresh/lib/sponsors.mjs peopleTest.",
+  "C00011114": {
+    "ein": "530237789",
+    "who": "American Federation of State, County and Municipal Employees (AFSCME), national"
+  },
+  "C00023580": {
+    "ein": "530114650",
+    "who": "National Association of Letter Carriers (NALC), national"
+  },
+  "C00003251": {
+    "ein": "530115260",
+    "who": "National Education Association (NEA), national"
+  },
+  "C00028860": {
+    "ein": "360725240",
+    "who": "American Federation of Teachers (AFT), national"
+  },
+  "C00029504": {
+    "ein": "530088590",
+    "who": "International Union of Operating Engineers (IUOE), national: EPEC is its national PAC"
+  },
+  "C00136739": {
+    "ein": "530088590",
+    "who": "International Union of Operating Engineers (IUOE), national"
+  },
+  "C00012476": {
+    "ein": "530159020",
+    "who": "United Association of Plumbers and Pipefitters (UA), national"
+  },
+  "C00320218": {
+    "ein": "530159020",
+    "who": "United Association of Plumbers and Pipefitters (UA), national"
+  },
+  "C00027359": {
+    "ein": "430337330",
+    "who": "Iron Workers International, national"
+  },
+  "C00002766": {
+    "ein": "530220586",
+    "who": "United Food and Commercial Workers (UFCW), national"
+  },
+  "C00887380": {
+    "ein": "530220586",
+    "who": "United Food and Commercial Workers (UFCW), national"
+  },
+  "C00009936": {
+    "ein": "530025740",
+    "who": "American Federation of Government Employees (AFGE), national"
+  },
+  "C00488262": {
+    "ein": "261967865",
+    "who": "NetJets Association of Shared Aircraft Pilots (NJASAP), the NetJets pilots union"
+  },
+  "C00027532": {
+    "ein": "111966978",
+    "who": "American Maritime Officers (AMO), the union"
+  },
+  "C00001636": {
+    "ein": "464039786",
+    "who": "SMART (Sheet Metal, Air, Rail and Transportation Workers), national; SMART-TD is its transportation division"
+  },
+  "C00466813": {
+    "ein": "593786428",
+    "who": "Humane World Action Fund (IRS record spelled \"Humane World Actin Fund\")"
+  },
+  "C00286807": {
+    "ein": "521847725",
+    "who": "Professional Aviation Safety Specialists (PASS), the union of FAA safety specialists"
+  },
+  "C00005157": {
+    "ein": "486031851",
+    "who": "International Brotherhood of Boilermakers, national"
+  },
+  "C00002840": {
+    "ein": "380679801",
+    "who": "United Auto Workers (UAW), national"
+  },
+  "C00342907": {
+    "ein": "530088501",
+    "who": "Laborers' International Union of North America (LIUNA), national: the Midwest Region is one of its regions"
+  },
+  "C00429175": {
+    "ein": "530088501",
+    "who": "Laborers' International Union of North America (LIUNA), national: the Mid-Atlantic Region is one of its regions"
+  },
+  "C00251009": {
+    "ein": "360710830",
+    "who": "Air Line Pilots Association, International (ALPA): the United Airlines Master Executive Council is ALPA's council of United pilots"
+  },
+  "C00035451": {
+    "ein": "360710830",
+    "who": "Air Line Pilots Association, International (ALPA), national"
+  },
+  "C00073056": {
+    "ein": "136020335",
+    "who": "International Organization of Masters, Mates and Pilots, national"
+  },
+  "C00004325": {
+    "ein": "111690171",
+    "who": "Seafarers International Union of North America, national"
+  },
+  "C00490524": {
+    "ein": "111690171",
+    "who": "Seafarers International Union of North America: SEATU is an affiliate"
+  },
+  "C00131185": {
+    "ein": "520636210",
+    "who": "Aircraft Owners and Pilots Association (AOPA)"
+  },
+  "C00065870": {
+    "ein": "340200322",
+    "who": "International Union of Operating Engineers Local 18"
+  },
+  "C00279380": {
+    "ein": "521759283",
+    "who": "Marine Engineers' Beneficial Association (MEBA), national"
+  },
+  "C00328401": {
+    "ein": "900734244",
+    "who": "The Lincoln Club of Orange County"
+  },
+  "C00219568": {
+    "ein": "951310931",
+    "who": "International Union of Operating Engineers Local 12"
+  },
+  "C00003160": {
+    "ein": "530025755",
+    "who": "North America's Building Trades Unions (Building and Construction Trades Department, AFL-CIO)"
+  },
+  "C00807214": {
+    "ein": "530025755",
+    "who": "North America's Building Trades Unions, named as the connected organization"
+  },
+  "C00142851": {
+    "ein": "361581416",
+    "who": "International Union of Operating Engineers Local 150"
+  },
+  "C00280909": {
+    "ein": "521673883",
+    "who": "Transportation Trades Department, AFL-CIO"
+  },
+  "C00710848": {
+    "ein": "833298146",
+    "who": "Democratic Majority for Israel (DMFI)"
+  },
+  "C00382028": {
+    "ein": "260551523",
+    "who": "Public Affairs Alliance of Iranian Americans (PAAIA)"
+  },
+  "C00130658": {
+    "ein": "520810813",
+    "who": "American Conservative Union, which runs CPAC"
+  },
+  "C00423731": {
+    "ein": "390368025",
+    "who": "International Union of Operating Engineers Local 139"
+  },
+  "C00164509": {
+    "ein": "530088460",
+    "who": "International Federation of Professional and Technical Engineers (IFPTE), national"
+  },
+  "C00174011": {
+    "ein": "131426674",
+    "who": "Retail, Wholesale and Department Store Union (RWDSU), New York"
+  },
+  "C00024422": {
+    "ein": "940577785",
+    "who": "International Union of Operating Engineers Local 3"
+  },
+  "C00135368": {
+    "ein": "941153307",
+    "who": "Sierra Club"
+  },
+  "C00448746": {
+    "ein": "050161286",
+    "who": "International Union of Operating Engineers Local 57"
+  },
+  "C00418400": {
+    "ein": "410329340",
+    "who": "International Union of Operating Engineers Local 49"
+  },
+  "C00688721": {
+    "ein": "300233489",
+    "who": "Alaska Wilderness League Action"
+  },
+  "C00254193": {
+    "ein": "135456100",
+    "who": "Uniformed Firefighters Association of Greater New York, IAFF Local 94"
+  },
+  "C00702043": {
+    "ein": "041472080",
+    "who": "IBEW Local 103"
+  },
+  "C00125534": {
+    "ein": "231175040",
+    "who": "Roofers Local 30 (United Union of Roofers, Waterproofers and Allied Workers), Philadelphia"
+  },
+  "C00017194": {
+    "ein": "221010985",
+    "who": "International Union of Operating Engineers Local 825"
+  },
+  "C00138966": {
+    "ein": "221010975",
+    "who": "International Union of Operating Engineers Local 68"
+  },
+  "C00638213": {
+    "ein": "526056662",
+    "who": "Patent Office Professional Association"
+  },
+  "C00112995": {
+    "ein": "140768455",
+    "who": "International Union of Operating Engineers Local 158"
+  },
+  "C00265546": {
+    "ein": "592825130",
+    "who": "Southern States Police Benevolent Association"
+  },
+  "C00285593": {
+    "ein": "951318135",
+    "who": "Western States Regional Council of Carpenters"
+  },
+  "C00287748": {
+    "ein": "366000132",
+    "who": "American Train Dispatchers Association"
+  },
+  "C00434076": {
+    "ein": "060401158",
+    "who": "International Union of Operating Engineers Local 478"
+  },
+  "C00629709": {
+    "ein": "271432208",
+    "who": "No Labels"
+  },
+  "C00032979": {
+    "ein": "530215427",
+    "who": "International Brotherhood of Teamsters, national"
+  },
+  "C00099234": {
+    "ein": "346000349",
+    "who": "Brotherhood of Locomotive Engineers and Trainmen (BLET), a Teamsters division"
+  },
+  "C00345306": {
+    "ein": "340702551",
+    "who": "National Postal Mail Handlers Union, a division of LIUNA"
+  },
+  "C00002469": {
+    "ein": "536001417",
+    "who": "International Association of Machinists and Aerospace Workers (IAM), Grand Lodge (national)"
+  },
+  "C00007542": {
+    "ein": "464039786",
+    "who": "SMART (Sheet Metal, Air, Rail and Transportation Workers), national"
+  },
+  "C00002089": {
+    "ein": "530246709",
+    "who": "Communications Workers of America (CWA), national"
+  },
+  "C00027342": {
+    "ein": "530088380",
+    "who": "International Brotherhood of Electrical Workers (IBEW), national"
+  },
+  "C00001016": {
+    "ein": "350723065",
+    "who": "United Brotherhood of Carpenters and Joiners (UBC), national"
+  },
+  "C00109595": {
+    "ein": "530246709",
+    "who": "Communications Workers of America: Local 13000 (Philadelphia) is a CWA local; national used"
+  },
+  "C00238725": {
+    "ein": "521522639",
+    "who": "National Air Traffic Controllers Association (NATCA), national: the largest IRS record under the exact name is a local filing short forms"
+  },
+  "C00344325": {
+    "ein": "131575490",
+    "who": "International Alliance of Theatrical Stage Employees (IATSE), national"
+  },
+  "C00013342": {
+    "ein": "530159200",
+    "who": "United Mine Workers of America, international"
+  },
+  "C00127621": {
+    "ein": "530231138",
+    "who": "Bakery, Confectionery, Tobacco Workers and Grain Millers (BCTGM), international"
+  },
+  "C00073627": {
+    "ein": "221476432",
+    "who": "American Federation of Musicians of the United States and Canada, national"
+  },
+  "C00003806": {
+    "ein": "530228172",
+    "who": "AFL-CIO, national"
+  },
+  "C00355818": {
+    "ein": "112024569",
+    "who": "Council of School Supervisors and Administrators, Local 1 (New York City)"
+  },
+  "C00789164": {
+    "ein": "871538441",
+    "who": "Food Solutions Action"
+  },
+  "C00590471": {
+    "elected": true,
+    "fact": "A private-sector (or postal) union local, covered by the Labor-Management Reporting and Disclosure Act: 29 U.S.C. 481(b) requires it to elect its officers at least every three years by secret ballot of its members. No Form 990 identified for this local."
+  },
+  "C00162818": {
+    "elected": true,
+    "fact": "A private-sector (or postal) union local, covered by the Labor-Management Reporting and Disclosure Act: 29 U.S.C. 481(b) requires it to elect its officers at least every three years by secret ballot of its members. No Form 990 identified for this local."
+  },
+  "C00129627": {
+    "elected": true,
+    "fact": "A private-sector (or postal) union local, covered by the Labor-Management Reporting and Disclosure Act: 29 U.S.C. 481(b) requires it to elect its officers at least every three years by secret ballot of its members. No Form 990 identified for this local."
+  },
+  "C00281303": {
+    "elected": true,
+    "fact": "A private-sector (or postal) union local, covered by the Labor-Management Reporting and Disclosure Act: 29 U.S.C. 481(b) requires it to elect its officers at least every three years by secret ballot of its members. No Form 990 identified for this local."
+  },
+  "C00252825": {
+    "elected": true,
+    "fact": "A private-sector (or postal) union local, covered by the Labor-Management Reporting and Disclosure Act: 29 U.S.C. 481(b) requires it to elect its officers at least every three years by secret ballot of its members. No Form 990 identified for this local."
+  },
+  "C00329326": {
+    "elected": true,
+    "fact": "A private-sector (or postal) union local, covered by the Labor-Management Reporting and Disclosure Act: 29 U.S.C. 481(b) requires it to elect its officers at least every three years by secret ballot of its members. No Form 990 identified for this local."
+  },
+  "C00421008": {
+    "elected": true,
+    "fact": "A private-sector (or postal) union local, covered by the Labor-Management Reporting and Disclosure Act: 29 U.S.C. 481(b) requires it to elect its officers at least every three years by secret ballot of its members. No Form 990 identified for this local."
+  },
+  "C00232835": {
+    "elected": true,
+    "fact": "A private-sector (or postal) union local, covered by the Labor-Management Reporting and Disclosure Act: 29 U.S.C. 481(b) requires it to elect its officers at least every three years by secret ballot of its members. No Form 990 identified for this local."
+  },
+  "C00545780": {
+    "elected": true,
+    "fact": "A private-sector (or postal) union local, covered by the Labor-Management Reporting and Disclosure Act: 29 U.S.C. 481(b) requires it to elect its officers at least every three years by secret ballot of its members. No Form 990 identified for this local."
+  },
+  "C00350843": {
+    "elected": true,
+    "fact": "A private-sector (or postal) union local, covered by the Labor-Management Reporting and Disclosure Act: 29 U.S.C. 481(b) requires it to elect its officers at least every three years by secret ballot of its members. No Form 990 identified for this local."
+  },
+  "C00209296": {
+    "elected": true,
+    "fact": "A private-sector (or postal) union local, covered by the Labor-Management Reporting and Disclosure Act: 29 U.S.C. 481(b) requires it to elect its officers at least every three years by secret ballot of its members. No Form 990 identified for this local."
+  },
+  "C00040949": {
+    "elected": true,
+    "fact": "A private-sector (or postal) union local, covered by the Labor-Management Reporting and Disclosure Act: 29 U.S.C. 481(b) requires it to elect its officers at least every three years by secret ballot of its members. No Form 990 identified for this local."
+  },
+  "C00325639": {
+    "elected": true,
+    "fact": "A private-sector (or postal) union local, covered by the Labor-Management Reporting and Disclosure Act: 29 U.S.C. 481(b) requires it to elect its officers at least every three years by secret ballot of its members. No Form 990 identified for this local."
+  },
+  "C00114314": {
+    "elected": true,
+    "fact": "A private-sector (or postal) union local, covered by the Labor-Management Reporting and Disclosure Act: 29 U.S.C. 481(b) requires it to elect its officers at least every three years by secret ballot of its members. No Form 990 identified for this local."
+  },
+  "C00174847": {
+    "elected": true,
+    "fact": "A private-sector (or postal) union local, covered by the Labor-Management Reporting and Disclosure Act: 29 U.S.C. 481(b) requires it to elect its officers at least every three years by secret ballot of its members. No Form 990 identified for this local."
+  },
+  "C00011338": {
+    "elected": true,
+    "fact": "A private-sector (or postal) union local, covered by the Labor-Management Reporting and Disclosure Act: 29 U.S.C. 481(b) requires it to elect its officers at least every three years by secret ballot of its members. No Form 990 identified for this local."
+  },
+  "C00252395": {
+    "elected": true,
+    "fact": "A private-sector (or postal) union local, covered by the Labor-Management Reporting and Disclosure Act: 29 U.S.C. 481(b) requires it to elect its officers at least every three years by secret ballot of its members. No Form 990 identified for this local."
+  },
+  "C00370569": {
+    "elected": true,
+    "fact": "A private-sector (or postal) union local, covered by the Labor-Management Reporting and Disclosure Act: 29 U.S.C. 481(b) requires it to elect its officers at least every three years by secret ballot of its members. No Form 990 identified for this local."
+  },
+  "C00150045": {
+    "elected": true,
+    "fact": "A private-sector union council or district body, covered by the Labor-Management Reporting and Disclosure Act: 29 U.S.C. 481(d) requires it to elect its officers at least every four years by secret ballot of members or by delegates elected by secret ballot. No Form 990 identified for this body."
+  },
+  "C00437467": {
+    "elected": true,
+    "fact": "A private-sector union council or district body, covered by the Labor-Management Reporting and Disclosure Act: 29 U.S.C. 481(d) requires it to elect its officers at least every four years by secret ballot of members or by delegates elected by secret ballot. No Form 990 identified for this body."
+  },
+  "C00265033": {
+    "elected": true,
+    "fact": "A private-sector union council or district body, covered by the Labor-Management Reporting and Disclosure Act: 29 U.S.C. 481(d) requires it to elect its officers at least every four years by secret ballot of members or by delegates elected by secret ballot. No Form 990 identified for this body."
+  },
+  "C00178541": {
+    "elected": true,
+    "fact": "A private-sector union council or district body, covered by the Labor-Management Reporting and Disclosure Act: 29 U.S.C. 481(d) requires it to elect its officers at least every four years by secret ballot of members or by delegates elected by secret ballot. No Form 990 identified for this body."
+  },
+  "C00264689": {
+    "elected": true,
+    "fact": "A private-sector union council or district body, covered by the Labor-Management Reporting and Disclosure Act: 29 U.S.C. 481(d) requires it to elect its officers at least every four years by secret ballot of members or by delegates elected by secret ballot. No Form 990 identified for this body."
+  },
+  "C00093989": {
+    "elected": true,
+    "fact": "A private-sector (or postal) union local, covered by the Labor-Management Reporting and Disclosure Act: 29 U.S.C. 481(b) requires it to elect its officers at least every three years by secret ballot of its members. No Form 990 identified for this local."
+  }
+}

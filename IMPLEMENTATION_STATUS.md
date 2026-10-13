@@ -1,6 +1,40 @@
 # Task Force Purple - Implementation Status
 
-**Last Updated**: 2026-10-09
+**Last Updated**: 2026-10-12
+
+---
+
+## 2026-10-12: FINAL-2 simulated (owner's brief; nothing published, branch final-grading)
+
+Same snapshot; inputs re-exported (run 38328698299) with the donor test
+less gifts a committee directed, each joint fund's mix, the directing
+committees traced, and sponsors that are themselves committees.
+`scripts/simulate/report-final2.mjs`. Final (11 Oct, run 38189054123) gave
+S57 A92 B79 C83 D100 E91 F32; FINAL-2 gives S37 A74 B75 C100 D107 E101 F40.
+
+- The people test: a PEOPLE PAC counts only if its sponsor's members elect
+  its governing body, read from the sponsor's latest Form 990 (Part VI
+  line 7a) in the IRS e-file archive (`scripts/refresh/form990.mjs`, which
+  reads single returns out of the IRS zips by byte range; the newer zips
+  use Deflate64, read through Info-ZIP's unzip). Answers in
+  `scripts/refresh/data/form990.json`; hand-identified sponsors and stated
+  facts (union locals: the LMRDA's election rule) in `people-test.json`.
+  NO SPONSOR counts 0.
+- Line 7a says "one or more" of the board: AIPAC, J Street, LCV and nine
+  others answer Yes while members elect one director. Reported as a
+  stricter reading (23 grades change); the run uses 7a as written.
+- Earmarks through directing committees ($49.4M) leave big-donor money and
+  the donor test and count as that committee's gift, outside the PAC cap.
+- Other politicians' joint-fund transfers ($61M) come out of each bucket by
+  the fund's mix and count 0.
+- Sorting rules 6-12 in `scripts/refresh/lib/sponsors.mjs`: the FEC filing
+  a sponsor as a company holds against the IRS; insurers, health plans,
+  credit unions, chambers and producers' groups are BUSINESS by name;
+  sponsors that are committees resolved against the FEC committee list
+  (organizations' own "C9" spending IDs ignored); 128 stated facts.
+- I wrote "her"/"his" for members on the Final page and typed its party
+  figures by hand from an earlier run (149 for 150, 5/154 for 6/151): both
+  fixed on the page; FINAL-2's summary figures are computed.
 
 ---
 
@@ -16,8 +50,8 @@ committee's transfers from the member's own committees.
   blank or loose (the Big Four's PACs land in NO SPONSOR).
 - E-S against E: Democrats 28 up, 48 down; Republicans 0 up, 100 down.
 - Transfer check fixed: Krishnamoorthi, Robin Kelly and Hoyer gradable.
-  Hinson isn't: her Senate candidate ID (S6IA00314) is missing from the
-  crosswalk, so her campaign committee C00706267 isn't counted.
+  Hinson isn't: the Senate candidate ID (S6IA00314) is missing from the
+  crosswalk, so campaign committee C00706267 isn't counted.
 - Scaling joint-fund gifts (would reverse the 26 Sept rule) shrinks the
   weak-spot list 19 to 5 but lifts leaders whose big donors gave through
   joint funds (Collins E to A, Cornyn E to A, Pelosi A to S).

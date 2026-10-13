@@ -116,7 +116,13 @@ export function groupForSubsection(code) {
 const codeWords = code => SUBSECTION_WORDS[code] || 'an exempt organization';
 const codeLabel = code => `501(c)(${String(code).replace(/^0/, '')})`;
 
-/** Index of IRS records: tidied name -> Map(subsection -> EIN). `rows`: { EIN, NAME, SUBSECTION }. */
+/**
+ * Index of IRS records: tidied name -> Map(subsection -> { ein, count, name,
+ * state }). Where several records share a name and kind (a union's national
+ * body and its locals), the EIN kept is the one with the most revenue: the
+ * national body, as a rule, whose Form 990 the people test reads.
+ * `rows`: { EIN, NAME, SUBSECTION, REVENUE_AMT?, STATE? }.
+ */
 export function buildIrsIndex(rows) {
   const index = new Map();
   for (const r of rows) {
@@ -127,7 +133,15 @@ export function buildIrsIndex(rows) {
     const code = r.SUBSECTION;
     const subs = index.get(key) || new Map();
     const seen = subs.get(code);
-    subs.set(code, { ein: seen?.ein || r.EIN, count: (seen?.count || 0) + 1 });
+    const revenue = Number(r.REVENUE_AMT) || 0;
+    const top = !seen || revenue > seen.revenue;
+    subs.set(code, {
+      ein: top ? r.EIN : seen.ein,
+      name: top ? r.NAME : seen.name,
+      state: top ? r.STATE || null : seen.state,
+      revenue: top ? revenue : seen.revenue,
+      count: (seen?.count || 0) + 1,
+    });
     index.set(key, subs);
   }
   return index;
@@ -151,6 +165,7 @@ export function irsStatus(index, name) {
       status: codes.length === 1 ? 'matched' : 'matched-same-kind',
       subsection: top,
       ein: subs.get(top).ein,
+      irsName: subs.get(top).name,
       group: groups[0],
       counts: codes.map(c => `${codeLabel(c)}:${subs.get(c).count}`).join(', '),
     };
@@ -173,6 +188,7 @@ export function irsStatus(index, name) {
       status: 'majority',
       subsection: code,
       ein: subs.get(code).ein,
+      irsName: subs.get(code).name,
       group: ranked[0][0],
       counts,
     };
@@ -218,15 +234,40 @@ export function fecGroup(p) {
   return realName(p?.connectedOrg) ? 'unclear' : 'nosponsor';
 }
 
+// FINAL-2 (owner, 2026-10-12), rule 8: agricultural producers' groups are
+// business, whatever the FEC's sponsor type or the IRS's kind
+const PRODUCERS =
+  /\b(FARM BUREAU|GROWERS?|PRODUCERS|CATTLEMEN|CATTLEMENS|CATTLE|DAIRY ?(FARMERS|MEN)|CORN|SOYBEANS?|WHEAT|SORGHUM|PEANUTS?|COTTON|RICE|SUGAR|BEET|CANE|PORK|POULTRY|EGG|CITRUS|POTATO|FRUIT|VEGETABLE|RANCHERS|FARMERS (UNION|COOPERATIVE|COOP|EDUCATIONAL))\b/;
+// Rules 6 and 7: credit unions (the owner's co-ops), insurers and health
+// plans, and chambers of commerce are business by what they are
+const BUSINESS_NAME =
+  /\b(CREDIT UNIONS?|BLUE CROSS|BLUE SHIELD|HEALTH PLANS?|CHAMBER OF COMMERCE|REGIONAL CHAMBER)\b/;
+// Rule 7: insurers are business whatever their tax status (fraternal
+// benefit societies that sell life insurance); other fraternal societies
+// are unchanged. Named by stated fact (sponsor-facts.json) where the name
+// doesn't say it
+const INSURER = /\b(INSURANCE|ASSURANCE|THRIVENT|WOODMEN|MUTUAL LIFE|LIFE INSURANCE)\b/;
+const BUSINESS_TYPES = ['C', 'T', 'W', 'V'];
+
 /**
- * One committee's group and why. `p`: { name, type, designation, orgType,
- * connectedOrg }; `index`: buildIrsIndex(); `facts`: { [id]: { group, fact } }.
- * Returns { group, reason, irs, settledBy }.
+ * One committee's group and why (FINAL-2 rules). `p`: { name, type,
+ * designation, orgType, connectedOrg, connectedCommittees? }; `index`:
+ * buildIrsIndex(); `facts`: { [id]: { group, fact } }; `fecRecord`: the
+ * FEC's committee record (leadership PAC flag, sponsoring candidates).
+ * Returns { group, reason, irs, settledBy, unsettled?, check? }. `check`:
+ * an IRS match a person should confirm (rule 9: the name differs from the
+ * record matched, or the records under the name are mixed).
  */
 export function classifyPac(id, p, index, facts = {}, fecRecord = null) {
   const f = facts[id];
-  if (f) {
-    return { group: f.group, reason: f.fact, irs: null, settledBy: 'stated fact' };
+  if (f?.group) {
+    // A fact can name the sponsor's EIN, for the people test
+    return {
+      group: f.group,
+      reason: f.fact,
+      irs: f.ein ? { ein: f.ein, matchedOn: 'stated fact' } : null,
+      settledBy: 'stated fact',
+    };
   }
   const desig = p?.designation;
   const type = p?.type;
@@ -267,6 +308,79 @@ export function classifyPac(id, p, index, facts = {}, fecRecord = null) {
   }
   const org = p?.orgType || null;
   const sponsor = realName(p?.connectedOrg);
+  // Rule 10: a sponsor that is itself a committee. A candidate's committee,
+  // a leadership PAC or a joint fund: POLITICIAN; a party: party money;
+  // any other committee: no sponsor behind it
+  // (FEC "C9" filers, types I, E and C, are organizations reporting their
+  // own spending: the sponsor itself, not another committee)
+  const linked = (p?.connectedCommittees || []).filter(
+    c => !/^C9/.test(c.id) && !['I', 'E', 'C'].includes(c.type)
+  );
+  const pol = linked.find(
+    c => ['H', 'S', 'P'].includes(c.type) || ['P', 'A', 'D', 'J'].includes(c.designation)
+  );
+  if (pol) {
+    const kind =
+      pol.designation === 'D'
+        ? 'a leadership PAC'
+        : pol.designation === 'J'
+          ? 'a joint fund'
+          : "a candidate's committee";
+    return {
+      group: 'politician',
+      reason: `Its connected organization, ${pol.name} (${pol.id}), is ${kind}`,
+      irs: null,
+      settledBy: 'FEC',
+    };
+  }
+  const party = linked.find(c => ['X', 'Y', 'Z'].includes(c.type));
+  if (party) {
+    return {
+      group: 'party',
+      reason: `Its connected organization, ${party.name} (${party.id}), is a party committee`,
+      irs: null,
+      settledBy: 'FEC',
+    };
+  }
+  if (linked.length && !org) {
+    const c = linked[0];
+    return {
+      group: 'nosponsor',
+      reason: `Its connected organization, ${c.name} (${c.id}), is another political committee (FEC type ${c.type || '–'}${c.designation ? `, designation ${c.designation}` : ''}), not a politician's or a party's`,
+      irs: null,
+      settledBy: 'FEC',
+    };
+  }
+  // Rule 6: filed by the FEC as a company or trade group: BUSINESS whatever
+  // its IRS match (the IRS can make a PAC business, never un-make one)
+  if (BUSINESS_TYPES.includes(org)) {
+    return {
+      group: 'business',
+      reason: `FEC: sponsor is ${FEC_ORG[org]}; stays BUSINESS whatever its IRS record`,
+      irs: null,
+      settledBy: 'FEC',
+    };
+  }
+  const named = `${sponsor || ''} ${p?.name || ''}`.toUpperCase();
+  const what = named.match(BUSINESS_NAME) || named.match(INSURER);
+  if (what) {
+    return {
+      group: 'business',
+      reason: `A ${/CREDIT/.test(what[1]) ? 'credit union' : /CHAMBER/.test(what[1]) ? 'chamber of commerce' : 'health plan or insurer'} ("${what[1]}" in its name): BUSINESS`,
+      irs: null,
+      settledBy: 'name',
+    };
+  }
+  // Rule 8: agricultural producers' groups
+  const crop = named.match(PRODUCERS);
+  if (crop && org !== 'L') {
+    return {
+      group: 'business',
+      reason: `An agricultural producers' group ("${crop[1]}" in its name): BUSINESS`,
+      irs: null,
+      settledBy: 'name',
+    };
+  }
   // The IRS on the named sponsor; or on the PAC's own name when the FEC says
   // it has a sponsor (a sponsor type, or a lobbying registrant's PAC)
   let irs = sponsor ? irsStatus(index, sponsor) : { status: 'unmatched' };
@@ -275,6 +389,7 @@ export function classifyPac(id, p, index, facts = {}, fecRecord = null) {
     const tidied = irsStatus(index, stripPacWords(sponsor));
     if (tidied.status !== 'unmatched') {
       irs = tidied;
+      matchedOn = 'sponsor name less PAC words';
     }
   }
   if (irs.status === 'unmatched' && (org || desig === 'B')) {
@@ -286,21 +401,26 @@ export function classifyPac(id, p, index, facts = {}, fecRecord = null) {
   }
   if (irs.status === 'matched' || irs.status === 'matched-same-kind' || irs.status === 'majority') {
     const several = irs.status !== 'matched' ? `; records under this name: ${irs.counts}` : '';
-    // 501(c)(5): labor or farm group? The FEC's sponsor type says
-    if (irs.subsection === '05') {
-      const producers = ['T', 'C', 'W', 'V'].includes(org);
+    // Rule 9: a match a person should confirm with a stated fact: made on
+    // a name other than the sponsor's as filed, or a name the IRS holds
+    // records of different kinds under
+    const check = irs.status !== 'matched' || matchedOn !== 'sponsor name';
+    const where = `matched on ${matchedOn}${irs.irsName ? `, IRS record "${irs.irsName}", EIN ${irs.ein}` : ''}${several}`;
+    if (irs.group === 'business') {
       return {
-        group: producers ? 'business' : 'people',
-        reason: `IRS: 501(c)(5), a labor, agricultural or horticultural organization (matched on ${matchedOn}${several}); FEC: sponsor is ${FEC_ORG[org] || 'given no type'}, so ${producers ? "a producers' association: business" : 'counted as a labor or member organization'}`,
+        group: 'business',
+        reason: `IRS: ${codeLabel(irs.subsection)}, ${codeWords(irs.subsection)} (${where})`,
         irs: { ...irs, matchedOn },
         settledBy: 'IRS',
+        check,
       };
     }
     return {
-      group: irs.group,
-      reason: `IRS: ${codeLabel(irs.subsection)}, ${codeWords(irs.subsection)} (matched on ${matchedOn}${several})`,
+      group: 'people',
+      reason: `IRS: ${codeLabel(irs.subsection)}, ${codeWords(irs.subsection)} (${where})${org ? `; FEC: sponsor is ${FEC_ORG[org]}` : ''}`,
       irs: { ...irs, matchedOn },
       settledBy: 'IRS',
+      check,
     };
   }
   // The IRS doesn't settle it: the FEC's sponsor type, then the name
@@ -311,20 +431,11 @@ export function classifyPac(id, p, index, facts = {}, fecRecord = null) {
   if (org === 'L') {
     return {
       group: 'people',
-      reason: `FEC: sponsor is a labor organization; not settled by the IRS file${note}`,
+      reason: `FEC: sponsor is a labor organization; not in the IRS file under this name${note}`,
       irs,
       settledBy: 'FEC',
     };
   }
-  if (org && org !== 'M') {
-    return {
-      group: 'business',
-      reason: `FEC: sponsor is ${FEC_ORG[org]}; no IRS exempt record${note}`,
-      irs,
-      settledBy: 'FEC',
-    };
-  }
-  const named = sponsor || p?.name || '';
   const ending =
     String(sponsor || '')
       .toUpperCase()
@@ -343,24 +454,24 @@ export function classifyPac(id, p, index, facts = {}, fecRecord = null) {
   if (org === 'M') {
     return {
       group: 'people',
-      reason: `FEC: sponsor is a membership organization; not settled by the IRS file${note}`,
+      reason: `FEC: sponsor is a membership organization; not in the IRS file under this name${note}`,
       irs,
       settledBy: 'FEC',
-      unsettled: true,
     };
   }
   if (sponsor && POLITICAL_COMMITTEE.test(sponsor.toUpperCase())) {
     return {
       group: 'nosponsor',
-      reason: `Its "connected organization" (${sponsor}) is another political committee, not a sponsor`,
+      reason: `Its "connected organization" (${sponsor}) reads as another political committee, not found by that name in the FEC's committee list`,
       irs,
       settledBy: 'FEC',
+      check: true,
     };
   }
   if (sponsor) {
     return {
       group: 'people',
-      reason: `Names a sponsor (${named}) with no sponsor type, not found in the IRS file: not settled`,
+      reason: `Names a sponsor (${sponsor}) with no sponsor type, not found in the IRS file: not settled`,
       irs,
       settledBy: 'none',
       unsettled: true,
@@ -371,6 +482,63 @@ export function classifyPac(id, p, index, facts = {}, fecRecord = null) {
     reason: 'No sponsor type and no connected organization',
     irs,
     settledBy: 'FEC',
+  };
+}
+
+/**
+ * The people test (FINAL-2, rule 1): a PEOPLE PAC counts only if its
+ * sponsor's members elect its governing body, read from the sponsor's
+ * latest Form 990, Part VI line 7a (form990.json, by EIN). With no Form 990
+ * found, a stated fact decides (people-test.json, by committee: `elected`
+ * and `fact`, and `ein` where the sponsor was identified by hand).
+ * Returns { elected: true | false | null, evidence, ein, taxYear, note }.
+ */
+export function peopleTest(id, sorted, forms = {}, stated = {}) {
+  const s = stated[id] || {};
+  const ein = s.ein || sorted?.irs?.ein || null;
+  const form = ein ? forms[ein] : null;
+  if (form?.found && form.elect !== null && form.elect !== undefined && s.elected === undefined) {
+    const members = form.members === false ? ' (line 6: no members or stockholders)' : '';
+    const elected = form.elect && form.members !== false;
+    return {
+      elected,
+      ein,
+      taxYear: form.taxYear,
+      evidence: `Form 990 for ${form.taxYear} (EIN ${ein}, ${form.name}), Part VI line 7a: ${form.elect ? 'Yes' : 'No'}${members}`,
+      note: form.notes?.find(n => /7\s*A/i.test(n)) || form.notes?.[0] || null,
+      votingMembers: form.votingMembers ?? null,
+    };
+  }
+  if (s.elected !== undefined) {
+    return {
+      elected: s.elected,
+      ein,
+      taxYear: null,
+      evidence: `Stated fact: ${s.fact}`,
+      note: form && !form.found ? form.why : null,
+    };
+  }
+  return {
+    elected: null,
+    ein,
+    taxYear: null,
+    evidence: ein
+      ? `No Form 990 answer (EIN ${ein}: ${form ? form.why || 'line 7a not answered' : 'not looked up'}); no stated fact yet`
+      : 'Sponsor not identified in the IRS file; no stated fact yet',
+    note: null,
+  };
+}
+
+/** Load the people test's evidence: Form 990 answers and stated facts. */
+export function loadPeopleEvidence() {
+  const read = name => {
+    const path = new URL(`../data/${name}`, import.meta.url).pathname;
+    return existsSync(path) ? JSON.parse(readFileSync(path, 'utf8')) : {};
+  };
+  const stated = read('people-test.json');
+  return {
+    forms: read('form990.json'),
+    stated: Object.fromEntries(Object.entries(stated).filter(([k]) => /^C\d{8}$/.test(k))),
   };
 }
 
@@ -388,7 +556,8 @@ export function loadFacts() {
 export async function loadIrsIndex(read, files) {
   const list = files.map(f => `'${f}'`).join(',');
   const rows = await read(
-    `SELECT EIN, NAME, SUBSECTION, CLASSIFICATION FROM read_csv([${list}], header=true, all_varchar=true)`
+    `SELECT EIN, NAME, SUBSECTION, CLASSIFICATION, REVENUE_AMT, STATE
+     FROM read_csv([${list}], header=true, all_varchar=true)`
   );
   return buildIrsIndex(rows);
 }

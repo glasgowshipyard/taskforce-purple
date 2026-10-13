@@ -5,6 +5,7 @@ import {
   fecGroup,
   irsStatus,
   normalizeName,
+  peopleTest,
   stripPacWords,
 } from './sponsors.mjs';
 
@@ -174,5 +175,79 @@ describe('sponsor sorting', () => {
         facts
       )
     ).toMatchObject({ group: 'business', settledBy: 'stated fact' });
+  });
+});
+
+describe('FINAL-2 sorting and the people test', () => {
+  it('rule 6: filed as a company, BUSINESS whatever the IRS says', () => {
+    expect(
+      classifyPac(
+        'C30',
+        {
+          designation: 'B',
+          orgType: 'W',
+          connectedOrg: 'AMERICAN ISRAEL PUBLIC AFFAIRS COMMITTEE',
+        },
+        index
+      )
+    ).toMatchObject({ group: 'business', settledBy: 'FEC' });
+  });
+
+  it('rules 7 and 8: insurers, health plans, credit unions and producers are BUSINESS', () => {
+    expect(
+      classifyPac('C31', { name: 'BLUE CROSS BLUE SHIELD OF X PAC', orgType: 'L' }, index).group
+    ).toBe('business');
+    expect(
+      classifyPac('C32', { name: 'SOME FEDERAL CREDIT UNION PAC', orgType: 'M' }, index).group
+    ).toBe('business');
+    expect(
+      classifyPac('C33', { name: 'TEXAS FARM BUREAU AGFUND', orgType: 'M' }, index).group
+    ).toBe('business');
+  });
+
+  it("rule 10: a sponsor that is a politician's committee, a party, or another committee", () => {
+    const pac = connectedCommittees => ({
+      name: 'SOME PAC',
+      designation: 'U',
+      connectedOrg: 'X',
+      connectedCommittees,
+    });
+    expect(classifyPac('C34', pac([{ id: 'C1', name: 'X', designation: 'J' }]), index).group).toBe(
+      'politician'
+    );
+    expect(classifyPac('C35', pac([{ id: 'C1', name: 'X', type: 'Y' }]), index).group).toBe(
+      'party'
+    );
+    expect(
+      classifyPac('C36', pac([{ id: 'C1', name: 'X', type: 'N', designation: 'U' }]), index).group
+    ).toBe('nosponsor');
+    // An organization's own spending-report ID (C9...) is the sponsor itself
+    expect(
+      classifyPac('C37', pac([{ id: 'C90000001', name: 'X', type: 'I' }]), index).group
+    ).not.toBe('nosponsor');
+  });
+
+  it('the people test reads line 7a, or a stated fact', () => {
+    const sorted = { irs: { ein: '111111111' } };
+    const forms = {
+      111111111: { found: true, name: 'A UNION', taxYear: 2024, members: true, elect: true },
+      222222222: {
+        found: true,
+        name: 'AN ISSUE GROUP',
+        taxYear: 2024,
+        members: false,
+        elect: false,
+      },
+    };
+    expect(peopleTest('C40', sorted, forms).elected).toBe(true);
+    expect(peopleTest('C41', { irs: { ein: '222222222' } }, forms).elected).toBe(false);
+    expect(
+      peopleTest('C42', {}, forms, { C42: { elected: true, fact: 'a union local' } })
+    ).toMatchObject({
+      elected: true,
+    });
+    expect(peopleTest('C43', {}, forms).elected).toBeNull();
+    // A hand-identified EIN wins over the IRS match
+    expect(peopleTest('C44', sorted, forms, { C44: { ein: '222222222' } }).elected).toBe(false);
   });
 });

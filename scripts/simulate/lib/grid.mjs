@@ -55,6 +55,12 @@ export const LIVE = {
   // joint-fund transfers as POLITICIAN money (`nonOwnFundsZero`)
   wholeFunds: false,
   nonOwnFundsZero: false,
+  // FINAL-2 (owner, 2026-10-12): gifts earmarked through a committee that
+  // directs them count as that committee's gift (`directedAsGifts`), and
+  // other politicians' joint funds' transfers count as POLITICIAN money,
+  // taken out of each bucket by the fund's own mix (`nonOwnAsPolitician`)
+  directedAsGifts: false,
+  nonOwnAsPolitician: false,
 };
 
 /**
@@ -95,7 +101,14 @@ export function sponsorGroup(p) {
 }
 const resolveGroup = (p, cfg) => {
   if (cfg.groups?.source === 'tfp') {
-    return p?.sponsor?.group || 'nosponsor';
+    const g = p?.sponsor?.group || 'nosponsor';
+    // FINAL-2, the people test: PEOPLE only where the sponsor's members
+    // elect its governing body (the export's `peopleTest`)
+    if (g === 'people' && cfg.groups.peopleTest) {
+      const e = p?.peopleTest?.elected;
+      return e === true ? 'people' : e === false ? 'board' : 'untested';
+    }
+    return g;
   }
   const g = sponsorGroup(p);
   return g === 'unclear' ? cfg.groups.unclearAs : g;
@@ -210,9 +223,12 @@ export function pacShares(pacs, cfg) {
       const B = up.reduce((t, u) => t + u.amount, 0);
       const traced = Math.min(v.R - v.ind, B);
       // E-S: money a PAC got from a MONEY or ONE POLITICIAN committee counts 0
+      // FINAL-2: any group that counts 0 counts 0 upstream too
       const upShare = u =>
         cfg.groups?.upstreamZero &&
-        ['money', 'business', 'politician'].includes(resolveGroup(pacs[u.id], cfg))
+        (cfg.groups.upstreamByCredit
+          ? !(cfg.groups.credit[resolveGroup(pacs[u.id], cfg)] > 0)
+          : ['money', 'business', 'politician'].includes(resolveGroup(pacs[u.id], cfg)))
           ? 0
           : one.get(u.id).share;
       if (traced > 0) {
@@ -283,15 +299,41 @@ export function gradeOne(m, pacs, shares, cfg, opts = {}) {
       production: true,
     };
   }
-  const s = num(pf.grassrootsDonations);
-  const b = num(pf.largeDonorDonations);
-  const p = num(pf.pacMoney);
-  const y = num(pf.partyMoney);
+  let s = num(pf.grassrootsDonations);
+  let b = num(pf.largeDonorDonations);
+  let p = num(pf.pacMoney);
+  let y = num(pf.partyMoney);
   const own = ownOf(pf);
   const T = num(pf.totalRaised);
   const fromOthers = T - own;
   const given = s + b + p + y;
-  Object.assign(out, { s, b, p, y, own, T });
+  // FINAL-2: other politicians' joint funds' transfers, out of each bucket
+  // by the fund's mix, into POLITICIAN money (j: counted 0, still given)
+  let j = 0;
+  if (cfg.nonOwnAsPolitician) {
+    for (const c of (m.pf.committees || []).filter(x => x.role === 'joint' && !x.ownFund)) {
+      const t = num(c.toMember);
+      if (t > 0 && c.mix) {
+        s -= t * num(c.mix.s);
+        b -= t * num(c.mix.b);
+        p -= t * num(c.mix.p);
+        y -= t * num(c.mix.y);
+        j += t * (num(c.mix.s) + num(c.mix.b) + num(c.mix.p) + num(c.mix.y));
+      }
+    }
+    [s, b, p, y] = [s, b, p, y].map(v => Math.max(0, v));
+  }
+  // FINAL-2: gifts a committee directed, out of big-donor money (e: counted
+  // as each committee's gift, outside the PAC credit cap)
+  const directed = cfg.directedAsGifts
+    ? Object.entries(m.shapeDirected?.directedOut || {}).filter(([, a]) => a > 0)
+    : [];
+  const e = Math.min(
+    b,
+    directed.reduce((t, [, a]) => t + a, 0)
+  );
+  b -= e;
+  Object.assign(out, { s, b, p, y, j, e, own, T });
 
   // G4: own money that doesn't fit inside the receipts
   if (own > 0 && fromOthers < given * 0.98 - 1) {
@@ -319,7 +361,11 @@ export function gradeOne(m, pacs, shares, cfg, opts = {}) {
 
   // Concentration: the live count, or only donors who net above $0 (F11);
   // item 6: joint-fund gifts counted only for what reached the member
-  const sh = cfg.jfcProRata && m.shapeJfc ? m.shapeJfc : m.shape;
+  const sh = cfg.directedAsGifts
+    ? m.shapeDirected
+    : cfg.jfcProRata && m.shapeJfc
+      ? m.shapeJfc
+      : m.shape;
   const N = cfg.F11 ? (sh?.donors ?? 0) : num(m.analysis?.uniqueDonors);
   const n = cfg.F11 ? sh?.nakamoto : m.analysis?.nakamotoCoefficient;
   const collected = cfg.F11 ? num(sh?.total) : num(m.analysis?.totalAmount);
@@ -367,6 +413,7 @@ export function gradeOne(m, pacs, shares, cfg, opts = {}) {
     people += campaigns * f + y + jfcPac;
   }
   let C = Math.round(people * cfg.credit * 100) / 100;
+  let E = 0;
   if (cfg.groups) {
     // E-S: each PAC's traced money at its group's credit
     C =
@@ -382,8 +429,24 @@ export function gradeOne(m, pacs, shares, cfg, opts = {}) {
           f *
           100
       ) / 100;
+    // FINAL-2: directed gifts at the directing committee's traced share and
+    // group, never capped (they arrive as individual receipts). Scaled down
+    // if the records hold more than the FEC's big-donor total.
+    const scale = e > 0 ? e / directed.reduce((t, [, a]) => t + a, 0) : 0;
+    E =
+      Math.round(
+        directed.reduce(
+          (t, [id, amt]) =>
+            t +
+            amt *
+              scale *
+              (shares.get(id)?.[cfg.trace] || 0) *
+              (cfg.groups.credit[resolveGroup(pacs[id], cfg)] ?? 0),
+          0
+        ) * 100
+      ) / 100;
   }
-  const credit = C > 0 ? (C / D) * 100 : 0;
+  const credit = C + E > 0 ? ((C + E) / D) * 100 : 0;
   x = Math.min(100, x + credit);
 
   // The PAC bar, on money from others (live)
@@ -423,6 +486,7 @@ export function gradeOne(m, pacs, shares, cfg, opts = {}) {
     counted,
     fromPeople: s + counted,
     creditDollars: C,
+    earmarkDollars: E,
     credit,
     topShare: D > 0 ? topDonors / D : null,
   };

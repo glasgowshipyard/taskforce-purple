@@ -317,3 +317,90 @@ describe('final candidate: whole own funds and TFP groups', () => {
     expect(r.creditDollars).toBeCloseTo(400000 * sh.get('C00000001')[2], 0);
   });
 });
+
+describe("FINAL-2: the people test, directed gifts, other politicians' funds", () => {
+  const cfg = {
+    ...LIVE,
+    F9: true,
+    F11: true,
+    bar: false,
+    denominator: 'given',
+    allowance: 'min',
+    noMinDonors: true,
+    directedAsGifts: true,
+    nonOwnAsPolitician: true,
+    groups: {
+      credit: { people: 1 },
+      source: 'tfp',
+      upstreamZero: true,
+      upstreamByCredit: true,
+      peopleTest: true,
+    },
+  };
+  const tfp = elected =>
+    Object.fromEntries(
+      Object.entries(pacs).map(([id, p]) => [
+        id,
+        {
+          ...p,
+          sponsor: { group: id === 'C00000001' || id === 'C00000003' ? 'people' : 'nosponsor' },
+          peopleTest: { elected },
+        },
+      ])
+    );
+
+  it('a PEOPLE PAC counts only if its members elect its leaders', () => {
+    const base = member({ uniqueDonors: 640, nakamotoCoefficient: 60, totalAmount: 290000 });
+    const m = { ...base, shapeDirected: { ...base.shape, directedOut: {} } };
+    const yes = tfp(true);
+    const r = gradeOne(m, yes, pacShares(yes, cfg), cfg);
+    expect(r.creditDollars).toBeGreaterThan(0);
+    const no = tfp(false);
+    expect(gradeOne(m, no, pacShares(no, cfg), cfg).creditDollars).toBe(0);
+  });
+
+  it('gifts a committee directed leave big-donor money and count as its gift, uncapped', () => {
+    const base = member({ uniqueDonors: 640, nakamotoCoefficient: 60, totalAmount: 290000 });
+    const m = {
+      ...base,
+      shapeDirected: { ...base.shape, total: 240000, directedOut: { C00000003: 50000 } },
+    };
+    const p2 = tfp(true);
+    const sh = pacShares(p2, cfg);
+    const r = gradeOne(m, p2, sh, cfg);
+    expect(r.e).toBe(50000);
+    // Big-donor money less the directed gifts and the other fund's share
+    expect(r.b).toBeCloseTo(300000 - 50000, 0);
+    expect(r.earmarkDollars).toBeCloseTo(50000 * sh.get('C00000003')[2], 0);
+    expect(r.denominator).toBe(200000 + 300000 + 600000);
+  });
+
+  it("other politicians' fund transfers come out of each bucket by the fund's mix", () => {
+    const base = member({ uniqueDonors: 640, nakamotoCoefficient: 60, totalAmount: 290000 });
+    const m = {
+      ...base,
+      shapeDirected: { ...base.shape, directedOut: {} },
+      pf: {
+        ...pf,
+        committees: [
+          pf.committees[0],
+          {
+            id: 'C10000002',
+            role: 'joint',
+            ownFund: false,
+            raised: 500000,
+            toMember: 100000,
+            mix: { s: 0.2, b: 0.5, p: 0.3, y: 0 },
+          },
+        ],
+      },
+    };
+    const p2 = tfp(true);
+    const r = gradeOne(m, p2, pacShares(p2, cfg), cfg);
+    expect(r.s).toBeCloseTo(200000 - 20000, 0);
+    expect(r.b).toBeCloseTo(300000 - 50000, 0);
+    expect(r.p).toBeCloseTo(600000 - 30000, 0);
+    expect(r.j).toBeCloseTo(100000, 0);
+    expect(r.denominator).toBe(200000 + 300000 + 600000);
+  });
+});

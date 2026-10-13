@@ -1,5 +1,5 @@
 {
-  "_about": "Stated facts that decide a PAC's group where the FEC fields and the IRS master file don't (scripts/refresh/lib/sponsors.mjs). Each is a fact about the sponsor, checkable by anyone. Added 2026-10-11 for the final candidate; the owner reviews the list.",
+  "_about": "Stated facts that decide a PAC's group where the FEC fields and the IRS master file don't (scripts/refresh/lib/sponsors.mjs). Each is a fact about the sponsor, checkable by anyone; 'ein' names the sponsor's IRS record where it was found by hand, for the people test. Added 2026-10-11 (final candidate) and 2026-10-12 (FINAL-2); the owner reviews the list.",
   "C00227744": {
     "group": "business",
     "fact": "Ernst & Young (EY) is an accounting firm, a partnership; this is its PAC."
@@ -20,8 +20,14 @@
     "group": "business",
     "fact": "Kelley Drye & Warren LLP is a law firm; this is its PAC."
   },
-  "C00369660": { "group": "business", "fact": "Venable LLP is a law firm; this is its PAC." },
-  "C00395723": { "group": "business", "fact": "Alston & Bird LLP is a law firm; this is its PAC." },
+  "C00369660": {
+    "group": "business",
+    "fact": "Venable LLP is a law firm; this is its PAC."
+  },
+  "C00395723": {
+    "group": "business",
+    "fact": "Alston & Bird LLP is a law firm; this is its PAC."
+  },
   "C00174227": {
     "group": "business",
     "fact": "Baker & Hostetler LLP is a law firm; this is its PAC."
@@ -52,15 +58,18 @@
   },
   "C00131185": {
     "group": "people",
-    "fact": "Sponsor: the Aircraft Owners and Pilots Association, a membership association of pilots; the IRS lists 'Aircraft Owners & Pilots Asso' as a 501(c)(4)."
+    "fact": "Sponsor: the Aircraft Owners and Pilots Association, a membership association of pilots; the IRS lists 'Aircraft Owners & Pilots Asso' as a 501(c)(4), EIN 520636210.",
+    "ein": "520636210"
   },
   "C00629709": {
-    "group": "people",
-    "fact": "No Labels is a political advocacy organization, not a business."
+    "group": "politician",
+    "fact": "No Labels organizes the House Problem Solvers Caucus, which it helped found in 2017: a PAC linked to a congressional caucus (rule 11). Its Form 990 (2024) would also fail the people test: line 7a No.",
+    "ein": "271432208"
   },
   "C00466813": {
     "group": "people",
-    "fact": "Sponsor: Humane World Action Fund, the advocacy arm of an animal-protection charity: an issue organization."
+    "fact": "Sponsor: Humane World Action Fund, an issue organization; the IRS lists it as a 501(c)(4) (record spelled 'Humane World Actin Fund'), EIN 593786428.",
+    "ein": "593786428"
   },
   "C00305318": {
     "group": "politician",
@@ -89,5 +98,502 @@
   "C00625988": {
     "group": "politician",
     "fact": "The PAC of Future Forum, a caucus of younger House Democrats."
+  },
+  "C00113803": {
+    "group": "business",
+    "fact": "The American Osteopathic Information Association is the political arm of the American Osteopathic Association, the professional association of osteopathic doctors. IRS: 501(c)(6) business league, EIN 364340931 (the IRS record is spelled 'Infromation').",
+    "ein": "364340931"
+  },
+  "C00306449": {
+    "group": "business",
+    "fact": "The American Academy of Otolaryngology-Head and Neck Surgery is the professional association of ear, nose and throat surgeons. IRS: 501(c)(6), EIN 521219436.",
+    "ein": "521219436"
+  },
+  "C00210666": {
+    "group": "business",
+    "fact": "The American Speech-Language-Hearing Association is the professional association of speech-language pathologists and audiologists. IRS: 501(c)(6), EIN 530240474.",
+    "ein": "530240474"
+  },
+  "C00245530": {
+    "group": "business",
+    "fact": "The American Society of Health-System Pharmacists is the professional association of hospital and health-system pharmacists. IRS: 501(c)(6), EIN 520807628.",
+    "ein": "520807628"
+  },
+  "C00324780": {
+    "group": "business",
+    "fact": "The American Academy of Emergency Medicine is a professional association of emergency physicians. IRS: 501(c)(6), EIN 263697887.",
+    "ein": "263697887"
+  },
+  "C00409391": {
+    "group": "business",
+    "fact": "The Renal Physicians Association is the professional association of kidney doctors (nephrologists)."
+  },
+  "C00432757": {
+    "group": "business",
+    "fact": "The National Association of Disability Representatives is the professional association of people paid to represent Social Security disability claimants."
+  },
+  "C00527663": {
+    "group": "business",
+    "fact": "The Montana Medical Association is the professional association of Montana physicians."
+  },
+  "C00193854": {
+    "group": "business",
+    "fact": "The American Pharmacists Association is the professional association of pharmacists, so BUSINESS. The IRS records under its name are mostly 501(c)(8) fraternal records; the national association is not a fraternal society (owner, FINAL-2)."
+  },
+  "C00359380": {
+    "group": "business",
+    "fact": "The National Limousine Association is the trade association of limousine and chauffeured-car companies. IRS: 501(c)(6), EIN 521379152.",
+    "ein": "521379152"
+  },
+  "C00941781": {
+    "group": "business",
+    "fact": "California Life Sciences is the trade association of California biotechnology, pharmaceutical and medical-device companies. IRS: 501(c)(6), EIN 473226523.",
+    "ein": "473226523"
+  },
+  "C00318766": {
+    "group": "business",
+    "fact": "The California Independent Petroleum Association is the trade association of independent oil and gas producers. IRS: 501(c)(6), EIN 953048726.",
+    "ein": "953048726"
+  },
+  "C00207969": {
+    "group": "business",
+    "fact": "The National Customs Brokers and Forwarders Association of America is the trade association of customs brokers and freight forwarders. IRS: 501(c)(6), EIN 135544472.",
+    "ein": "135544472"
+  },
+  "C00427781": {
+    "group": "business",
+    "fact": "The Online Lenders Alliance is the trade association of online lending companies."
+  },
+  "C00453563": {
+    "group": "business",
+    "fact": "The Missouri Renewable Fuels Association is the trade association of Missouri's ethanol and biodiesel producers. IRS: 501(c)(6), EIN 204310087.",
+    "ein": "204310087"
+  },
+  "C00221077": {
+    "group": "business",
+    "fact": "The Crescent River Port Pilots' Association is the body through which state-commissioned Mississippi River pilots sell pilotage to ships, at fees set by the state: a business of its members."
+  },
+  "C00613000": {
+    "group": "business",
+    "fact": "Puget Sound Pilots is the body through which state-licensed pilots sell pilotage to ships in Puget Sound, at fees set by the state: a business of its members."
+  },
+  "C00418582": {
+    "group": "business",
+    "fact": "EmergeOrtho, P.A. is an orthopedic medical practice: a professional corporation, a business."
+  },
+  "C00693424": {
+    "group": "business",
+    "fact": "Royal Neighbors of America is a fraternal benefit society that sells life insurance and annuities: an insurer, so BUSINESS (rule 7)."
+  },
+  "C00592485": {
+    "group": "business",
+    "fact": "The Jockey Club is the breed registry for Thoroughbred horses, exempt as an agricultural organization (IRS 501(c)(5), EIN 130888345): an agricultural producers' group (rule 8).",
+    "ein": "130888345"
+  },
+  "C00409102": {
+    "group": "business",
+    "fact": "The American Quarter Horse Association is the breed registry for Quarter Horses, exempt as an agricultural organization (IRS 501(c)(5), EIN 750725576): an agricultural producers' group (rule 8).",
+    "ein": "750725576"
+  },
+  "C00715375": {
+    "group": "politician",
+    "fact": "Its connected organization is \"DeMaio\": Carl DeMaio, a California politician (member of the California State Assembly) and former congressional candidate."
+  },
+  "C00572123": {
+    "group": "politician",
+    "fact": "Its connected organization is \"Dold\": Robert Dold, a former U.S. Representative from Illinois."
+  },
+  "C00552851": {
+    "group": "politician",
+    "fact": "The PAC of the House Freedom Caucus, a caucus of House Republicans: it backs caucus members and, from 2026, replaces the House Freedom Fund (the caucus's PAC, founded by its members) and House Freedom Action (Daily Signal, 4 February 2026)."
+  },
+  "C00147512": {
+    "group": "politician",
+    "fact": "The Congressional Black Caucus PAC: named for the caucus and chaired by a member of Congress, with caucus members on its board (with lobbyists). It is separate from the caucus itself."
+  },
+  "C00327189": {
+    "group": "politician",
+    "fact": "Its connected organization is the McMorris Rodgers Win the Future Fund: the joint fund of Cathy McMorris Rodgers, a former U.S. Representative (rule 10; the owner's example)."
+  },
+  "C00740126": {
+    "group": "nosponsor",
+    "fact": "Its connected organization, the Voter Protection Project (VPP, C00692319), is another political committee, not a politician's or a party's (rule 10)."
+  },
+  "C00165159": {
+    "group": "politician",
+    "fact": "The PAC of the Republican Main Street Partnership, the outside group affiliated with the House Main Street Caucus of Republicans, which it launched in 2017 (rule 11)."
+  },
+  "C00550970": {
+    "group": "politician",
+    "fact": "Equality PAC is the political arm of the Congressional Equality Caucus, run by its members (co-chairs Reps. Mark Takano and Ritchie Torres; board of members of Congress) (rule 11)."
+  },
+  "C00570226": {
+    "group": "nosponsor",
+    "fact": "Checked under rule 11: the FEC lists it as a hybrid PAC with no connected organization. Press reports (Roll Call, 2022) tied it to Ryan Zinke, but in 2018 a spokeswoman said Zinke had not been affiliated with it for over a year, and it has had other chairs. No caucus link or member running it found now: NO SPONSOR."
+  },
+  "C00250399": {
+    "group": "business",
+    "fact": "Automotive Free International Trade PAC (AFIT PAC) is the PAC of car dealers who sell international brands, closely tied to the American International Automobile Dealers Association, their trade group (rule 12)."
+  },
+  "C00451153": {
+    "group": "business",
+    "fact": "Gridiron PAC is the National Football League's PAC, set up in 2008 (rule 12)."
+  },
+  "C00395947": {
+    "group": "business",
+    "fact": "Barnes & Thornburg LLP is a law firm; this is its PAC (rule 12)."
+  },
+  "C00690735": {
+    "group": "business",
+    "fact": "CGCN Group is a Washington lobbying firm; this is its lobbyist/registrant PAC (FEC designation B) (rule 12)."
+  },
+  "C00000729": {
+    "group": "business",
+    "fact": "Checked (rule 9): the sponsor is AMERICAN DENTAL ASSOCIATION, a 501(c)(6) business league (trade or professional association), EIN 360724690; matched on the PAC's own name.",
+    "ein": "360724690"
+  },
+  "C00001016": {
+    "group": "people",
+    "fact": "Checked (rule 9): the sponsor is UNITED BROTHERHOOD OF CARPENTERS AND JOINERS OF AMERICA, a 501(c)(5) labor organization, EIN 250849687; the IRS holds records of more than one kind under this name (501(c)(5):176, 501(c)(7):1).",
+    "ein": "250849687"
+  },
+  "C00002089": {
+    "group": "people",
+    "fact": "Checked (rule 9): the sponsor is COMMUNICATIONS WORKERS OF AMERICA, a 501(c)(5) labor organization, EIN 131948652; the IRS holds records of more than one kind under this name (501(c)(5):26, 501(c)(2):1).",
+    "ein": "131948652"
+  },
+  "C00003590": {
+    "group": "people",
+    "fact": "Checked (rule 9): the sponsor is UNITED STEELWORKERS, a 501(c)(5) labor organization, EIN 250818080; the IRS holds records of more than one kind under this name (501(c)(5):1525, 501(c)(8):1).",
+    "ein": "250818080"
+  },
+  "C00003632": {
+    "group": "people",
+    "fact": "Checked (rule 9): the sponsor is INTERNATIONAL UNION OF BRICKLAYERS AND ALLIED CRAFTWORKERS, a 501(c)(5) labor organization, EIN 530038250; the IRS holds records of more than one kind under this name (501(c)(5):48, 501(c)(8):2).",
+    "ein": "530038250"
+  },
+  "C00010322": {
+    "group": "people",
+    "fact": "Checked (rule 9): the sponsor is AMERICAN POSTAL WORKERS UNION, a 501(c)(5) labor organization, EIN 520913725; the IRS holds records of more than one kind under this name (501(c)(5):465, 501(c)(4):1, 501(c)(8):1).",
+    "ein": "520913725"
+  },
+  "C00013342": {
+    "group": "people",
+    "fact": "Checked (rule 9): the sponsor is UNITED MINE WORKERS OF AMERICA, a 501(c)(5) labor organization, EIN 351127842; matched on the sponsor's name less the PAC words.",
+    "ein": "351127842"
+  },
+  "C00027342": {
+    "group": "people",
+    "fact": "Checked (rule 9): the sponsor is INTERNATIONAL BROTHERHOOD OF ELECTRICAL WORKERS, a 501(c)(5) labor organization, EIN 520951104; the IRS holds records of more than one kind under this name (501(c)(5):660, 501(c)(8):1, 501(c)(2):3, 501(c)(6):1).",
+    "ein": "520951104"
+  },
+  "C00029447": {
+    "group": "people",
+    "fact": "Checked (rule 9): the sponsor is INTERNATIONAL ASSOCIATION OF FIRE FIGHTERS, a 501(c)(5) labor organization, EIN 530088290; the IRS holds records of more than one kind under this name (501(c)(5):1837, 501(c)(4):1).",
+    "ein": "530088290"
+  },
+  "C00032979": {
+    "group": "people",
+    "fact": "Checked (rule 9): the sponsor is INTERNATIONAL BROTHERHOOD OF TEAMSTERS, a 501(c)(5) labor organization, EIN 530215427; the IRS holds records of more than one kind under this name (501(c)(5):350, 501(c)(4):1, 501(c)(14):1).",
+    "ein": "530215427"
+  },
+  "C00034645": {
+    "group": "business",
+    "fact": "Checked (rule 9): the sponsor is AMERICAN SOCIETY FOR CLINICAL LABORATORY SCIENCE, a 501(c)(6) business league (trade or professional association), EIN 741091114; matched on the PAC's own name.",
+    "ein": "741091114"
+  },
+  "C00043471": {
+    "group": "business",
+    "fact": "Checked (rule 9): the sponsor is NEBRASKA CHIROPRACTIC PHYSICIANS ASSOCIATION, a 501(c)(6) business league (trade or professional association), EIN 476029383; matched on the sponsor's name less the PAC words.",
+    "ein": "476029383"
+  },
+  "C00053553": {
+    "group": "people",
+    "fact": "Checked (rule 9): the sponsor is NATIONAL RIFLE ASSOCIATION OF AMERICA, a 501(c)(4) social welfare organization, EIN 530116130; matched on the PAC's own name.",
+    "ein": "530116130"
+  },
+  "C00072025": {
+    "group": "people",
+    "fact": "Checked (rule 9): the sponsor is NATIONAL RURAL LETTER CARRIERS ASSOCIATION, a 501(c)(5) labor organization, EIN 530116149; the IRS holds records of more than one kind under this name (501(c)(5):647, 501(c)(6):3).",
+    "ein": "530116149"
+  },
+  "C00073627": {
+    "group": "people",
+    "fact": "Checked (rule 9): the sponsor is AMERICAN FEDERATION OF MUSICIANS OF THE UNITED STATES AND CANADA, a 501(c)(5) labor organization, EIN 800427385; matched on the sponsor's name less the PAC words.",
+    "ein": "800427385"
+  },
+  "C00079541": {
+    "group": "people",
+    "fact": "Checked (rule 9): the sponsor is REPRODUCTIVE FREEDOM FOR ALL, a 501(c)(4) social welfare organization, EIN 132630359; matched on the PAC's own name.",
+    "ein": "132630359"
+  },
+  "C00089086": {
+    "group": "business",
+    "fact": "Checked (rule 9): the sponsor is AMERICAN OCCUPATIONAL THERAPY ASSOCIATION INC, a 501(c)(6) business league (trade or professional association), EIN 131526422; matched on the PAC's own name.",
+    "ein": "131526422"
+  },
+  "C00091561": {
+    "group": "people",
+    "fact": "Checked (rule 9): the sponsor is NATIONAL ACTIVE AND RETIRED FEDERAL EMPLOYEES ASSOCIATION, a 501(c)(5) labor organization, EIN 530114700; the IRS holds records of more than one kind under this name (501(c)(5):631, 501(c)(4):12, 501(c)(6):1).",
+    "ein": "530114700"
+  },
+  "C00097196": {
+    "group": "people",
+    "fact": "Checked (rule 9): the sponsor is OHIO RIGHT TO LIFE SOCIETY, a 501(c)(4) social welfare organization, EIN 310856041; matched on the PAC's own name.",
+    "ein": "310856041"
+  },
+  "C00099234": {
+    "group": "people",
+    "fact": "Checked (rule 9): the match on 'International Brotherhood of Teamsters' is the parent; the sponsor is the Brotherhood of Locomotive Engineers and Trainmen (BLET), a Teamsters division with its own IRS record and Form 990 (EIN 346000349), which is read.",
+    "ein": "346000349"
+  },
+  "C00100404": {
+    "group": "business",
+    "fact": "Checked (rule 9): the sponsor is UNITED POSTMASTERS AND MANAGERS OF AMERICA, a 501(c)(6) business league (trade or professional association), EIN 250985742; matched on the PAC's own name.",
+    "ein": "250985742"
+  },
+  "C00104455": {
+    "group": "people",
+    "fact": "Checked (rule 9): the sponsor is INTERNATIONAL UNION OF OPERATING ENGINEERS LOCAL 17, a 501(c)(5) labor organization, EIN 160493140; matched on the PAC's own name.",
+    "ein": "160493140"
+  },
+  "C00107128": {
+    "group": "people",
+    "fact": "Checked (rule 9): the sponsor is NATIONAL TREASURY EMPLOYEES UNION, a 501(c)(5) labor organization, EIN 530244795; matched on the PAC's own name.",
+    "ein": "530244795"
+  },
+  "C00141044": {
+    "group": "people",
+    "fact": "Checked (rule 9): the sponsor is FRIENDS OF THE EARTH-ACTION-INC, a 501(c)(4) social welfare organization, EIN 132644641; matched on the PAC's own name.",
+    "ein": "132644641"
+  },
+  "C00143560": {
+    "group": "business",
+    "fact": "Checked (rule 9): the sponsor is ACADEMY OF NUTRITION AND DIETETICS, a 501(c)(6) business league (trade or professional association), EIN 360724760; matched on the PAC's own name.",
+    "ein": "360724760"
+  },
+  "C00150367": {
+    "group": "business",
+    "fact": "Checked (rule 9): the sponsor is NATIONAL VENTURE CAPITAL ASSOCIATION, a 501(c)(6) business league (trade or professional association), EIN 521296842; matched on the PAC's own name.",
+    "ein": "521296842"
+  },
+  "C00164848": {
+    "group": "business",
+    "fact": "Checked (rule 9): the sponsor is FEDERAL MANAGERS ASSOCIATION, a 501(c)(6) business league (trade or professional association), EIN 520730599; matched on the PAC's own name.",
+    "ein": "520730599"
+  },
+  "C00166272": {
+    "group": "people",
+    "fact": "Checked (rule 9): the sponsor is SCHOOL NUTRITION ASSOCIATION INC, a 501(c)(4) social welfare organization, EIN 840445578; matched on the PAC's own name.",
+    "ein": "840445578"
+  },
+  "C00199547": {
+    "group": "business",
+    "fact": "Checked (rule 9): the sponsor is AMERICAN SOCIETY OF CONSULTANT PHARMACISTS INC, a 501(c)(6) business league (trade or professional association), EIN 520942322; matched on the sponsor's name less the PAC words.",
+    "ein": "520942322"
+  },
+  "C00233247": {
+    "group": "business",
+    "fact": "Checked (rule 9): the sponsor is MANAGEMENT ASSOCIATION FOR PRIVATE PHOTOGRAMMETRIC SURVEYORS, a 501(c)(6) business league (trade or professional association), EIN 520854573; matched on the PAC's own name.",
+    "ein": "520854573"
+  },
+  "C00238725": {
+    "group": "people",
+    "fact": "Checked (rule 9): the sponsor is NATIONAL AIR TRAFFIC CONTROLLERS ASSOCIATION, a 501(c)(5) labor organization, EIN 541492688; the IRS holds records of more than one kind under this name (501(c)(5):419, 501(c)(4):8, 501(c)(6):1).",
+    "ein": "541492688"
+  },
+  "C00244400": {
+    "group": "business",
+    "fact": "Checked (rule 9): the sponsor is LIVESTOCK MARKETING ASSOCIATION, a 501(c)(6) business league (trade or professional association), EIN 431080587; matched on the sponsor's name less the PAC words.",
+    "ein": "431080587"
+  },
+  "C00267849": {
+    "group": "people",
+    "fact": "Checked (rule 9): the sponsor is ALLIED PILOTS ASSOCIATION, a 501(c)(5) labor organization, EIN 131982245; matched on the PAC's own name.",
+    "ein": "131982245"
+  },
+  "C00318311": {
+    "group": "people",
+    "fact": "Checked (rule 9): the sponsor is NATIONAL WEATHER SERVICE EMPLOYEES ORGANIZATION, a 501(c)(5) labor organization, EIN 541018164; matched on the sponsor's name less the PAC words.",
+    "ein": "541018164"
+  },
+  "C00319962": {
+    "group": "business",
+    "fact": "Checked (rule 9): the sponsor is NEW YORK BUILDING CONGRESS INC, a 501(c)(6) business league (trade or professional association), EIN 131097030; matched on the PAC's own name.",
+    "ein": "131097030"
+  },
+  "C00324673": {
+    "group": "people",
+    "fact": "Checked (rule 9): the sponsor is MILWAUKEE POLICE ASSOCIATION, a 501(c)(5) labor organization, EIN 391136365; matched on the sponsor's name less the PAC words.",
+    "ein": "391136365"
+  },
+  "C00356477": {
+    "group": "people",
+    "fact": "Checked (rule 9): the sponsor is DALLAS SAFARI CLUB, a 501(c)(4) social welfare organization, EIN 510157792; matched on the PAC's own name.",
+    "ein": "510157792"
+  },
+  "C00360669": {
+    "group": "people",
+    "fact": "Checked (rule 9): the sponsor is SOUTHWEST AIRLINES PILOTS ASSOCIATION, a 501(c)(5) labor organization, EIN 751711418; matched on the PAC's own name.",
+    "ein": "751711418"
+  },
+  "C00362327": {
+    "group": "business",
+    "fact": "Checked (rule 9): the sponsor is AMERICAN SOCIETY OF RADIOLOGIC TECHNOLOGISTS, a 501(c)(6) business league (trade or professional association), EIN 390128765; matched on the sponsor's name less the PAC words.",
+    "ein": "390128765"
+  },
+  "C00369868": {
+    "group": "business",
+    "fact": "Checked (rule 9): the sponsor is REAL ESTATE SERVICES PROVIDERS COUNCIL INC, a 501(c)(6) business league (trade or professional association), EIN 521819597; matched on the PAC's own name.",
+    "ein": "521819597"
+  },
+  "C00383950": {
+    "group": "people",
+    "fact": "Checked (rule 9): the sponsor is INTERNATIONAL UNION OF ELEVATOR CONSTRUCTORS, a 501(c)(5) labor organization, EIN 230725260; the IRS holds records of more than one kind under this name (501(c)(5):62, 501(c)(2):1).",
+    "ein": "230725260"
+  },
+  "C00384602": {
+    "group": "business",
+    "fact": "Checked (rule 9): the sponsor is AMERICAN SOCIETY FOR RADIATION ONCOLOGY, a 501(c)(6) business league (trade or professional association), EIN 420943164; matched on the PAC's own name.",
+    "ein": "420943164"
+  },
+  "C00387274": {
+    "group": "people",
+    "fact": "Checked (rule 9): the sponsor is NEW MAJORITY, a 501(c)(4) social welfare organization, EIN 943340436; matched on the PAC's own name.",
+    "ein": "943340436"
+  },
+  "C00391490": {
+    "group": "people",
+    "fact": "Checked (rule 9): the sponsor is COUNCIL FOR CITIZENS AGAINST GOVERNMENT WASTE, a 501(c)(4) social welfare organization, EIN 521369152; matched on the PAC's own name.",
+    "ein": "521369152"
+  },
+  "C00408344": {
+    "group": "people",
+    "fact": "Checked (rule 9): the sponsor is SAN BERNARDINO COUNTY SHERIFFS EMPLOYEES BENEFIT ASSOCIATION, a 501(c)(5) labor organization, EIN 956059097; matched on the PAC's own name.",
+    "ein": "956059097"
+  },
+  "C00408435": {
+    "group": "business",
+    "fact": "Checked (rule 9): the sponsor is SOCIETY OF INTERVENTIONAL RADIOLOGY, a 501(c)(6) business league (trade or professional association), EIN 391345331; matched on the PAC's own name.",
+    "ein": "391345331"
+  },
+  "C00409714": {
+    "group": "business",
+    "fact": "Checked (rule 9): the sponsor is FINANCIAL SERVICES INSTITUTE INC, a 501(c)(6) business league (trade or professional association), EIN 200587793; matched on the PAC's own name.",
+    "ein": "200587793"
+  },
+  "C00411553": {
+    "group": "business",
+    "fact": "Checked (rule 9): the sponsor is AMERICAN ACADEMY OF FAMILY PHYSICIANS, a 501(c)(6) business league (trade or professional association), EIN 440536051; the IRS holds records of more than one kind under this name (501(c)(6):136, 501(c)(2):1).",
+    "ein": "440536051"
+  },
+  "C00419036": {
+    "group": "business",
+    "fact": "Checked (rule 9): the sponsor is INFORMATION TECHNOLOGY INDUSTRY COUNCIL LTD, a 501(c)(6) business league (trade or professional association), EIN 131954338; matched on the PAC's own name.",
+    "ein": "131954338"
+  },
+  "C00424143": {
+    "group": "business",
+    "fact": "Checked (rule 9): the sponsor is ALLIANCE FOR PHARMACY COMPOUNDING, a 501(c)(6) business league (trade or professional association), EIN 760354310; matched on the PAC's own name.",
+    "ein": "760354310"
+  },
+  "C00435024": {
+    "group": "people",
+    "fact": "Checked (rule 9): the sponsor is CENTER FOR SPORTFISHING POLICY, a 501(c)(4) social welfare organization, EIN 205671250; matched on the PAC's own name. Its members are sportfishing and boating trade groups and companies as well as conservation groups (owner to judge whether that is PEOPLE).",
+    "ein": "205671250"
+  },
+  "C00441808": {
+    "group": "people",
+    "fact": "Checked (rule 9): the sponsor is AMERICAN KENNEL CLUB INC, a 501(c)(4) social welfare organization, EIN 134923060; matched on the sponsor's name less the PAC words.",
+    "ein": "134923060"
+  },
+  "C00458042": {
+    "group": "business",
+    "fact": "Checked (rule 9): the sponsor is COALITION OF FRANCHISEE ASSOCIATIONS INC, a 501(c)(6) business league (trade or professional association), EIN 261362190; matched on the sponsor's name less the PAC words.",
+    "ein": "261362190"
+  },
+  "C00490474": {
+    "group": "business",
+    "fact": "Checked (rule 9): the sponsor is INSURED RETIREMENT INSTITUTE INC, a 501(c)(6) business league (trade or professional association), EIN 061328907; matched on the PAC's own name.",
+    "ein": "061328907"
+  },
+  "C00566067": {
+    "group": "people",
+    "fact": "Checked (rule 9): the sponsor is HIGHER HEIGHTS FOR AMERICA, a 501(c)(4) social welfare organization, EIN 453211706; matched on the PAC's own name.",
+    "ein": "453211706"
+  },
+  "C00579573": {
+    "group": "business",
+    "fact": "Checked (rule 9): the sponsor is ASSOCIATION OF UNITED STATES POSTAL LESSORS, a 501(c)(6) business league (trade or professional association), EIN 050394541; matched on the PAC's own name.",
+    "ein": "050394541"
+  },
+  "C00633354": {
+    "group": "business",
+    "fact": "Checked (rule 9): the sponsor is STRUCTURED FINANCE COALITION INC, a 501(c)(6) business league (trade or professional association), EIN 815393177; matched on the PAC's own name.",
+    "ein": "815393177"
+  },
+  "C00636753": {
+    "group": "business",
+    "fact": "Checked (rule 9): the sponsor is ACADEMY OF RAIL LABOR ATTORNEYS, a 501(c)(6) business league (trade or professional association), EIN 521624454; matched on the PAC's own name.",
+    "ein": "521624454"
+  },
+  "C00637504": {
+    "group": "people",
+    "fact": "Checked (rule 9): the sponsor is SOCIAL SECURITY WORKS, a 501(c)(4) social welfare organization, EIN 461373125; matched on the PAC's own name.",
+    "ein": "461373125"
+  },
+  "C00640086": {
+    "group": "people",
+    "fact": "Checked (rule 9): the sponsor is EVERYTOWN FOR GUN SAFETY ACTION FUND INC, a 501(c)(4) social welfare organization, EIN 208802884; matched on the PAC's own name.",
+    "ein": "208802884"
+  },
+  "C00651430": {
+    "group": "business",
+    "fact": "Checked (rule 9): the sponsor is GOLF COURSE SUPERINTENDENTS ASSOC OF AMERICA, a 501(c)(6) business league (trade or professional association), EIN 590874226; matched on the PAC's own name.",
+    "ein": "590874226"
+  },
+  "C00797670": {
+    "group": "people",
+    "fact": "Checked (rule 9): the sponsor is AMERICAN ISRAEL PUBLIC AFFAIRS COMMITTEE, a 501(c)(4) social welfare organization, EIN 530217164; matched on the PAC's own name.",
+    "ein": "530217164"
+  },
+  "C00824896": {
+    "group": "business",
+    "fact": "Checked (rule 9): the sponsor is BLOCKCHAIN ASSOCIATION, a 501(c)(6) business league (trade or professional association), EIN 831360900; matched on the PAC's own name.",
+    "ein": "831360900"
+  },
+  "C00835868": {
+    "group": "people",
+    "fact": "Checked (rule 9): the sponsor is ACTORS EQUITY ASSOCIATION, a 501(c)(5) labor organization, EIN 130413995; matched on the PAC's own name.",
+    "ein": "130413995"
+  },
+  "C00869461": {
+    "group": "business",
+    "fact": "Checked (rule 9): the sponsor is REVENUE BASED FINANCE COALITION INC, a 501(c)(6) business league (trade or professional association), EIN 811270942; matched on the PAC's own name.",
+    "ein": "811270942"
+  },
+  "C00876615": {
+    "group": "business",
+    "fact": "Checked (rule 9): the sponsor is ATA ACTION, a 501(c)(6) business league (trade or professional association), EIN 873520148; matched on the PAC's own name.",
+    "ein": "873520148"
+  },
+  "C00889154": {
+    "group": "people",
+    "fact": "Checked (rule 9): the sponsor is FIRST FIVE ACTION FUND, a 501(c)(4) social welfare organization, EIN 851075023; matched on the PAC's own name.",
+    "ein": "851075023"
+  },
+  "C00891697": {
+    "group": "business",
+    "fact": "Checked (rule 9): the sponsor is ACADEMY OF MANAGED CARE PHARMACY A NEW JERSEY NONPROFIT CORPORATION, a 501(c)(6) business league (trade or professional association), EIN 223020486; matched on the PAC's own name.",
+    "ein": "223020486"
+  },
+  "C00945550": {
+    "group": "people",
+    "fact": "Checked (rule 9): the sponsor is AMERICAN COMMITTEE FOR MIDDLE EAST RIGHTS, a 501(c)(4) social welfare organization, EIN 882513621; matched on the PAC's own name.",
+    "ein": "882513621"
+  },
+  "C00525543": {
+    "group": "politician",
+    "fact": "Its connected organization is \"Cory Gardner for Senate\", the campaign committee of a former U.S. Senator (rule 10)."
   }
 }
