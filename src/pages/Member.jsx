@@ -56,9 +56,9 @@ function describe(c) {
     return "A PAC that gives money to other politicians' campaigns, which can earn goodwill and influence.";
   }
   if (c.ownFund) {
-    return 'Lets a donor write one large check, above the usual limit for a single candidate, which is then split among several committees. This is legal.';
+    return 'Lets a donor write one large check, above the usual limit for a single candidate, which is then split among several committees. This is legal. It raises money for this person, so everything it raised counts as theirs.';
   }
-  return 'Shared with other politicians or party committees. We only count the money it passed to this person.';
+  return "Run mainly for other politicians or a party. The money it passed to this person counts as theirs, so it doesn't count toward the grade.";
 }
 
 const fecCommitteeUrl = (id, cycle) => `https://www.fec.gov/data/committee/${id}/?cycle=${cycle}`;

@@ -1,6 +1,36 @@
 # Task Force Purple - Implementation Status
 
-**Last Updated**: 2026-10-12
+**Last Updated**: 2026-10-13
+
+---
+
+## 2026-10-13: FINAL-3 live (owner's "ship it")
+
+- **Grading.** `gradeFinal3` in workers/tier-calculation.js, a port of the
+  simulation's FINAL-3 settings, checked member by member against it
+  (`scripts/simulate/check-final3.mjs`: 536 identical). The refresh job now
+  gathers FINAL-3's inputs on every run (`scripts/refresh/lib/final3.mjs`:
+  gifts to own joint funds, committees that direct earmarked gifts, FEC
+  totals per committee, sponsor sorting and the people test; FEC committee
+  records cached in `data/committee-records.json`, asked for only when
+  missing). The races job grades challengers the same way.
+- **Checked before going live**: production run on the frozen 11 Oct
+  snapshot (run 38405887229) gave every member FINAL-3's grade and score.
+- **Live**: merged (93082f7); API worker deployed; grade-only refresh run
+  38408321218 (37 min, 6 list writes, 1,963 D1 rows) published 353 grade
+  changes: S36 A74 B72 C96 D113 E101 F42, 2 disputed, 3 without an FEC
+  identity. 535 of 536 match the frozen FINAL-3 letter; Barragán F to E
+  (14 to 15) on FEC data filed since the snapshot. No previous-grade line.
+- **Site**: /how shows the one-page spec as written (`src/lib/spec.js`);
+  member pages explain the FINAL-3 working per $100 given; the PAC panel
+  shows who each PAC answers to, what counts, and committees that steered
+  gifts; the home page's first step and the joint-fund wording updated.
+- **Hold dropped** (owner): the 15 and 22 Oct refreshes run under FINAL-3.
+  The filing-calendar trigger isn't built (#54), so they are started by
+  hand (a scheduled workflow change needs the owner's say-so).
+- Follow-ups, none blocking: #65 /how plain-English rewrite, #66
+  show-the-math panel, #67 CSV downloads, #68 American Kennel Club BUSINESS,
+  #69 the 24 not-tested sponsors, #70 FEC gaps list, #71 outside spending.
 
 ---
 
