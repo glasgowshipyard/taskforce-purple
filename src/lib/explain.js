@@ -24,7 +24,10 @@ export function gradeBands(shift = 0) {
 }
 
 /** What the big-donor number on the dark card means, and whether it's good. */
-export function concentrationVerdict(basis) {
+export function concentrationVerdict(basis, grade = null) {
+  if (isFinal3(grade)) {
+    return final3Verdict(grade.detail);
+  }
   switch (basis) {
     case 'dinner-party':
       return {
@@ -85,6 +88,11 @@ function whoGaveText(basis, conc) {
  * there's no working to explain.
  */
 export function explainGrade({ tier, lines, grade, conc, name, ownPct = 0 }) {
+  if (isFinal3(grade)) {
+    return GRADES[tier] && LETTERS.includes(tier) && Number.isFinite(grade.score)
+      ? explainFinal3({ tier, grade, name, ownPct })
+      : null;
+  }
   const d = grade?.detail;
   if (!d || !GRADES[tier] || !LETTERS.includes(tier) || !Number.isFinite(grade.score)) {
     return null;
@@ -209,6 +217,9 @@ export function rankLine(score, scores) {
  * Returns { tone, eyebrow, big, text, showConc }.
  */
 export function headlineFor({ tier, lines, grade, conc, name }) {
+  if (isFinal3(grade) && grade.detail.given > 0) {
+    return headlineFinal3({ tier, grade, name });
+  }
   const by = key => lines.find(l => l.key === key)?.pct ?? 0;
   const small = by('small');
   const big = by('big');
@@ -286,5 +297,256 @@ export function headlineFor({ tier, lines, grade, conc, name }) {
         ? ` ${count(conc.of)} people each gave ${name} more than $200. Half of that money came from just ${conc.n === 1 ? 'one of them' : `${count(conc.n)} of them`}. The other ${count(conc.of - conc.n)} gave the other half.`
         : ''),
     showConc: Boolean(conc),
+  };
+}
+
+// ---------------------------------------------------------------------
+// FINAL-3 (the grading since 2026-10-13): the working is in dollars in
+// grade.detail (workers/grading.js gradeMemberFinal3); everything here is
+// said per $100 of the money given to the member.
+// ---------------------------------------------------------------------
+
+const isFinal3 = grade => grade?.detail?.method === 'final-3';
+
+// Whole dollars out of 100 that add up to 100
+function per100(values, total) {
+  const raw = values.map(v => (total > 0 ? (Math.max(0, v || 0) / total) * 100 : 0));
+  const floors = raw.map(Math.floor);
+  let left =
+    Math.min(100, Math.round(raw.reduce((t, v) => t + v, 0))) - floors.reduce((t, v) => t + v, 0);
+  const order = raw.map((v, i) => [v - floors[i], i]).sort((a, b) => b[0] - a[0]);
+  for (const [, i] of order) {
+    if (left <= 0) {
+      break;
+    }
+    floors[i]++;
+    left--;
+  }
+  return floors;
+}
+
+const FINAL3_KINDS = {
+  small: 'small donations',
+  big: 'big donations',
+  pac: 'PACs',
+  party: 'party committees',
+  funds: "other politicians' joint funds",
+  directed: 'gifts steered to them by a committee',
+};
+
+/** Where each $100 given came from, as FINAL-3 sorts it: [{ key, pct, amount }]. */
+export function final3Lines(detail) {
+  const d = detail || {};
+  const amounts = {
+    small: d.small,
+    big: d.big,
+    pac: d.pac,
+    party: d.party,
+    funds: d.otherPoliticiansFunds,
+    directed: d.directed,
+  };
+  const keys = Object.keys(amounts);
+  const pcts = per100(
+    keys.map(k => amounts[k]),
+    d.given
+  );
+  return keys
+    .map((key, i) => ({ key, amount: amounts[key] || 0, pct: pcts[i] }))
+    .filter(l => l.key === 'small' || l.key === 'big' || l.pct >= 1);
+}
+
+/** How broad the big donors were, from the allowance. */
+function final3Verdict(d) {
+  if (!d?.reliable || !Number.isFinite(d.allowance)) {
+    return null;
+  }
+  if (d.allowance >= 0.75) {
+    return {
+      tone: 'good',
+      label: 'Lots of people.',
+      text: "That's a broad group of donors, so most big donations count.",
+    };
+  }
+  if (d.allowance >= 0.4) {
+    return {
+      tone: 'neutral',
+      label: 'A normal spread.',
+      text: "That's a normal spread of donors.",
+    };
+  }
+  if (d.allowance >= 0.2) {
+    return {
+      tone: 'bad',
+      label: 'A small group.',
+      text: "That's a small group compared with all the donors, so some of the big donations don't count toward the grade.",
+    };
+  }
+  return {
+    tone: 'bad',
+    label: 'Very few people.',
+    text: "When that few people give that much, they could have a lot of sway. Most of their big donations don't count toward the grade.",
+  };
+}
+
+function explainFinal3({ tier, grade, name, ownPct = 0 }) {
+  const d = grade.detail;
+  const G = d.given;
+  if (!(G > 0)) {
+    return null;
+  }
+  const lines = final3Lines(d);
+  const by = key => lines.find(l => l.key === key)?.pct ?? 0;
+  const dollars = x => Math.round(((x || 0) / G) * 100);
+  const small = by('small');
+  const big = by('big');
+  const raw = small + big;
+  const score = grade.score;
+  const steps = [];
+
+  const list = lines.filter(l => l.pct > 0).map(l => `$${l.pct} from ${FINAL3_KINDS[l.key]}`);
+  const listText =
+    list.length > 1 ? `${list.slice(0, -1).join(', ')} and ${list[list.length - 1]}` : list[0];
+  steps.push({
+    title: 'Where each $100 came from',
+    tone: raw >= 75 ? 'good' : raw < 45 ? 'bad' : 'neutral',
+    text:
+      (ownPct > 0
+        ? `${name} paid some of the money personally. We leave that out, and loans and transfers too, so these amounts are per $100 given by others: `
+        : 'Per $100 given (loans and transfers left out): ') +
+      `${listText}. We start with the money people gave directly: $${raw}.` +
+      (by('funds') > 0
+        ? " Money passed on by other politicians' joint funds counts as theirs, so it counts nothing."
+        : ''),
+  });
+
+  if (d.big > 0) {
+    const counted = dollars(d.bigCounted);
+    const lost = Math.max(0, big - counted);
+    const share = Math.round((d.allowance || 0) * 100);
+    const who =
+      d.reliable && d.fewestHoldingHalf
+        ? `Half of the big-donation money came from ${count(d.fewestHoldingHalf)} ${d.fewestHoldingHalf === 1 ? 'person' : 'people'}, out of ${count(d.donors)} big donors. `
+        : "We don't have enough of the donor records to tell how many people gave the big donations, so we use a middle rule. ";
+    steps.push({
+      title: lost > 0 ? 'Some big donations don’t count' : 'All the big donations count',
+      tone: lost > 0 ? 'bad' : 'good',
+      text:
+        who +
+        (lost > 0
+          ? `So big donations can only make up ${share} in every 100 dollars that people gave. Of the $${big} in big donations, we count $${counted}.`
+          : `Big donations can make up ${share} in every 100 dollars that people gave, and here they're under that, so all $${big} counts.`),
+    });
+  }
+
+  if (d.pac > 0) {
+    const counted = dollars(d.pacCounted);
+    steps.push({
+      title: counted > 0 ? 'Some PAC money counts' : 'The PAC money counts nothing',
+      tone: counted > 0 ? 'neutral' : 'bad',
+      text:
+        `A PAC counts only when the group behind it is run by its members (they elect its leaders, as in a union), and only the part of its money that traces back to many people. PACs of businesses, politicians and parties, and of groups run by a board, count nothing. ` +
+        `Of the $${by('pac')} from PACs, $${counted} counts.`,
+    });
+  }
+
+  if (d.directed > 0) {
+    const counted = dollars(d.directedCounted);
+    steps.push({
+      title: counted > 0 ? 'Some steered gifts count' : 'Steered gifts count nothing',
+      tone: counted > 0 ? 'neutral' : 'bad',
+      text: `Some donors gave through a committee that chose to pass their gifts to ${name}. We count those as the committee's gift: they count only if that committee is run by its members. Of the $${by('directed')} given that way, $${counted} counts.`,
+    });
+  }
+
+  const bands = gradeBands(0);
+  const band = bands.find(b => b.letter === tier);
+  const next = bands[bands.indexOf(band) - 1];
+  const line =
+    tier === 'S'
+      ? `An S needs $${band.from}, so this is an S.`
+      : tier === 'F'
+        ? `${name} would need $${next.from} to get an E.`
+        : `${tier === 'A' || tier === 'E' ? 'An' : 'A'} ${tier} needs $${band.from} and ${article(next.letter)} ${next.letter} needs $${next.from}.`;
+  steps.push({
+    title: `$${score} out of $100 is ${article(tier)} ${tier}`,
+    tone: GRADES[tier].rank >= 6 ? 'good' : GRADES[tier].rank <= 4 ? 'bad' : 'neutral',
+    text: `In the end, $${score} out of every $100 counts as coming from ordinary people. ${line}`,
+  });
+  return { steps, raw, score, shift: 0 };
+}
+
+function headlineFinal3({ tier, grade, name }) {
+  const d = grade.detail;
+  const lines = final3Lines(d);
+  const by = key => lines.find(l => l.key === key)?.pct ?? 0;
+  const G = d.given;
+  const dollars = x => Math.round(((x || 0) / G) * 100);
+  const small = by('small');
+  const big = by('big');
+  const raw = small + big;
+  if (['S', 'A', 'B'].includes(tier)) {
+    return {
+      tone: 'good',
+      eyebrow: 'What helped the grade',
+      big: `${raw}% of the money came from people.`,
+      text:
+        `${small}% came in small donations under $200 and ${big}% in big donations over $200.` +
+        (d.reliable && d.fewestHoldingHalf
+          ? ` Half of the big-donation money came from ${count(d.fewestHoldingHalf)} different people.`
+          : ''),
+      showConc: Boolean(d.reliable && d.fewestHoldingHalf),
+    };
+  }
+  const eyebrow = tier === 'C' ? 'What held the grade back' : 'What hurt the grade most';
+  const lostBig = Math.max(0, big - dollars(d.bigCounted));
+  const lostPac = Math.max(0, by('pac') - dollars(d.pacCounted));
+  const lostDirected = Math.max(0, by('directed') - dollars(d.directedCounted));
+  const other = by('funds') + by('party');
+  const worst = [
+    ['conc', lostBig],
+    ['pac', lostPac],
+    ['directed', lostDirected],
+    ['other', other],
+  ].sort((a, b) => b[1] - a[1])[0][0];
+  if (worst === 'pac') {
+    return {
+      tone: 'bad',
+      eyebrow,
+      big: `${by('pac')}% of the money came from PACs.`,
+      text: `Only PACs of groups run by their members count, and only the part that traces back to many people: $${dollars(d.pacCounted)} of every $100.`,
+      showConc: false,
+    };
+  }
+  if (worst === 'directed') {
+    return {
+      tone: 'bad',
+      eyebrow,
+      big: `${by('directed')}% of the money was steered to ${name} by committees.`,
+      text: "We count those gifts as the committee's, and they count only when the committee is run by its members.",
+      showConc: false,
+    };
+  }
+  if (worst === 'other') {
+    return {
+      tone: 'bad',
+      eyebrow,
+      big: `${other}% of the money came from other politicians and parties.`,
+      text: "Money from party committees and other politicians' joint funds doesn't count as coming from people.",
+      showConc: false,
+    };
+  }
+  return {
+    tone: 'bad',
+    eyebrow,
+    big:
+      d.reliable && d.fewestHoldingHalf
+        ? `${count(d.fewestHoldingHalf)} ${d.fewestHoldingHalf === 1 ? 'person' : 'people'} gave half the big‑donation money.`
+        : `${raw}% of the money came from people.`,
+    text:
+      `${raw}% of the money came from people, but few of them gave most of it.` +
+      (d.reliable && d.donors
+        ? ` ${count(d.donors)} people each gave ${name} more than $200. Half of that money came from just ${d.fewestHoldingHalf === 1 ? 'one of them' : `${count(d.fewestHoldingHalf)} of them`}.`
+        : ''),
+    showConc: Boolean(d.reliable && d.fewestHoldingHalf),
   };
 }

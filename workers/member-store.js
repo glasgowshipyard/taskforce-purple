@@ -141,7 +141,10 @@ export function publishedMember(record, result) {
     return record;
   }
   const a = result.analysis || {};
-  const donors = a.uniqueDonors ?? null;
+  // FINAL-3's donor test (donors who net above $0, directed gifts left out)
+  // where the grade used it
+  const donors = a.donorTest ? a.donorTest.donors : (a.uniqueDonors ?? null);
+  const nakamoto = a.donorTest ? a.donorTest.nakamoto : (a.nakamotoCoefficient ?? null);
   return {
     ...record,
     tier: g.tier,
@@ -153,11 +156,9 @@ export function publishedMember(record, result) {
     gradeCycle: result.cycle,
     gradedAt: result.computed_at,
     uniqueDonors: donors,
-    nakamotoCoefficient: a.nakamotoCoefficient ?? null,
+    nakamotoCoefficient: nakamoto,
     nakamotoPercent:
-      donors && a.nakamotoCoefficient !== null && a.nakamotoCoefficient !== undefined
-        ? (a.nakamotoCoefficient / donors) * 100
-        : null,
+      donors && nakamoto !== null && nakamoto !== undefined ? (nakamoto / donors) * 100 : null,
     top10Concentration: a.top10Concentration ?? null,
     topConduits: a.conduits || [],
     earmarkedIndividualTotal: a.earmarkedTotal ?? null,

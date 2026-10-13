@@ -116,6 +116,18 @@ redesigned them wasted days and, twice, proposed breaking them. Build on them.
   it, with the change kept in history. A grade not yet checked carries
   `evidenceChecked: false` and a plain note on the site. This replaced
   "Grade pending", which was decided before the bulk file was found.
+- **FINAL-3 is the grading (owner: frozen 2026-10-12, live 2026-10-13).** The
+  method is GRASSROOTS_CALCULATION_GUIDE.md and /how (one-page spec): grade
+  on the money given (s + b + p + y), the allowance from how few donors gave
+  half the big-donor money, PAC money counted only for PACs whose sponsor's
+  members elect most of its board (Form 990 Part VI and Schedule O;
+  LMRDA-covered unions pass on the law), at the share traced to people;
+  businesses, politicians, parties, boards and no-sponsor PACs count 0;
+  gifts a committee directed count as that committee's; other politicians'
+  joint funds count 0. `gradeFinal3` in tier-calculation.js; the PAC sorting
+  and stated facts in scripts/refresh/lib/sponsors.mjs and data/. Change it
+  only through the simulation (scripts/simulate/report-final3.mjs rebuilds
+  each round exactly and names the cause of every grade change).
 - **Identity is looked up, never inferred** (`workers/fec-crosswalk.js`). No
   surname search anywhere — it tied 35 members to other people.
 - **No grade on figures we can't reconcile to source** — ringfence instead
