@@ -4299,5 +4299,89 @@
     "filer": "PIPE TRADES DISTRICT COUNCIL #36 APPRENTICE",
     "taxYear": 2024,
     "notes": []
+  },
+  "454955967": {
+    "found": true,
+    "name": "INVEST IN EDUCATION COALITION INC",
+    "taxPeriod": "202412",
+    "objectId": "202502539349300220",
+    "members": false,
+    "elect": true,
+    "approve": false,
+    "votingMembers": 3,
+    "revenue": 2100922,
+    "filer": "INVEST IN EDUCATION COALITION INC",
+    "taxYear": 2024,
+    "notes": [
+      "FORM 990, PART VI, SECTION A, LINE 7A: THE ORGANIZATION HAS ONE CLASS OF MEMBERS WHO WILL BE THE PERSONS WHO ARE ELECTED OR APPOINTED FROM TIME TO TIME AS DIRECTORS OF THE ORGANIZATION AND WHO WILL BE CONSIDERED TO THE BE MEMBERS OF THE ORGANIZATION FOR THE PURPOSES OF ANY STATUTORY PROVISION OR RULE OF LAW RELATING TO MEMBERS OF NON-STOCK NOT-FOR-PROFIT CORPORATION."
+    ]
+  },
+  "464064067": {
+    "found": true,
+    "name": "HENRY FORD HEALTH SYSTEM GOVERNMENT AFFAIRS SERVICES",
+    "taxPeriod": "202412",
+    "objectId": "202533189349304848",
+    "members": true,
+    "elect": true,
+    "approve": true,
+    "votingMembers": 8,
+    "revenue": 1404779,
+    "filer": "HENRY FORD HEALTH SYSTEM GOVERNMENT",
+    "taxYear": 2024,
+    "notes": [
+      "FORM 990, PART VI, SECTION A, LINE 6: THE ORGANIZATION IS A TAX EXEMPT MEMBERSHIP CORPORATION AND THE SOLE MEMBER OF THE ORGANIZATION IS HENRY FORD HEALTH SYSTEM DBA HENRY FORD HEALTH (\"HF HEALTH\")",
+      "FORM 990, PART VI, SECTION A, LINE 7A: AS THE SOLE MEMBER OF THE ORGANIZATION, HF HEALTH HOLDS THE RESERVE POWER TO APPROVE OR DISAPPROVE TRUSTEE APPOINTMENTS."
+    ]
+  },
+  "530188062": {
+    "found": true,
+    "name": "NATIONAL ASSOCIATION OF POSTAL SUPERVISORS",
+    "taxPeriod": "202505",
+    "objectId": "202600979349301715",
+    "members": true,
+    "elect": true,
+    "approve": true,
+    "votingMembers": 24,
+    "revenue": 6338524,
+    "filer": "NATIONAL ASSOCIATION OF POSTAL",
+    "taxYear": 2024,
+    "notes": [
+      "FORM 990, PART VI, SECTION A, LINE 6: NAPS HAS THREE VOTING CLASSES. THESE CLASSES ARE (1) ACTIVE MEMBERS, WHICH INCLUDES CURRENT SUPERVISORY/MANAGERIAL AND POSTMASTER PERSONNEL, WHO PAY FULL DUES, KNOWN AS \"PER CAPITA TAX; AND (2) ASSOCIATE MEMBERS WHO RETIRED IN GOOD STANDING AND PAY ONE-HALF OF PER CAPITA TAX. EACH STATE AND LOCAL BRANCH IS ALLOWED ONE VOTE FOR EACH TEN MEMBERS WHO PAID FULL PER CAPITA TAX DURING THE PRECEDING FISC\u2026",
+      "FORM 990, PART VI, SECTION A, LINE 7A: SEE RESPONSE FOR LINE 6 (ABOVE)"
+    ]
+  },
+  "680226290": {
+    "found": false,
+    "why": "no Form 990 in the e-file archive since 2023; latest return: Form 990EZ, period 202412"
+  },
+  "840764840": {
+    "found": true,
+    "name": "COBALT ADVOCATES",
+    "taxPeriod": "202512",
+    "objectId": "202641829349301524",
+    "members": false,
+    "elect": false,
+    "approve": false,
+    "votingMembers": 20,
+    "revenue": 866613,
+    "filer": "COBALT ADVOCATES",
+    "taxYear": 2025,
+    "notes": []
+  },
+  "841328830": {
+    "found": true,
+    "name": "COMPASSION & CHOICES ACTION NETWORK",
+    "taxPeriod": "202506",
+    "objectId": "202630289349300958",
+    "members": false,
+    "elect": true,
+    "approve": false,
+    "votingMembers": 8,
+    "revenue": 1800732,
+    "filer": "COMPASSION &amp; CHOICES ACTION NETWORK",
+    "taxYear": 2024,
+    "notes": [
+      "FORM 990, PART VI, SECTION A, LINE 7A: RELATED ORGANIZATION COMPASSION &amp; CHOICES ASSIGNS AND APPROVES DIRECTORS FOR COMPASSION &amp; CHOICES ACTION NETWORK (CCAN)."
+    ]
   }
 }

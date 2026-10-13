@@ -4,6 +4,30 @@
 
 ---
 
+## 2026-10-12 (later): FINAL-3, the freeze candidate (nothing published, branch final-grading)
+
+FINAL-2 with four changes (owner's brief), on the same snapshot and export:
+
+1. the people test's stricter reading: members must elect most of the
+   voting board (line 7a Yes is not enough where Schedule O shows a minority
+   or a self-electing board, or line 6 says no members), `_minority` in
+   `people-test.json`;
+2. unions covered by the LMRDA pass on the law (`lmrda` in
+   `people-test.json`, 102 private-sector and postal union PACs);
+   public-sector and federal unions take the Form 990 test;
+3. rule 6 for FEC types C and T only; W goes by its IRS status, co-ops (V)
+   stay BUSINESS; the postal supervisors take the people test;
+4. a sponsor whose members are businesses is BUSINESS (the Center for
+   Sportfishing Policy; Henry Ford Health's affiliate).
+   `scripts/simulate/report-final3.mjs` reproduces FINAL-2 from the same code
+   (each change switched off; every member's grade and score and every PAC's
+   group match) and adds the four in order. S36 A74 B72 C96 D113 E100 F43;
+   22 grades change from FINAL-2 (20 by rule 1, 2 by rule 2), none
+   unexplained. AIPAC, J Street and LCV fail rule 1, so no directed gift
+   counts.
+
+---
+
 ## 2026-10-12: FINAL-2 simulated (owner's brief; nothing published, branch final-grading)
 
 Same snapshot; inputs re-exported (run 38328698299) with the donor test

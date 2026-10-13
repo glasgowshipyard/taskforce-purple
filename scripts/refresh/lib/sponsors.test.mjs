@@ -179,18 +179,25 @@ describe('sponsor sorting', () => {
 });
 
 describe('FINAL-2 sorting and the people test', () => {
-  it('rule 6: filed as a company, BUSINESS whatever the IRS says', () => {
+  it('rule 6: filed as a company or trade group (C, T), BUSINESS whatever the IRS says', () => {
+    const aipac = orgType => ({
+      designation: 'B',
+      orgType,
+      connectedOrg: 'AMERICAN ISRAEL PUBLIC AFFAIRS COMMITTEE',
+    });
+    expect(classifyPac('C30', aipac('C'), index)).toMatchObject({
+      group: 'business',
+      settledBy: 'FEC',
+    });
+    // FINAL-3: a corporation without capital stock goes by the IRS
+    expect(classifyPac('C30', aipac('W'), index).group).toBe('people');
+    expect(classifyPac('C30', { orgType: 'W', connectedOrg: 'NOBODY KNOWN' }, index).group).toBe(
+      'business'
+    );
+    // FINAL-2 held W too
     expect(
-      classifyPac(
-        'C30',
-        {
-          designation: 'B',
-          orgType: 'W',
-          connectedOrg: 'AMERICAN ISRAEL PUBLIC AFFAIRS COMMITTEE',
-        },
-        index
-      )
-    ).toMatchObject({ group: 'business', settledBy: 'FEC' });
+      classifyPac('C30', aipac('W'), index, {}, null, { rule6: ['C', 'T', 'W', 'V'] }).group
+    ).toBe('business');
   });
 
   it('rules 7 and 8: insurers, health plans, credit unions and producers are BUSINESS', () => {
@@ -249,5 +256,27 @@ describe('FINAL-2 sorting and the people test', () => {
     expect(peopleTest('C43', {}, forms).elected).toBeNull();
     // A hand-identified EIN wins over the IRS match
     expect(peopleTest('C44', sorted, forms, { C44: { ein: '222222222' } }).elected).toBe(false);
+  });
+
+  it('FINAL-3: most of the board, and unions under the LMRDA pass on the law', () => {
+    const forms = {
+      333333333: { found: true, name: 'A GROUP', taxYear: 2024, members: true, elect: true },
+      444444444: { found: true, name: 'NO MEMBERS', taxYear: 2024, members: false, elect: true },
+      555555555: { found: true, name: 'A UNION', taxYear: 2024, members: false, elect: false },
+    };
+    const minority = { 333333333: 'members elect one of 39 directors' };
+    const at = ein => ({ irs: { ein } });
+    expect(peopleTest('C50', at('333333333'), forms, {}, { minority }).elected).toBe(false);
+    expect(peopleTest('C51', at('444444444'), forms).elected).toBe(false);
+    // FINAL-2 read line 7a alone
+    expect(peopleTest('C50', at('333333333'), forms, {}, { minority, strict: false }).elected).toBe(
+      true
+    );
+    const law = { C52: { lmrda: 'a private-sector union' } };
+    expect(peopleTest('C52', at('555555555'), forms, law)).toMatchObject({
+      elected: true,
+      rule: 2,
+    });
+    expect(peopleTest('C52', at('555555555'), forms, law, { lmrda: false }).elected).toBe(false);
   });
 });

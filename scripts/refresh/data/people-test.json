@@ -1,12 +1,13 @@
 {
-  "_about": "The people test's stated facts (FINAL-2, owner 2026-10-12), by committee: 'ein' where the sponsor's IRS record was identified by hand (its Form 990 then decides), or 'elected' with the fact used where no Form 990 is found. scripts/refresh/lib/sponsors.mjs peopleTest.",
+  "_about": "The people test's stated facts, by committee: 'ein' where the sponsor's IRS record was identified by hand (its Form 990 then decides); 'elected' with the fact used where no Form 990 is found; 'lmrda' where the sponsor is a labor union covered by the Labor-Management Reporting and Disclosure Act, which passes on the law (FINAL-3 rule 2). '_minority' (by EIN): sponsors whose own Schedule O shows members elect a minority of the board, or the board is its own membership (FINAL-3 rule 1). scripts/refresh/lib/sponsors.mjs peopleTest.",
   "C00011114": {
     "ein": "530237789",
     "who": "American Federation of State, County and Municipal Employees (AFSCME), national"
   },
   "C00023580": {
     "ein": "530114650",
-    "who": "National Association of Letter Carriers (NALC), national"
+    "who": "National Association of Letter Carriers (NALC), national",
+    "lmrda": "a union of U.S. Postal Service workers, covered through the Postal Reorganization Act (39 U.S.C. 1209(b)): 29 U.S.C. 481 requires its officers to be elected by secret ballot of members."
   },
   "C00003251": {
     "ein": "530115260",
@@ -18,31 +19,38 @@
   },
   "C00029504": {
     "ein": "530088590",
-    "who": "International Union of Operating Engineers (IUOE), national: EPEC is its national PAC"
+    "who": "International Union of Operating Engineers (IUOE), national: EPEC is its national PAC",
+    "lmrda": "a union of private-sector workers (operating engineers): 29 U.S.C. 481 requires its officers to be elected by secret ballot of members, directly or through delegates they elect by secret ballot."
   },
   "C00136739": {
     "ein": "530088590",
-    "who": "International Union of Operating Engineers (IUOE), national"
+    "who": "International Union of Operating Engineers (IUOE), national",
+    "lmrda": "a union of private-sector workers (operating engineers): 29 U.S.C. 481 requires its officers to be elected by secret ballot of members, directly or through delegates they elect by secret ballot."
   },
   "C00012476": {
     "ein": "530159020",
-    "who": "United Association of Plumbers and Pipefitters (UA), national"
+    "who": "United Association of Plumbers and Pipefitters (UA), national",
+    "lmrda": "a union of private-sector workers (plumbers and pipefitters): 29 U.S.C. 481 requires its officers to be elected by secret ballot of members, directly or through delegates they elect by secret ballot."
   },
   "C00320218": {
     "ein": "530159020",
-    "who": "United Association of Plumbers and Pipefitters (UA), national"
+    "who": "United Association of Plumbers and Pipefitters (UA), national",
+    "lmrda": "a union of private-sector workers (plumbers and pipefitters): 29 U.S.C. 481 requires its officers to be elected by secret ballot of members, directly or through delegates they elect by secret ballot."
   },
   "C00027359": {
     "ein": "430337330",
-    "who": "Iron Workers International, national"
+    "who": "Iron Workers International, national",
+    "lmrda": "a union of private-sector workers (iron workers): 29 U.S.C. 481 requires its officers to be elected by secret ballot of members, directly or through delegates they elect by secret ballot."
   },
   "C00002766": {
     "ein": "530220586",
-    "who": "United Food and Commercial Workers (UFCW), national"
+    "who": "United Food and Commercial Workers (UFCW), national",
+    "lmrda": "a union of private-sector workers (food and commercial workers): 29 U.S.C. 481 requires its officers to be elected by secret ballot of members, directly or through delegates they elect by secret ballot."
   },
   "C00887380": {
     "ein": "530220586",
-    "who": "United Food and Commercial Workers (UFCW), national"
+    "who": "United Food and Commercial Workers (UFCW), national",
+    "lmrda": "a union of private-sector workers (food and commercial workers): 29 U.S.C. 481 requires its officers to be elected by secret ballot of members, directly or through delegates they elect by secret ballot."
   },
   "C00009936": {
     "ein": "530025740",
@@ -50,15 +58,18 @@
   },
   "C00488262": {
     "ein": "261967865",
-    "who": "NetJets Association of Shared Aircraft Pilots (NJASAP), the NetJets pilots union"
+    "who": "NetJets Association of Shared Aircraft Pilots (NJASAP), the NetJets pilots union",
+    "lmrda": "a union of private-sector workers (aviation pilots (NetJets)): 29 U.S.C. 481 requires its officers to be elected by secret ballot of members, directly or through delegates they elect by secret ballot."
   },
   "C00027532": {
     "ein": "111966978",
-    "who": "American Maritime Officers (AMO), the union"
+    "who": "American Maritime Officers (AMO), the union",
+    "lmrda": "a union of private-sector workers (merchant marine officers): 29 U.S.C. 481 requires its officers to be elected by secret ballot of members, directly or through delegates they elect by secret ballot."
   },
   "C00001636": {
     "ein": "464039786",
-    "who": "SMART (Sheet Metal, Air, Rail and Transportation Workers), national; SMART-TD is its transportation division"
+    "who": "SMART (Sheet Metal, Air, Rail and Transportation Workers), national; SMART-TD is its transportation division",
+    "lmrda": "a union of private-sector workers (rail and transportation workers (SMART-TD)): 29 U.S.C. 481 requires its officers to be elected by secret ballot of members, directly or through delegates they elect by secret ballot."
   },
   "C00466813": {
     "ein": "593786428",
@@ -70,39 +81,48 @@
   },
   "C00005157": {
     "ein": "486031851",
-    "who": "International Brotherhood of Boilermakers, national"
+    "who": "International Brotherhood of Boilermakers, national",
+    "lmrda": "a union of private-sector workers (boilermakers): 29 U.S.C. 481 requires its officers to be elected by secret ballot of members, directly or through delegates they elect by secret ballot."
   },
   "C00002840": {
     "ein": "380679801",
-    "who": "United Auto Workers (UAW), national"
+    "who": "United Auto Workers (UAW), national",
+    "lmrda": "a union of private-sector workers (auto, aerospace and other workers): 29 U.S.C. 481 requires its officers to be elected by secret ballot of members, directly or through delegates they elect by secret ballot."
   },
   "C00342907": {
     "ein": "530088501",
-    "who": "Laborers' International Union of North America (LIUNA), national: the Midwest Region is one of its regions"
+    "who": "Laborers' International Union of North America (LIUNA), national: the Midwest Region is one of its regions",
+    "lmrda": "a union of private-sector workers (construction laborers (LIUNA Midwest Region)): 29 U.S.C. 481 requires its officers to be elected by secret ballot of members, directly or through delegates they elect by secret ballot."
   },
   "C00429175": {
     "ein": "530088501",
-    "who": "Laborers' International Union of North America (LIUNA), national: the Mid-Atlantic Region is one of its regions"
+    "who": "Laborers' International Union of North America (LIUNA), national: the Mid-Atlantic Region is one of its regions",
+    "lmrda": "a union of private-sector workers (construction laborers (LIUNA Mid-Atlantic Region)): 29 U.S.C. 481 requires its officers to be elected by secret ballot of members, directly or through delegates they elect by secret ballot."
   },
   "C00251009": {
     "ein": "360710830",
-    "who": "Air Line Pilots Association, International (ALPA): the United Airlines Master Executive Council is ALPA's council of United pilots"
+    "who": "Air Line Pilots Association, International (ALPA): the United Airlines Master Executive Council is ALPA's council of United pilots",
+    "lmrda": "a union of private-sector workers (airline pilots (United Airlines pilots in ALPA)): 29 U.S.C. 481 requires its officers to be elected by secret ballot of members, directly or through delegates they elect by secret ballot."
   },
   "C00035451": {
     "ein": "360710830",
-    "who": "Air Line Pilots Association, International (ALPA), national"
+    "who": "Air Line Pilots Association, International (ALPA), national",
+    "lmrda": "a union of private-sector workers (airline pilots): 29 U.S.C. 481 requires its officers to be elected by secret ballot of members, directly or through delegates they elect by secret ballot."
   },
   "C00073056": {
     "ein": "136020335",
-    "who": "International Organization of Masters, Mates and Pilots, national"
+    "who": "International Organization of Masters, Mates and Pilots, national",
+    "lmrda": "a union of private-sector workers (ship masters, mates and pilots): 29 U.S.C. 481 requires its officers to be elected by secret ballot of members, directly or through delegates they elect by secret ballot."
   },
   "C00004325": {
     "ein": "111690171",
-    "who": "Seafarers International Union of North America, national"
+    "who": "Seafarers International Union of North America, national",
+    "lmrda": "a union of private-sector workers (seafarers): 29 U.S.C. 481 requires its officers to be elected by secret ballot of members, directly or through delegates they elect by secret ballot."
   },
   "C00490524": {
     "ein": "111690171",
-    "who": "Seafarers International Union of North America: SEATU is an affiliate"
+    "who": "Seafarers International Union of North America: SEATU is an affiliate",
+    "lmrda": "a union of private-sector workers (seafarers and entertainment workers): 29 U.S.C. 481 requires its officers to be elected by secret ballot of members, directly or through delegates they elect by secret ballot."
   },
   "C00131185": {
     "ein": "520636210",
@@ -110,11 +130,13 @@
   },
   "C00065870": {
     "ein": "340200322",
-    "who": "International Union of Operating Engineers Local 18"
+    "who": "International Union of Operating Engineers Local 18",
+    "lmrda": "a union of private-sector workers (operating engineers (Local 18)): 29 U.S.C. 481 requires its officers to be elected by secret ballot of members, directly or through delegates they elect by secret ballot."
   },
   "C00279380": {
     "ein": "521759283",
-    "who": "Marine Engineers' Beneficial Association (MEBA), national"
+    "who": "Marine Engineers' Beneficial Association (MEBA), national",
+    "lmrda": "a union of private-sector workers (marine engineers): 29 U.S.C. 481 requires its officers to be elected by secret ballot of members, directly or through delegates they elect by secret ballot."
   },
   "C00328401": {
     "ein": "900734244",
@@ -122,7 +144,8 @@
   },
   "C00219568": {
     "ein": "951310931",
-    "who": "International Union of Operating Engineers Local 12"
+    "who": "International Union of Operating Engineers Local 12",
+    "lmrda": "a union of private-sector workers (operating engineers (Local 12)): 29 U.S.C. 481 requires its officers to be elected by secret ballot of members, directly or through delegates they elect by secret ballot."
   },
   "C00003160": {
     "ein": "530025755",
@@ -134,7 +157,8 @@
   },
   "C00142851": {
     "ein": "361581416",
-    "who": "International Union of Operating Engineers Local 150"
+    "who": "International Union of Operating Engineers Local 150",
+    "lmrda": "a union of private-sector workers (operating engineers (Local 150)): 29 U.S.C. 481 requires its officers to be elected by secret ballot of members, directly or through delegates they elect by secret ballot."
   },
   "C00280909": {
     "ein": "521673883",
@@ -154,19 +178,23 @@
   },
   "C00423731": {
     "ein": "390368025",
-    "who": "International Union of Operating Engineers Local 139"
+    "who": "International Union of Operating Engineers Local 139",
+    "lmrda": "a union of private-sector workers (operating engineers (Local 139)): 29 U.S.C. 481 requires its officers to be elected by secret ballot of members, directly or through delegates they elect by secret ballot."
   },
   "C00164509": {
     "ein": "530088460",
-    "who": "International Federation of Professional and Technical Engineers (IFPTE), national"
+    "who": "International Federation of Professional and Technical Engineers (IFPTE), national",
+    "lmrda": "a union of private-sector workers (professional and technical engineers (a national union with private-sector members, such as Boeing engineers)): 29 U.S.C. 481 requires its officers to be elected by secret ballot of members, directly or through delegates they elect by secret ballot."
   },
   "C00174011": {
     "ein": "131426674",
-    "who": "Retail, Wholesale and Department Store Union (RWDSU), New York"
+    "who": "Retail, Wholesale and Department Store Union (RWDSU), New York",
+    "lmrda": "a union of private-sector workers (retail, wholesale and department store workers): 29 U.S.C. 481 requires its officers to be elected by secret ballot of members, directly or through delegates they elect by secret ballot."
   },
   "C00024422": {
     "ein": "940577785",
-    "who": "International Union of Operating Engineers Local 3"
+    "who": "International Union of Operating Engineers Local 3",
+    "lmrda": "a union of private-sector workers (operating engineers (Local 3)): 29 U.S.C. 481 requires its officers to be elected by secret ballot of members, directly or through delegates they elect by secret ballot."
   },
   "C00135368": {
     "ein": "941153307",
@@ -174,11 +202,13 @@
   },
   "C00448746": {
     "ein": "050161286",
-    "who": "International Union of Operating Engineers Local 57"
+    "who": "International Union of Operating Engineers Local 57",
+    "lmrda": "a union of private-sector workers (operating engineers (Local 57)): 29 U.S.C. 481 requires its officers to be elected by secret ballot of members, directly or through delegates they elect by secret ballot."
   },
   "C00418400": {
     "ein": "410329340",
-    "who": "International Union of Operating Engineers Local 49"
+    "who": "International Union of Operating Engineers Local 49",
+    "lmrda": "a union of private-sector workers (operating engineers (Local 49)): 29 U.S.C. 481 requires its officers to be elected by secret ballot of members, directly or through delegates they elect by secret ballot."
   },
   "C00688721": {
     "ein": "300233489",
@@ -190,19 +220,23 @@
   },
   "C00702043": {
     "ein": "041472080",
-    "who": "IBEW Local 103"
+    "who": "IBEW Local 103",
+    "lmrda": "a union of private-sector workers (electrical workers (IBEW Local 103)): 29 U.S.C. 481 requires its officers to be elected by secret ballot of members, directly or through delegates they elect by secret ballot."
   },
   "C00125534": {
     "ein": "231175040",
-    "who": "Roofers Local 30 (United Union of Roofers, Waterproofers and Allied Workers), Philadelphia"
+    "who": "Roofers Local 30 (United Union of Roofers, Waterproofers and Allied Workers), Philadelphia",
+    "lmrda": "a union of private-sector workers (roofers (Local 30)): 29 U.S.C. 481 requires its officers to be elected by secret ballot of members, directly or through delegates they elect by secret ballot."
   },
   "C00017194": {
     "ein": "221010985",
-    "who": "International Union of Operating Engineers Local 825"
+    "who": "International Union of Operating Engineers Local 825",
+    "lmrda": "a union of private-sector workers (operating engineers (Local 825)): 29 U.S.C. 481 requires its officers to be elected by secret ballot of members, directly or through delegates they elect by secret ballot."
   },
   "C00138966": {
     "ein": "221010975",
-    "who": "International Union of Operating Engineers Local 68"
+    "who": "International Union of Operating Engineers Local 68",
+    "lmrda": "a union of private-sector workers (operating engineers (Local 68)): 29 U.S.C. 481 requires its officers to be elected by secret ballot of members, directly or through delegates they elect by secret ballot."
   },
   "C00638213": {
     "ein": "526056662",
@@ -210,7 +244,8 @@
   },
   "C00112995": {
     "ein": "140768455",
-    "who": "International Union of Operating Engineers Local 158"
+    "who": "International Union of Operating Engineers Local 158",
+    "lmrda": "a union of private-sector workers (operating engineers (Local 158)): 29 U.S.C. 481 requires its officers to be elected by secret ballot of members, directly or through delegates they elect by secret ballot."
   },
   "C00265546": {
     "ein": "592825130",
@@ -218,15 +253,18 @@
   },
   "C00285593": {
     "ein": "951318135",
-    "who": "Western States Regional Council of Carpenters"
+    "who": "Western States Regional Council of Carpenters",
+    "lmrda": "a union of private-sector workers (carpenters (a regional council)): 29 U.S.C. 481 requires its officers to be elected by secret ballot of members, directly or through delegates they elect by secret ballot."
   },
   "C00287748": {
     "ein": "366000132",
-    "who": "American Train Dispatchers Association"
+    "who": "American Train Dispatchers Association",
+    "lmrda": "a union of private-sector workers (train dispatchers): 29 U.S.C. 481 requires its officers to be elected by secret ballot of members, directly or through delegates they elect by secret ballot."
   },
   "C00434076": {
     "ein": "060401158",
-    "who": "International Union of Operating Engineers Local 478"
+    "who": "International Union of Operating Engineers Local 478",
+    "lmrda": "a union of private-sector workers (operating engineers (Local 478)): 29 U.S.C. 481 requires its officers to be elected by secret ballot of members, directly or through delegates they elect by secret ballot."
   },
   "C00629709": {
     "ein": "271432208",
@@ -234,39 +272,48 @@
   },
   "C00032979": {
     "ein": "530215427",
-    "who": "International Brotherhood of Teamsters, national"
+    "who": "International Brotherhood of Teamsters, national",
+    "lmrda": "a union of private-sector workers (truck drivers, warehouse and other workers (Teamsters)): 29 U.S.C. 481 requires its officers to be elected by secret ballot of members, directly or through delegates they elect by secret ballot."
   },
   "C00099234": {
     "ein": "346000349",
-    "who": "Brotherhood of Locomotive Engineers and Trainmen (BLET), a Teamsters division"
+    "who": "Brotherhood of Locomotive Engineers and Trainmen (BLET), a Teamsters division",
+    "lmrda": "a union of private-sector workers (locomotive engineers and trainmen): 29 U.S.C. 481 requires its officers to be elected by secret ballot of members, directly or through delegates they elect by secret ballot."
   },
   "C00345306": {
     "ein": "340702551",
-    "who": "National Postal Mail Handlers Union, a division of LIUNA"
+    "who": "National Postal Mail Handlers Union, a division of LIUNA",
+    "lmrda": "a union of U.S. Postal Service workers, covered through the Postal Reorganization Act (39 U.S.C. 1209(b)): 29 U.S.C. 481 requires its officers to be elected by secret ballot of members."
   },
   "C00002469": {
     "ein": "536001417",
-    "who": "International Association of Machinists and Aerospace Workers (IAM), Grand Lodge (national)"
+    "who": "International Association of Machinists and Aerospace Workers (IAM), Grand Lodge (national)",
+    "lmrda": "a union of private-sector workers (machinists and aerospace workers): 29 U.S.C. 481 requires its officers to be elected by secret ballot of members, directly or through delegates they elect by secret ballot."
   },
   "C00007542": {
     "ein": "464039786",
-    "who": "SMART (Sheet Metal, Air, Rail and Transportation Workers), national"
+    "who": "SMART (Sheet Metal, Air, Rail and Transportation Workers), national",
+    "lmrda": "a union of private-sector workers (sheet metal, air, rail and transportation workers): 29 U.S.C. 481 requires its officers to be elected by secret ballot of members, directly or through delegates they elect by secret ballot."
   },
   "C00002089": {
     "ein": "530246709",
-    "who": "Communications Workers of America (CWA), national"
+    "who": "Communications Workers of America (CWA), national",
+    "lmrda": "a union of private-sector workers (communications workers): 29 U.S.C. 481 requires its officers to be elected by secret ballot of members, directly or through delegates they elect by secret ballot."
   },
   "C00027342": {
     "ein": "530088380",
-    "who": "International Brotherhood of Electrical Workers (IBEW), national"
+    "who": "International Brotherhood of Electrical Workers (IBEW), national",
+    "lmrda": "a union of private-sector workers (electrical workers): 29 U.S.C. 481 requires its officers to be elected by secret ballot of members, directly or through delegates they elect by secret ballot."
   },
   "C00001016": {
     "ein": "350723065",
-    "who": "United Brotherhood of Carpenters and Joiners (UBC), national"
+    "who": "United Brotherhood of Carpenters and Joiners (UBC), national",
+    "lmrda": "a union of private-sector workers (carpenters): 29 U.S.C. 481 requires its officers to be elected by secret ballot of members, directly or through delegates they elect by secret ballot."
   },
   "C00109595": {
     "ein": "530246709",
-    "who": "Communications Workers of America: Local 13000 (Philadelphia) is a CWA local; national used"
+    "who": "Communications Workers of America: Local 13000 (Philadelphia) is a CWA local; national used",
+    "lmrda": "a union of private-sector workers (communications workers (Local 13000)): 29 U.S.C. 481 requires its officers to be elected by secret ballot of members, directly or through delegates they elect by secret ballot."
   },
   "C00238725": {
     "ein": "521522639",
@@ -274,19 +321,23 @@
   },
   "C00344325": {
     "ein": "131575490",
-    "who": "International Alliance of Theatrical Stage Employees (IATSE), national"
+    "who": "International Alliance of Theatrical Stage Employees (IATSE), national",
+    "lmrda": "a union of private-sector workers (stage and screen workers): 29 U.S.C. 481 requires its officers to be elected by secret ballot of members, directly or through delegates they elect by secret ballot."
   },
   "C00013342": {
     "ein": "530159200",
-    "who": "United Mine Workers of America, international"
+    "who": "United Mine Workers of America, international",
+    "lmrda": "a union of private-sector workers (mine workers): 29 U.S.C. 481 requires its officers to be elected by secret ballot of members, directly or through delegates they elect by secret ballot."
   },
   "C00127621": {
     "ein": "530231138",
-    "who": "Bakery, Confectionery, Tobacco Workers and Grain Millers (BCTGM), international"
+    "who": "Bakery, Confectionery, Tobacco Workers and Grain Millers (BCTGM), international",
+    "lmrda": "a union of private-sector workers (bakery, tobacco and grain mill workers): 29 U.S.C. 481 requires its officers to be elected by secret ballot of members, directly or through delegates they elect by secret ballot."
   },
   "C00073627": {
     "ein": "221476432",
-    "who": "American Federation of Musicians of the United States and Canada, national"
+    "who": "American Federation of Musicians of the United States and Canada, national",
+    "lmrda": "a union of private-sector workers (musicians): 29 U.S.C. 481 requires its officers to be elected by secret ballot of members, directly or through delegates they elect by secret ballot."
   },
   "C00003806": {
     "ein": "530228172",
@@ -302,110 +353,228 @@
   },
   "C00158576": {
     "ein": "136400405",
-    "who": "International Longshoremen's Association, AFL-CIO (national, North Bergen NJ): the largest IRS record under the exact name is a district"
+    "who": "International Longshoremen's Association, AFL-CIO (national, North Bergen NJ): the largest IRS record under the exact name is a district",
+    "lmrda": "a union of private-sector workers (longshore workers): 29 U.S.C. 481 requires its officers to be elected by secret ballot of members, directly or through delegates they elect by secret ballot."
   },
   "C00176214": {
     "ein": "940577594",
-    "who": "International Longshore and Warehouse Union (national, San Francisco): the largest IRS record under the exact name is a local"
+    "who": "International Longshore and Warehouse Union (national, San Francisco): the largest IRS record under the exact name is a local",
+    "lmrda": "a union of private-sector workers (longshore and warehouse workers): 29 U.S.C. 481 requires its officers to be elected by secret ballot of members, directly or through delegates they elect by secret ballot."
   },
   "C00590471": {
     "elected": true,
-    "fact": "A private-sector (or postal) union local, covered by the Labor-Management Reporting and Disclosure Act: 29 U.S.C. 481(b) requires it to elect its officers at least every three years by secret ballot of its members. No Form 990 identified for this local."
+    "fact": "A private-sector (or postal) union local, covered by the Labor-Management Reporting and Disclosure Act: 29 U.S.C. 481(b) requires it to elect its officers at least every three years by secret ballot of its members. No Form 990 identified for this local.",
+    "lmrda": "a union of private-sector workers (food and commercial workers (Local 881)): 29 U.S.C. 481 requires its officers to be elected by secret ballot of members, directly or through delegates they elect by secret ballot."
   },
   "C00162818": {
     "elected": true,
-    "fact": "A private-sector (or postal) union local, covered by the Labor-Management Reporting and Disclosure Act: 29 U.S.C. 481(b) requires it to elect its officers at least every three years by secret ballot of its members. No Form 990 identified for this local."
+    "fact": "A private-sector (or postal) union local, covered by the Labor-Management Reporting and Disclosure Act: 29 U.S.C. 481(b) requires it to elect its officers at least every three years by secret ballot of its members. No Form 990 identified for this local.",
+    "lmrda": "a union of private-sector workers (electrical workers (IBEW Local 98)): 29 U.S.C. 481 requires its officers to be elected by secret ballot of members, directly or through delegates they elect by secret ballot."
   },
   "C00129627": {
     "elected": true,
-    "fact": "A private-sector (or postal) union local, covered by the Labor-Management Reporting and Disclosure Act: 29 U.S.C. 481(b) requires it to elect its officers at least every three years by secret ballot of its members. No Form 990 identified for this local."
+    "fact": "A private-sector (or postal) union local, covered by the Labor-Management Reporting and Disclosure Act: 29 U.S.C. 481(b) requires it to elect its officers at least every three years by secret ballot of its members. No Form 990 identified for this local.",
+    "lmrda": "a union of private-sector workers (pipefitters (Local 636)): 29 U.S.C. 481 requires its officers to be elected by secret ballot of members, directly or through delegates they elect by secret ballot."
   },
   "C00281303": {
     "elected": true,
-    "fact": "A private-sector (or postal) union local, covered by the Labor-Management Reporting and Disclosure Act: 29 U.S.C. 481(b) requires it to elect its officers at least every three years by secret ballot of its members. No Form 990 identified for this local."
+    "fact": "A private-sector (or postal) union local, covered by the Labor-Management Reporting and Disclosure Act: 29 U.S.C. 481(b) requires it to elect its officers at least every three years by secret ballot of its members. No Form 990 identified for this local.",
+    "lmrda": "a union of private-sector workers (plumbers and pipefitters (UA Local 85)): 29 U.S.C. 481 requires its officers to be elected by secret ballot of members, directly or through delegates they elect by secret ballot."
   },
   "C00252825": {
     "elected": true,
-    "fact": "A private-sector (or postal) union local, covered by the Labor-Management Reporting and Disclosure Act: 29 U.S.C. 481(b) requires it to elect its officers at least every three years by secret ballot of its members. No Form 990 identified for this local."
+    "fact": "A private-sector (or postal) union local, covered by the Labor-Management Reporting and Disclosure Act: 29 U.S.C. 481(b) requires it to elect its officers at least every three years by secret ballot of its members. No Form 990 identified for this local.",
+    "lmrda": "a union of private-sector workers (plumbers (Local 690)): 29 U.S.C. 481 requires its officers to be elected by secret ballot of members, directly or through delegates they elect by secret ballot."
   },
   "C00329326": {
     "elected": true,
-    "fact": "A private-sector (or postal) union local, covered by the Labor-Management Reporting and Disclosure Act: 29 U.S.C. 481(b) requires it to elect its officers at least every three years by secret ballot of its members. No Form 990 identified for this local."
+    "fact": "A private-sector (or postal) union local, covered by the Labor-Management Reporting and Disclosure Act: 29 U.S.C. 481(b) requires it to elect its officers at least every three years by secret ballot of its members. No Form 990 identified for this local.",
+    "lmrda": "a union of private-sector workers (plumbers and pipefitters (Local 51)): 29 U.S.C. 481 requires its officers to be elected by secret ballot of members, directly or through delegates they elect by secret ballot."
   },
   "C00421008": {
     "elected": true,
-    "fact": "A private-sector (or postal) union local, covered by the Labor-Management Reporting and Disclosure Act: 29 U.S.C. 481(b) requires it to elect its officers at least every three years by secret ballot of its members. No Form 990 identified for this local."
+    "fact": "A private-sector (or postal) union local, covered by the Labor-Management Reporting and Disclosure Act: 29 U.S.C. 481(b) requires it to elect its officers at least every three years by secret ballot of its members. No Form 990 identified for this local.",
+    "lmrda": "a union of private-sector workers (metal lathers (Local 46)): 29 U.S.C. 481 requires its officers to be elected by secret ballot of members, directly or through delegates they elect by secret ballot."
   },
   "C00232835": {
     "elected": true,
-    "fact": "A private-sector (or postal) union local, covered by the Labor-Management Reporting and Disclosure Act: 29 U.S.C. 481(b) requires it to elect its officers at least every three years by secret ballot of its members. No Form 990 identified for this local."
+    "fact": "A private-sector (or postal) union local, covered by the Labor-Management Reporting and Disclosure Act: 29 U.S.C. 481(b) requires it to elect its officers at least every three years by secret ballot of its members. No Form 990 identified for this local.",
+    "lmrda": "a union of private-sector workers (plumbers and pipefitters (Local 333)): 29 U.S.C. 481 requires its officers to be elected by secret ballot of members, directly or through delegates they elect by secret ballot."
   },
   "C00545780": {
     "elected": true,
-    "fact": "A private-sector (or postal) union local, covered by the Labor-Management Reporting and Disclosure Act: 29 U.S.C. 481(b) requires it to elect its officers at least every three years by secret ballot of its members. No Form 990 identified for this local."
+    "fact": "A private-sector (or postal) union local, covered by the Labor-Management Reporting and Disclosure Act: 29 U.S.C. 481(b) requires it to elect its officers at least every three years by secret ballot of its members. No Form 990 identified for this local.",
+    "lmrda": "a union of private-sector workers (plumbers and steamfitters (Local 598)): 29 U.S.C. 481 requires its officers to be elected by secret ballot of members, directly or through delegates they elect by secret ballot."
   },
   "C00350843": {
     "elected": true,
-    "fact": "A private-sector (or postal) union local, covered by the Labor-Management Reporting and Disclosure Act: 29 U.S.C. 481(b) requires it to elect its officers at least every three years by secret ballot of its members. No Form 990 identified for this local."
+    "fact": "A private-sector (or postal) union local, covered by the Labor-Management Reporting and Disclosure Act: 29 U.S.C. 481(b) requires it to elect its officers at least every three years by secret ballot of its members. No Form 990 identified for this local.",
+    "lmrda": "a union of private-sector workers (pipefitters (Local 455)): 29 U.S.C. 481 requires its officers to be elected by secret ballot of members, directly or through delegates they elect by secret ballot."
   },
   "C00209296": {
     "elected": true,
-    "fact": "A private-sector (or postal) union local, covered by the Labor-Management Reporting and Disclosure Act: 29 U.S.C. 481(b) requires it to elect its officers at least every three years by secret ballot of its members. No Form 990 identified for this local."
+    "fact": "A private-sector (or postal) union local, covered by the Labor-Management Reporting and Disclosure Act: 29 U.S.C. 481(b) requires it to elect its officers at least every three years by secret ballot of its members. No Form 990 identified for this local.",
+    "lmrda": "a union of private-sector workers (plumbers and steamfitters (Local 467)): 29 U.S.C. 481 requires its officers to be elected by secret ballot of members, directly or through delegates they elect by secret ballot."
   },
   "C00040949": {
     "elected": true,
-    "fact": "A private-sector (or postal) union local, covered by the Labor-Management Reporting and Disclosure Act: 29 U.S.C. 481(b) requires it to elect its officers at least every three years by secret ballot of its members. No Form 990 identified for this local."
+    "fact": "A private-sector (or postal) union local, covered by the Labor-Management Reporting and Disclosure Act: 29 U.S.C. 481(b) requires it to elect its officers at least every three years by secret ballot of its members. No Form 990 identified for this local.",
+    "lmrda": "a union of private-sector workers (boilermakers (Local 169)): 29 U.S.C. 481 requires its officers to be elected by secret ballot of members, directly or through delegates they elect by secret ballot."
   },
   "C00325639": {
     "elected": true,
-    "fact": "A private-sector (or postal) union local, covered by the Labor-Management Reporting and Disclosure Act: 29 U.S.C. 481(b) requires it to elect its officers at least every three years by secret ballot of its members. No Form 990 identified for this local."
+    "fact": "A private-sector (or postal) union local, covered by the Labor-Management Reporting and Disclosure Act: 29 U.S.C. 481(b) requires it to elect its officers at least every three years by secret ballot of its members. No Form 990 identified for this local.",
+    "lmrda": "a union of private-sector workers (stagehands (IATSE Local One)): 29 U.S.C. 481 requires its officers to be elected by secret ballot of members, directly or through delegates they elect by secret ballot."
   },
   "C00114314": {
     "elected": true,
-    "fact": "A private-sector (or postal) union local, covered by the Labor-Management Reporting and Disclosure Act: 29 U.S.C. 481(b) requires it to elect its officers at least every three years by secret ballot of its members. No Form 990 identified for this local."
+    "fact": "A private-sector (or postal) union local, covered by the Labor-Management Reporting and Disclosure Act: 29 U.S.C. 481(b) requires it to elect its officers at least every three years by secret ballot of its members. No Form 990 identified for this local.",
+    "lmrda": "a union of U.S. Postal Service workers, covered through the Postal Reorganization Act (39 U.S.C. 1209(b)): 29 U.S.C. 481 requires its officers to be elected by secret ballot of members."
   },
   "C00174847": {
     "elected": true,
-    "fact": "A private-sector (or postal) union local, covered by the Labor-Management Reporting and Disclosure Act: 29 U.S.C. 481(b) requires it to elect its officers at least every three years by secret ballot of its members. No Form 990 identified for this local."
+    "fact": "A private-sector (or postal) union local, covered by the Labor-Management Reporting and Disclosure Act: 29 U.S.C. 481(b) requires it to elect its officers at least every three years by secret ballot of its members. No Form 990 identified for this local.",
+    "lmrda": "a union of private-sector workers (Teamsters (Local 830)): 29 U.S.C. 481 requires its officers to be elected by secret ballot of members, directly or through delegates they elect by secret ballot."
   },
   "C00011338": {
     "elected": true,
-    "fact": "A private-sector (or postal) union local, covered by the Labor-Management Reporting and Disclosure Act: 29 U.S.C. 481(b) requires it to elect its officers at least every three years by secret ballot of its members. No Form 990 identified for this local."
+    "fact": "A private-sector (or postal) union local, covered by the Labor-Management Reporting and Disclosure Act: 29 U.S.C. 481(b) requires it to elect its officers at least every three years by secret ballot of its members. No Form 990 identified for this local.",
+    "lmrda": "a union of private-sector workers (sailors): 29 U.S.C. 481 requires its officers to be elected by secret ballot of members, directly or through delegates they elect by secret ballot."
   },
   "C00252395": {
     "elected": true,
-    "fact": "A private-sector (or postal) union local, covered by the Labor-Management Reporting and Disclosure Act: 29 U.S.C. 481(b) requires it to elect its officers at least every three years by secret ballot of its members. No Form 990 identified for this local."
+    "fact": "A private-sector (or postal) union local, covered by the Labor-Management Reporting and Disclosure Act: 29 U.S.C. 481(b) requires it to elect its officers at least every three years by secret ballot of its members. No Form 990 identified for this local.",
+    "lmrda": "a union of private-sector workers (steamfitters (Local 475)): 29 U.S.C. 481 requires its officers to be elected by secret ballot of members, directly or through delegates they elect by secret ballot."
   },
   "C00370569": {
     "elected": true,
-    "fact": "A private-sector (or postal) union local, covered by the Labor-Management Reporting and Disclosure Act: 29 U.S.C. 481(b) requires it to elect its officers at least every three years by secret ballot of its members. No Form 990 identified for this local."
+    "fact": "A private-sector (or postal) union local, covered by the Labor-Management Reporting and Disclosure Act: 29 U.S.C. 481(b) requires it to elect its officers at least every three years by secret ballot of its members. No Form 990 identified for this local.",
+    "lmrda": "a union of private-sector workers (hospital nurses): 29 U.S.C. 481 requires its officers to be elected by secret ballot of members, directly or through delegates they elect by secret ballot."
   },
   "C00150045": {
     "elected": true,
-    "fact": "A private-sector union council or district body, covered by the Labor-Management Reporting and Disclosure Act: 29 U.S.C. 481(d) requires it to elect its officers at least every four years by secret ballot of members or by delegates elected by secret ballot. No Form 990 identified for this body."
+    "fact": "A private-sector union council or district body, covered by the Labor-Management Reporting and Disclosure Act: 29 U.S.C. 481(d) requires it to elect its officers at least every four years by secret ballot of members or by delegates elected by secret ballot. No Form 990 identified for this body.",
+    "lmrda": "a union of private-sector workers (carpenters (a regional council)): 29 U.S.C. 481 requires its officers to be elected by secret ballot of members, directly or through delegates they elect by secret ballot."
   },
   "C00437467": {
     "elected": true,
-    "fact": "A private-sector union council or district body, covered by the Labor-Management Reporting and Disclosure Act: 29 U.S.C. 481(d) requires it to elect its officers at least every four years by secret ballot of members or by delegates elected by secret ballot. No Form 990 identified for this body."
+    "fact": "A private-sector union council or district body, covered by the Labor-Management Reporting and Disclosure Act: 29 U.S.C. 481(d) requires it to elect its officers at least every four years by secret ballot of members or by delegates elected by secret ballot. No Form 990 identified for this body.",
+    "lmrda": "a union of private-sector workers (pipe trades (a district council)): 29 U.S.C. 481 requires its officers to be elected by secret ballot of members, directly or through delegates they elect by secret ballot."
   },
   "C00265033": {
     "elected": true,
-    "fact": "A private-sector union council or district body, covered by the Labor-Management Reporting and Disclosure Act: 29 U.S.C. 481(d) requires it to elect its officers at least every four years by secret ballot of members or by delegates elected by secret ballot. No Form 990 identified for this body."
+    "fact": "A private-sector union council or district body, covered by the Labor-Management Reporting and Disclosure Act: 29 U.S.C. 481(d) requires it to elect its officers at least every four years by secret ballot of members or by delegates elected by secret ballot. No Form 990 identified for this body.",
+    "lmrda": "a union of private-sector workers (pipe trades (a state council)): 29 U.S.C. 481 requires its officers to be elected by secret ballot of members, directly or through delegates they elect by secret ballot."
   },
   "C00178541": {
     "elected": true,
-    "fact": "A private-sector union council or district body, covered by the Labor-Management Reporting and Disclosure Act: 29 U.S.C. 481(d) requires it to elect its officers at least every four years by secret ballot of members or by delegates elected by secret ballot. No Form 990 identified for this body."
+    "fact": "A private-sector union council or district body, covered by the Labor-Management Reporting and Disclosure Act: 29 U.S.C. 481(d) requires it to elect its officers at least every four years by secret ballot of members or by delegates elected by secret ballot. No Form 990 identified for this body.",
+    "lmrda": "a union of private-sector workers (Teamsters (a joint council)): 29 U.S.C. 481 requires its officers to be elected by secret ballot of members, directly or through delegates they elect by secret ballot."
   },
   "C00264689": {
     "elected": true,
-    "fact": "A private-sector union council or district body, covered by the Labor-Management Reporting and Disclosure Act: 29 U.S.C. 481(d) requires it to elect its officers at least every four years by secret ballot of members or by delegates elected by secret ballot. No Form 990 identified for this body."
+    "fact": "A private-sector union council or district body, covered by the Labor-Management Reporting and Disclosure Act: 29 U.S.C. 481(d) requires it to elect its officers at least every four years by secret ballot of members or by delegates elected by secret ballot. No Form 990 identified for this body.",
+    "lmrda": "a union of U.S. Postal Service workers, covered through the Postal Reorganization Act (39 U.S.C. 1209(b)): 29 U.S.C. 481 requires its officers to be elected by secret ballot of members."
   },
   "C00093989": {
     "elected": true,
-    "fact": "A private-sector (or postal) union local, covered by the Labor-Management Reporting and Disclosure Act: 29 U.S.C. 481(b) requires it to elect its officers at least every three years by secret ballot of its members. No Form 990 identified for this local."
+    "fact": "A private-sector (or postal) union local, covered by the Labor-Management Reporting and Disclosure Act: 29 U.S.C. 481(b) requires it to elect its officers at least every three years by secret ballot of its members. No Form 990 identified for this local.",
+    "lmrda": "a union of private-sector workers (operating engineers (Local 324)): 29 U.S.C. 481 requires its officers to be elected by secret ballot of members, directly or through delegates they elect by secret ballot."
   },
   "C00521286": {
     "elected": true,
-    "fact": "A private-sector union council or district body, covered by the Labor-Management Reporting and Disclosure Act: 29 U.S.C. 481(d) requires it to elect its officers at least every four years by secret ballot of members or by delegates elected by secret ballot. No Form 990 identified for this body."
+    "fact": "A private-sector union council or district body, covered by the Labor-Management Reporting and Disclosure Act: 29 U.S.C. 481(d) requires it to elect its officers at least every four years by secret ballot of members or by delegates elected by secret ballot. No Form 990 identified for this body.",
+    "lmrda": "a union of private-sector workers (pipe trades (a district council)): 29 U.S.C. 481 requires its officers to be elected by secret ballot of members, directly or through delegates they elect by secret ballot."
+  },
+  "_minority": {
+    "530217164": "members elect one of 39 directors (AIPAC)",
+    "261507828": "members elect one of 24 directors (J Street)",
+    "521733698": "members elect one of 23 directors (League of Conservation Voters)",
+    "521219782": "members elect one at-large director of 11 (National Community Action Foundation)",
+    "133976062": "members elect one director; NRDC, a related charity, is its sole institutional member (NRDC Action Fund)",
+    "205355252": "members elect one of five directors (Environment America)",
+    "132630359": "members elect one at-large director of 11 (Reproductive Freedom for All)",
+    "821291110": "members elect one of three directors (Onward Together)",
+    "208802884": "the board serves as the members (Everytown for Gun Safety Action Fund)",
+    "300233489": "its one voting member, the Alaska Wilderness League's president, appoints the board",
+    "900080500": "the board of EDF, a related charity, chooses the directors (Environmental Defense Action Fund)",
+    "133539048": "the regular members are the board; associate members elect one director (Planned Parenthood Action Fund)",
+    "522277805": "members elect the president and secretary-treasurer, 2 of 41 board members (Alliance for Retired Americans)",
+    "930593128": "members elect two directors at large, of 13 (Oregon Right to Life)",
+    "132644641": "members elect three of six board members: half, not most (Friends of the Earth Action)",
+    "454955967": "the directors are the members (Invest in Education Coalition)",
+    "841328830": "a related organization, Compassion & Choices, assigns and approves the directors (Compassion & Choices Action Network)"
+  },
+  "C00267849": {
+    "lmrda": "a union of private-sector workers (airline pilots (American Airlines)): 29 U.S.C. 481 requires its officers to be elected by secret ballot of members, directly or through delegates they elect by secret ballot."
+  },
+  "C00360669": {
+    "lmrda": "a union of private-sector workers (airline pilots (Southwest Airlines)): 29 U.S.C. 481 requires its officers to be elected by secret ballot of members, directly or through delegates they elect by secret ballot."
+  },
+  "C00849323": {
+    "lmrda": "a union of private-sector workers (airline pilots (UPS)): 29 U.S.C. 481 requires its officers to be elected by secret ballot of members, directly or through delegates they elect by secret ballot."
+  },
+  "C00782326": {
+    "lmrda": "a union of private-sector workers (airline mechanics): 29 U.S.C. 481 requires its officers to be elected by secret ballot of members, directly or through delegates they elect by secret ballot."
+  },
+  "C00007922": {
+    "lmrda": "a union of private-sector workers (construction laborers): 29 U.S.C. 481 requires its officers to be elected by secret ballot of members, directly or through delegates they elect by secret ballot."
+  },
+  "C00104455": {
+    "lmrda": "a union of private-sector workers (operating engineers (Local 17)): 29 U.S.C. 481 requires its officers to be elected by secret ballot of members, directly or through delegates they elect by secret ballot."
+  },
+  "C00008268": {
+    "lmrda": "a union of private-sector workers (transit, airline and rail workers): 29 U.S.C. 481 requires its officers to be elected by secret ballot of members, directly or through delegates they elect by secret ballot."
+  },
+  "C00003632": {
+    "lmrda": "a union of private-sector workers (bricklayers): 29 U.S.C. 481 requires its officers to be elected by secret ballot of members, directly or through delegates they elect by secret ballot."
+  },
+  "C00383950": {
+    "lmrda": "a union of private-sector workers (elevator constructors): 29 U.S.C. 481 requires its officers to be elected by secret ballot of members, directly or through delegates they elect by secret ballot."
+  },
+  "C00000885": {
+    "lmrda": "a union of private-sector workers (painters): 29 U.S.C. 481 requires its officers to be elected by secret ballot of members, directly or through delegates they elect by secret ballot."
+  },
+  "C00003590": {
+    "lmrda": "a union of private-sector workers (steelworkers): 29 U.S.C. 481 requires its officers to be elected by secret ballot of members, directly or through delegates they elect by secret ballot."
+  },
+  "C00004861": {
+    "lmrda": "a union of private-sector workers (hotel, food service and casino workers): 29 U.S.C. 481 requires its officers to be elected by secret ballot of members, directly or through delegates they elect by secret ballot."
+  },
+  "C00461418": {
+    "lmrda": "a union of private-sector workers (health care workers): 29 U.S.C. 481 requires its officers to be elected by secret ballot of members, directly or through delegates they elect by secret ballot."
+  },
+  "C00011262": {
+    "lmrda": "a union of private-sector workers (railroad signalmen): 29 U.S.C. 481 requires its officers to be elected by secret ballot of members, directly or through delegates they elect by secret ballot."
+  },
+  "C00040741": {
+    "lmrda": "a union of private-sector workers (utility workers): 29 U.S.C. 481 requires its officers to be elected by secret ballot of members, directly or through delegates they elect by secret ballot."
+  },
+  "C00134742": {
+    "lmrda": "a union of private-sector workers (plasterers and cement masons): 29 U.S.C. 481 requires its officers to be elected by secret ballot of members, directly or through delegates they elect by secret ballot."
+  },
+  "C00446237": {
+    "lmrda": "a union of private-sector workers (nurses): 29 U.S.C. 481 requires its officers to be elected by secret ballot of members, directly or through delegates they elect by secret ballot."
+  },
+  "C00311944": {
+    "lmrda": "a union of private-sector workers (film and television directors): 29 U.S.C. 481 requires its officers to be elected by secret ballot of members, directly or through delegates they elect by secret ballot."
+  },
+  "C00835868": {
+    "lmrda": "a union of private-sector workers (stage actors): 29 U.S.C. 481 requires its officers to be elected by secret ballot of members, directly or through delegates they elect by secret ballot."
+  },
+  "C00115527": {
+    "lmrda": "a union of private-sector workers (insulators): 29 U.S.C. 481 requires its officers to be elected by secret ballot of members, directly or through delegates they elect by secret ballot."
+  },
+  "C00004036": {
+    "lmrda": "a union of private-sector workers (service and health care workers (a national union with private-sector members)): 29 U.S.C. 481 requires its officers to be elected by secret ballot of members, directly or through delegates they elect by secret ballot."
+  },
+  "C00032995": {
+    "lmrda": "a union of private-sector workers (transit and bus workers (a national union with private-sector members)): 29 U.S.C. 481 requires its officers to be elected by secret ballot of members, directly or through delegates they elect by secret ballot."
+  },
+  "C00072025": {
+    "lmrda": "a union of U.S. Postal Service workers, covered through the Postal Reorganization Act (39 U.S.C. 1209(b)): 29 U.S.C. 481 requires its officers to be elected by secret ballot of members."
+  },
+  "C00010322": {
+    "lmrda": "a union of U.S. Postal Service workers, covered through the Postal Reorganization Act (39 U.S.C. 1209(b)): 29 U.S.C. 481 requires its officers to be elected by secret ballot of members."
   }
 }

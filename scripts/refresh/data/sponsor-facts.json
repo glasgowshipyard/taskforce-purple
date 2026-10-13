@@ -498,9 +498,11 @@
     "ein": "760354310"
   },
   "C00435024": {
-    "group": "people",
-    "fact": "Checked (rule 9): the sponsor is CENTER FOR SPORTFISHING POLICY, a 501(c)(4) social welfare organization, EIN 205671250; matched on the PAC's own name. Its members are sportfishing and boating trade groups and companies as well as conservation groups (owner to judge whether that is PEOPLE).",
-    "ein": "205671250"
+    "group": "business",
+    "fact": "The Center for Sportfishing Policy's members are sportfishing and boating companies and trade groups, with conservation groups: a sponsor whose members are businesses is BUSINESS, though its members elect its board (rule 4).",
+    "ein": "205671250",
+    "since": "FINAL-3",
+    "rule": 4
   },
   "C00441808": {
     "group": "people",
@@ -595,5 +597,19 @@
   "C00525543": {
     "group": "politician",
     "fact": "Its connected organization is \"Cory Gardner for Senate\", the campaign committee of a former U.S. Senator (rule 10)."
+  },
+  "C00552141": {
+    "group": "business",
+    "fact": "Its sole member is Henry Ford Health, a hospital system that also runs a health plan (Health Alliance Plan): a sponsor whose member is a business is BUSINESS (rule 4).",
+    "ein": "464064067",
+    "since": "FINAL-3",
+    "rule": 4
+  },
+  "C00092957": {
+    "group": "people",
+    "fact": "The National Association of Postal Supervisors is an association of Postal Service supervisors and postmasters, who are federal employees: not a trade association, though the FEC files it as one (owner, FINAL-3). Supervisors aren't covered by the LMRDA, so it takes the Form 990 test.",
+    "ein": "530188062",
+    "since": "FINAL-3",
+    "rule": 3
   }
 }

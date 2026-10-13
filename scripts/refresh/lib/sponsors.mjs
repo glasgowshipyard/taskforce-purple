@@ -247,7 +247,10 @@ const BUSINESS_NAME =
 // are unchanged. Named by stated fact (sponsor-facts.json) where the name
 // doesn't say it
 const INSURER = /\b(INSURANCE|ASSURANCE|THRIVENT|WOODMEN|MUTUAL LIFE|LIFE INSURANCE)\b/;
-const BUSINESS_TYPES = ['C', 'T', 'W', 'V'];
+// Rule 6 (FINAL-3, owner 2026-10-12): the FEC's company and trade-group
+// types hold against the IRS. FINAL-2 also held W and V; kept selectable
+// (`opts.rule6`) so the report can show what the change moved.
+export const RULE6_TYPES = ['C', 'T'];
 
 /**
  * One committee's group and why (FINAL-2 rules). `p`: { name, type,
@@ -258,7 +261,8 @@ const BUSINESS_TYPES = ['C', 'T', 'W', 'V'];
  * an IRS match a person should confirm (rule 9: the name differs from the
  * record matched, or the records under the name are mixed).
  */
-export function classifyPac(id, p, index, facts = {}, fecRecord = null) {
+export function classifyPac(id, p, index, facts = {}, fecRecord = null, opts = {}) {
+  const businessTypes = opts.rule6 || RULE6_TYPES;
   const f = facts[id];
   if (f?.group) {
     // A fact can name the sponsor's EIN, for the people test
@@ -353,10 +357,19 @@ export function classifyPac(id, p, index, facts = {}, fecRecord = null) {
   }
   // Rule 6: filed by the FEC as a company or trade group: BUSINESS whatever
   // its IRS match (the IRS can make a PAC business, never un-make one)
-  if (BUSINESS_TYPES.includes(org)) {
+  if (businessTypes.includes(org)) {
     return {
       group: 'business',
       reason: `FEC: sponsor is ${FEC_ORG[org]}; stays BUSINESS whatever its IRS record`,
+      irs: null,
+      settledBy: 'FEC',
+    };
+  }
+  // A cooperative is BUSINESS (Final, decision 1: co-ops)
+  if (org === 'V') {
+    return {
+      group: 'business',
+      reason: 'FEC: sponsor is a cooperative; co-ops are BUSINESS',
       irs: null,
       settledBy: 'FEC',
     };
@@ -428,6 +441,16 @@ export function classifyPac(id, p, index, facts = {}, fecRecord = null) {
     irs.status === 'ambiguous'
       ? ` (IRS: several records of different kinds, ${irs.subsections})`
       : '';
+  // Rule 3 (FINAL-3): a corporation without capital stock goes by its IRS
+  // status; with no exempt record it isn't tax-exempt, so BUSINESS
+  if (org === 'W') {
+    return {
+      group: 'business',
+      reason: `FEC: sponsor is a corporation without capital stock, with no IRS exempt record (not tax-exempt): BUSINESS${note}`,
+      irs,
+      settledBy: 'FEC',
+    };
+  }
   if (org === 'L') {
     return {
       group: 'people',
@@ -486,30 +509,64 @@ export function classifyPac(id, p, index, facts = {}, fecRecord = null) {
 }
 
 /**
- * The people test (FINAL-2, rule 1): a PEOPLE PAC counts only if its
- * sponsor's members elect its governing body, read from the sponsor's
- * latest Form 990, Part VI line 7a (form990.json, by EIN). With no Form 990
- * found, a stated fact decides (people-test.json, by committee: `elected`
- * and `fact`, and `ein` where the sponsor was identified by hand).
- * Returns { elected: true | false | null, evidence, ein, taxYear, note }.
+ * The people test (FINAL-3, owner 2026-10-12). A PEOPLE PAC counts only if
+ * its sponsor's members elect most of its voting board:
+ *   - a labor union covered by the Labor-Management Reporting and
+ *     Disclosure Act passes on the law (its officers must be elected by
+ *     secret ballot of members), whatever its Form 990 boxes say (rule 2);
+ *   - otherwise the sponsor's latest Form 990: line 7a Yes passes, unless
+ *     line 6 says it has no members, or its Schedule O shows members elect
+ *     only a minority of the board or the board is its own membership
+ *     (rule 1: `minority`, by EIN);
+ *   - with no Form 990, a stated fact decides (people-test.json); otherwise
+ *     not tested, 0.
+ * `opts.strict` and `opts.lmrda` (default true) select rules 1 and 2;
+ * both false is FINAL-2 (line 7a as written).
+ * Returns { elected: true | false | null, evidence, ein, taxYear, note, rule }.
  */
-export function peopleTest(id, sorted, forms = {}, stated = {}) {
+export function peopleTest(id, sorted, forms = {}, stated = {}, opts = {}) {
+  const strict = opts.strict ?? true;
+  const lmrda = opts.lmrda ?? true;
+  const minority = opts.minority || {};
   const s = stated[id] || {};
   const ein = s.ein || sorted?.irs?.ein || null;
   const form = ein ? forms[ein] : null;
-  if (form?.found && form.elect !== null && form.elect !== undefined && s.elected === undefined) {
-    // Line 7a as written (members, stockholders or other persons may elect
-    // or appoint one or more of the governing body); line 6 is reported
-    const members = form.members === false ? ' (line 6: no members or stockholders)' : '';
-    const elected = form.elect;
+  if (lmrda && s.lmrda) {
     return {
-      elected,
+      elected: true,
+      ein,
+      taxYear: null,
+      evidence: `Covered by the Labor-Management Reporting and Disclosure Act: ${s.lmrda}`,
+      note: null,
+      rule: 2,
+    };
+  }
+  if (form?.found && form.elect !== null && form.elect !== undefined && s.elected === undefined) {
+    const head = `Form 990 for ${form.taxYear} (EIN ${ein}, ${form.name}), Part VI line 7a: ${form.elect ? 'Yes' : 'No'}`;
+    const base = {
       ein,
       taxYear: form.taxYear,
-      evidence: `Form 990 for ${form.taxYear} (EIN ${ein}, ${form.name}), Part VI line 7a: ${form.elect ? 'Yes' : 'No'}${members}`,
       note: form.notes?.find(n => /7\s*A/i.test(n)) || form.notes?.[0] || null,
       votingMembers: form.votingMembers ?? null,
     };
+    if (form.elect && strict && form.members === false) {
+      return {
+        ...base,
+        elected: false,
+        evidence: `${head}, but line 6: no members or stockholders`,
+        rule: 1,
+      };
+    }
+    if (form.elect && strict && minority[ein]) {
+      return {
+        ...base,
+        elected: false,
+        evidence: `${head}, but Schedule O: ${minority[ein]}`,
+        rule: 1,
+      };
+    }
+    const members = form.members === false ? ' (line 6: no members or stockholders)' : '';
+    return { ...base, elected: form.elect, evidence: `${head}${members}` };
   }
   if (s.elected !== undefined) {
     return {
@@ -541,17 +598,26 @@ export function loadPeopleEvidence() {
   return {
     forms: read('form990.json'),
     stated: Object.fromEntries(Object.entries(stated).filter(([k]) => /^C\d{8}$/.test(k))),
+    // Rule 1: sponsors whose own Schedule O shows members elect a minority
+    // of the board, or the board is its own membership (by EIN)
+    minority: stated._minority || {},
   };
 }
 
 /** Load stated facts (sponsor-facts.json next to this module's data folder). */
-export function loadFacts() {
+export function loadFacts({ before = null } = {}) {
   const path = new URL('../data/sponsor-facts.json', import.meta.url).pathname;
   if (!existsSync(path)) {
     return {};
   }
   const raw = JSON.parse(readFileSync(path, 'utf8'));
-  return Object.fromEntries(Object.entries(raw).filter(([id]) => /^C\d{8}$/.test(id)));
+  // `before`: leave out facts added for that round or later (`since`), to
+  // reproduce an earlier round
+  return Object.fromEntries(
+    Object.entries(raw).filter(
+      ([id, f]) => /^C\d{8}$/.test(id) && !(before && f.since && f.since >= before)
+    )
+  );
 }
 
 /** Read the IRS CSVs into an index (DuckDB `read`). */
