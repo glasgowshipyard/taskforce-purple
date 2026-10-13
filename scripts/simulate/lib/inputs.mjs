@@ -81,6 +81,20 @@ export async function memberDonorShape(bulk, poolIds, liveN, weights = null, opt
         ).map(d => [d.id, round2(d.amount)])
       )
     : undefined;
+  // Where the big money came from: the same donors' money by their state
+  // (`opts.byState`, for the member page; owner and Craig, 2026-10-13)
+  const byState = opts.byState
+    ? (
+        await bulk.read(`
+        WITH d AS (
+          SELECT upper(trim(coalesce(state, ''))) AS st,
+            upper(trim(split_part(name, ',', 2))) || '|' || upper(trim(split_part(name, ',', 1)))
+              || '|' || upper(trim(coalesce(state, ''))) || '|' || coalesce(zip5, '') AS donor,
+            sum(${amount}) AS amt
+          FROM ${rows} GROUP BY 1, 2)
+        SELECT st AS state, sum(amt) AS amount FROM d WHERE amt > 0 GROUP BY 1 ORDER BY 2 DESC, 1`)
+      ).map(x => ({ state: x.state || null, amount: round2(x.amount) }))
+    : undefined;
   return {
     donors: r.donors,
     nakamoto: r.nakamoto,
@@ -89,6 +103,7 @@ export async function memberDonorShape(bulk, poolIds, liveN, weights = null, opt
     topPositive: round2(r.topPositive),
     capped: Object.fromEntries(CAPS.map(k => [k, round2(r[`capped${k}`])])),
     ...(directedOut ? { directedOut } : {}),
+    ...(byState ? { byState } : {}),
   };
 }
 

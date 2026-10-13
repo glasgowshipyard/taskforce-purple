@@ -509,6 +509,35 @@ export function classifyPac(id, p, index, facts = {}, fecRecord = null, opts = {
 }
 
 /**
+ * The IRS record of a committee's sponsor, found the way the sorting finds
+ * it (the sponsor's name as filed, then without the PAC words, then the
+ * PAC's own name when the FEC says it has a sponsor), whatever group the
+ * committee is in. For reading the sponsor's Form 990 beyond the people
+ * test (the country label). Returns the EIN or null.
+ */
+export function sponsorEin(p, index) {
+  if (p?.sponsor?.irs?.ein) {
+    return p.sponsor.irs.ein;
+  }
+  if (p?.peopleTest?.ein) {
+    return p.peopleTest.ein;
+  }
+  const sponsor = realName(p?.connectedOrg);
+  const tries = [
+    sponsor,
+    sponsor && stripPacWords(sponsor),
+    (p?.orgType || p?.designation === 'B') && stripPacWords(p?.name),
+  ].filter(Boolean);
+  for (const name of tries) {
+    const r = irsStatus(index, name);
+    if (r.ein && ['matched', 'matched-same-kind', 'majority'].includes(r.status)) {
+      return r.ein;
+    }
+  }
+  return null;
+}
+
+/**
  * The people test (FINAL-3, owner 2026-10-12). A PEOPLE PAC counts only if
  * its sponsor's members elect most of its voting board:
  *   - a labor union covered by the Labor-Management Reporting and

@@ -631,7 +631,7 @@ async function main() {
           p.pool,
           analysis.nakamotoCoefficient,
           null,
-          { platforms: [...platforms] }
+          { platforms: [...platforms], byState: true }
         );
         const fundGifts = fundGiftsFor.get(p.id) || [];
         const gradeInputs = {
@@ -649,6 +649,10 @@ async function main() {
         };
         const grade = member ? gradeMemberFinal3(gradeInputs, pacs, shares) : null;
         // The committees behind it, for the member page
+        analysis.conduits = (analysis.conduits || []).map(c => ({
+          ...c,
+          country: (c.id && pacs[c.id]?.country?.country) || null,
+        }));
         analysis.pacs = committeesFinal3(
           { gifts: gifts || [], giftsToFunds: fundGifts, directedOut: shapeDirected?.directedOut },
           pacs,
@@ -658,6 +662,8 @@ async function main() {
           donors: shapeDirected.donors,
           nakamoto: shapeDirected.nakamoto,
           total: shapeDirected.total,
+          // Where the big money came from, by donor state (owner and Craig, 2026-10-13)
+          byState: shapeDirected.byState || [],
         };
         if (reportPath) {
           const before = targets.find(t => t.bioguideId === p.id) || {};

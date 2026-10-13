@@ -1,16 +1,19 @@
-// A person's money as a receipt card: who they are, their stamp, where the
-// money came from, and how few donors gave half the big money. Used for your
-// representatives on the home page and for candidates on the ballot.
+// A person's money as a receipt card: who they are, their stamp, and their
+// money as a graph of People, Power and Influence with one sentence under it.
+// Used for your representatives on the home page and for candidates on the
+// ballot.
 import React from 'react';
 import { ArrowRight } from 'lucide-react';
 import { Link } from '../lib/router.js';
-import { gradeInfo, isIdentityUnverified, isRingfenced } from '../lib/grades.js';
-import { concentration, count, moneyLines, usd } from '../lib/people.js';
-import { Evidence, MoneyLines, PowerBar, Stamp } from './ui.jsx';
+import { gradeInfo, isRingfenced } from '../lib/grades.js';
+import { peopleSentence } from '../lib/explain.js';
+import { moneyLines, usd } from '../lib/people.js';
+import MoneyGraph from './MoneyGraph.jsx';
+import { Evidence, MoneyLines, Stamp } from './ui.jsx';
 
 /**
- * person: { name, seat, party, tier, figures (gradedFigures), evidenceChecked,
- *           nakamotoCoefficient, uniqueDonors, href, badge, note }
+ * person: { name, seat, party, tier, figures (gradedFigures), ppi (People,
+ *           Power, Influence), evidenceChecked, href, badge, note }
  */
 export default function Receipt({ person, delay = 0, animate = true, headingLevel = 3 }) {
   const H = `h${headingLevel}`;
@@ -18,8 +21,9 @@ export default function Receipt({ person, delay = 0, animate = true, headingLeve
   const f = person.figures;
   const withheld = isRingfenced(person.tier);
   const hasMoney = f && f.totalRaised > 0;
-  const lines = hasMoney && !withheld ? moneyLines(f) : null;
-  const conc = isIdentityUnverified(person.tier) ? null : concentration(person);
+  const ppi = hasMoney && !withheld ? person.ppi : null;
+  // Graded before the three parts were published: the receipt's lines
+  const lines = hasMoney && !withheld && !ppi ? moneyLines(f) : null;
 
   return (
     <article
@@ -43,29 +47,19 @@ export default function Receipt({ person, delay = 0, animate = true, headingLeve
         <Stamp tier={person.tier} animate={animate} delay={delay + 0.35} />
       </div>
 
-      {lines ? (
+      {ppi ? (
+        <div className="tear" style={{ paddingTop: 16 }}>
+          <MoneyGraph ppi={ppi} tier={person.tier} compact />
+          <p className="receipt-sentence">{peopleSentence(ppi.people)}</p>
+        </div>
+      ) : lines ? (
         <div className="tear" style={{ paddingTop: 16 }}>
           <MoneyLines lines={lines} />
-          <div style={{ marginTop: 12 }}>
-            <PowerBar lines={lines} />
-          </div>
         </div>
       ) : (
         <p className="small muted tear" style={{ paddingTop: 16 }}>
           {person.note || (withheld || !hasMoney ? g.meaning : null)}
         </p>
-      )}
-
-      {conc && (
-        <div className="half-box">
-          <p className="half-num">
-            {count(conc.n)} <small>{conc.n === 1 ? 'person' : 'people'}</small>
-          </p>
-          <p className="small" style={{ marginTop: 6, color: 'var(--ink-2)' }}>
-            gave half of the big-donation money
-            {conc.of ? `, out of ${count(conc.of)} donors named in FEC records.` : '.'}
-          </p>
-        </div>
       )}
 
       <div className="receipt-foot tear" style={{ paddingTop: 14 }}>

@@ -219,6 +219,28 @@ const text = (xml, tag) =>
   xml.match(new RegExp(`<(?:\\w+:)?${tag}>\\s*([^<]*)<`))?.[1]?.trim() || null;
 
 /** Part VI lines 6, 7a and 7b, and Schedule O's word on them. */
+const clip = (s, max = 600) => {
+  const t = (s || '').replace(/\s+/g, ' ').trim();
+  return t ? (t.length > max ? `${t.slice(0, max)}…` : t) : null;
+};
+
+// Part III line 1, or its Schedule O entry where the line says "see Schedule O"
+function missionOf(xml) {
+  const line = text(xml, 'MissionDesc');
+  if (line && !/schedule\s*o/i.test(line)) {
+    return line;
+  }
+  for (const m of xml.matchAll(
+    /<(?:\w+:)?SupplementalInformationDetail>([\s\S]*?)<\/(?:\w+:)?SupplementalInformationDetail>/g
+  )) {
+    const ref = text(m[1], 'FormAndLineReferenceDesc') || '';
+    if (/PART\s*III\b/i.test(ref) && /(LINE|LN)?\s*1\b/i.test(ref.replace(/PART\s*III/i, ''))) {
+      return text(m[1], 'ExplanationTxt') || line;
+    }
+  }
+  return line;
+}
+
 export function partSix(xml) {
   const notes = [];
   for (const m of xml.matchAll(
@@ -236,6 +258,9 @@ export function partSix(xml) {
     approve: flag(xml, 'DecisionsSubjectToApprovaInd'),
     votingMembers: Number(text(xml, 'GoverningBodyVotingMembersCnt')) || null,
     revenue: Number(text(xml, 'CYTotalRevenueAmt')) || null,
+    // Part III, line 1: the organization's mission, in its own words (the
+    // country label's test reads it)
+    mission: clip(missionOf(xml)),
     filer: text(
       xml.match(/<(?:\w+:)?Filer>([\s\S]*?)<\/(?:\w+:)?Filer>/)?.[1] || '',
       'BusinessNameLine1Txt'

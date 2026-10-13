@@ -1,4 +1,5 @@
 // Names, seats and money figures, in the words the site uses for them.
+import { peoplePowerInfluence } from '../../workers/tier-calculation.js';
 import { memberPath } from './router.js';
 import { DELEGATE_ONLY, stateByName, stateByCode } from './states.js';
 
@@ -244,7 +245,10 @@ export function raceSeat(race) {
   return d ? `House · ${state} ${d}` : `House · ${state} at large`;
 }
 
-/** A sitting member as a receipt card; `detail` adds their donor count. */
+/**
+ * A sitting member as a receipt card. `detail` (their /api/member-detail)
+ * supplies People, Power and Influence while the list doesn't carry them.
+ */
 export function memberPerson(m, detail) {
   return {
     id: m.bioguideId,
@@ -255,8 +259,7 @@ export function memberPerson(m, detail) {
     withheldReason: m.withheldReason ?? null,
     figures: gradedFigures(m),
     evidenceChecked: m.evidenceChecked ?? null,
-    nakamotoCoefficient: detail?.nakamotoCoefficient ?? m.nakamotoCoefficient,
-    uniqueDonors: detail?.uniqueDonors ?? null,
+    ppi: m.peoplePowerInfluence ?? peoplePowerInfluence(detail?.grade?.detail),
     href: memberPath(m.bioguideId),
   };
 }

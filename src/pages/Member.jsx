@@ -4,41 +4,28 @@ import { ExternalLink, Share2 } from 'lucide-react';
 import ForeignAgentPanel from '../components/ForeignAgentPanel.jsx';
 import PacPanel from '../components/PacPanel.jsx';
 import ShareDialog from '../components/ShareDialog.jsx';
-import { Barcode, Evidence, MoneyLines, PowerBar, Skeleton, Stamp } from '../components/ui.jsx';
+import MoneyGraph from '../components/MoneyGraph.jsx';
+import { Barcode, Evidence, Fold, MoneyLines, Skeleton, Stamp } from '../components/ui.jsx';
 import { api } from '../lib/api.js';
-import { classifyOrganization, foreignInterestFor, sectorInfo } from '../lib/donor-taxonomy.js';
+import { classifyOrganization, sectorInfo } from '../lib/donor-taxonomy.js';
 import { CYCLE_LABEL } from '../lib/election.js';
-import {
-  concentrationVerdict,
-  explainGrade,
-  final3Lines,
-  gradeBands,
-  headlineFor,
-  rankLine,
-} from '../lib/explain.js';
-import {
-  GRADES,
-  gradeInfo,
-  isIdentityUnverified,
-  isLetter,
-  isRingfenced,
-  withArticle,
-} from '../lib/grades.js';
+import { bigDonorLine, explainGrade, peopleSentence, placementLine } from '../lib/explain.js';
+import { gradeInfo, isLetter, isRingfenced, withArticle } from '../lib/grades.js';
 import { useAsync, useTitle } from '../lib/hooks.js';
 import {
-  concentration,
-  count,
   displayName,
   gradedFigures,
-  othersFigures,
   moneyLines,
   partyName,
   roleTitle,
   seatLabel,
+  stateCode,
   stateName,
   usd,
   usdShort,
 } from '../lib/people.js';
+import { stateByCode } from '../lib/states.js';
+import { peoplePowerInfluence } from '../../workers/tier-calculation.js';
 import { Link, racePath } from '../lib/router.js';
 
 const ROLE = {
@@ -56,9 +43,9 @@ function describe(c) {
     return "A PAC that gives money to other politicians' campaigns, which can earn goodwill and influence.";
   }
   if (c.ownFund) {
-    return 'Lets a donor write one large check, above the usual limit for a single candidate, which is then split among several committees. This is legal. It raises money for this person, so everything it raised counts as theirs.';
+    return 'Lets a donor write one large check, above the usual limit for a single candidate, which is then split among several committees. This is legal. It raises money for this person, so everything it raised is part of their money.';
   }
-  return "Run mainly for other politicians or a party. The money it passed to this person counts as theirs, so it doesn't count toward the grade.";
+  return "Run mainly for other politicians or a party. The money it passed to this person comes from them, so it's Influence.";
 }
 
 const fecCommitteeUrl = (id, cycle) => `https://www.fec.gov/data/committee/${id}/?cycle=${cycle}`;
@@ -80,24 +67,40 @@ function evidenceNote(note, committees) {
   return rest.length ? `${c ? c.name : id}: ${rest.join(': ')}.` : note;
 }
 
-// How this PAC share compares with the rest of Congress
-function pacStanding(share, members) {
-  const shares = members
-    .filter(m => isLetter(m.tier))
-    .map(m => gradedFigures(m))
-    .filter(f => f.totalRaised > 0)
-    .map(f => f.pacMoney / f.totalRaised);
-  if (shares.length < 50) {
+// Where the big money came from, by the donors' states (owner and Craig,
+// 2026-10-13: donors aren't named). The top four states, then the rest, and
+// the member's own state called out. `rows`: [{ state, amount }].
+function stateShares(rows, home) {
+  const named = (rows || []).filter(r => r.amount > 0);
+  const total = named.reduce((t, r) => t + r.amount, 0);
+  if (!(total > 0)) {
     return null;
   }
-  const below = shares.filter(s => s < share).length / shares.length;
-  if (below >= 0.6) {
-    return `That's more than ${Math.round(below * 100)} out of every 100 members of Congress.`;
+  const share = a => (a / total) * 100;
+  const text = a => (share(a) < 1 ? 'under 1%' : `${Math.round(share(a))}%`);
+  const known = named.filter(r => stateByCode[r.state]).sort((a, b) => b.amount - a.amount);
+  const top = known.slice(0, 4);
+  const rest = total - top.reduce((t, r) => t + r.amount, 0);
+  const out = top.map(r => ({
+    label: stateName(r.state),
+    home: r.state === home,
+    share: share(r.amount),
+    text: text(r.amount),
+  }));
+  if (rest > 0) {
+    out.push({
+      label: top.length ? 'Everywhere else' : 'All states',
+      home: false,
+      share: share(rest),
+      text: text(rest),
+    });
   }
-  if (below <= 0.4) {
-    return "That's less than most members of Congress.";
-  }
-  return "That's about average for Congress.";
+  const homeAmount = named.find(r => r.state === home)?.amount || 0;
+  const homeName = stateByCode[home] ? stateName(home) : null;
+  const sentence = homeName
+    ? `${homeAmount > 0 ? text(homeAmount).replace(/^under/, 'Under') : 'None'} of the big money came from ${homeName}, their home state.`
+    : null;
+  return { rows: out, sentence };
 }
 
 // A candidate in races:list, in the shape the page reads for a member
@@ -128,87 +131,6 @@ function findRace(races, pred) {
     }
   }
   return null;
-}
-
-// The grade scale, 0 to 100% people-funded, with this person's share from
-// people and the share that counts after big donations from a few people are cut
-function ScoreScale({ raw, score, shift, tier }) {
-  const bands = gradeBands(shift);
-  return (
-    <figure className="scale">
-      <div
-        className="scale-track"
-        role="img"
-        aria-label={`${raw}% of the money came from people and ${score}% counts, which is grade ${tier}`}
-      >
-        {bands.map(b => (
-          <span
-            key={b.letter}
-            className={`scale-band${b.letter === tier ? ' is-current' : ''}`}
-            style={{
-              left: `${b.from}%`,
-              width: `${b.to - b.from}%`,
-              '--g': GRADES[b.letter].color,
-            }}
-          >
-            {b.letter}
-          </span>
-        ))}
-        <span className="scale-raw" style={{ width: `${Math.min(100, raw)}%` }} />
-        <span className="scale-score" style={{ width: `${Math.min(100, score)}%` }} />
-      </div>
-      <div className="scale-ticks" aria-hidden="true">
-        {bands
-          .filter(b => b.from > 0)
-          .map(b => (
-            <span key={b.letter} style={{ left: `${b.from}%` }}>
-              {b.from}
-            </span>
-          ))}
-      </div>
-      <figcaption className="scale-key">
-        <span>
-          <i className="key-raw" aria-hidden="true" /> Donated by people: ${raw} of every $100
-        </span>
-        <span>
-          <i className="key-score" aria-hidden="true" /> Counts toward the grade: ${score}
-        </span>
-      </figcaption>
-    </figure>
-  );
-}
-
-function ConcentrationBars({ n, of }) {
-  const many = of ? Math.max(0, of - n) : null;
-  return (
-    <>
-      <div
-        className="conc"
-        role="img"
-        aria-label={`Half the money: ${count(n)} donors.${many !== null ? ` The other half: ${count(many)} donors.` : ''}`}
-      >
-        <div className="conc-few">
-          {n <= 80 ? (
-            Array.from({ length: n }, (_, i) => <span key={i} />)
-          ) : (
-            <span
-              style={{
-                background:
-                  'repeating-linear-gradient(90deg, var(--gold) 0 2px, transparent 2px 4px)',
-              }}
-            />
-          )}
-        </div>
-        <div className="conc-many" />
-      </div>
-      <div className="conc-key">
-        <span>
-          {count(n)} {n === 1 ? 'donor' : 'donors'} · half the money
-        </span>
-        {many !== null && <span>{count(many)} donors · the other half</span>}
-      </div>
-    </>
-  );
 }
 
 export default function Member({ id, kind = 'member' }) {
@@ -264,66 +186,44 @@ export default function Member({ id, kind = 'member' }) {
 
   const g = gradeInfo(m.tier, m.withheldReason);
   const f = gradedFigures(m);
-  const unverified = isIdentityUnverified(m.tier);
   const withheld = isRingfenced(m.tier);
   const hasMoney = f.totalRaised > 0 && !withheld;
   const lines = hasMoney ? moneyLines(f) : [];
-  // The grade is worked out on the money from others: own money set aside (#59)
-  // FINAL-3 grades carry their own working, per $100 given (explain.js)
-  const final3 = d?.grade?.detail?.method === 'final-3' ? d.grade.detail : null;
-  const gradeLines = !hasMoney
-    ? []
-    : final3 && final3.given > 0
-      ? final3Lines(final3)
-      : moneyLines(othersFigures(f));
   const ownPct = lines.find(l => l.key === 'own')?.pct ?? 0;
-  const conc = unverified
-    ? null
-    : final3
-      ? final3.reliable && final3.fewestHoldingHalf
-        ? concentration({
-            nakamotoCoefficient: final3.fewestHoldingHalf,
-            uniqueDonors: final3.donors,
-          })
-        : null
-      : concentration({
-          nakamotoCoefficient: d?.nakamotoCoefficient ?? m.nakamotoCoefficient,
-          uniqueDonors: d?.uniqueDonors ?? m.uniqueDonors,
-        });
+  // FINAL-3's working, in dollars (workers/grading.js gradeMemberFinal3)
+  const final3 = d?.grade?.detail?.method === 'final-3' ? d.grade.detail : null;
+  const ppi = hasMoney ? (m.peoplePowerInfluence ?? peoplePowerInfluence(final3)) : null;
+  const score = d?.grade?.score ?? m.individualFundingPercent;
   const trail = d?.moneyTrail;
   const committees = trail ? [...trail.committees].sort((a, b) => b.raised - a.raised) : [];
-  const smallPct = gradeLines.find(l => l.key === 'small')?.pct ?? 0;
-  const pacPct = gradeLines.find(l => l.key === 'pac')?.pct ?? 0;
   const seat = isCandidate ? `Candidate · ${seatLabel(m)}` : seatLabel(m);
   const title = isCandidate ? 'Candidate' : roleTitle(m);
   const checked = d?.evidence?.checked ?? m.evidenceChecked ?? null;
   const gradedOn = dateText(d?.collectedAt || m.gradedAt);
   const canShare = isLetter(m.tier) && hasMoney;
-  // Leads with the number; the non-breaking hyphen keeps "big-donation" on one line
-  // Leads with whatever decided the grade, good or bad (#56)
-  const lead = hasMoney
-    ? headlineFor({ tier: m.tier, lines: gradeLines, grade: d?.grade, conc, name })
-    : null;
-  const headline = lead?.big ?? `${smallPct}% of the money came from small donations.`;
-  const rank = isLetter(m.tier)
-    ? rankLine(
-        d?.grade?.score ?? m.individualFundingPercent,
+  // One figure for "from people" everywhere on the page: People, the score
+  const sentence = hasMoney && isLetter(m.tier) ? peopleSentence(ppi ? ppi.people : score) : null;
+  const placement = isLetter(m.tier)
+    ? placementLine(
+        score,
         members
           .filter(x => isLetter(x.tier) && Number.isFinite(x.individualFundingPercent))
           .map(x => x.individualFundingPercent)
       )
     : null;
-  const standing = hasMoney ? pacStanding(f.pacMoney / f.totalRaised, members) : null;
-  const why = hasMoney
-    ? explainGrade({ tier: m.tier, lines: gradeLines, grade: d?.grade, conc, name, ownPct })
-    : null;
-  const verdict = conc ? concentrationVerdict(d?.grade?.detail?.trustAnchorBasis, d?.grade) : null;
+  const why = hasMoney ? explainGrade({ tier: m.tier, grade: d?.grade, name }) : null;
+  const fewest =
+    final3?.reliable && final3.fewestHoldingHalf
+      ? bigDonorLine(final3.fewestHoldingHalf, final3.donors)
+      : null;
+  const states = hasMoney ? stateShares(d?.bigByState, stateCode(m.state)) : null;
   const passedOn = committees
     .filter(c => c.role === 'joint' && c.ownFund)
     .reduce((s, c) => s + (c.passedElsewhere || 0), 0);
 
   const shareUrl = `${window.location.origin}${isCandidate ? `/candidate/${encodeURIComponent(id)}` : `/member/${encodeURIComponent(id)}`}`;
-  const shareText = `${name} gets ${withArticle(g.mark)} (${g.name}) for where their campaign money comes from. ${headline.replace('\u2011', '-')}`;
+  const shareText =
+    `${name} gets ${withArticle(g.mark)} (${g.name}) for where their campaign money comes from. ${sentence || ''}`.trim();
   const card = {
     id,
     name,
@@ -332,9 +232,10 @@ export default function Member({ id, kind = 'member' }) {
       : { Senator: 'Sen.', Representative: 'Rep.', Delegate: 'Del.' }[title] || title,
     tier: m.tier,
     lines,
+    ppi,
     total: usdShort(f.totalRaised),
-    headline: headline.replace('\u2011', '-'),
-    sub: conc?.of ? `Out of ${count(conc.of)} donors named in FEC records.` : '',
+    headline: sentence || '',
+    sub: placement ? `${placement}.` : '',
     host: window.location.host,
     cycleLabel: CYCLE_LABEL,
   };
@@ -349,22 +250,14 @@ export default function Member({ id, kind = 'member' }) {
                 <Link to="/ballot">Your ballot</Link>
               ) : (
                 <Link to="/congress">All of Congress</Link>
-              )}{' '}
-              / {seat} · {partyName(m.party)}
+              )}
             </p>
             <h1 className="display display-xl" style={{ fontSize: 'clamp(48px, 8vw, 112px)' }}>
               {name}
             </h1>
-            {rank && <p className="rank-line">{rank}</p>}
-            {ownPct >= 5 && (
-              <p className="self-funded">
-                <strong>Self-funded.</strong> {name} put {usd(f.ownMoney)} of their own money into
-                this campaign: {ownPct}% of everything raised. Candidates can spend as much of their
-                own money as they like. We leave it out of the grade, because it doesn&apos;t make
-                them depend on anyone.
-                {f.ownRepaid > 0 && ` Their campaign has paid ${usd(f.ownRepaid)} back to them.`}
-              </p>
-            )}
+            <p className="member-meta">
+              {partyName(m.party)} · {seat}
+            </p>
           </div>
           <div className="row">
             {canShare && (
@@ -380,7 +273,7 @@ export default function Member({ id, kind = 'member' }) {
           </div>
         </div>
 
-        {unverified || !hasMoney ? (
+        {!hasMoney ? (
           <div className="member-layout">
             <div
               className="panel"
@@ -400,123 +293,165 @@ export default function Member({ id, kind = 'member' }) {
             </div>
           </div>
         ) : (
-          <div className="member-layout">
-            <div className="member-slip-col">
-              <div className="slip print-in">
-                <p className="slip-title">TASK FORCE PURPLE</p>
-                <p className="slip-sub">RECEIPT · {CYCLE_LABEL} ELECTION CYCLE</p>
-                <p className="small muted slip-to">
-                  Paid to: {name}, {seatLabel(m)}
-                  {committees.length > 1 && (
+          <>
+            <section className="member-summary" aria-label={`Grade ${g.mark}, ${g.name}`}>
+              <div className="member-verdict">
+                <Stamp tier={m.tier} size={132} rot={-8} animate delay={0.2} />
+                <div style={{ minWidth: 0 }}>
+                  {sentence && <p className="member-sentence">{sentence}</p>}
+                  {placement && <p className="placement">{placement}</p>}
+                  <p style={{ marginTop: 14 }}>
+                    <Evidence checked={checked} />
+                  </p>
+                </div>
+              </div>
+              {ppi && (
+                <div className="member-graph">
+                  <MoneyGraph ppi={ppi} tier={m.tier} showKey />
+                </div>
+              )}
+            </section>
+
+            <div className="folds">
+              {why && (
+                <Fold title={`Why ${withArticle(g.mark)}`}>
+                  <p className="fold-intro">{why.intro}</p>
+                  <ol className="why-steps">
+                    {why.steps.map((step, k) => (
+                      <li key={step.title} className={`why-step tone-${step.tone}`}>
+                        <span className="why-num" aria-hidden="true">
+                          {k + 1}
+                        </span>
+                        <div>
+                          <h3>{step.title}</h3>
+                          <p>{step.text}</p>
+                        </div>
+                      </li>
+                    ))}
+                  </ol>
+                  <p className="fine" style={{ marginTop: 14 }}>
+                    <Link to="/how">How grades work</Link>
+                  </p>
+                </Fold>
+              )}
+
+              <Fold title="The receipt">
+                <div className="slip">
+                  <p className="slip-title">TASK FORCE PURPLE</p>
+                  <p className="slip-sub">RECEIPT · {CYCLE_LABEL} ELECTION CYCLE</p>
+                  <p className="small muted">
+                    Paid to: {name}, {seatLabel(m)}
+                    {committees.length > 1 && (
+                      <>
+                        <br />
+                        Across {committees.length} committees
+                      </>
+                    )}
+                  </p>
+                  <div className="tear" style={{ marginTop: 18 }} />
+                  <MoneyLines lines={lines} value={l => usd(l.amount)} />
+                  <div className="tear" style={{ marginTop: 6 }} />
+                  <p className="slip-total">
+                    <span>TOTAL</span>
+                    <span>{usd(f.totalRaised)}</span>
+                  </p>
+                  <p style={{ marginTop: 22 }}>
+                    <Evidence checked={checked} long />
+                  </p>
+                  {gradedOn && (
+                    <p className="fine" style={{ marginTop: 8 }}>
+                      Graded {gradedOn}
+                    </p>
+                  )}
+                  <Barcode id={id} />
+                </div>
+              </Fold>
+
+              {ownPct >= 5 && (
+                <Fold title="Their own money">
+                  <p>
+                    {name} put {usd(f.ownMoney)} of their own money into this campaign: {ownPct}% of
+                    everything raised. Candidates can spend as much of their own money as they like.
+                    We leave it out of the grade, because it doesn&apos;t make them depend on
+                    anyone.
+                    {f.ownRepaid > 0 &&
+                      ` Their campaign has paid ${usd(f.ownRepaid)} back to them.`}
+                  </p>
+                </Fold>
+              )}
+
+              {(fewest || states) && (
+                <Fold title="Who gave the big money">
+                  {fewest && <p className="fold-lead">{fewest}</p>}
+                  {states && (
                     <>
-                      <br />
-                      Across {committees.length} committees
+                      <p style={{ margin: '14px 0 12px' }}>{states.sentence}</p>
+                      <ul className="share-list">
+                        {states.rows.map(r => (
+                          <li key={r.label} className={r.home ? 'is-home' : undefined}>
+                            <span>
+                              {r.label}
+                              {r.home ? ' (home state)' : ''}
+                            </span>
+                            <span className="share-bar" aria-hidden="true">
+                              <span style={{ width: `${Math.max(1, r.share)}%` }} />
+                            </span>
+                            <strong>{r.text}</strong>
+                          </li>
+                        ))}
+                      </ul>
                     </>
                   )}
-                </p>
-                <div className="tear" style={{ marginTop: 18 }} />
-                <MoneyLines lines={lines} value={l => usd(l.amount)} />
-                <div className="tear" style={{ marginTop: 6 }} />
-                <p className="slip-total">
-                  <span>TOTAL</span>
-                  <span>{usd(f.totalRaised)}</span>
-                </p>
-                <div style={{ marginTop: 18 }}>
-                  <PowerBar lines={lines} height={18} />
-                </div>
-                <p style={{ marginTop: 22 }}>
-                  <Evidence checked={checked} long />
-                </p>
-                {gradedOn && (
-                  <p className="fine" style={{ marginTop: 8 }}>
-                    Graded {gradedOn}
+                  <p className="fine" style={{ marginTop: 12 }}>
+                    Big donations are over $200. Each donor is placed by the address on their FEC
+                    records. We don&apos;t list donors by name.
                   </p>
-                )}
-                <Barcode id={id} />
-              </div>
-              <div className="slip-stamp">
-                <Stamp tier={m.tier} size={124} rot={-11} animate delay={0.45} />
-              </div>
-            </div>
+                </Fold>
+              )}
 
-            <div className="member-main">
-              <div className={`headline dark on-dark tone-${lead?.tone ?? 'neutral'}`}>
-                <p className="eyebrow">{lead?.eyebrow ?? 'Big donations'}</p>
-                <p
-                  className="display"
-                  style={{ marginTop: 12, fontSize: 'clamp(40px, 6vw, 84px)', lineHeight: 0.9 }}
-                >
-                  {headline}
-                </p>
-                {lead?.text && <p className="lede">{lead.text}</p>}
-                {conc && lead?.showConc && (
-                  <>
-                    <ConcentrationBars n={conc.n} of={conc.of} />
-                    {verdict && (
-                      <p className={`verdict tone-${verdict.tone}`}>
-                        <strong>{verdict.label}</strong> {verdict.text}
-                      </p>
-                    )}
-                  </>
-                )}
-              </div>
+              <PacPanel member={m} name={name} pacMoney={f.pacMoney} />
 
-              <section aria-labelledby="why-title">
-                <h2 id="why-title" className="display display-m" style={{ marginBottom: 8 }}>
-                  Why {withArticle(g.mark)}
-                </h2>
-                {why ? (
-                  <>
-                    <ScoreScale raw={why.raw} score={why.score} shift={why.shift} tier={m.tier} />
-                    <ol className="why-steps">
-                      {why.steps.map((step, k) => (
-                        <li key={step.title} className={`why-step tone-${step.tone}`}>
-                          <span className="why-num" aria-hidden="true">
-                            {k + 1}
-                          </span>
-                          <div>
-                            <h3>{step.title}</h3>
-                            <p>{step.text}</p>
-                          </div>
-                        </li>
-                      ))}
-                    </ol>
-                    {standing && pacPct > 0 && (
-                      <p className="fine" style={{ marginTop: 12 }}>
-                        ${pacPct} of every $100 came from PACs. {standing}
-                      </p>
-                    )}
-                  </>
-                ) : (
-                  <>
-                    <p style={{ marginBottom: 16, color: 'var(--ink-2)' }}>{g.meaning}</p>
-                    <div className="facts">
-                      <div className="fact">
-                        <b>{smallPct}%</b>
-                        <p>of the money came from small donors giving under $200.</p>
-                      </div>
-                      <div className="fact">
-                        <b>{pacPct}%</b>
-                        <p>came from PACs.{standing ? ` ${standing}` : ''}</p>
-                      </div>
-                      {conc && (
-                        <div className="fact">
-                          <b>{count(conc.n)}</b>
-                          <p>
-                            {conc.n === 1 ? 'donor gave' : 'donors gave'} half of the big-donation
-                            money.
-                          </p>
-                        </div>
-                      )}
-                    </div>
-                  </>
-                )}
-              </section>
+              {m.topConduits?.length > 0 && (
+                <Fold title="Bundled donations">
+                  {m.earmarkedIndividualTotal > 0 && (
+                    <p style={{ marginBottom: 12, color: 'var(--ink-2)' }}>
+                      <strong style={{ color: 'var(--ink)' }}>
+                        {usd(m.earmarkedIndividualTotal)}
+                      </strong>{' '}
+                      of the donations from individuals came in through organizations that collect
+                      donations and pass them on, such as online fundraising platforms.
+                    </p>
+                  )}
+                  <ul className="ranked">
+                    {m.topConduits.slice(0, 6).map(c => (
+                      <li key={c.name}>
+                        <span className="name">
+                          {c.name}{' '}
+                          {c.country ? (
+                            <span className="pac-chip">Country-focused: {c.country}</span>
+                          ) : (
+                            <span
+                              className="muted"
+                              style={{ fontFamily: 'var(--body)', fontSize: 12 }}
+                            >
+                              · {sectorInfo(classifyOrganization(c.name)).label}
+                            </span>
+                          )}
+                        </span>
+                        <span className="leader" aria-hidden="true" />
+                        <strong>{usdShort(c.amount)}</strong>
+                      </li>
+                    ))}
+                  </ul>
+                  <p className="fine" style={{ marginTop: 12 }}>
+                    &ldquo;Country-focused&rdquo; means the group behind it tells the IRS, on its
+                    own Form 990, that it exists to advance a particular country&apos;s interests or
+                    its relationship with the United States.
+                  </p>
+                </Fold>
+              )}
 
-              <section aria-labelledby="trail-title">
-                <h2 id="trail-title" className="display display-m" style={{ marginBottom: 6 }}>
-                  Where the money was raised
-                </h2>
+              <Fold title="Where the money was raised">
                 {trail ? (
                   <>
                     <p style={{ marginBottom: 16, color: 'var(--ink-2)' }}>
@@ -578,83 +513,15 @@ export default function Member({ id, kind = 'member' }) {
                     records yet, so these figures only cover one committee.
                   </p>
                 )}
-              </section>
+              </Fold>
 
-              <div className="panels">
-                {d?.topDonors?.length > 0 && (
-                  <div className="panel">
-                    <h3>Biggest donors</h3>
-                    <ol className="ranked">
-                      {d.topDonors.slice(0, 10).map((p, i) => (
-                        <li key={`${p.name}-${i}`}>
-                          <span className="muted">{i + 1}.</span>
-                          <span className="name">
-                            {p.name}
-                            {p.state ? ` (${p.state})` : ''}
-                          </span>
-                          <span className="leader" aria-hidden="true" />
-                          <strong>{usd(p.amount)}</strong>
-                        </li>
-                      ))}
-                    </ol>
-                    <p className="fine" style={{ marginTop: 12 }}>
-                      Each person&apos;s donations are added up across all the committees above.
-                      From public FEC records.
-                    </p>
-                  </div>
-                )}
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
-                  {m.topConduits?.length > 0 && (
-                    <div className="panel">
-                      <h3>Bundled donations</h3>
-                      {m.earmarkedIndividualTotal > 0 && (
-                        <p style={{ marginBottom: 12, color: 'var(--ink-2)' }}>
-                          <strong style={{ color: 'var(--ink)' }}>
-                            {usd(m.earmarkedIndividualTotal)}
-                          </strong>{' '}
-                          of the donations from individuals came in through organizations that
-                          collect donations and pass them on, such as online fundraising platforms.
-                        </p>
-                      )}
-                      <ul className="ranked">
-                        {m.topConduits.slice(0, 6).map(c => {
-                          const foreign = foreignInterestFor(c.name);
-                          return (
-                            <li key={c.name}>
-                              <span className="name">
-                                {c.name}
-                                <span
-                                  className="muted"
-                                  style={{ fontFamily: 'var(--body)', fontSize: 12 }}
-                                >
-                                  {' '}
-                                  ·{' '}
-                                  {foreign
-                                    ? `${foreign.country} interest`
-                                    : sectorInfo(classifyOrganization(c.name)).label}
-                                </span>
-                              </span>
-                              <span className="leader" aria-hidden="true" />
-                              <strong>{usdShort(c.amount)}</strong>
-                            </li>
-                          );
-                        })}
-                      </ul>
-                    </div>
-                  )}
+              {m.faraEmployerTotal > 0 && (
+                <Fold title="Foreign agents">
                   <ForeignAgentPanel member={m} />
-                </div>
-                <PacPanel member={m} name={name} pacMoney={f.pacMoney} />
-              </div>
+                </Fold>
+              )}
 
-              <section
-                className="panel"
-                aria-labelledby="about-title"
-                style={{ background: 'transparent' }}
-              >
-                <h2 id="about-title" style={{ fontSize: 18, marginBottom: 8 }}>
-                  About these numbers
-                </h2>
+              <Fold title="About these numbers">
                 {checked === false && (
                   <p className="fine">
                     <strong>Still being checked.</strong> This grade is based on the FEC&apos;s bulk
@@ -675,17 +542,17 @@ export default function Member({ id, kind = 'member' }) {
                   </p>
                 ))}
                 <p className="fine">
-                  <strong>How we count:</strong> Money moved between someone&apos;s own committees
-                  is only counted once. Money received from a joint fundraising committee is split
+                  <strong>Adding it up:</strong> Money moved between someone&apos;s own committees
+                  is added only once. Money received from a joint fundraising committee is split
                   into small donations, big donations and PACs in the same proportions as that
                   committee&apos;s own fundraising.{' '}
                   {f.allCommittees
                     ? 'This grade includes all of the committees listed above.'
                     : 'For now, this grade only includes their campaign committee.'}
                 </p>
-              </section>
+              </Fold>
             </div>
-          </div>
+          </>
         )}
       </div>
 

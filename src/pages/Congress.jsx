@@ -2,18 +2,11 @@
 // filters live in the address, so a filtered view can be shared.
 import React, { useMemo, useState } from 'react';
 import { Search } from 'lucide-react';
-import { PowerBar, Skeleton, Stamp } from '../components/ui.jsx';
+import { Skeleton, Stamp } from '../components/ui.jsx';
 import { api } from '../lib/api.js';
-import { GRADES, LETTERS, gradeInfo, isIdentityUnverified, isRingfenced } from '../lib/grades.js';
+import { GRADES, LETTERS, gradeInfo, isLetter } from '../lib/grades.js';
 import { useAsync, useTitle } from '../lib/hooks.js';
-import {
-  count,
-  displayName,
-  gradedFigures,
-  moneyLines,
-  partyName,
-  seatLabel,
-} from '../lib/people.js';
+import { displayName, gradedFigures, partyName, seatLabel } from '../lib/people.js';
 import { Link, memberPath, navigate } from '../lib/router.js';
 
 const PAGE = 60;
@@ -54,11 +47,13 @@ function writeParams(next) {
   navigate(`/congress${s ? `?${s}` : ''}`, { replace: true, keepScroll: true });
 }
 
+// One line per member: the grade's word and the one figure for "from people"
 function Row({ m }) {
-  const f = gradedFigures(m);
-  const withheld = isRingfenced(m.tier);
-  const lines = !withheld && f.totalRaised > 0 ? moneyLines(f) : null;
-  const n = isIdentityUnverified(m.tier) ? null : m.nakamotoCoefficient;
+  const g = gradeInfo(m.tier, m.withheldReason);
+  const people =
+    isLetter(m.tier) && Number.isFinite(m.individualFundingPercent)
+      ? Math.round(m.peoplePowerInfluence?.people ?? m.individualFundingPercent)
+      : null;
   return (
     <li>
       <Link to={memberPath(m.bioguideId)} className="member-row">
@@ -68,13 +63,9 @@ function Row({ m }) {
           <span className="count-line">
             {seatLabel(m)} · {partyName(m.party)}
           </span>
-          {lines && <PowerBar lines={lines} />}
           <span className="count-line">
-            {withheld
-              ? gradeInfo(m.tier, m.withheldReason).name
-              : n > 0
-                ? `Half the big-donation money from ${n === 1 ? 'one person' : `${count(n)} people`}`
-                : gradeInfo(m.tier, m.withheldReason).name}
+            {g.name}
+            {people !== null ? ` · ${people}% from people` : ''}
           </span>
         </span>
       </Link>
@@ -106,12 +97,8 @@ export default function Congress({ search }) {
           (m.party || '').toLowerCase().includes(q))
     );
     const rank = m => GRADES[m.tier]?.rank ?? -1;
-    const pct = m => {
-      const f = gradedFigures(m);
-      return f.totalRaised > 0
-        ? (f.grassrootsDonations + (f.largeDonorDonations || 0)) / f.totalRaised
-        : 0;
-    };
+    // Within a grade: the grade's own figure, the share from people
+    const pct = m => (Number.isFinite(m.individualFundingPercent) ? m.individualFundingPercent : 0);
     const byName = (a, b) => displayName(a.name).localeCompare(displayName(b.name));
     const sorters = {
       best: (a, b) => rank(b) - rank(a) || pct(b) - pct(a) || byName(a, b),

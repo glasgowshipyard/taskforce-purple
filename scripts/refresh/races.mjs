@@ -24,7 +24,11 @@ import { join } from 'node:path';
 import { FEC_CROSSWALK } from '../../workers/fec-crosswalk.js';
 import { committeesFinal3, gradeMemberFinal3 } from '../../workers/grading.js';
 import { LIST_KEY, sameValue } from '../../workers/member-store.js';
-import { cycleForYear, final3PacShares } from '../../workers/tier-calculation.js';
+import {
+  cycleForYear,
+  final3PacShares,
+  peoplePowerInfluence,
+} from '../../workers/tier-calculation.js';
 import { memberDonorShape } from '../simulate/lib/inputs.mjs';
 import { analyzePool, loadFara } from './lib/analysis.mjs';
 import { buildPacs, directingCommittees, platformIds } from './lib/final3.mjs';
@@ -213,7 +217,7 @@ async function main() {
         pf.donorCommitteeIds,
         analysis.nakamotoCoefficient,
         null,
-        { platforms: [...platforms] }
+        { platforms: [...platforms], byState: true }
       );
       const gifts = giftsFor.get(c.candidateId) || [];
       const fundGifts = fundGiftsFor.get(c.candidateId) || [];
@@ -230,6 +234,10 @@ async function main() {
         pacs,
         shares
       );
+      analysis.conduits = (analysis.conduits || []).map(c => ({
+        ...c,
+        country: (c.id && pacs[c.id]?.country?.country) || null,
+      }));
       analysis.pacs = committeesFinal3(
         { gifts, giftsToFunds: fundGifts, directedOut: shapeDirected?.directedOut },
         pacs,
@@ -239,6 +247,8 @@ async function main() {
         donors: shapeDirected.donors,
         nakamoto: shapeDirected.nakamoto,
         total: shapeDirected.total,
+        // Where the big money came from, by donor state (owner and Craig, 2026-10-13)
+        byState: shapeDirected.byState || [],
       };
       graded.set(c.candidateId, { status: 'provisional', pf, analysis, grade });
     }
@@ -271,6 +281,7 @@ async function main() {
         largeDonors: pf.largeDonorDonations ?? null,
         pac: pf.pacMoney ?? null,
         nakamoto: m.nakamotoCoefficient ?? null,
+        peoplePowerInfluence: m.peoplePowerInfluence ?? null,
       };
     }
     const g = graded.get(c.candidateId) || {};
@@ -282,8 +293,9 @@ async function main() {
       smallDonors: g.pf?.grassrootsDonations ?? null,
       largeDonors: g.pf?.largeDonorDonations ?? null,
       pac: g.pf?.pacMoney ?? null,
-      uniqueDonors: g.analysis?.uniqueDonors ?? null,
-      nakamoto: g.analysis?.nakamotoCoefficient ?? null,
+      uniqueDonors: g.analysis?.donorTest?.donors ?? g.analysis?.uniqueDonors ?? null,
+      nakamoto: g.analysis?.donorTest?.nakamoto ?? g.analysis?.nakamotoCoefficient ?? null,
+      peoplePowerInfluence: peoplePowerInfluence(g.grade?.detail),
     };
   };
   const races = buildRaces(field_.map(entry));

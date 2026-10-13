@@ -12,7 +12,11 @@
 //   - Until the migration has written a member's own key, reads fall back to
 //     `members:all`.
 
-import { getCommitteeCategory, getPACTransparencyWeight } from './tier-calculation.js';
+import {
+  getCommitteeCategory,
+  getPACTransparencyWeight,
+  peoplePowerInfluence,
+} from './tier-calculation.js';
 import { quicklookSectors } from '../src/lib/donor-taxonomy.js';
 
 export const MEMBER_KEY_PREFIX = 'member:';
@@ -47,6 +51,7 @@ export const LIST_FIELDS = [
   'faraAgentTotal',
   'pacDetailsStatus',
   'withheldReason',
+  'peoplePowerInfluence',
   'lastUpdated',
 ];
 
@@ -150,6 +155,8 @@ export function publishedMember(record, result) {
     tier: g.tier,
     withheldReason: undefined, // graded: nothing withheld
     individualFundingPercent: g.individualFundingPercent ?? null,
+    // The money given in three parts (FINAL-3): People, Power, Influence
+    peoplePowerInfluence: peoplePowerInfluence(g.detail),
     gradeBasis: g.gradeBasis,
     personFigures: g.personFigures ?? null,
     evidenceChecked: g.evidenceChecked ?? null,

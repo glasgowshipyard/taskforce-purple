@@ -539,6 +539,29 @@ loans, repaid }`, the candidate's own gifts and loans to their campaign
   and would have overwritten published grades. Re-grade with the refresh job
   instead (RUNBOOK §8).
 
+## Presentation fields (2026-10-13, Craig's site brief)
+
+No grade changes; these let the site say the same thing one way.
+
+- **`GET /api/members`** entries carry `peoplePowerInfluence: { people,
+power, influence }`: the money given in three parts, whole percentages
+  adding up to 100, `people` being the score (`peoplePowerInfluence` in
+  `workers/tier-calculation.js`, from the FINAL-3 `grade.detail`). Absent on
+  withheld grades.
+- **`GET /api/member-detail`** no longer names big donors: `topDonors` is
+  gone. `bigByState: [{ state, amount }]` is the big-donor money by the
+  donors' states, from the grade's own donor test (donors who net above $0,
+  directed gifts left out), largest first; null until the member's next
+  refresh. `uniqueDonors` and `nakamotoCoefficient` come from the same
+  donor test.
+- **Country-focused:** `member.topConduits[].country`,
+  `member.pacSummary.list[].country` and `.directed[].country` name the
+  country when the committee's sponsor says on its own Form 990 (Part III,
+  its mission) that it exists to advance that country's interests or its
+  relationship with the US (`scripts/refresh/lib/country-focus.mjs`, the
+  same test for every country); null otherwise.
+- **`GET /api/races`** candidates carry `peoplePowerInfluence` too.
+
 ## The 2026 races (2026-10-07, ROADMAP Phase E)
 
 - **`GET /api/races`**: KV `races:list` as stored:

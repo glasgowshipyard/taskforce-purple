@@ -364,9 +364,11 @@ function publishedDetail(bioguideId, record, result) {
     donorPoolCommitteeIds: pool.donorCommitteeIds || [],
     personLevel: true,
     collectedAt: result.computed_at,
-    topDonors: a.topDonors || [],
-    uniqueDonors: a.uniqueDonors ?? null,
-    nakamotoCoefficient: a.nakamotoCoefficient ?? null,
+    // Big donors aren't named (owner and Craig, 2026-10-13): where their
+    // money came from, by state, from the grade's own donor test
+    bigByState: a.donorTest?.byState || null,
+    uniqueDonors: a.donorTest ? a.donorTest.donors : (a.uniqueDonors ?? null),
+    nakamotoCoefficient: a.donorTest ? a.donorTest.nakamoto : (a.nakamotoCoefficient ?? null),
     // true: every record checked against the FEC's; false: from the FEC's
     // bulk files, check still running. Notes: where the FEC's own figures
     // disagree with each other (REBUILD_SPEC §6, D3)
@@ -405,7 +407,7 @@ async function legacyDetail(env, bioguideId, record, result = null) {
     donorPoolCommitteeIds: a?.committeeIds || (a?.committeeId ? [a.committeeId] : []),
     personLevel: Boolean(a?.personLevel),
     collectedAt: a?.collectionCompletedAt || null,
-    topDonors: a?.topDonors || [],
+    bigByState: null,
     uniqueDonors: a?.uniqueDonors ?? null,
     nakamotoCoefficient: a?.nakamotoCoefficient ?? null,
     evidence: null,

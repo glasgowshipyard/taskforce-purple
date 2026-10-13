@@ -7,7 +7,8 @@
 // people test. The maths is workers/tier-calculation.js (gradeFinal3).
 
 import { readFileSync } from 'node:fs';
-import { classifyPac, loadFacts, loadPeopleEvidence, peopleTest } from './sponsors.mjs';
+import { countryFocus } from './country-focus.mjs';
+import { classifyPac, loadFacts, loadPeopleEvidence, peopleTest, sponsorEin } from './sponsors.mjs';
 import { totalsType } from './discovery.mjs';
 
 // Conduits that pass a gift to whichever candidate the donor picks; any
@@ -177,6 +178,15 @@ export async function buildPacs({
         : null,
       sponsor,
       peopleTest: peopleTest(c.id, sponsor, forms, stated, { minority }),
+    };
+    // The country label: the sponsor's own Form 990 mission (country-focus.mjs)
+    const ein = sponsorEin(pacs[c.id], irsIndex);
+    const focus = ein ? countryFocus(forms[ein]?.mission) : null;
+    pacs[c.id].country = focus && {
+      country: focus.country,
+      ein,
+      taxYear: forms[ein]?.taxYear ?? null,
+      phrase: focus.phrase,
     };
   }
   log(

@@ -8,15 +8,7 @@ import { api } from '../lib/api.js';
 import { ELECTION_DAY_TEXT, RACES_ARRIVE_TEXT, daysUntilElection } from '../lib/election.js';
 import { GRADES, gradeInfo } from '../lib/grades.js';
 import { useAsync, useTitle } from '../lib/hooks.js';
-import {
-  count,
-  displayName,
-  gradedFigures,
-  partyName,
-  raceSeat,
-  stateName,
-  usd,
-} from '../lib/people.js';
+import { displayName, gradedFigures, partyName, raceSeat, stateName, usd } from '../lib/people.js';
 import { racesFor, savePlace, savedPlace } from '../lib/place.js';
 import { Link, memberPath, racePath } from '../lib/router.js';
 
@@ -41,34 +33,31 @@ function candidatePerson(c) {
       ? null
       : "Not graded yet. We haven't found a campaign committee for this election that we can grade.",
     evidenceChecked: c.evidenceChecked,
-    nakamotoCoefficient: c.nakamoto,
-    uniqueDonors: c.uniqueDonors ?? null,
+    ppi: c.peoplePowerInfluence ?? null,
     href: c.bioguideId
       ? memberPath(c.bioguideId)
       : `/candidate/${encodeURIComponent(c.candidateId)}`,
   };
 }
 
-function pctOf(part, whole) {
-  return Number.isFinite(part) && whole > 0 ? Math.round((part / whole) * 100) : null;
-}
+// The one figure for "from people": People, the grade's share
+const fromPeople = c =>
+  Number.isFinite(c.peoplePowerInfluence?.people) ? c.peoplePowerInfluence.people : null;
 
-// One plain sentence: who raised most, and who leans most on small donors
+// One plain sentence: who raised most, and who gets the most from people
 function shortVersion(cands) {
-  const graded = cands.filter(c => c.tier && c.totalRaised > 0);
+  const graded = cands.filter(c => c.tier && c.totalRaised > 0 && fromPeople(c) !== null);
   if (graded.length < 2) {
     return null;
   }
   const most = [...graded].sort((a, b) => b.totalRaised - a.totalRaised)[0];
-  const small = [...graded].sort(
-    (a, b) => b.smallDonors / b.totalRaised - a.smallDonors / a.totalRaised
-  )[0];
+  const people = [...graded].sort((a, b) => fromPeople(b) - fromPeople(a))[0];
   const name = c => displayName(c.name);
   const first = `${name(most)} has raised the most, ${usd(most.totalRaised)}.`;
-  if (small === most) {
-    return `${first} ${name(most)} also gets the largest share from small donors: ${pctOf(most.smallDonors, most.totalRaised)} cents of every dollar.`;
+  if (people === most) {
+    return `${first} ${name(most)} also gets the most from people: ${fromPeople(most)} cents of every dollar.`;
   }
-  return `${first} ${name(small)} gets the largest share from small donors: ${pctOf(small.smallDonors, small.totalRaised)} cents of every dollar, compared with ${pctOf(most.smallDonors, most.totalRaised)} cents for ${name(most)}.`;
+  return `${first} ${name(people)} gets the most from people: ${fromPeople(people)} cents of every dollar, compared with ${fromPeople(most)} cents for ${name(most)}.`;
 }
 
 function CompareTable({ cands }) {
@@ -76,11 +65,9 @@ function CompareTable({ cands }) {
     { label: 'Grade', value: c => gradeInfo(c.tier).mark, score: c => GRADES[c.tier]?.rank ?? -1 },
     { label: 'Total raised', value: c => usd(c.totalRaised) },
     {
-      label: 'From small donors',
-      value: c =>
-        (pctOf(c.smallDonors, c.totalRaised) ?? '—') +
-        (pctOf(c.smallDonors, c.totalRaised) === null ? '' : '%'),
-      score: c => (c.tier ? c.smallDonors / c.totalRaised : -1),
+      label: 'From people',
+      value: c => (fromPeople(c) === null ? '—' : `${fromPeople(c)}%`),
+      score: c => (c.tier && fromPeople(c) !== null ? fromPeople(c) : -1),
     },
     {
       label: 'From PACs',
@@ -88,9 +75,15 @@ function CompareTable({ cands }) {
       score: c => (c.tier && Number.isFinite(c.pac) ? -c.pac / c.totalRaised : -Infinity),
     },
     {
-      label: 'People who gave half the big-donation money',
-      value: c => (c.nakamoto > 0 ? count(c.nakamoto) : '—'),
-      score: c => (c.nakamoto > 0 ? c.nakamoto : -1),
+      label: 'Half the big money came from',
+      value: c => {
+        const share = c.nakamoto > 0 && c.uniqueDonors > 0 ? c.nakamoto / c.uniqueDonors : null;
+        if (share === null) {
+          return '—';
+        }
+        return `${share < 0.01 ? 'under 1' : Math.round(share * 100)}% of big donors`;
+      },
+      score: c => (c.nakamoto > 0 && c.uniqueDonors > 0 ? c.nakamoto / c.uniqueDonors : -1),
     },
   ];
   return (

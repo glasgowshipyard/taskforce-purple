@@ -1,39 +1,33 @@
-// What kind of PAC gave the money, in plain words, from the FEC's own codes
-// (committee type and designation). The weights are the grading's
-// (workers/tier-calculation.js getPACTransparencyWeight, PAC_TRACING): this
+// What kind of PAC gave the money, from the FEC's own codes (committee type
+// and designation), for members graded before FINAL-3. The weights are the
+// grading's (workers/tier-calculation.js getPACTransparencyWeight): this
 // file only names them.
-import { PAC_TRACING, getPACTransparencyWeight } from '../../workers/tier-calculation.js';
+import { getPACTransparencyWeight } from '../../workers/tier-calculation.js';
 
 export const PAC_TYPES = {
   super: {
     label: 'Super PAC',
     heavier: true,
-    why: 'Super PACs can take unlimited money from anyone, including companies and the very wealthy.',
   },
   hybrid: {
     label: 'Hybrid PAC',
     heavier: false,
-    why: 'A PAC with a second, super PAC account that can take unlimited money.',
   },
   politician: {
     label: "Another politician's PAC",
     heavier: true,
-    why: 'Run by another politician. Money passed between politicians can buy goodwill and influence.',
   },
   lobbyist: {
     label: 'Lobbyist PAC',
     heavier: false,
-    why: 'Run by a group that lobbies Congress, such as a company, union or trade group. Most PAC money comes from these. Like any PAC, what counts is who funds it.',
   },
   campaign: {
     label: "Another candidate's campaign",
     heavier: false,
-    why: "Money from another candidate's own campaign. It isn't checked like a PAC, but it doesn't make the grade harder to reach.",
   },
   group: {
     label: 'Company, union or group PAC',
     heavier: false,
-    why: 'Pools money from the staff or members of a company, union, trade group or cause.',
   },
 };
 
@@ -80,71 +74,4 @@ export function pacRows(contributions = []) {
     byId.set(p.contributorId, row);
   }
   return [...byId.values()].sort((a, b) => b.amount - a.amount);
-}
-
-// The FEC's organisation type (ORG_TP) for a PAC's sponsor
-const ORG_LABELS = {
-  C: 'Company',
-  W: 'Company',
-  L: 'Union',
-  T: 'Trade group',
-  M: 'Membership group',
-  V: 'Cooperative',
-};
-
-/** A PAC's name for its kind: "Union PAC", "Super PAC", "Another politician's PAC". */
-export function pacLabel(pac) {
-  if (pac.kind === 'lobbyist' || pac.kind === 'group') {
-    return `${ORG_LABELS[pac.orgType] || 'Group'} PAC`;
-  }
-  return PAC_TYPES[pac.kind]?.label || 'PAC';
-}
-
-/** The kinds, in the order the split bar shows them, with plain names. */
-export const PAC_KINDS = [
-  { kind: 'super', label: 'Super PACs', color: '#7B1E3A' },
-  { kind: 'politician', label: "Other politicians' PACs", color: '#C2412B' },
-  { kind: 'lobbyist', label: 'PACs of groups that lobby Congress', color: '#E07A5F' },
-  { kind: 'hybrid', label: 'Hybrid PACs', color: '#8F7FA8' },
-  { kind: 'group', label: 'Other company, union and group PACs', color: '#9C98A6' },
-  { kind: 'campaign', label: "Other candidates' campaigns", color: '#CFCBC1' },
-];
-
-const pct = x => `${Math.round(x * 100)}%`;
-
-/** How much of a PAC's people money counts, in words: "half" */
-export const CREDIT_WORDS =
-  { 0.25: 'a quarter', 0.5: 'half', 1: 'all' }[PAC_TRACING.credit] ||
-  `${Math.round(PAC_TRACING.credit * 100)}%`;
-
-/**
- * Dollars of a PAC's gift that count toward the grade as money from people
- * (#57): the gift times the share of the PAC's money traced to people, times
- * the credit. Null when the PAC wasn't traced.
- */
-export function countedDollars(pac) {
-  return Number.isFinite(pac.peopleShare)
-    ? pac.amount * pac.peopleShare * PAC_TRACING.credit
-    : null;
-}
-
-/**
- * Where a PAC's own money came from, in a line (looking through it, #57):
- * how much from people, how much in small donations, and how few people
- * gave half its big donations. Null when the FEC has no summary for it.
- */
-export function peopleLine(profile) {
-  if (!profile?.receipts || !(profile.individuals >= 0)) {
-    return null;
-  }
-  const fromPeople = Math.min(1, profile.individuals / profile.receipts);
-  const small = Math.max(
-    0,
-    Math.min(1, (profile.individuals - (profile.itemized || 0)) / profile.receipts)
-  );
-  const few =
-    profile.nakamoto && profile.donors >= 10
-      ? `. Half its big donations came from ${profile.nakamoto.toLocaleString('en-US')} ${profile.nakamoto === 1 ? 'person' : 'people'}`
-      : '';
-  return `Its own money: ${pct(fromPeople)} from people, ${pct(small)} in small donations${few}.`;
 }

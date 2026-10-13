@@ -1,15 +1,17 @@
 // Every PAC that gave to a member, sorted by who the PAC answers to, and how
-// much of each counts toward the grade (FINAL-3: only PACs of groups run by
-// their members count, and only the part of their money that traces back to
-// many people). Also the committees that steered donors' gifts to the
-// member. Members graded before FINAL-3 show the plain list.
+// much of each gift is People money (FINAL-3: only PACs of groups run by
+// their members, and only the part of their money that came from many
+// people; the rest is Influence). Also the committees that passed donors'
+// gifts on to the member. Members graded before FINAL-3 show the plain list.
 import React from 'react';
 import { Link } from '../lib/router.js';
-import { pacRows, peopleLine } from '../lib/pacs.js';
+import { pacRows } from '../lib/pacs.js';
 import { usd } from '../lib/people.js';
+import { Fold } from './ui.jsx';
 
+// `people`: the group whose gifts can be People money
 const PAC_GROUPS = [
-  { group: 'people', label: 'Run by their members', color: '#5B21B6', counts: true },
+  { group: 'people', label: 'Run by their members', color: '#5B21B6', people: true },
   { group: 'board', label: 'Run by a board', color: '#8F7FA8' },
   { group: 'untested', label: 'Not checked yet', color: '#CFCBC1' },
   { group: 'nosponsor', label: 'No group behind them', color: '#9C98A6' },
@@ -21,22 +23,52 @@ const LABEL = Object.fromEntries(PAC_GROUPS.map(g => [g.group, g.label]));
 
 const Explainer = () => (
   <p className="small" style={{ color: 'var(--ink-2)', marginBottom: 12 }}>
-    A PAC (political action committee) pools money and gives it to candidates. A PAC counts toward
-    the grade only when the group behind it is run by its members (they elect its leaders, as in a
-    union), and only the part of its money that traces back to many people. PACs of businesses,
-    politicians and parties, and of groups run by a board, count nothing.{' '}
-    <Link to="/how">How the grade works</Link>
+    A PAC (political action committee) pools money and gives it to candidates. When the group behind
+    a PAC is run by its members, who elect most of its board, as in a union, the part of its money
+    that came from many people is People money. All other PAC money is Influence.{' '}
+    <Link to="/how">How grades work</Link>
   </p>
 );
 
+const plain = s =>
+  String(s || '')
+    .toUpperCase()
+    .replace(/[^A-Z0-9]+/g, ' ')
+    .trim();
+
+// Who set the PAC up, from its FEC filing. Never a politician's surname (a
+// politician's PAC says so instead), and never the PAC named as its own sponsor
+function sponsorText(p) {
+  if (p.group === 'politician') {
+    return "A politician's PAC.";
+  }
+  if (p.group === 'party') {
+    return 'A party committee.';
+  }
+  const org = p.connectedOrg;
+  if (!org || org === 'NONE' || plain(org) === plain(p.name)) {
+    return null;
+  }
+  if (/\b(PAC|POLITICAL ACTION COMMITTEE|POLITICAL ACTION)\b/.test(plain(org))) {
+    return null;
+  }
+  return `Set up by ${org}.`;
+}
+
 function Row({ p, i }) {
-  const line = peopleLine(p.profile);
+  const sponsor = sponsorText(p);
   return (
     <li>
       <div className="pac-list-top">
         <span className="muted">{i + 1}.</span>
         <span className="name">
           {p.name} <span className="pac-chip">{LABEL[p.group] || 'PAC'}</span>
+          {p.country && (
+            <>
+              {' '}
+              <span className="pac-chip">Country-focused: {p.country}</span>
+            </>
+          )}
           {p.to === 'own joint fund' && (
             <>
               {' '}
@@ -47,12 +79,35 @@ function Row({ p, i }) {
         <span className="leader" aria-hidden="true" />
         <strong>{usd(p.amount)}</strong>
       </div>
-      <p className="pac-list-sub">
-        {p.connectedOrg && p.connectedOrg !== 'NONE' && `Run by ${p.connectedOrg}. `}
-        {p.group === 'people' && line ? `${line} ` : ''}
-        Counts toward the grade: {usd(p.counts || 0)}.
-      </p>
+      {(sponsor || p.group === 'people') && (
+        <p className="pac-list-sub">
+          {sponsor}
+          {sponsor && p.group === 'people' ? ' ' : ''}
+          {p.group === 'people' && `${usd(p.counts || 0)} of ${usd(p.amount)} comes from people.`}
+        </p>
+      )}
     </li>
+  );
+}
+
+function Key({ title, groups, s }) {
+  if (!groups.length) {
+    return null;
+  }
+  return (
+    <>
+      <h4 className="pac-key-title">{title}</h4>
+      <ul className="pac-split-key">
+        {groups.map(g => (
+          <li key={g.group}>
+            <span className="swatch" style={{ '--c': g.color }} aria-hidden="true" />
+            <span>{g.label}</span>
+            <span className="leader" aria-hidden="true" />
+            <strong>{usd(s.byGroup[g.group])}</strong>
+          </li>
+        ))}
+      </ul>
+    </>
   );
 }
 
@@ -65,8 +120,7 @@ export default function PacPanel({ member, name, pacMoney }) {
       return null;
     }
     return (
-      <div className="panel" style={{ flexBasis: '100%' }}>
-        <h3>PAC donations</h3>
+      <Fold title="PAC donations">
         <Explainer />
         <ol className="ranked">
           {rows.slice(0, 10).map((p, i) => (
@@ -79,25 +133,28 @@ export default function PacPanel({ member, name, pacMoney }) {
           ))}
         </ol>
         <p className="fine" style={{ marginTop: 12 }}>
-          Of the {usd(pacMoney)} {name} took from PACs.
+          Of the {usd(pacMoney)} that PACs gave {name}.
         </p>
-      </div>
+      </Fold>
     );
   }
   if (!s.count && !s.directed?.length) {
     return null;
   }
   const groups = PAC_GROUPS.filter(g => s.byGroup?.[g.group] > 0);
+  // The receipt's PAC figure (and the grade's) is from the member's own
+  // reports; the list is from the PACs' reports, and the two don't always match
+  const differs = Math.abs((s.total || 0) - (pacMoney || 0)) >= 1;
   return (
-    <div className="panel" style={{ flexBasis: '100%' }}>
-      <h3>PAC donations</h3>
+    <Fold title="PAC donations">
       <Explainer />
       {s.count > 0 && (
         <>
           <p style={{ marginBottom: 12 }}>
-            {name} took <strong>{usd(s.total)}</strong> from{' '}
-            {s.count === 1 ? 'one PAC' : `${s.count.toLocaleString('en-US')} PACs`}, to their
-            campaigns, leadership PAC and own joint funds.
+            {name}&apos;s own reports show <strong>{usd(pacMoney)}</strong> from PACs.
+            {differs
+              ? ` The PACs' own reports, listed below, add up to ${usd(s.total)} from ${s.count === 1 ? 'one PAC' : `${s.count.toLocaleString('en-US')} PACs`}. The two sides' reports don't always match. The grade uses ${name}'s.`
+              : ''}
           </p>
           <div
             className="pac-split"
@@ -111,23 +168,8 @@ export default function PacPanel({ member, name, pacMoney }) {
               />
             ))}
           </div>
-          <ul className="pac-split-key">
-            {groups.map(g => (
-              <li key={g.group}>
-                <span className="swatch" style={{ '--c': g.color }} aria-hidden="true" />
-                <span>
-                  {g.label}
-                  {g.counts ? (
-                    <span className="muted"> · can count</span>
-                  ) : (
-                    <span className="muted"> · counts nothing</span>
-                  )}
-                </span>
-                <span className="leader" aria-hidden="true" />
-                <strong>{usd(s.byGroup[g.group])}</strong>
-              </li>
-            ))}
-          </ul>
+          <Key title="People, in part" groups={groups.filter(g => g.people)} s={s} />
+          <Key title="Influence" groups={groups.filter(g => !g.people)} s={s} />
           <h4 className="eyebrow" style={{ margin: '20px 0 10px' }}>
             The biggest
           </h4>
@@ -141,12 +183,13 @@ export default function PacPanel({ member, name, pacMoney }) {
       {s.directed?.length > 0 && (
         <>
           <h4 className="eyebrow" style={{ margin: '20px 0 10px' }}>
-            Gifts steered to {name} by a committee: {usd(s.directedTotal)}
+            Gifts passed on to {name} by a committee: {usd(s.directedTotal)}
           </h4>
           <p className="small" style={{ color: 'var(--ink-2)', marginBottom: 12 }}>
-            Some donors gave through a committee that chose to pass their gifts on. We count those
-            as the committee&apos;s gift. ActBlue, WinRed and Democracy Engine, which pass a gift to
-            whoever the donor picks, aren&apos;t counted this way.
+            Some donors gave through a committee that chose to pass their gifts on. Those gifts are
+            the committee&apos;s, so they follow the same rule as PACs. ActBlue, WinRed and
+            Democracy Engine pass each gift to whoever the donor picks, so gifts through them stay
+            the donor&apos;s own.
           </p>
           <ol className="pac-list">
             {s.directed.slice(0, 5).map((p, i) => (
@@ -158,7 +201,10 @@ export default function PacPanel({ member, name, pacMoney }) {
       <p className="fine" style={{ marginTop: 12 }}>
         From the PACs&apos; own FEC reports. Who each PAC answers to comes from its FEC filing, the
         IRS&apos;s list of tax-exempt groups and the group&apos;s own Form 990.
+        &ldquo;Country-focused&rdquo; means the group behind it tells the IRS, on its own Form 990,
+        that it exists to advance a particular country&apos;s interests or its relationship with the
+        United States.
       </p>
-    </div>
+    </Fold>
   );
 }

@@ -4,6 +4,49 @@
 
 ---
 
+## 2026-10-13 (later): the site says it one way (Craig's brief)
+
+Presentation only: no score, cutoff or calculation changed.
+
+- **The money graph** (`src/components/MoneyGraph.jsx`): every member page,
+  every receipt card and /how plot the member's own money as People, Power
+  and Influence (`peoplePowerInfluence` in tier-calculation.js: People is
+  the score; Power the big money the allowance leaves out; Influence the
+  rest of the PAC and directed money, parties and other politicians' joint
+  funds). A curve through the three points that never overshoots them
+  (`src/lib/curve.js`), with the grade letters under it and the member's
+  circled. Members list entries and race candidates carry the three
+  figures; pages work them out from the grade's detail until then.
+- **Grade names:** S Grassroots, A Supported, B Backed, C Mixed, D
+  Influenced, E Heavily influenced, F Beholden.
+- **Member page:** name, party and seat; the stamp; one sentence ("85% of
+  the money came from people", the only "from people" figure on the page);
+  a placement line (top or bottom third gets a number, else "Pretty mid");
+  the graph. Everything else is in sections closed by default. The
+  explanation goes kind by kind: where each $100 of it went.
+- **Wording:** no "counts" anywhere; PAC panel grouped under People and
+  Influence; "Half the big money came from only 5% of big donors";
+  politicians' PACs say so instead of "Run by <surname>"; the PAC figure
+  from the member's own reports is the headline, with the PACs' own
+  reports' total beside it when the two differ (Cantwell $0 vs $6,500).
+- **Donors aren't named.** `topDonors` is gone from the API; the big money
+  is shown by donor state (`bigByState`, from the FINAL-3 donor test), the
+  member's own state called out. Organizations are still named.
+- **Country-focused:** a committee whose sponsor's own Form 990 mission says
+  it exists for a country's interests or its relationship with the US
+  (`scripts/refresh/lib/country-focus.mjs`, one test for every country,
+  IRS data only; `form990.mjs` now keeps the mission, with the Schedule O
+  fallback). Of 721 sponsors' missions: AIPAC, J Street and DMFI (Israel).
+  Replaces the name-list "Israel interest" tag on bundled donations.
+- **/how** is a short plain explanation: the three piles, the grade scale,
+  four real members' graphs (unnamed, the middle member of S, B, D and F),
+  and the spec as written behind "Show the exact math".
+- Also: the Congress list rows show the grade's word and the one figure
+  (sorted by it within a grade); the ballot comparison uses the same
+  figure; the share card draws the graph and shows dollars on its receipt.
+
+---
+
 ## 2026-10-13: FINAL-3 live (owner's "ship it")
 
 - **Grading.** `gradeFinal3` in workers/tier-calculation.js, a port of the

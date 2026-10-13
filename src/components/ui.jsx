@@ -1,5 +1,5 @@
 // The pieces every page is built from: the grade stamp, a receipt's lines,
-// the power bar and the evidence label.
+// the evidence label and a section that opens when asked.
 import React from 'react';
 import { CheckCircle2, Clock3 } from 'lucide-react';
 import { gradeInfo } from '../lib/grades.js';
@@ -37,17 +37,6 @@ export function Stamp({
           {g.name}
         </span>
       )}
-    </div>
-  );
-}
-
-export function PowerBar({ lines, height }) {
-  const label = lines.map(l => `${l.pct}% ${l.short.toLowerCase()}`).join(', ');
-  return (
-    <div className="powerbar" role="img" aria-label={label} style={height ? { height } : undefined}>
-      {lines.map(l => (
-        <span key={l.key} style={{ width: `${l.pct}%`, '--c': l.color }} />
-      ))}
     </div>
   );
 }
@@ -101,6 +90,18 @@ export function Barcode({ id = '', height = 34 }) {
         <span key={i} style={{ width: w }} />
       ))}
     </div>
+  );
+}
+
+/** A section closed until the visitor opens it: a plain heading, then the detail */
+export function Fold({ title, children }) {
+  return (
+    <details className="fold">
+      <summary>
+        <h2 className="fold-title">{title}</h2>
+      </summary>
+      <div className="fold-body">{children}</div>
+    </details>
   );
 }
 

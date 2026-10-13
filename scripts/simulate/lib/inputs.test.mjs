@@ -78,6 +78,11 @@ describe('simulation donor measures', () => {
     expect(s.total).toBe(600);
     expect(s.donors).toBe(2);
     expect(s.directedOut).toEqual({ C00000077: 2000 });
+    const st = await memberDonorShape(bulk, ['C00000002'], 1, null, {
+      platforms: ['C00401224'],
+      byState: true,
+    });
+    expect(st.byState).toEqual([{ state: 'DC', amount: 600 }]);
   });
 
   it("a PAC's capped money and its top employer's share", async () => {

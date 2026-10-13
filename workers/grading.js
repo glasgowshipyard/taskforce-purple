@@ -188,6 +188,8 @@ export function committeesFinal3(
       to,
       group,
       peopleShare: share === null ? null : Math.round(share * 1000) / 1000,
+      // "Country-focused: <country>", from the sponsor's own Form 990
+      country: p?.country?.country || null,
       counts: group === 'people' && share !== null ? Math.round(g.amount * share * 100) / 100 : 0,
       why: p?.sponsor?.reason || null,
       test:

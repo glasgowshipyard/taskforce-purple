@@ -772,3 +772,32 @@ export function gradeFinal3(m, pacs, shares) {
     earmarkDollars: E,
   };
 }
+
+/**
+ * A FINAL-3 grade's money in three parts, as shares of the money given
+ * (owner and Craig, 2026-10-13: how the site shows the grade):
+ *   People    = small + big counted + PAC counted + directed counted (the score)
+ *   Power     = big donations above the allowance
+ *   Influence = PAC money not counted + party + other politicians' funds
+ *               + directed gifts not counted
+ * `detail`: gradeMemberFinal3's detail (dollars). Whole percents that add up
+ * to 100, People equal to the score. Null without a FINAL-3 working.
+ */
+export function peoplePowerInfluence(detail) {
+  const d = detail || {};
+  if (d.method !== 'final-3' || !(d.given > 0) || !Number.isFinite(d.score)) {
+    return null;
+  }
+  const v = x => (Number.isFinite(Number(x)) ? Math.max(0, Number(x)) : 0);
+  const power = Math.max(0, v(d.big) - v(d.bigCounted));
+  const influence =
+    Math.max(0, v(d.pac) - v(d.pacCounted)) +
+    v(d.party) +
+    v(d.otherPoliticiansFunds) +
+    Math.max(0, v(d.directed) - v(d.directedCounted));
+  const people = Math.max(0, Math.min(100, Math.round(d.score)));
+  const rest = 100 - people;
+  const both = power + influence;
+  const powerPct = both > 0 ? Math.round((power / both) * rest) : 0;
+  return { people, power: powerPct, influence: rest - powerPct };
+}

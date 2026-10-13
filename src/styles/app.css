@@ -698,39 +698,6 @@ p {
   font-weight: 600;
 }
 
-.powerbar {
-  display: flex;
-  height: 14px;
-  border-radius: 3px;
-  overflow: hidden;
-  background: var(--other);
-}
-
-.powerbar span {
-  background: var(--c);
-  transition: width 0.6s ease;
-}
-
-.half-box {
-  background: var(--paper);
-  border-radius: 6px;
-  padding: 16px 18px;
-}
-
-.half-num {
-  font-family: var(--display);
-  font-weight: 900;
-  font-stretch: 75%;
-  font-size: 44px;
-  line-height: 1;
-}
-
-.half-num small {
-  font-size: 22px;
-  font-stretch: 90%;
-  font-weight: 800;
-}
-
 .receipt-foot {
   display: flex;
   flex-wrap: wrap;
@@ -1029,6 +996,13 @@ p {
   gap: 8px;
 }
 
+.dots-name {
+  /* Room for a two-line name ("Heavily influenced") in every column, so
+     the columns' baselines stay level */
+  min-height: 2.6em;
+  line-height: 1.3;
+}
+
 .dots-key b {
   font-family: var(--display);
   font-weight: 900;
@@ -1106,21 +1080,6 @@ p {
   padding-bottom: 56px;
 }
 
-.member-slip-col {
-  flex: 1 1 360px;
-  min-width: 0;
-  max-width: 460px;
-  position: relative;
-}
-
-.member-main {
-  flex: 999 1 520px;
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 28px;
-}
-
 .slip {
   background: var(--receipt);
   border: 1px solid var(--line);
@@ -1173,34 +1132,6 @@ p {
   background: var(--ink);
 }
 
-/* The stamp sits over the "paid to" lines, which keep clear of it: it must
-   never cover a figure */
-.slip-stamp {
-  position: absolute;
-  right: -12px;
-  top: 84px;
-}
-
-@media (max-width: 520px) {
-  .slip-stamp {
-    right: 4px;
-  }
-}
-
-@media (min-width: 900px) {
-  .member-slip-col {
-    position: sticky;
-    top: 16px;
-  }
-}
-
-.slip-to {
-  margin-top: 18px;
-  padding-right: 112px;
-  min-height: 104px;
-  text-transform: uppercase;
-}
-
 .headline {
   border-radius: 14px;
   padding: 32px clamp(20px, 3vw, 40px);
@@ -1209,71 +1140,6 @@ p {
 .headline .lede {
   margin-top: 18px;
   color: var(--on-dark);
-}
-
-.conc {
-  margin-top: 26px;
-  display: flex;
-  height: 64px;
-  gap: 4px;
-}
-
-.conc-few {
-  flex: 1 1 0;
-  display: flex;
-  gap: 3px;
-}
-
-.conc-few span {
-  flex: 1 1 0;
-  background: var(--gold);
-  border-radius: 3px;
-  min-width: 1px;
-}
-
-.conc-many {
-  flex: 1 1 0;
-  border-radius: 3px;
-  background: repeating-linear-gradient(90deg, #8b85a0 0 1px, transparent 1px 3px);
-}
-
-.conc-key {
-  margin-top: 10px;
-  display: flex;
-  justify-content: space-between;
-  gap: 16px;
-  font-family: var(--mono);
-  font-size: 13px;
-  color: var(--on-dark-2);
-}
-
-.facts {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 16px;
-}
-
-.fact {
-  flex: 1 1 200px;
-  min-width: 0;
-  background: var(--white);
-  border-radius: var(--radius);
-  padding: 20px;
-  border: 1px solid var(--line);
-}
-
-.fact b {
-  display: block;
-  font-family: var(--display);
-  font-weight: 900;
-  font-size: 44px;
-  line-height: 1;
-}
-
-.fact p {
-  margin-top: 8px;
-  font-size: 15px;
-  color: var(--ink-2);
 }
 
 .panel {
@@ -1502,10 +1368,6 @@ p {
   line-height: 1.2;
 }
 
-.member-row .powerbar {
-  height: 8px;
-}
-
 .count-line {
   font-family: var(--mono);
   font-size: 13px;
@@ -1728,100 +1590,6 @@ p {
 
 /* ---------- Why a grade ---------- */
 
-.scale {
-  margin: 16px 0 28px;
-}
-
-.scale-track {
-  position: relative;
-  height: 72px;
-  border-radius: 8px;
-  overflow: hidden;
-  background: var(--white);
-  border: 1px solid var(--line);
-}
-
-.scale-band {
-  position: absolute;
-  top: 0;
-  bottom: 0;
-  background: color-mix(in srgb, var(--g) 12%, white);
-  border-left: 1px solid rgba(21, 19, 28, 0.08);
-  display: flex;
-  justify-content: center;
-  padding-top: 6px;
-  font-family: var(--display);
-  font-weight: 900;
-  font-size: 16px;
-  line-height: 1;
-  color: var(--g);
-}
-
-.scale-band.is-current {
-  background: color-mix(in srgb, var(--g) 32%, white);
-}
-
-.scale-raw,
-.scale-score {
-  position: absolute;
-  left: 0;
-  bottom: 12px;
-  height: 20px;
-}
-
-.scale-raw {
-  background: repeating-linear-gradient(135deg, rgba(21, 19, 28, 0.35) 0 2px, transparent 2px 6px);
-  border: 2px solid var(--ink);
-  border-left: 0;
-}
-
-.scale-score {
-  background: var(--ink);
-}
-
-.scale-ticks {
-  position: relative;
-  height: 18px;
-  font-family: var(--mono);
-  font-size: 11px;
-  color: var(--muted);
-}
-
-.scale-ticks span {
-  position: absolute;
-  top: 2px;
-  transform: translateX(-50%);
-}
-
-.scale-key {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px 20px;
-  font-family: var(--mono);
-  font-size: 13px;
-}
-
-.scale-key span {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.scale-key i {
-  display: inline-block;
-  width: 22px;
-  height: 12px;
-}
-
-.key-raw {
-  background: repeating-linear-gradient(135deg, rgba(21, 19, 28, 0.35) 0 2px, transparent 2px 6px);
-  border: 2px solid var(--ink);
-}
-
-.key-score {
-  background: var(--ink);
-}
-
 .why-steps {
   list-style: none;
   margin: 0;
@@ -1877,32 +1645,6 @@ p {
   --tone: #8a5a00;
 }
 
-/* The verdict under the large-donor bars, on the dark card */
-.verdict {
-  margin-top: 18px;
-  padding: 12px 14px;
-  border-radius: 8px;
-  border-left: 5px solid var(--tone-light);
-  background: rgba(255, 255, 255, 0.06);
-  color: var(--on-dark);
-}
-
-.verdict strong {
-  color: var(--tone-light);
-}
-
-.verdict.tone-good {
-  --tone-light: #34d3a6;
-}
-
-.verdict.tone-bad {
-  --tone-light: #f6836d;
-}
-
-.verdict.tone-neutral {
-  --tone-light: #e9b824;
-}
-
 /* ---------- PAC types ---------- */
 
 .pac-chip {
@@ -1936,39 +1678,7 @@ p {
   color: var(--ink-2);
 }
 
-/* What decided the grade: the headline card says which way it cut (#56) */
-.headline.tone-good .eyebrow {
-  color: #34d3a6;
-}
-
-.headline.tone-bad .eyebrow {
-  color: #f6836d;
-}
-
-.rank-line {
-  margin-top: 12px;
-  font-family: var(--mono);
-  font-size: 14px;
-  letter-spacing: 0.02em;
-  color: var(--ink-2);
-}
-
-/* ---------- Self-funding, PAC kinds, foreign agents (#57, #59, #60) ---------- */
-
-.self-funded {
-  margin-top: 12px;
-  max-width: 46em;
-  padding: 12px 14px;
-  border-left: 5px solid var(--own);
-  background: #fff8e1;
-  border-radius: 6px;
-  font-size: 15px;
-  color: var(--ink-2);
-}
-
-.self-funded strong {
-  color: var(--ink);
-}
+/* ---------- PAC kinds, foreign agents (#57, #60) ---------- */
 
 .pac-split {
   display: flex;
@@ -2205,4 +1915,437 @@ p {
     transform: rotate(90deg);
     font-size: 15px;
   }
+}
+
+/* ---------- The money graph: People, Power, Influence (2026-10-13) ---------- */
+
+.ppi {
+  margin: 0;
+  min-width: 0;
+}
+
+.ppi-plot {
+  position: relative;
+}
+
+.ppi svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  overflow: visible;
+}
+
+.ppi-grid {
+  stroke: var(--line);
+  stroke-width: 1;
+}
+
+.ppi-base {
+  stroke: var(--line-2);
+  stroke-width: 1;
+}
+
+.ppi-tick {
+  font-family: var(--mono);
+  font-size: 11px;
+  fill: var(--muted);
+}
+
+.ppi-area {
+  fill: var(--g);
+  fill-opacity: 0.14;
+}
+
+.ppi-line {
+  fill: none;
+  stroke: var(--g);
+  stroke-width: 2.5;
+  stroke-linejoin: round;
+}
+
+.ppi-dot {
+  fill: var(--g);
+  stroke: var(--receipt);
+  stroke-width: 2;
+  transition: r 0.12s ease;
+}
+
+.ppi-cross {
+  stroke: var(--leader);
+  stroke-width: 1;
+  stroke-dasharray: 2 3;
+}
+
+.ppi-name {
+  font-family: var(--body);
+  font-size: 13px;
+  font-weight: 700;
+  fill: var(--ink-2);
+}
+
+.ppi-value {
+  font-family: var(--mono);
+  font-size: 14px;
+  font-weight: 600;
+  fill: var(--ink);
+}
+
+.ppi-tip {
+  position: absolute;
+  transform: translate(-50%, calc(-100% - 12px));
+  background: var(--ink);
+  color: var(--white);
+  border-radius: 6px;
+  padding: 7px 10px;
+  font-size: 13px;
+  line-height: 1.35;
+  width: max-content;
+  max-width: 190px;
+  pointer-events: none;
+  z-index: 2;
+}
+
+.ppi-tip strong,
+.ppi-tip span {
+  display: block;
+}
+
+.ppi-tip span {
+  color: var(--on-dark-2);
+}
+
+/* The grade letters under the graph, this member's circled */
+.tier-strip {
+  display: flex;
+  justify-content: space-between;
+  /* Under the plot: the graph's side margins, 38 and 12 of its 360 wide */
+  margin: 10px 3.3% 0 10.6%;
+  padding: 0 4px;
+  font-family: var(--display);
+  font-weight: 800;
+  font-size: 15px;
+  color: var(--muted);
+}
+
+.tier-strip span {
+  width: 28px;
+  height: 28px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  border: 2px solid transparent;
+}
+
+.tier-strip .is-current {
+  border-color: var(--g);
+  color: var(--ink);
+  font-weight: 900;
+}
+
+.ppi.is-compact .tier-strip {
+  /* 38 and 12 of the card graph's 270 wide */
+  margin: 8px 4.4% 0 14.1%;
+  font-size: 14px;
+}
+
+.ppi.is-compact .tier-strip span {
+  width: 24px;
+  height: 24px;
+}
+
+.ppi-key {
+  margin: 16px 0 0;
+  display: grid;
+  gap: 6px;
+  font-size: 14px;
+  color: var(--ink-2);
+}
+
+.ppi-key div {
+  display: flex;
+  gap: 8px;
+}
+
+.ppi-key dt {
+  font-weight: 700;
+  color: var(--ink);
+  min-width: 5.5em;
+}
+
+.ppi-key dd {
+  margin: 0;
+}
+
+.receipt-sentence {
+  margin-top: 12px;
+  font-weight: 700;
+  font-size: 17px;
+  line-height: 1.3;
+}
+
+/* ---------- Member page: the top, then sections that open ---------- */
+
+.member-meta {
+  margin-top: 14px;
+  font-size: 17px;
+  color: var(--ink-2);
+}
+
+.member-summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 28px 48px;
+  align-items: center;
+  background: var(--receipt);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: clamp(20px, 3vw, 36px);
+  box-shadow: var(--shadow-receipt);
+}
+
+.member-verdict {
+  flex: 1 1 320px;
+  min-width: 0;
+  display: flex;
+  gap: 24px;
+  align-items: center;
+}
+
+.member-sentence {
+  font-family: var(--display);
+  font-weight: 900;
+  font-stretch: 78%;
+  font-size: clamp(32px, 4.2vw, 52px);
+  line-height: 0.95;
+}
+
+.placement {
+  margin-top: 12px;
+  font-family: var(--mono);
+  font-size: 15px;
+  letter-spacing: 0.02em;
+  color: var(--ink-2);
+}
+
+.member-graph {
+  flex: 1 1 360px;
+  min-width: 0;
+  max-width: 520px;
+}
+
+@media (max-width: 520px) {
+  .member-verdict {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}
+
+.folds {
+  margin: 28px 0 56px;
+  border-top: 2px solid var(--ink);
+}
+
+.fold {
+  border-bottom: 1px solid var(--line-2);
+}
+
+.fold > summary {
+  list-style: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 18px 2px;
+}
+
+.fold > summary::-webkit-details-marker {
+  display: none;
+}
+
+/* A plus that turns into a minus when the section is open */
+.fold > summary::after {
+  content: '+';
+  flex: 0 0 auto;
+  font-family: var(--mono);
+  font-size: 26px;
+  line-height: 1;
+  color: var(--purple);
+}
+
+.fold[open] > summary::after {
+  content: '−';
+}
+
+.fold > summary:hover .fold-title {
+  color: var(--purple);
+}
+
+.fold-title {
+  font-family: var(--display);
+  font-weight: 800;
+  font-stretch: 85%;
+  font-size: clamp(22px, 2.4vw, 28px);
+  line-height: 1.1;
+}
+
+.fold-body {
+  padding: 4px 0 28px;
+  max-width: 60em;
+}
+
+.fold-body .slip {
+  max-width: 460px;
+}
+
+.fold-intro {
+  margin-bottom: 14px;
+  color: var(--ink-2);
+}
+
+.fold-lead {
+  font-weight: 700;
+  font-size: 19px;
+}
+
+.share-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 8px;
+  max-width: 560px;
+}
+
+.share-list li {
+  display: grid;
+  grid-template-columns: minmax(0, 11em) 1fr 4.5em;
+  gap: 12px;
+  align-items: center;
+  font-size: 15px;
+}
+
+.share-list strong {
+  font-family: var(--mono);
+  font-weight: 600;
+  text-align: right;
+}
+
+.share-list .is-home span:first-child {
+  font-weight: 700;
+}
+
+.share-bar {
+  height: 10px;
+  background: #eceae4;
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.share-bar span {
+  display: block;
+  height: 100%;
+  background: var(--purple);
+  border-radius: 3px;
+}
+
+.pac-key-title {
+  margin: 16px 0 0;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+/* ---------- How grades work ---------- */
+
+.how-lead {
+  margin-top: 14px;
+  font-size: 17px;
+  line-height: 1.6;
+  color: var(--ink-2);
+  max-width: 40em;
+}
+
+.piles {
+  margin: 24px 0 0;
+  display: grid;
+  gap: 14px;
+}
+
+.pile {
+  background: var(--white);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 16px 20px;
+}
+
+.pile dt {
+  font-family: var(--display);
+  font-weight: 900;
+  font-stretch: 80%;
+  font-size: 26px;
+  line-height: 1;
+  margin-bottom: 6px;
+}
+
+.pile dd {
+  margin: 0;
+  color: var(--ink-2);
+}
+
+.how-note {
+  margin-top: 18px;
+  font-size: 15px;
+  color: var(--ink-2);
+  max-width: 44em;
+}
+
+.grade-scale {
+  list-style: none;
+  margin: 20px 0 0;
+  padding: 0;
+  display: grid;
+  gap: 6px;
+  max-width: 30em;
+}
+
+.grade-scale li {
+  display: grid;
+  grid-template-columns: 40px 1fr auto;
+  gap: 12px;
+  align-items: center;
+  padding: 6px 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.grade-scale b {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  border: 3px solid var(--g);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--display);
+  font-weight: 900;
+}
+
+.how-examples {
+  margin-top: 24px;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 300px), 1fr));
+  gap: 20px;
+}
+
+.how-example {
+  margin: 0;
+  background: var(--receipt);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 18px 18px 20px;
+}
+
+.how-example figcaption {
+  margin-bottom: 8px;
+  font-size: 15px;
 }

@@ -1,7 +1,9 @@
 // The share card: a 1200x630 picture of someone's receipt and grade, drawn in
 // the visitor's browser when they press Share. Nothing is rendered on a
 // server, so it costs nothing however many people share.
-import { gradeInfo } from './grades.js';
+import { monotonePath } from './curve.js';
+import { PARTS, gradeInfo } from './grades.js';
+import { usdShort } from './people.js';
 
 const W = 1200;
 const H = 630;
@@ -84,10 +86,57 @@ function dashed(x, x0, x1, y) {
   x.restore();
 }
 
+// The member's graph: People, Power and Influence, as on their page
+function drawGraph(x, ppi, color, left, top, width, height) {
+  const base = top + height;
+  const pts = PARTS.map((p, i) => ({
+    ...p,
+    value: ppi[p.key] ?? 0,
+    x: left + (width * (2 * i + 1)) / 6,
+    y: top + (1 - Math.max(0, Math.min(100, ppi[p.key] ?? 0)) / 100) * height,
+  }));
+  const line = new Path2D(monotonePath(pts));
+  const area = new Path2D(`${monotonePath(pts)} L${pts[2].x},${base} L${pts[0].x},${base} Z`);
+  x.save();
+  x.strokeStyle = '#DDDAD2';
+  x.lineWidth = 1;
+  x.beginPath();
+  x.moveTo(left, base + 0.5);
+  x.lineTo(left + width, base + 0.5);
+  x.stroke();
+  x.globalAlpha = 0.16;
+  x.fillStyle = color;
+  x.fill(area);
+  x.globalAlpha = 1;
+  x.strokeStyle = color;
+  x.lineWidth = 3;
+  x.lineJoin = 'round';
+  x.stroke(line);
+  for (const p of pts) {
+    x.beginPath();
+    x.arc(p.x, p.y, 5, 0, Math.PI * 2);
+    x.fillStyle = color;
+    x.fill();
+    x.lineWidth = 2;
+    x.strokeStyle = '#FFFEFA';
+    x.stroke();
+    x.fillStyle = '#3D3A46';
+    x.textAlign = 'center';
+    x.font = `600 11px ${MONO}`;
+    x.fillText(p.label.toUpperCase(), p.x, base + 18);
+    x.fillStyle = '#15131C';
+    x.font = `600 14px ${MONO}`;
+    x.fillText(`${p.value}%`, p.x, base + 36);
+  }
+  x.restore();
+}
+
 function drawReceipt(x, card) {
   const w = 330;
   const lines = card.lines.slice(0, 4);
-  const h = 214 + lines.length * 34;
+  // The graph, and room under it so the stamp only ever covers the barcode
+  const graph = card.ppi ? 136 : 0;
+  const h = 214 + lines.length * 34 + graph;
   x.save();
   x.translate(64 + w / 2, 60 + h / 2);
   x.rotate((-3 * Math.PI) / 180);
@@ -120,7 +169,8 @@ function drawReceipt(x, card) {
     x.fillText(l.short, 42, y);
     const labelEnd = 42 + x.measureText(l.short).width + 8;
     x.font = `600 14px ${MONO}`;
-    const value = `${l.pct}%`;
+    // Dollars, as on the page's receipt: the graph has the shares
+    const value = usdShort(l.amount);
     const vw = x.measureText(value).width;
     x.fillText(value, w - 24 - vw, y);
     dotted(x, labelEnd, w - 24 - vw - 8, y);
@@ -132,13 +182,9 @@ function drawReceipt(x, card) {
   const total = card.total;
   x.fillText(total, w - 24 - x.measureText(total).width, y + 14);
 
-  // the power bar
-  let bx = 24;
-  const bw = w - 48;
-  for (const l of card.lines) {
-    x.fillStyle = l.canvas;
-    x.fillRect(bx, y + 32, (bw * l.pct) / 100, 14);
-    bx += (bw * l.pct) / 100;
+  if (card.ppi) {
+    drawGraph(x, card.ppi, gradeInfo(card.tier).color, 24, y + 34, w - 48, 54);
+    y += graph;
   }
   // a barcode from the person's ID, for the look of the thing
   let cx = 24;
@@ -172,13 +218,22 @@ function drawStamp(x, g, cx, cy) {
   x.font = `900 96px ${DISPLAY}`;
   x.fillText(g.mark, 0, 30);
   x.font = `600 13px ${MONO}`;
-  x.fillText(g.name.toUpperCase(), 0, 54);
+  const word = g.name.toUpperCase();
+  if (x.measureText(word).width <= 130 || !word.includes(' ')) {
+    x.fillText(word, 0, 54);
+  } else {
+    // "HEAVILY INFLUENCED": two lines, as on the page's stamp
+    x.font = `600 12px ${MONO}`;
+    const cut = word.lastIndexOf(' ');
+    x.fillText(word.slice(0, cut), 0, 50);
+    x.fillText(word.slice(cut + 1), 0, 65);
+  }
   x.restore();
 }
 
 /**
- * card: { id, name, title, tier, lines: [{short, pct, canvas}], total,
- *         headline, sub, host, cycleLabel }
+ * card: { id, name, title, tier, lines: [{short, amount, canvas}], ppi (People,
+ *         Power, Influence), total, headline, sub, host, cycleLabel }
  */
 export async function drawShareCard(card) {
   await fontsReady();
@@ -197,7 +252,7 @@ export async function drawShareCard(card) {
   x.fillRect(0, 0, W, H);
   const receiptBottom = drawReceipt(x, card);
   // Over the receipt's barcode corner: it must never cover a figure
-  drawStamp(x, g, 350, receiptBottom - 12);
+  drawStamp(x, g, 350, receiptBottom - 18);
 
   const left = 470;
   const width = W - left - 64;
@@ -217,7 +272,7 @@ export async function drawShareCard(card) {
   stretch(x, 'extra-condensed');
   const head = fitText(x, card.headline.toUpperCase(), {
     width,
-    maxLines: 4,
+    maxLines: 3,
     start: 104,
     min: 44,
     font: s => `900 ${s}px ${DISPLAY}`,
@@ -231,7 +286,8 @@ export async function drawShareCard(card) {
 
   x.fillStyle = '#EDE9F6';
   x.font = `400 24px ${BODY}`;
-  const sub = wrap(x, card.sub, width).slice(0, 2);
+  // Never into the brand line at the foot
+  const sub = wrap(x, card.sub, width).slice(0, y + 46 > H - 96 ? 0 : 2);
   y += 14;
   for (const line of sub) {
     x.fillText(line, left, y);

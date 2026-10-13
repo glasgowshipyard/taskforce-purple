@@ -18,6 +18,7 @@ import {
   pacPeopleCredit,
   pacPeopleShare,
   tracePacs,
+  peoplePowerInfluence,
 } from './tier-calculation.js';
 
 // Reference members built from the documented Bernie/Pelosi examples
@@ -548,5 +549,31 @@ describe('tracePacs and pacPeopleCredit (#57)', () => {
       0
     );
     expect(pacPeopleCredit(gifts, traced, { credit: 0, depth: 2 })).toBe(0);
+  });
+});
+
+describe('peoplePowerInfluence', () => {
+  it('splits the money given into People, Power and Influence that add up to 100', () => {
+    const detail = {
+      method: 'final-3',
+      given: 1000,
+      small: 300,
+      big: 400,
+      bigCounted: 250,
+      pac: 200,
+      pacCounted: 50,
+      party: 50,
+      otherPoliticiansFunds: 30,
+      directed: 20,
+      directedCounted: 0,
+      score: 60, // (300 + 250 + 50 + 0) / 1000
+    };
+    const s = peoplePowerInfluence(detail);
+    expect(s).toEqual({ people: 60, power: 15, influence: 25 });
+    expect(s.people + s.power + s.influence).toBe(100);
+  });
+  it('is null without a FINAL-3 working', () => {
+    expect(peoplePowerInfluence({ path: 'enhanced' })).toBeNull();
+    expect(peoplePowerInfluence(null)).toBeNull();
   });
 });

@@ -153,8 +153,8 @@ function CongressDots({ members }) {
               </h2>
             </div>
             <p style={{ flex: '1 1 320px' }}>
-              {low} of the {graded.length} members we&apos;ve graded rely mostly on PACs or on a few
-              wealthy donors. Only {counts.S} are funded mainly by ordinary people.
+              {low} of the {graded.length} members we&apos;ve graded get less than $45 of every $100
+              from people. Only {counts.S} get $90 or more.
               {unchecked > 0 &&
                 ` ${unchecked} more aren't graded yet while we confirm their records.`}{' '}
               Click a grade to see who&apos;s in it. <Link to="/how#pacs">What&apos;s a PAC?</Link>
@@ -180,7 +180,7 @@ function CongressDots({ members }) {
                     {counts[l]}
                   </span>
                 </span>
-                <span className="small muted" aria-hidden="true">
+                <span className="small muted dots-name" aria-hidden="true">
                   {GRADES[l].name}
                 </span>
               </Link>
@@ -199,29 +199,25 @@ export function HowSteps() {
         <p className="step-num">01</p>
         <h3>We add up their money</h3>
         <p>
-          We count the money given to the member: their campaigns, their leadership PAC and their
-          own joint fundraising committees. Donations from individuals count in their favor, whether
-          the check is for $5 or $5,000. A PAC counts only when the group behind it is run by its
-          members, and only the part of its money that traces back to many people. Money from
-          businesses, politicians and parties counts nothing.
+          Everything given to the member: their campaigns, their leadership PAC and their own joint
+          fundraising committees. Their own money, loans and transfers are left out.
         </p>
       </div>
       <div className="step">
         <p className="step-num">02</p>
-        <h3>We check how many people gave it</h3>
+        <h3>We sort it into three piles</h3>
         <p>
-          Large donations don&apos;t hurt a grade when thousands of different people make them. If
-          half of the large-donation money comes from a few dozen people, part of it stops counting
-          and the grade goes down.
+          <strong>People:</strong> money from many different people, whether a check is for $5 or
+          $5,000. <strong>Power:</strong> big money from only a few wealthy donors.{' '}
+          <strong>Influence:</strong> money from PACs, businesses, politicians and parties.
         </p>
       </div>
       <div className="step">
         <p className="step-num">03</p>
-        <h3>We check every donation</h3>
+        <h3>The grade is the People pile</h3>
         <p>
-          We grade from the FEC&apos;s bulk data files first, then check each donation against the
-          FEC&apos;s own records. Until that&apos;s finished, the member&apos;s page says the grade
-          is still being checked.
+          $90 or more of every $100 from people is an S. Under $15 is an F. We grade from the
+          FEC&apos;s bulk data first, then check each donation against the FEC&apos;s own records.
         </p>
       </div>
     </div>

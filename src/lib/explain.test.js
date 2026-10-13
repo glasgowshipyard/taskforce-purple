@@ -1,41 +1,64 @@
-// The explanations use real members' working as served by /api/member-detail
-// on 2026-10-07.
+// The explanations use real members' FINAL-3 working as served by
+// /api/member-detail on 2026-10-13.
 import { describe, expect, it } from 'vitest';
 import {
-  concentrationVerdict,
+  bigDonorLine,
   explainGrade,
-  gradeBands,
-  headlineFor,
-  rankLine,
+  moneyPieces,
+  peopleSentence,
+  placementLine,
 } from './explain.js';
-import { moneyLines } from './people.js';
 
-const figures = (small, big, pac, total, party = 0) => ({
-  totalRaised: total,
-  grassrootsDonations: small,
-  largeDonorDonations: big,
-  pacMoney: pac,
-  partyMoney: party,
-});
-
-// Half her money is her own (candidate contributions); 34 people gave half
-// of her large-donor money
-const jacobs = {
-  tier: 'F',
-  name: 'Sara Jacobs',
-  lines: moneyLines(figures(153583, 528678, 245165, 1867293)),
-  conc: { n: 34, of: 339 },
+const schiff = {
+  tier: 'A',
+  name: 'Adam Schiff',
   grade: {
-    score: 12,
+    score: 85,
     detail: {
-      path: 'enhanced',
-      itemizedPercent: 77.5,
-      rawIndividualFundingPercent: 37,
-      trustAnchor: 10,
-      trustAnchorBasis: 'dinner-party',
-      nakamotoPercent: 10.03,
-      itemizationPenalty: 24.7,
-      transparencyPenalty: 3,
+      method: 'final-3',
+      small: 4388582.51,
+      big: 4411379.1,
+      pac: 474700.98,
+      party: 0,
+      otherPoliticiansFunds: 189674,
+      directed: 159750,
+      given: 9624086.59,
+      donors: 6512,
+      fewestHoldingHalf: 339,
+      allowance: 0.4247,
+      reliable: true,
+      bigCounted: 3737280.99,
+      fromPeople: 8125863.5,
+      pacCounted: 96931.29,
+      directedCounted: 0,
+      score: 85,
+    },
+  },
+};
+
+const jacobs = {
+  tier: 'C',
+  name: 'Sara Jacobs',
+  grade: {
+    score: 47,
+    detail: {
+      method: 'final-3',
+      small: 153440.93,
+      big: 349185.57,
+      pac: 244749.94,
+      party: 0,
+      otherPoliticiansFunds: 159900,
+      directed: 25550,
+      given: 932826.44,
+      donors: 323,
+      fewestHoldingHalf: 32,
+      allowance: 0.32,
+      reliable: true,
+      bigCounted: 160840.48,
+      fromPeople: 314281.41,
+      pacCounted: 123672.67,
+      directedCounted: 0,
+      score: 47,
     },
   },
 };
@@ -43,204 +66,127 @@ const jacobs = {
 const aoc = {
   tier: 'S',
   name: 'Alexandria Ocasio-Cortez',
-  lines: moneyLines(figures(21838986, 10523069, 28050, 32921787)),
-  conc: { n: 4609, of: 31236 },
   grade: {
-    score: 98,
+    score: 99,
     detail: {
-      path: 'enhanced',
-      itemizedPercent: 32.5,
-      rawIndividualFundingPercent: 98,
-      trustAnchor: 50,
-      trustAnchorBasis: 'movement',
-      nakamotoPercent: 14.76,
-      itemizationPenalty: 0,
-      transparencyPenalty: 0,
+      method: 'final-3',
+      small: 21691400.08,
+      big: 10473654.31,
+      pac: 28050,
+      party: 0,
+      otherPoliticiansFunds: 197000,
+      directed: 0,
+      given: 32390104.39,
+      donors: 31235,
+      fewestHoldingHalf: 4609,
+      allowance: 1,
+      reliable: true,
+      bigCounted: 10473654.31,
+      fromPeople: 32165054.39,
+      pacCounted: 22383.38,
+      directedCounted: 0,
+      score: 99,
     },
   },
 };
 
-describe('explainGrade', () => {
-  it('an F says where the money came from, what stopped counting, and the line it missed', () => {
-    const e = explainGrade(jacobs);
-    expect(e.raw).toBe(36);
-    expect(e.score).toBe(12);
-    const [where, big, result] = e.steps;
-    expect(e.steps).toHaveLength(3);
-    expect(where.title).toBe('Where each $100 came from');
-    expect(where.tone).toBe('bad');
-    expect(where.text).toBe(
-      '$8 from small donations, $28 from big donations, $13 from PACs and $51 from other places, such as loans or transfers. Only money donated by people counts toward the grade, so we start with $36.'
-    );
-    expect(big.title).toBe('Some big donations don’t count');
-    expect(big.text).toBe(
-      'Half of the big-donation money came from just 34 people. When that few people give that much, they could have a lot of sway. So big donations can only make up a tenth of what people gave. Of the $28 in big donations, we count $4. That leaves $12.'
-    );
-    expect(result.title).toBe('$12 out of $100 is an F');
-    expect(result.text).toMatch(/Sara Jacobs would need \$18 to get an E\./);
-    expect(result.text).toMatch(/That's \$3 more than usual, because/);
+const sum = o => Object.values(o).reduce((t, v) => t + v, 0);
+
+describe('moneyPieces', () => {
+  it('every piece adds up to its part, and People is the score', () => {
+    for (const m of [schiff, jacobs, aoc]) {
+      const p = moneyPieces(m.grade.detail);
+      expect(sum(p.people)).toBe(p.ppi.people);
+      expect(sum(p.power)).toBe(p.ppi.power);
+      expect(sum(p.influence)).toBe(p.ppi.influence);
+      expect(p.ppi.people + p.ppi.power + p.ppi.influence).toBe(100);
+      expect(p.ppi.people).toBe(m.grade.score);
+    }
   });
 
-  it('an S says why it is good', () => {
-    const e = explainGrade(aoc);
-    const [where, big, result] = e.steps;
-    expect(e.steps).toHaveLength(3);
-    expect(where.tone).toBe('good');
-    expect(big.title).toBe('All the big donations count');
-    expect(big.text).toMatch(/from 4,609 different people\. That's a broad group/);
-    expect(result.title).toBe('$98 out of $100 is an S');
-    expect(result.text).toMatch(/An S needs \$90, so this is an S\./);
+  it('splits each kind of money between the parts', () => {
+    const p = moneyPieces(schiff.grade.detail);
+    expect(p.ppi).toEqual({ people: 85, power: 7, influence: 8 });
+    expect(p.people).toEqual({ small: 45, big: 39, pac: 1, directed: 0 });
+    expect(p.power).toEqual({ big: 7 });
+    expect(p.influence).toEqual({ pac: 4, directed: 2, party: 0, funds: 2 });
+  });
+
+  it('is null without a FINAL-3 grade', () => {
+    expect(moneyPieces(null)).toBeNull();
+    expect(moneyPieces({ method: 'enhanced', given: 10, score: 5 })).toBeNull();
+  });
+});
+
+describe('explainGrade', () => {
+  it('goes through each kind of money and where it went', () => {
+    const e = explainGrade(schiff);
+    expect(e.intro).toBe(
+      'Every amount here is out of each $100 given to Adam Schiff. Their own money, loans and transfers are left out.'
+    );
+    expect(e.steps.map(s => s.title)).toEqual([
+      'Small donations: $45',
+      'Big donations: $46',
+      'PACs: $5',
+      'Gifts passed on by a committee: $2',
+      'Parties and other politicians: $2',
+      '$85 of every $100 came from people',
+    ]);
+    expect(e.steps[1].text).toMatch(/Half the big money came from only 5% of big donors\./);
+    expect(e.steps[1].text).toMatch(/Here \$39 is People money and \$7 is Power\.$/);
+    expect(e.steps[2].text).toMatch(/Here \$1 is People money and \$4 is Influence\.$/);
+    expect(e.steps[3].text).toMatch(/Here all of it is Influence\.$/);
+    expect(e.steps[5].text).toBe(
+      "People $85, Power $7, Influence $8. That's an A: Supported. An A needs $75 and an S needs $90."
+    );
   });
 
   it('a middle grade names its line and the next one up', () => {
-    const e = explainGrade({
-      ...aoc,
-      tier: 'D',
-      name: 'A member',
-      grade: { score: 38, detail: { ...aoc.grade.detail, transparencyPenalty: 6 } },
-    });
-    expect(e.steps.at(-1).text).toMatch(/A D needs \$36 and a C needs \$51\./);
+    const e = explainGrade(jacobs);
+    expect(e.ppi).toEqual({ people: 47, power: 20, influence: 33 });
+    expect(e.steps.at(-1).text).toMatch(/That's a C: Mixed\. A C needs \$45 and a B needs \$60\.$/);
   });
 
-  it('explains nothing without the working, or for a withheld grade', () => {
-    expect(explainGrade({ ...jacobs, grade: null })).toBeNull();
-    expect(explainGrade({ ...jacobs, tier: 'UNVERIFIED' })).toBeNull();
+  it('the top grade says what it needs', () => {
+    const e = explainGrade(aoc);
+    expect(e.steps[1].text).toMatch(/Here all of it is People money\.$/);
+    expect(e.steps.at(-1).text).toMatch(/That's an S: Grassroots\. An S needs \$90\.$/);
   });
-});
 
-describe('grade bands', () => {
-  it('cover 0 to 100 and move up with the PAC bar', () => {
-    const plain = gradeBands(0);
-    expect(plain.find(b => b.letter === 'F')).toEqual({ letter: 'F', from: 0, to: 15 });
-    expect(plain.find(b => b.letter === 'S')).toEqual({ letter: 'S', from: 90, to: 100 });
-    const shifted = gradeBands(6);
-    expect(shifted.find(b => b.letter === 'D')).toEqual({ letter: 'D', from: 36, to: 51 });
-    // At 10 points or more, an S is out of reach
-    expect(gradeBands(10).some(b => b.letter === 'S')).toBe(false);
+  it('never uses the word "count"', () => {
+    for (const m of [schiff, jacobs, aoc]) {
+      const e = explainGrade(m);
+      for (const s of e.steps) {
+        expect(`${s.title} ${s.text}`).not.toMatch(/\bcount/i);
+      }
+    }
   });
-});
 
-describe('concentration verdict', () => {
-  it('says whether the donor spread helps or hurts', () => {
-    expect(concentrationVerdict('dinner-party').tone).toBe('bad');
-    expect(concentrationVerdict('movement').tone).toBe('good');
-    expect(concentrationVerdict('default')).toBeNull();
+  it('nothing to explain without a letter grade or its working', () => {
+    expect(explainGrade({ ...schiff, grade: null })).toBeNull();
+    expect(explainGrade({ ...schiff, tier: 'UNVERIFIED' })).toBeNull();
   });
 });
 
-describe('headlineFor: lead with what decided the grade (#56)', () => {
-  it('an S leads with what helped', () => {
-    const h = headlineFor(aoc);
-    expect(h.tone).toBe('good');
-    expect(h.eyebrow).toBe('What helped the grade');
-    expect(h.big).toBe('98% of the money came from people.');
-    expect(h.text).toMatch(/from 4,609 different people/);
+describe('the lines at the top of a member page', () => {
+  it('one sentence for the money from people', () => {
+    expect(peopleSentence(85)).toBe('85% of the money came from people.');
+    expect(peopleSentence(null)).toBeNull();
   });
 
-  it("an F leads with what hurt it most: for Sara Jacobs, money that didn't come from donors", () => {
-    const h = headlineFor(jacobs);
-    expect(h.tone).toBe('bad');
-    expect(h.eyebrow).toBe('What hurt the grade most');
-    expect(h.big).toBe("51% of the money didn't come from donors.");
-    expect(h.text).toMatch(/loans or transfers/);
+  it('placement: top and bottom thirds get a number, the middle is mid', () => {
+    const scores = Array.from({ length: 100 }, (_, i) => i);
+    expect(placementLine(92, scores)).toBe('Top 8% for grassroots funding');
+    expect(placementLine(99, scores)).toBe('Top 1% for grassroots funding');
+    expect(placementLine(5, scores)).toBe('Bottom 6% for grassroots funding');
+    expect(placementLine(50, scores)).toBe('Pretty mid for grassroots funding');
+    expect(placementLine(50, scores.slice(0, 10))).toBeNull();
   });
 
-  it('PAC money leads when it is the biggest cause', () => {
-    const h = headlineFor({
-      ...jacobs,
-      lines: moneyLines(figures(100000, 300000, 600000, 1000000)),
-      conc: null,
-    });
-    expect(h.big).toBe('60% of the money came from PACs.');
-    expect(h.text).toMatch(/other politicians' PACs or super PACs/);
-    expect(h.text).not.toMatch(/lobbyist/);
-  });
-
-  it('few big donors lead when they cost the most', () => {
-    const h = headlineFor({
-      ...jacobs,
-      lines: moneyLines(figures(80000, 820000, 100000, 1000000)),
-    });
-    expect(h.big).toBe('34 people gave half the big\u2011donation money.');
-    expect(h.showConc).toBe(true);
-    expect(h.text).toMatch(/^90% of the money came from people, but few of them gave most of it\./);
-  });
-});
-
-describe('rankLine', () => {
-  const scores = Array.from({ length: 100 }, (_, i) => i);
-  it('says where a member stands, in words', () => {
-    expect(rankLine(92, scores)).toBe('More people-funded than 92 in 100 members of Congress.');
-    expect(rankLine(5, scores)).toBe('Less people-funded than 94 in 100 members of Congress.');
-    expect(rankLine(5, scores.slice(0, 10))).toBeNull();
-    // The top member isn't "more than 100 in 100"
-    expect(rankLine(1000, scores)).toBe('More people-funded than 99 in 100 members of Congress.');
-  });
-});
-
-describe('own money is set aside first (#59)', () => {
-  it('says so, then counts per $100 from others', () => {
-    const e = explainGrade({ ...jacobs, ownPct: 50 });
-    expect(e.steps[0].text).toMatch(
-      /^Sara Jacobs paid \$50 of every \$100 personally\. We leave that out, so these amounts are per \$100 from others: /
-    );
-  });
-});
-
-describe('PAC money traced to people counts in part (#57, version A)', () => {
-  // A member with $40 of every $100 from PACs, $14 of it traced to people
-  // and counted at half: $7
-  const member = {
-    tier: 'D',
-    name: 'A member',
-    lines: moneyLines(figures(200000, 300000, 400000, 1000000)),
-    conc: { n: 900, of: 4000 },
-    grade: {
-      score: 57,
-      detail: {
-        path: 'enhanced',
-        itemizedPercent: 60,
-        rawIndividualFundingPercent: 50,
-        trustAnchor: 40,
-        trustAnchorBasis: 'standard',
-        itemizationPenalty: 0,
-        transparencyPenalty: 15,
-        pacCredit: 7.2,
-      },
-    },
-  };
-
-  it('starts with what people gave directly, then adds the PAC money that counts', () => {
-    const e = explainGrade(member);
-    expect(e.steps).toHaveLength(4);
-    expect(e.steps[0].text).toMatch(
-      /We start with the money people gave directly: \$50\. Some of the PAC money is added later\./
-    );
-    expect(e.steps[1].title).toBe('All the big donations count');
-    const pacs = e.steps[2];
-    expect(pacs.title).toBe('Some PAC money counts');
-    expect(pacs.text).toMatch(/Of the \$40 from PACs, about \$14 traces back to ordinary people\./);
-    expect(pacs.text).toMatch(/so we count half: \$7\. That makes \$57\./);
-    expect(e.steps[3].title).toBe('$57 out of $100 is a D');
-    expect(e.steps[3].text).toMatch(/super PACs or other politicians' PACs/);
-  });
-
-  it('big donations that stop counting are worked out before the PAC money', () => {
-    const e = explainGrade({
-      ...member,
-      grade: { score: 40, detail: { ...member.grade.detail, itemizationPenalty: 17 } },
-    });
-    // 40 - 7 from PACs = 33 before them; 33 - 20 small = 13 of the 30 big
-    expect(e.steps[1].text).toMatch(/we count \$13\. That leaves \$33\./);
-  });
-
-  it('the headline says only part of the PAC money counts', () => {
-    const h = headlineFor({
-      ...member,
-      lines: moneyLines(figures(100000, 300000, 600000, 1000000)),
-      conc: null,
-    });
-    expect(h.big).toBe('60% of the money came from PACs.');
-    expect(h.text).toMatch(/^Only part of it counts: half of what traces back to ordinary people/);
+  it('how few donors gave half the big money, as a share of them', () => {
+    expect(bigDonorLine(339, 6512)).toBe('Half the big money came from only 5% of big donors.');
+    expect(bigDonorLine(4609, 31235)).toBe('Half the big money came from 15% of big donors.');
+    expect(bigDonorLine(1, 500)).toBe('Half the big money came from under 1% of big donors.');
+    expect(bigDonorLine(0, 500)).toBeNull();
   });
 });

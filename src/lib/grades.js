@@ -1,37 +1,50 @@
 // Everything the site says about a grade: its name, colour, and what it
 // means in plain English. Grades come from workers/tier-calculation.js; this
-// file only presents them. Names describe the money, never the member (#56):
-// "big money" is PACs and small groups of wealthy donors.
+// file only presents them. The names are the owner's and Craig's
+// (2026-10-13). "People", "Power" and "Influence" are the three parts of
+// the money (peoplePowerInfluence in tier-calculation.js): many people, a
+// few wealthy donors, and PACs, businesses, politicians and parties.
 
 export const LETTERS = ['S', 'A', 'B', 'C', 'D', 'E', 'F'];
+
+// The three parts of the money given, as the graph names them
+export const PARTS = [
+  { key: 'people', label: 'People', about: 'Money from many different people' },
+  { key: 'power', label: 'Power', about: 'Big money from a few wealthy donors' },
+  {
+    key: 'influence',
+    label: 'Influence',
+    about: 'Money from PACs, businesses, politicians and parties',
+  },
+];
 
 // `color` is for paper backgrounds, `light` for dark ones; both pass the
 // large-text contrast check against their background. `rank` sorts best
 // first. Word tiers withhold a grade: they must never look like a bad one.
 export const GRADES = {
   S: {
-    name: 'People-funded',
+    name: 'Grassroots',
     color: '#0C8E6B',
     light: '#34D3A6',
     rank: 8,
     range: '$90 or more',
-    meaning: 'At least $90 of every $100 counts as coming from ordinary people.',
+    meaning: 'At least $90 of every $100 came from people.',
   },
   A: {
-    name: 'Mostly people',
+    name: 'Supported',
     color: '#4E9A2F',
     light: '#7BCB55',
     rank: 7,
     range: '$75 to $89',
-    meaning: '$75 to $89 of every $100 counts as coming from ordinary people.',
+    meaning: '$75 to $89 of every $100 came from people.',
   },
   B: {
-    name: 'Leans people',
+    name: 'Backed',
     color: '#7D8710',
     light: '#C9D23A',
     rank: 6,
     range: '$60 to $74',
-    meaning: '$60 to $74 of every $100 counts as coming from ordinary people.',
+    meaning: '$60 to $74 of every $100 came from people.',
   },
   C: {
     name: 'Mixed',
@@ -39,33 +52,33 @@ export const GRADES = {
     light: '#E9B824',
     rank: 5,
     range: '$45 to $59',
-    meaning: '$45 to $59 of every $100 counts as coming from ordinary people.',
+    meaning: '$45 to $59 of every $100 came from people.',
   },
   D: {
-    name: 'Leans big money',
+    name: 'Influenced',
     color: '#C2601A',
     light: '#F0954A',
     rank: 4,
     range: '$30 to $44',
     meaning:
-      '$30 to $44 of every $100 counts as coming from ordinary people. Most of the rest comes from PACs or a few wealthy donors.',
+      '$30 to $44 of every $100 came from people. The rest came from a few wealthy donors, or from PACs, businesses and politicians.',
   },
   E: {
-    name: 'Mostly big money',
+    name: 'Heavily influenced',
     color: '#C2412B',
     light: '#F06A50',
     rank: 3,
     range: '$15 to $29',
     meaning:
-      '$15 to $29 of every $100 counts as coming from ordinary people. Most of the rest comes from PACs or a few wealthy donors.',
+      '$15 to $29 of every $100 came from people. The rest came from a few wealthy donors, or from PACs, businesses and politicians.',
   },
   F: {
-    name: 'Big money',
+    name: 'Beholden',
     color: '#7B1E3A',
     light: '#E2566B',
     rank: 2,
     range: 'under $15',
-    meaning: 'Less than $15 of every $100 counts as coming from ordinary people.',
+    meaning: 'Less than $15 of every $100 came from people.',
   },
   'N/A': {
     name: 'No money yet',
