@@ -53,30 +53,26 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { FEC_CROSSWALK } from '../../workers/fec-crosswalk.js';
 import { crosswalkIdsFor } from '../../workers/fec-identity.js';
-import { gradeMember } from '../../workers/grading.js';
+import { committeesFinal3, gradeMember, gradeMemberFinal3 } from '../../workers/grading.js';
 import { LIST_KEY, memberKey } from '../../workers/member-store.js';
 import { fetchPersonFunding } from '../../workers/person-funding.js';
 import {
   classifyScheduleARow,
   countsAsItemizedIndividual,
 } from '../../workers/schedule-a-classify.js';
-import { cycleForYear, pacPeopleCredit, tracePacs } from '../../workers/tier-calculation.js';
+import { cycleForYear, final3PacShares, tracePacs } from '../../workers/tier-calculation.js';
+import { PLATFORM, buildPacs, directingCommittees } from './lib/final3.mjs';
 import { analyzePool, loadFara } from './lib/analysis.mjs';
 import { ensureFara } from './lib/fara.mjs';
 import { PRODUCTION_VARIANT, VARIANTS, gradeVariants, untraced } from './lib/pac-sim.mjs';
-import {
-  asPacContributions,
-  pacGifts,
-  pacProfiles,
-  pacSummary,
-  upstreamGifts,
-} from './lib/pacs.mjs';
+import { pacGifts, pacProfiles, pacSummary, upstreamGifts } from './lib/pacs.mjs';
 import { discoverPeople, loadDiscoveryFiles } from './lib/discovery.mjs';
 import { apiRowToBulkShape, ensureBulkFile, insertApiRows, loadBulk } from './lib/bulk.mjs';
 import { RESULTS_DB, createCloudflare } from './lib/cloudflare.mjs';
 import { TimeBudgetError, reconcileCommittee } from './lib/committee.mjs';
 import { createFecClient, replayFec } from './lib/fec.mjs';
 import { memberDonorShape, pacExtras } from '../simulate/lib/inputs.mjs';
+import { ensureIrs, fecGroup, loadIrsIndex } from './lib/sponsors.mjs';
 import { loadStored, saveStored } from './lib/gap-store.mjs';
 import { publishGrades } from './lib/publish.mjs';
 
@@ -162,9 +158,18 @@ async function main() {
   const cf = createCloudflare();
   // Frozen: only recorded answers. A committee's name for a conduit isn't
   // recorded (display only): the committee ID stands in for it
+  // With TFP_REPLAY_LIVE, an answer the snapshot lacks (a committee added
+  // since, such as a crosswalk addition's) is fetched now, and listed with
+  // the time in the export (`fetchedLive`)
+  const live = frozen && process.env.TFP_REPLAY_LIVE && fecKey() ? createFecClient(fecKey()) : null;
+  const fetchedLive = [];
   const fec = frozen
     ? replayFec(snapshot('api-cache.json'), {
-        onMissing: path => {
+        onMissing: async (path, params) => {
+          if (live) {
+            fetchedLive.push({ path, params, at: now() });
+            return live(path, params);
+          }
           if (/^\/committee\/C\d{8}\/$/.test(path)) {
             return { results: [] };
           }
@@ -261,12 +266,18 @@ async function main() {
   let discovered = null;
   let db = null;
   const conduitNames = new Map();
+  // Processing platforms: they pass a gift to whichever candidate the donor
+  // picks (any other conduit directs it: FINAL-2)
+  const platforms = new Set();
   // Every PAC gift to each member, and each giving PAC's own donors (#57)
   const giftsFor = new Map();
+  const fundGiftsFor = new Map(); // PAC gifts to the member's own joint funds (final candidate)
   let profiles = new Map();
   let traced = new Map();
   let upstream = new Map();
   let extras = new Map(); // --report: each PAC's capped money and top employer (scripts/simulate)
+  let pacs = {}; // FINAL-3: every committee whose money reaches a member (lib/final3.mjs)
+  let shares = new Map(); // ...and its share traced to people
   const pacTypes = {}; // report: PAC dollars and traced people dollars by kind and organisation type
   if (arg('--discovery', 'zips') === 'zips') {
     db = await loadDiscoveryFiles(cycle, bulkDir, log);
@@ -281,6 +292,9 @@ async function main() {
     });
     for (const c of await db.read('SELECT id, name FROM cm')) {
       conduitNames.set(c.id, c.name);
+      if (PLATFORM.test(String(c.name || '').toUpperCase())) {
+        platforms.add(c.id);
+      }
     }
     log(`discovery done: ${discovered.size} member(s), ${fec.calls} FEC calls`);
     // Gifts to the member's campaigns and leadership PAC: the committees
@@ -291,21 +305,46 @@ async function main() {
         .filter(c => c.role === 'campaign' || c.role === 'leadership')
         .map(c => c.committeeId);
       giftsFor.set(id, await pacGifts(db, vehicles));
+      // FINAL-3: the member's own joint funds count in full, their PAC gifts too
+      if (pf.whole?.ownFunds?.length) {
+        fundGiftsFor.set(id, await pacGifts(db, pf.whole.ownFunds, vehicles));
+      }
     }
     // Every giving PAC's own donors, and the donors of the committees that
     // fund them (one level deeper): how much of each PAC's money came from
-    // people (#57)
-    const givers = [...giftsFor.values()].flatMap(g => g.map(x => x.id));
-    upstream = await upstreamGifts(db, givers);
+    // people (#57). FINAL-3: committees that direct earmarked gifts to
+    // members count as givers too
+    const givers = [...giftsFor.values(), ...fundGiftsFor.values()].flatMap(g => g.map(x => x.id));
+    const directing = await directingCommittees(
+      db,
+      file.path,
+      [...discovered.values()].flatMap(pf => pf.donorCommitteeIds || []),
+      platforms
+    );
+    upstream = await upstreamGifts(db, [...givers, ...directing]);
     const upIds = [...upstream.values()].flatMap(u => u.map(x => x.id));
-    profiles = await pacProfiles(db, file.path, [...givers, ...upIds]);
+    profiles = await pacProfiles(db, file.path, [...givers, ...directing, ...upIds]);
     traced = tracePacs(profiles, upstream);
     if (reportPath) {
-      extras = await pacExtras(db, file.path, [...givers, ...upIds]);
+      extras = await pacExtras(db, file.path, [...givers, ...directing, ...upIds]);
     }
     log(
-      `PACs: ${new Set(givers).size} giving PACs traced, ${new Set(upIds).size} committees funding them`
+      `PACs: ${new Set(givers).size} giving PACs traced, ${directing.length} directing committees, ${new Set(upIds).size} committees funding them`
     );
+    // Who each committee answers to, and the people test (FINAL-3)
+    const irsIndex = await loadIrsIndex(sql => db.read(sql), ensureIrs(bulkDir, log));
+    pacs = await buildPacs({
+      db,
+      ids: [...givers, ...directing, ...upIds, ...profiles.keys()],
+      fec,
+      cycle,
+      profiles,
+      upstream,
+      irsIndex,
+      fecTotals: frozen ? snapshot('pac-totals.json') : {},
+      log,
+    });
+    shares = final3PacShares(pacs);
   }
   const conduitName = async id => {
     if (!conduitNames.has(id)) {
@@ -583,26 +622,43 @@ async function main() {
           personFunding: p.pf,
           reconciliation: { ok, pending },
         };
-        // Every member graded here was looked up in the FEC crosswalk (members
-        // without an identity are skipped above), so the figures are theirs.
-        // A record's older flag (stamped once, 2026-09-26) doesn't override it.
-        // Every PAC gift, and the PAC money traced back to people (#57)
-        const grade = member
-          ? gradeMember(
-              {
-                ...member,
-                fecIdentityVerified: true,
-                ...(gifts
-                  ? {
-                      pacContributions: asPacContributions(gifts),
-                      pacListComplete: true,
-                      pacPeopleCredit: pacPeopleCredit(gifts, traced),
-                    }
-                  : {}),
-              },
-              asStored
-            )
-          : null;
+        // FINAL-3 (owner's decision, frozen 2026-10-12). Every member graded
+        // here was looked up in the FEC crosswalk (members without an
+        // identity are skipped above), so the figures are theirs. The donor
+        // test: donors who net above $0, gifts a committee directed left out
+        const shapeDirected = await memberDonorShape(
+          bulk,
+          p.pool,
+          analysis.nakamotoCoefficient,
+          null,
+          { platforms: [...platforms] }
+        );
+        const fundGifts = fundGiftsFor.get(p.id) || [];
+        const gradeInputs = {
+          pf: p.pf,
+          whole: p.pf.whole || null,
+          reconciliation: { ok, pending },
+          record: member && {
+            financialsVerified: member.financialsVerified ?? null,
+            financialsVerifiedCycle: member.financialsVerifiedCycle ?? null,
+            dataCycle: member.dataCycle ?? null,
+          },
+          shapeDirected,
+          gifts: (gifts || []).map(g => [g.id, g.amount]),
+          giftsToFunds: fundGifts.map(g => [g.id, g.amount]),
+        };
+        const grade = member ? gradeMemberFinal3(gradeInputs, pacs, shares) : null;
+        // The committees behind it, for the member page
+        analysis.pacs = committeesFinal3(
+          { gifts: gifts || [], giftsToFunds: fundGifts, directedOut: shapeDirected?.directedOut },
+          pacs,
+          shares
+        );
+        analysis.donorTest = shapeDirected && {
+          donors: shapeDirected.donors,
+          nakamoto: shapeDirected.nakamoto,
+          total: shapeDirected.total,
+        };
         if (reportPath) {
           const before = targets.find(t => t.bioguideId === p.id) || {};
           const brief = g =>
@@ -652,6 +708,7 @@ async function main() {
                   pac: c.pac ?? null,
                   toMember: c.toMember ?? null,
                   ownFund: c.ownFund ?? null,
+                  mix: c.mix ?? null,
                 })),
               },
               reconciliation: { ok, pending },
@@ -661,6 +718,15 @@ async function main() {
                 totalAmount: analysis.totalAmount,
               },
               shape: await memberDonorShape(bulk, p.pool, analysis.nakamotoCoefficient),
+              // FINAL-2: without gifts a committee directed (they count as
+              // that committee's gift), and those gifts by committee
+              shapeDirected: await memberDonorShape(
+                bulk,
+                p.pool,
+                analysis.nakamotoCoefficient,
+                null,
+                { platforms: [...platforms] }
+              ),
               // The donor test with each own joint fund's gifts scaled to the
               // share of the fund's money that reached the member
               shapeJfc: await memberDonorShape(
@@ -675,6 +741,17 @@ async function main() {
               ),
               // Transfers each committee got from the member's own committees
               internalIn: db ? await internalTransfers(db, p.pf) : null,
+              // The final candidate: own joint funds in full, and the PAC
+              // gifts to them
+              whole: p.pf.whole || null,
+              giftsToFunds: (fundGiftsFor.get(p.id) || []).map(g => [g.id, g.amount]),
+              // Earmarked gifts by conduit (item 10)
+              conduits: (analysis.conduits || []).map(c => ({
+                id: c.id || null,
+                name: c.name,
+                amount: c.amount,
+                count: c.count,
+              })),
               gifts: (gifts || []).map(g => [g.id, g.amount]),
               record: member && {
                 fecIdentityVerified: member.fecIdentityVerified ?? null,
@@ -716,6 +793,10 @@ async function main() {
             grade: grade && {
               tier: grade.tier,
               individualFundingPercent: grade.individualFundingPercent,
+              ...(grade.disputeReason
+                ? { disputed: true, disputeReason: grade.disputeReason }
+                : {}),
+              ...(grade.withheldReason ? { withheldReason: grade.withheldReason } : {}),
               gradeBasis: grade.gradeBasis,
               evidenceChecked: grade.evidenceChecked,
               personFigures: grade.personFigures,
@@ -788,47 +869,16 @@ async function main() {
       }
     }
     writeFileSync(`${reportPath}.pacs.json`, JSON.stringify(pacTypes, null, 1));
-    // Every PAC's inputs, for scripts/simulate: its FEC summary and donors,
-    // the committees that funded it, and (frozen) the FEC's own totals
-    const pacIds = [
-      ...new Set([
-        ...[...giftsFor.values()].flatMap(g => g.map(x => x.id)),
-        ...[...upstream.values()].flatMap(u => u.map(x => x.id)),
-        ...profiles.keys(),
-      ]),
-    ];
-    const cmRows = pacIds.length
-      ? await db.read(
-          `SELECT id, name, type, designation, org_type, connected_org FROM cm WHERE id IN (${pacIds.map(() => '?').join(',')})`,
-          ...pacIds
-        )
-      : [];
-    const fecTotals = frozen ? snapshot('pac-totals.json') : {};
-    const pacs = {};
-    for (const c of cmRows) {
-      const t = fecTotals[c.id];
-      pacs[c.id] = {
-        name: c.name,
-        type: c.type,
-        designation: c.designation,
-        orgType: c.org_type,
-        connectedOrg: c.connected_org,
-        profile: profiles.get(c.id) || null,
-        extras: extras.get(c.id) || null,
-        upstream: upstream.get(c.id) || [],
-        fec: t
-          ? {
-              receipts: t.receipts,
-              individuals: t.individual_contributions,
-              itemized: t.individual_itemized_contributions,
-              unitemized: t.individual_unitemized_contributions,
-              coverageEnd: t.coverage_end_date,
-            }
-          : null,
-      };
-    }
+    // Every PAC's inputs, for scripts/simulate: as FINAL-3 graded them
+    // (lib/final3.mjs, built before the members), with the report's extras
+    const exported = Object.fromEntries(
+      Object.entries(pacs).map(([id, p]) => [
+        id,
+        { ...p, fecGroup: fecGroup(p), extras: extras.get(id) || null },
+      ])
+    );
     // The live grades' own inputs, for checking R0 against them
-    const live = frozen
+    const liveRows = frozen
       ? await d1(
           `SELECT bioguide_id, grade, json_extract(analysis, '$.uniqueDonors') AS donors,
              json_extract(analysis, '$.nakamotoCoefficient') AS nakamoto,
@@ -843,6 +893,7 @@ async function main() {
       JSON.stringify({
         snapshot: frozen ? snapshot('manifest.json') : null,
         flags: frozen ? snapshot('flags.json') : [],
+        platforms: [...platforms],
         members: report.map(r => ({
           id: r.id,
           name: r.name,
@@ -852,9 +903,10 @@ async function main() {
           published: r.before,
           ...r.inputs,
         })),
-        pacs,
-        live,
+        pacs: exported,
+        live: liveRows,
         replayMissing: fec.missing || [],
+        fetchedLive,
         replayAssembled: fec.assembled || [],
       })
     );

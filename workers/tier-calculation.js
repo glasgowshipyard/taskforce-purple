@@ -512,3 +512,263 @@ export function pacPeopleCredit(gifts, traced, tracing = PAC_TRACING) {
   );
   return Math.round(people * tracing.credit * 100) / 100;
 }
+
+// ===================================================================
+// FINAL-3 (owner's decision, frozen 2026-10-12): the grading that ships.
+// A port of the simulation's FINAL-3 settings (scripts/simulate/lib/grid.mjs,
+// checked against it member by member: scripts/simulate/check-final3.mjs).
+//
+//   G = s + b + p + y             money given (own money, loans and transfers out)
+//   other politicians' joint funds: their transfers come out of s, b, p, y by
+//     the fund's mix and count 0 (still in G)
+//   directed gifts e (earmarked through a committee other than ActBlue,
+//     WinRed or Democracy Engine) come out of b and the donor test
+//   a = min(0.10 + 0.90·clamp((n/N − 0.025)/0.075, 0, 1), min(1, n/100)),
+//       0.40 when the records cover under half the FEC's big-donor total
+//   x = 100·(s + min(b, a·(s + b)) + PAC money counted + directed counted) / G
+//   PAC money counted: gifts × the PAC's traced people share, PEOPLE PACs
+//     that pass the people test only, scaled to the PAC money received
+//   grade on round(x): S 90, A 75, B 60, C 45, D 30, E 15
+// ===================================================================
+
+export const FINAL3 = {
+  bands: [
+    ['S', 90],
+    ['A', 75],
+    ['B', 60],
+    ['C', 45],
+    ['D', 30],
+    ['E', 15],
+  ],
+  fallback: 0.4, // the allowance when the donor records aren't reliable
+  coverage: 0.5, // records must hold half the FEC's big-donor total
+  credit: { people: 1 }, // every other group counts 0
+};
+const n0 = x => (Number.isFinite(Number(x)) ? Number(x) : 0);
+const clamp01 = (x, lo, hi) => Math.max(lo, Math.min(hi, x));
+
+/** The allowance (0-1) from n (fewest donors holding half) and N (all big donors). */
+export function final3Allowance(nRaw, NRaw, reliable) {
+  if (!reliable) {
+    return FINAL3.fallback;
+  }
+  const n = Number(nRaw) || 0;
+  const N = Number(NRaw) || 0;
+  const share = N > 0 ? n / N : 0;
+  const smooth = 0.1 + 0.9 * clamp01((share - 0.025) / 0.075, 0, 1);
+  return Math.min(smooth, Math.min(1, n / 100));
+}
+
+/**
+ * The group a committee counts as: its sponsor group, with PEOPLE split by
+ * the people test (PEOPLE, BOARD, or not tested). `p`: { sponsor: { group },
+ * peopleTest: { elected } }.
+ */
+export function final3Group(p) {
+  const g = p?.sponsor?.group || 'nosponsor';
+  if (g !== 'people') {
+    return g;
+  }
+  const e = p?.peopleTest?.elected;
+  return e === true ? 'people' : e === false ? 'board' : 'untested';
+}
+const creditOf = p => FINAL3.credit[final3Group(p)] ?? 0;
+
+/**
+ * Every committee's share of money traced to people (0-1), two steps back:
+ * its own donors (the FEC's small/big split, its own donor test), plus money
+ * from committees that fund it, where those count. `pacs`: { [id]: { profile:
+ * { receipts, individuals, itemized, donors, nakamoto }, fec: { receipts,
+ * itemized, unitemized } | null, upstream: [{ id, amount }], sponsor,
+ * peopleTest } }. Returns Map id -> share.
+ */
+export function final3PacShares(pacs) {
+  const one = new Map();
+  const views = new Map();
+  for (const [id, p] of Object.entries(pacs)) {
+    const prof = p?.profile;
+    if (!prof?.receipts || prof.receipts <= 0) {
+      views.set(id, null);
+      one.set(id, { share: 0, traceable: 0 });
+      continue;
+    }
+    let R = prof.receipts;
+    let ind = Math.max(0, Math.min(prof.individuals || 0, R));
+    let it = Math.max(0, Math.min(prof.itemized || 0, ind));
+    if (p.fec && n0(p.fec.receipts) > 0) {
+      R = n0(p.fec.receipts);
+      ind = Math.max(0, Math.min(n0(p.fec.unitemized) + n0(p.fec.itemized), R));
+      it = Math.max(0, Math.min(n0(p.fec.itemized), ind));
+    }
+    const records = prof.itemized || 0;
+    const N = prof.donors ?? 0;
+    const n = prof.nakamoto;
+    const hasRecords = n !== null && n !== undefined && N > 0;
+    let reliable = hasRecords || it <= 0;
+    if (reliable && p.fec && n0(p.fec.itemized) > 0) {
+      const fecItemized = n0(p.fec.itemized);
+      reliable = fecItemized <= 0 || records >= FINAL3.coverage * fecItemized;
+    }
+    const a = final3Allowance(n, N, reliable);
+    const raw = (ind / R) * 100;
+    const itemizedPercent = ind > 0 ? (it / ind) * 100 : 0;
+    const share = (raw - (Math.max(0, itemizedPercent - a * 100) / 100) * raw) / 100;
+    views.set(id, { R, ind });
+    one.set(id, { share: clamp01(share, 0, 1), traceable: Math.min(1, ind / R) });
+  }
+  const out = new Map();
+  for (const [id, p] of Object.entries(pacs)) {
+    const v = views.get(id);
+    const s1 = one.get(id).share;
+    let s2 = s1;
+    if (v) {
+      const up = (p.upstream || []).filter(u => u.amount > 0 && one.get(u.id)?.traceable > 0);
+      const B = up.reduce((t, u) => t + u.amount, 0);
+      const traced = Math.min(v.R - v.ind, B);
+      const upShare = u => (creditOf(pacs[u.id]) > 0 ? one.get(u.id).share : 0);
+      if (traced > 0) {
+        s2 = s1 + (up.reduce((t, u) => t + u.amount * upShare(u), 0) / v.R) * (traced / B);
+      }
+    }
+    out.set(id, clamp01(s2, 0, 1));
+  }
+  return out;
+}
+
+/** A grade from a rounded score. */
+export function final3Band(score) {
+  for (const [letter, from] of FINAL3.bands) {
+    if (score >= from) {
+      return letter;
+    }
+  }
+  return 'F';
+}
+
+/**
+ * One member's FINAL-3 grade. `m`: {
+ *   pf: the person's figures (combineVehicleTotals), committees with each
+ *       joint fund's role, ownFund, toMember and mix;
+ *   whole: the same with the member's own joint funds in full;
+ *   reconciliation: { ok, pending }; record: the stored member record;
+ *   shapeDirected: { donors, nakamoto, total, directedOut: { id: $ } };
+ *   gifts, giftsToFunds: [[committee id, $]] }
+ * `pacs`, `shares`: final3PacShares' input and output.
+ * Returns { tier, score, x, reason?, ...the working }.
+ */
+export function gradeFinal3(m, pacs, shares) {
+  const rec = m.reconciliation || {};
+  const invariant = m.whole ? m.whole.invariantsHold : m.pf?.invariantsHold;
+  const personLevel = Boolean(
+    m.pf && !m.pf.failed && m.pf.totalRaised > 0 && invariant && (rec.ok || rec.pending)
+  );
+  if (!personLevel) {
+    // Figures that mix stored and new sources: no grade
+    return { tier: 'N/A', reason: 'mixed-source', withheld: true };
+  }
+  const pf = m.whole ? { ...m.pf, ...m.whole } : m.pf;
+  let s = n0(pf.grassrootsDonations);
+  let b = n0(pf.largeDonorDonations);
+  let p = n0(pf.pacMoney);
+  let y = n0(pf.partyMoney);
+  const own = n0(pf.ownMoney?.contributions) + n0(pf.ownMoney?.loans);
+  const T = n0(pf.totalRaised);
+  const fromOthers = T - own;
+  const given = s + b + p + y;
+  // Other politicians' joint funds: out of each bucket by the fund's mix
+  let j = 0;
+  for (const c of (m.pf.committees || []).filter(x => x.role === 'joint' && !x.ownFund)) {
+    const t = n0(c.toMember);
+    if (t > 0 && c.mix) {
+      s -= t * n0(c.mix.s);
+      b -= t * n0(c.mix.b);
+      p -= t * n0(c.mix.p);
+      y -= t * n0(c.mix.y);
+      j += t * (n0(c.mix.s) + n0(c.mix.b) + n0(c.mix.p) + n0(c.mix.y));
+    }
+  }
+  [s, b, p, y] = [s, b, p, y].map(v => Math.max(0, v));
+  // Directed gifts: out of big-donor money
+  const directed = Object.entries(m.shapeDirected?.directedOut || {}).filter(([, a]) => a > 0);
+  const e = Math.min(
+    b,
+    directed.reduce((t, [, a]) => t + a, 0)
+  );
+  b -= e;
+  const out = { s, b, p, y, j, e, own, T };
+  if (own > 0 && fromOthers < given * 0.98 - 1) {
+    return {
+      ...out,
+      tier: 'DISPUTED',
+      reason: 'own-money-exceeds-receipts',
+      withheld: true,
+    };
+  }
+  const D = given;
+  out.denominator = D;
+  if (!(D > 0)) {
+    return { ...out, tier: 'N/A', reason: 'no-money', withheld: true };
+  }
+  const I = s + b;
+  const sourceVerified =
+    m.record?.financialsVerified === true &&
+    m.record?.financialsVerifiedCycle === m.record?.dataCycle;
+  if (I > D * 1.02 && !sourceVerified) {
+    return {
+      ...out,
+      tier: 'DISPUTED',
+      reason: 'figures-not-reconciled-to-source',
+      withheld: true,
+    };
+  }
+  // The donor test: donors who net above $0, directed gifts left out
+  const sh = m.shapeDirected;
+  const N = sh?.donors ?? 0;
+  const n = sh?.nakamoto;
+  const collected = n0(sh?.total);
+  const covered = b <= 0 || collected >= FINAL3.coverage * b;
+  const hasRecords = n !== null && n !== undefined && N > 0;
+  const reliable = (hasRecords || b <= 0) && covered;
+  const a = final3Allowance(n, N, reliable);
+  const counted = Math.min(b, a * I);
+  const raw = (I / D) * 100;
+  const itemizedPercent = I > 0 ? (b / I) * 100 : 0;
+  let x = raw - (Math.max(0, itemizedPercent - a * 100) / 100) * raw;
+  x = Math.min(100, x);
+  // PAC money counted, never above the PAC money received
+  const gifts = [...(m.gifts || []), ...(m.giftsToFunds || [])];
+  const giftTotal = gifts.reduce((t, [, amt]) => t + amt, 0);
+  const f = giftTotal > 0 ? Math.min(1, p / giftTotal) : 1;
+  const C =
+    Math.round(
+      gifts.reduce((t, [id, amt]) => t + amt * (shares.get(id) || 0) * creditOf(pacs[id]), 0) *
+        f *
+        100
+    ) / 100;
+  // Directed gifts at the directing committee's share, never capped
+  const scale = e > 0 ? e / directed.reduce((t, [, amt]) => t + amt, 0) : 0;
+  const E =
+    Math.round(
+      directed.reduce(
+        (t, [id, amt]) => t + amt * scale * (shares.get(id) || 0) * creditOf(pacs[id]),
+        0
+      ) * 100
+    ) / 100;
+  const credit = C + E > 0 ? ((C + E) / D) * 100 : 0;
+  x = Math.min(100, x + credit);
+  const score = Math.round(x);
+  return {
+    ...out,
+    tier: final3Band(score),
+    x,
+    score,
+    N,
+    n: n ?? null,
+    allowance: a,
+    reliable,
+    counted,
+    fromPeople: s + counted,
+    creditDollars: C,
+    earmarkDollars: E,
+  };
+}

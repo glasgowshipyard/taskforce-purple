@@ -64,7 +64,7 @@ describe('classifyTransfers', () => {
       row('C2', 99, 'J', { memo_code: 'X' }),
       row('NRCC', 5000, 'U'),
     ]);
-    expect(r).toEqual({ internal: 0, jfcs: [] });
+    expect(r).toEqual({ internal: 0, internalIn: {}, jfcs: [] });
   });
 });
 
@@ -203,5 +203,73 @@ describe('donorCommitteeIds', () => {
     });
     expect(ids).toEqual(['C1', 'C2', 'C4']);
     expect(committeeSignature(['C4', 'C1'])).toBe('C1,C4');
+  });
+});
+
+describe('the final candidate: whole own funds and the transfer check (owner, 2026-10-11)', () => {
+  const totals = (receipts, small, big, pac = 0, party = 0) => ({
+    receipts,
+    individual_unitemized_contributions: small,
+    individual_itemized_contributions: big,
+    other_political_committee_contributions: pac,
+    political_party_committee_contributions: party,
+  });
+  const vehicles = [
+    { committeeId: 'C1', role: 'campaign', totals: totals(1000000, 300000, 500000, 100000) },
+  ];
+  // The member's own fund raised $2M and passed $100k to the campaign
+  const fund = {
+    committeeId: 'J1',
+    registered: true,
+    received: 100000,
+    totals: totals(2000000, 200000, 1700000, 100000),
+  };
+
+  it('counts a share of an own fund by default, and the whole fund when asked', () => {
+    const share = combineVehicleTotals(vehicles, { internal: 0, jfcs: [fund] });
+    expect(share.largeDonorDonations).toBeCloseTo(500000 + 100000 * (1700000 / 2000000), 6);
+    expect(share.totalRaised).toBe(1000000);
+    const whole = combineVehicleTotals(
+      vehicles,
+      { internal: 0, jfcs: [fund] },
+      { wholeOwnFunds: true }
+    );
+    expect(whole.grassrootsDonations).toBe(500000);
+    expect(whole.largeDonorDonations).toBe(2200000);
+    expect(whole.pacMoney).toBe(200000);
+    // The fund's $100k transfer to the campaign is counted once
+    expect(whole.totalRaised).toBe(1000000 + 2000000 - 100000);
+    expect(whole.invariantsHold).toBe(true);
+  });
+
+  it('a shared fund still counts only by what it passed on', () => {
+    const shared = { ...fund, registered: false, ownedByMember: false };
+    const r = combineVehicleTotals(
+      vehicles,
+      { internal: 0, jfcs: [shared] },
+      { wholeOwnFunds: true }
+    );
+    expect(r.totalRaised).toBe(1000000);
+  });
+
+  it("allows for savings moved from one of the member's committees to another", () => {
+    const house = { committeeId: 'C1', role: 'campaign', totals: totals(4000000, 0, 0) };
+    const senate = { committeeId: 'C2', role: 'campaign', totals: totals(31500000, 0, 0) };
+    const t = classifyTransfers(
+      [house, senate],
+      [
+        {
+          memo_code: null,
+          committee_id: 'C2',
+          contribution_receipt_amount: 19500000,
+          contributor_id: 'C1',
+          contributor: {},
+        },
+      ]
+    );
+    expect(t.internalIn).toEqual({ C2: 19500000 });
+    const r = combineVehicleTotals([house, senate], t);
+    expect(r.totalRaised).toBe(16000000);
+    expect(r.invariantsHold).toBe(true);
   });
 });

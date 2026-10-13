@@ -79,6 +79,8 @@ export function selectVehicles(committees, cycle) {
 export function classifyTransfers(moneyVehicles, transferRows) {
   const own = new Set((moneyVehicles || []).map(v => v.committeeId));
   let internal = 0;
+  // Per receiving committee: what it got from the member's other committees
+  const internalIn = {};
   const jfcs = new Map();
   for (const r of transferRows || []) {
     if (r.memo_code === 'X') {
@@ -91,6 +93,10 @@ export function classifyTransfers(moneyVehicles, transferRows) {
     }
     if (own.has(sender)) {
       internal += amount;
+      const to = r.committee_id || r.recipient_committee_id;
+      if (to) {
+        internalIn[to] = (internalIn[to] || 0) + amount;
+      }
     } else if (r.contributor?.designation === 'J') {
       const j = jfcs.get(sender) || {
         committeeId: sender,
@@ -101,7 +107,7 @@ export function classifyTransfers(moneyVehicles, transferRows) {
       jfcs.set(sender, j);
     }
   }
-  return { internal, jfcs: [...jfcs.values()] };
+  return { internal, internalIn, jfcs: [...jfcs.values()] };
 }
 
 // Money a fund passed on to other committees, per its FEC totals
@@ -193,13 +199,41 @@ export function fundOwner(disbursementRows, ownerOf = id => id) {
  * funds is already inside the receiving committee's receipts and is
  * re-classified into donor buckets by the fund's own mix.
  *
+ * With `wholeOwnFunds` (the final candidate, owner 2026-10-11), everything
+ * a member's OWN joint fund raised counts as the member's money, in full:
+ * its small and big donations, PAC and party money. Its transfers to the
+ * member's committees then move money between their own committees, so they
+ * count as internal (never twice).
+ *
  * @param moneyVehicles [{committeeId, role, name, totals, bigCheques?}]
- * @param transfers     {internal, jfcs:[{committeeId, name, received, totals, registered, bigCheques?}]}
+ * @param transfers     {internal, internalIn?, jfcs:[{committeeId, name, received, totals, registered, bigCheques?}]}
  */
-export function combineVehicleTotals(moneyVehicles, transfers = { internal: 0, jfcs: [] }) {
+function fundMix(totals) {
+  const r = num(totals?.receipts);
+  if (!(r > 0)) {
+    return null;
+  }
+  const share = f => Math.round((num(totals[f]) / r) * 1e6) / 1e6;
+  return {
+    s: share('individual_unitemized_contributions'),
+    b: share('individual_itemized_contributions'),
+    p: share('other_political_committee_contributions'),
+    y: share('political_party_committee_contributions'),
+  };
+}
+
+export function combineVehicleTotals(
+  moneyVehicles,
+  transfers = { internal: 0, jfcs: [] },
+  { wholeOwnFunds = false } = {}
+) {
   const withTotals = (moneyVehicles || []).filter(v => v.totals && num(v.totals.receipts) > 0);
-  const gross = withTotals.reduce((s, v) => s + num(v.totals.receipts), 0);
-  const sum = f => withTotals.reduce((s, v) => s + num(v.totals[f]), 0);
+  const wholeFunds = wholeOwnFunds
+    ? (transfers.jfcs || []).filter(j => isMembersOwnFund(j) && num(j.totals?.receipts) > 0)
+    : [];
+  const units = [...withTotals, ...wholeFunds];
+  const gross = units.reduce((s, v) => s + num(v.totals.receipts), 0);
+  const sum = f => units.reduce((s, v) => s + num(v.totals[f]), 0);
 
   const buckets = {
     grassrootsDonations: sum('individual_unitemized_contributions'),
@@ -209,6 +243,9 @@ export function combineVehicleTotals(moneyVehicles, transfers = { internal: 0, j
   };
   for (const j of transfers.jfcs || []) {
     const r = num(j.totals?.receipts);
+    if (wholeFunds.includes(j)) {
+      continue; // counted in full above
+    }
     if (r > 0 && j.received > 0) {
       buckets.grassrootsDonations +=
         j.received * (num(j.totals.individual_unitemized_contributions) / r);
@@ -220,9 +257,20 @@ export function combineVehicleTotals(moneyVehicles, transfers = { internal: 0, j
     }
   }
 
-  const internal = Math.min(num(transfers.internal), gross);
+  // A whole fund's transfers to the member's committees are internal now
+  const fromWholeFunds = wholeFunds.reduce((s, j) => s + num(j.received), 0);
+  const internal = Math.min(num(transfers.internal) + fromWholeFunds, gross);
   const totalRaised = gross - internal;
-  const largestSingle = Math.max(0, ...withTotals.map(v => num(v.totals.receipts)));
+  // The total must cover the largest single committee's receipts, less what
+  // that committee got from the member's other committees (item 9: a House
+  // campaign's savings moved to a Senate campaign were raised in earlier
+  // cycles and are left out of the total, rightly)
+  const internalIn = transfers.internalIn || {};
+  const largestSingle = Math.max(
+    0,
+    ...withTotals.map(v => num(v.totals.receipts) - num(internalIn[v.committeeId])),
+    ...wholeFunds.map(j => num(j.totals.receipts) - num(internalIn[j.committeeId]))
+  );
 
   const committees = [
     ...withTotals.map(v => ({
@@ -244,6 +292,9 @@ export function combineVehicleTotals(moneyVehicles, transfers = { internal: 0, j
       bigCheques: j.bigCheques ?? null,
       toMember: j.received,
       passedElsewhere: Math.max(0, transfersOut(j.totals) - j.received),
+      // The fund's own mix, which splits what it passed on (FINAL-2 counts
+      // other politicians' funds' transfers as POLITICIAN money instead)
+      mix: fundMix(j.totals),
     })),
   ];
 

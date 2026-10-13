@@ -1,6 +1,64 @@
 # Task Force Purple - Implementation Status
 
-**Last Updated**: 2026-10-09
+**Last Updated**: 2026-10-12
+
+---
+
+## 2026-10-12 (later): FINAL-3, the freeze candidate (nothing published, branch final-grading)
+
+FINAL-2 with four changes (owner's brief), on the same snapshot and export:
+
+1. the people test's stricter reading: members must elect most of the
+   voting board (line 7a Yes is not enough where Schedule O shows a minority
+   or a self-electing board, or line 6 says no members), `_minority` in
+   `people-test.json`;
+2. unions covered by the LMRDA pass on the law (`lmrda` in
+   `people-test.json`, 102 private-sector and postal union PACs);
+   public-sector and federal unions take the Form 990 test;
+3. rule 6 for FEC types C and T only; W goes by its IRS status, co-ops (V)
+   stay BUSINESS; the postal supervisors take the people test;
+4. a sponsor whose members are businesses is BUSINESS (the Center for
+   Sportfishing Policy; Henry Ford Health's affiliate).
+   `scripts/simulate/report-final3.mjs` reproduces FINAL-2 from the same code
+   (each change switched off; every member's grade and score and every PAC's
+   group match) and adds the four in order. S36 A74 B72 C96 D113 E100 F43;
+   22 grades change from FINAL-2 (20 by rule 1, 2 by rule 2), none
+   unexplained. AIPAC, J Street and LCV fail rule 1, so no directed gift
+   counts.
+
+---
+
+## 2026-10-12: FINAL-2 simulated (owner's brief; nothing published, branch final-grading)
+
+Same snapshot; inputs re-exported (run 38328698299) with the donor test
+less gifts a committee directed, each joint fund's mix, the directing
+committees traced, and sponsors that are themselves committees.
+`scripts/simulate/report-final2.mjs`. Final (11 Oct, run 38189054123) gave
+S57 A92 B79 C83 D100 E91 F32; FINAL-2 gives S37 A74 B75 C100 D107 E101 F40.
+
+- The people test: a PEOPLE PAC counts only if its sponsor's members elect
+  its governing body, read from the sponsor's latest Form 990 (Part VI
+  line 7a) in the IRS e-file archive (`scripts/refresh/form990.mjs`, which
+  reads single returns out of the IRS zips by byte range; the newer zips
+  use Deflate64, read through Info-ZIP's unzip). Answers in
+  `scripts/refresh/data/form990.json`; hand-identified sponsors and stated
+  facts (union locals: the LMRDA's election rule) in `people-test.json`.
+  NO SPONSOR counts 0.
+- Line 7a says "one or more" of the board: AIPAC, J Street, LCV and nine
+  others answer Yes while members elect one director. Reported as a
+  stricter reading (23 grades change); the run uses 7a as written.
+- Earmarks through directing committees ($49.4M) leave big-donor money and
+  the donor test and count as that committee's gift, outside the PAC cap.
+- Other politicians' joint-fund transfers ($61M) come out of each bucket by
+  the fund's mix and count 0.
+- Sorting rules 6-12 in `scripts/refresh/lib/sponsors.mjs`: the FEC filing
+  a sponsor as a company holds against the IRS; insurers, health plans,
+  credit unions, chambers and producers' groups are BUSINESS by name;
+  sponsors that are committees resolved against the FEC committee list
+  (organizations' own "C9" spending IDs ignored); 128 stated facts.
+- I wrote "her"/"his" for members on the Final page and typed its party
+  figures by hand from an earlier run (149 for 150, 5/154 for 6/151): both
+  fixed on the page; FINAL-2's summary figures are computed.
 
 ---
 
@@ -16,8 +74,8 @@ committee's transfers from the member's own committees.
   blank or loose (the Big Four's PACs land in NO SPONSOR).
 - E-S against E: Democrats 28 up, 48 down; Republicans 0 up, 100 down.
 - Transfer check fixed: Krishnamoorthi, Robin Kelly and Hoyer gradable.
-  Hinson isn't: her Senate candidate ID (S6IA00314) is missing from the
-  crosswalk, so her campaign committee C00706267 isn't counted.
+  Hinson isn't: the Senate candidate ID (S6IA00314) is missing from the
+  crosswalk, so campaign committee C00706267 isn't counted.
 - Scaling joint-fund gifts (would reverse the 26 Sept rule) shrinks the
   weak-spot list 19 to 5 but lifts leaders whose big donors gave through
   joint funds (Collins E to A, Cornyn E to A, Pelosi A to S).

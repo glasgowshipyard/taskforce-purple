@@ -18,6 +18,10 @@ on:
         description: 'For export: the run ID of the snapshot to use'
         required: false
         default: ''
+      live_fallback:
+        description: 'For export: fetch FEC answers the snapshot lacks (listed with the time)'
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -78,6 +82,9 @@ jobs:
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
+          FEC_API_KEY: ${{ inputs.live_fallback && secrets.FEC_API_KEY || '' }}
+          TFP_REPLAY_LIVE: ${{ inputs.live_fallback && '1' || '' }}
+          FEC_MIN_INTERVAL_MS: '700'
         run: |
           mkdir -p "$RUNNER_TEMP/out"
           node scripts/refresh/run.mjs --frozen "$RUNNER_TEMP/snapshot" --dry-run --grade-only \

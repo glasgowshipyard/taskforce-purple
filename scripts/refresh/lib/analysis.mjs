@@ -118,9 +118,9 @@ export async function analyzePool(bulk, poolIds, { conduitName }) {
     GROUP BY 1 ORDER BY amount DESC`);
   const conduitTotals = new Map();
   for (const e of earmarks) {
-    const name =
-      e.other_id && IDS.test(e.other_id) ? await conduitName(e.other_id) : 'UNKNOWN CONDUIT';
-    const c = conduitTotals.get(name) || { name, amount: 0, count: 0 };
+    const id = e.other_id && IDS.test(e.other_id) ? e.other_id : null;
+    const name = id ? await conduitName(id) : 'UNKNOWN CONDUIT';
+    const c = conduitTotals.get(name) || { id, name, amount: 0, count: 0 };
     c.amount += Number(e.amount);
     c.count += e.n;
     conduitTotals.set(name, c);

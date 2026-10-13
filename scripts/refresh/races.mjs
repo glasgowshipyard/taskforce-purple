@@ -22,10 +22,14 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { FEC_CROSSWALK } from '../../workers/fec-crosswalk.js';
-import { gradeMember } from '../../workers/grading.js';
+import { committeesFinal3, gradeMemberFinal3 } from '../../workers/grading.js';
 import { LIST_KEY, sameValue } from '../../workers/member-store.js';
-import { cycleForYear } from '../../workers/tier-calculation.js';
+import { cycleForYear, final3PacShares } from '../../workers/tier-calculation.js';
+import { memberDonorShape } from '../simulate/lib/inputs.mjs';
 import { analyzePool, loadFara } from './lib/analysis.mjs';
+import { buildPacs, directingCommittees, platformIds } from './lib/final3.mjs';
+import { pacGifts, pacProfiles, upstreamGifts } from './lib/pacs.mjs';
+import { ensureIrs, loadIrsIndex } from './lib/sponsors.mjs';
 import { ensureBulkFile, loadBulk } from './lib/bulk.mjs';
 import { RESULTS_DB, createCloudflare } from './lib/cloudflare.mjs';
 import { discoverPeople, ensureZip, loadDiscoveryFiles } from './lib/discovery.mjs';
@@ -142,6 +146,42 @@ async function main() {
     log,
   });
   const names = new Map((await db.read('SELECT id, name FROM cm')).map(c => [c.id, c.name]));
+  // FINAL-3, as for members (refresh job): every committee whose money
+  // reaches a candidate, who it answers to, and its share traced to people
+  const giftsFor = new Map();
+  const fundGiftsFor = new Map();
+  for (const [id, pf] of discovered) {
+    const vehicles = (pf.committees || [])
+      .filter(c => c.role === 'campaign' || c.role === 'leadership')
+      .map(c => c.committeeId);
+    giftsFor.set(id, await pacGifts(db, vehicles));
+    if (pf.whole?.ownFunds?.length) {
+      fundGiftsFor.set(id, await pacGifts(db, pf.whole.ownFunds, vehicles));
+    }
+  }
+  const platforms = await platformIds(db);
+  const givers = [...giftsFor.values(), ...fundGiftsFor.values()].flatMap(g => g.map(x => x.id));
+  const directing = await directingCommittees(
+    db,
+    file.path,
+    [...discovered.values()].flatMap(pf => pf.donorCommitteeIds || []),
+    platforms
+  );
+  const upstream = await upstreamGifts(db, [...givers, ...directing]);
+  const upIds = [...upstream.values()].flatMap(u => u.map(x => x.id));
+  const profiles = await pacProfiles(db, file.path, [...givers, ...directing, ...upIds]);
+  const irsIndex = await loadIrsIndex(sql => db.read(sql), ensureIrs(bulkDir, log));
+  const pacs = await buildPacs({
+    db,
+    ids: [...givers, ...directing, ...upIds],
+    fec,
+    cycle,
+    profiles,
+    upstream,
+    irsIndex,
+    log,
+  });
+  const shares = final3PacShares(pacs);
   const fara = await d1(
     'SELECT employer, fara_firm, registration_number FROM fara_employer_matches'
   );
@@ -167,29 +207,39 @@ async function main() {
       const analysis = await analyzePool(bulk, pf.donorCommitteeIds, {
         conduitName: async id => names.get(id) || id,
       });
-      const grade = gradeMember(
-        {
-          bioguideId: c.candidateId,
-          name: c.name,
-          party: c.party,
-          state: c.state,
-          totalRaised: pf.totalRaised,
-          grassrootsDonations: pf.grassrootsDonations,
-          largeDonorDonations: pf.largeDonorDonations,
-          grassrootsPercent: pf.grassrootsPercent,
-          pacMoney: pf.pacMoney,
-          partyMoney: pf.partyMoney,
-          // The identity is the FEC's own candidate ID: nothing inferred
-          fecIdentityVerified: true,
-          pacContributions: [],
-        },
-        {
-          ...analysis,
-          personLevel: true,
-          personFunding: pf,
-          reconciliation: { ok: false, pending: true },
-        }
+      // Graded from the bulk files, shown as still being double-checked
+      const shapeDirected = await memberDonorShape(
+        bulk,
+        pf.donorCommitteeIds,
+        analysis.nakamotoCoefficient,
+        null,
+        { platforms: [...platforms] }
       );
+      const gifts = giftsFor.get(c.candidateId) || [];
+      const fundGifts = fundGiftsFor.get(c.candidateId) || [];
+      const grade = gradeMemberFinal3(
+        {
+          pf,
+          whole: pf.whole || null,
+          reconciliation: { ok: false, pending: true },
+          record: null,
+          shapeDirected,
+          gifts: gifts.map(g => [g.id, g.amount]),
+          giftsToFunds: fundGifts.map(g => [g.id, g.amount]),
+        },
+        pacs,
+        shares
+      );
+      analysis.pacs = committeesFinal3(
+        { gifts, giftsToFunds: fundGifts, directedOut: shapeDirected?.directedOut },
+        pacs,
+        shares
+      );
+      analysis.donorTest = shapeDirected && {
+        donors: shapeDirected.donors,
+        nakamoto: shapeDirected.nakamoto,
+        total: shapeDirected.total,
+      };
       graded.set(c.candidateId, { status: 'provisional', pf, analysis, grade });
     }
     log(`graded ${Math.min(b + batchSize, others.length)} of ${others.length}`);
@@ -290,6 +340,9 @@ async function main() {
             ? JSON.stringify({
                 tier: g.grade.tier,
                 individualFundingPercent: g.grade.individualFundingPercent,
+                ...(g.grade.disputeReason
+                  ? { disputed: true, disputeReason: g.grade.disputeReason }
+                  : {}),
                 gradeBasis: g.grade.gradeBasis,
                 personFigures: g.grade.personFigures,
                 evidenceChecked: g.grade.evidenceChecked,

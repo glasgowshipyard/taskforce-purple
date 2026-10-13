@@ -1,7 +1,43 @@
 # Tier Calculation Guide
 
-**Last Updated**: 2026-10-09
-**Implementation**: `workers/tier-calculation.js` (pure functions, unit-tested in `workers/tier-calculation.test.js`)
+**Last Updated**: 2026-10-13
+**Implementation**: `workers/tier-calculation.js` `gradeFinal3` (pure, unit-tested; checked
+member by member against the simulation by `scripts/simulate/check-final3.mjs`), wrapped by
+`workers/grading.js` `gradeMemberFinal3`. Inputs gathered by the refresh job
+(`scripts/refresh/run.mjs`, `scripts/refresh/lib/final3.mjs`); PAC sorting and the people
+test in `scripts/refresh/lib/sponsors.mjs` with the data in `scripts/refresh/data/`.
+
+## FINAL-3: the method since 13 October 2026
+
+The owner froze this on 2026-10-12 after four simulation rounds on one FEC snapshot (Final,
+FINAL-2, FINAL-3; reports in IMPLEMENTATION_STATUS.md). It replaced version A (the trust anchor,
+half credit for PAC money traced to people, and the PAC bar), described below as history.
+The one-page spec, as shown on /how:
+
+**Meaning.** A member's grade is the share of the money given to them, and to their own joint funds, that comes from many different people. Big donations count only as far as the people who gave them are many and spread out. PAC money counts only when the PAC's sponsor is run by its members (they elect most of its board, or it is a union bound by federal labor law to hold member elections), and only as far as the PAC's own money traces back to many people. Money from businesses, politicians, parties, and PACs that answer to a board or to their organizers counts 0.
+
+**Formula** (per member, cycle 2026):
+
+- money given: `G = s + b + p + y` across the member's campaigns, leadership PACs and own joint funds (in full; transfers between them counted once). Own money, interest, refunds, loans and transfers are left out.
+- other politicians' joint funds: what they passed to the member comes out of `s, b, p, y` by each fund's own mix and counts 0 (POLITICIAN); it stays in `G`.
+- directed gifts: gifts earmarked through a committee other than ActBlue, WinRed or Democracy Engine come out of `b` and the donor test, and count as that committee's gift: `e × share` if it passes the people test, else 0. Never under the PAC cap.
+- donor test, on the remaining big-donor records of those committees, each donor's gifts at full size, donors who net above $0: `N` big donors, `n` the fewest who gave half the big-donor money.
+- allowance: `a = min(0.10 + 0.90 × clamp((n/N − 0.025) / 0.075, 0, 1), min(1, n/100))`; `a = 0.40` only when our records cover under half the FEC's big-donor total.
+- big money counted: `min(b, a × (s + b))`.
+- each PAC's share from people: the same test on the PAC's own money (the FEC's small/big split, its own donors), plus the money of committees that funded it (2 steps back) where those committees pass the people test; all other committee money, and money we can't trace, counts 0.
+- the people test: a labor union covered by the Labor-Management Reporting and Disclosure Act passes on the law. Any other PEOPLE sponsor passes only if its members elect most of its voting board: its latest Form 990 answers Yes on Part VI line 7a, line 6 says it has members, and its Schedule O doesn't show members electing only a minority (or the board being its own membership). Otherwise BOARD (0). No Form 990: a stated fact decides; otherwise not tested (0) and listed.
+- PAC money counted: `Σ gift × share` for PEOPLE PACs that pass the test, scaled down so it never exceeds the PAC money in the member's figures.
+- score: `x = 100 × (s + min(b, a(s + b)) + PAC money counted + directed gifts counted) / G`, at most 100.
+- grade on `round(x)`: S at least 90, A 75, B 60, C 45, D 30, E 15, otherwise F.
+- no grade (?): no confirmed FEC identity; no campaign committee for the cycle; own money that doesn't fit inside the receipts.
+
+**Constants**: 0.10 and 0.90 (allowance range), 2.5% and 10% (spread), 100 donors, 0.40 fallback, 50% record coverage, credit 1 (PEOPLE that pass the test) and 0 (everything else), 2 steps back, bands 90/75/60/45/30/15.
+
+**Sorting rule** (each PAC in one group, in this order): a stated fact, where one is listed. POLITICIAN: leadership PACs (FEC designation D, or the FEC's leadership-PAC flag or sponsoring candidate), candidates' committees, other politicians' joint funds, PACs whose connected organization is a candidate's committee, leadership PAC, joint fund or politician, and PACs linked to a congressional caucus or run by members of Congress (one test, both parties). PARTY: party committees, and PACs whose connected organization is one. NO SPONSOR: a connected organization that is another (non-party, non-politician) committee, or none. BUSINESS: FEC sponsor type corporation (C) or trade association (T), whatever the IRS says; cooperatives; credit unions, insurers (fraternal benefit societies that sell insurance included), health plans and chambers of commerce; agricultural producers' groups; a sponsor whose members are businesses; a 501(c)(6) business league or exempt co-op, credit union or mutual insurer by IRS status; a sponsor with no IRS exempt record (a corporation without capital stock, W, included) or a company name. PEOPLE: a labor organization (FEC type L, or 501(c)(5) not a producers' group) or another member or issue organization by IRS status or FEC type M or W. The IRS can make a PAC BUSINESS, never un-make a C or T; leaving BUSINESS takes a stated fact. An IRS match made on another name, or under mixed records, is checked and listed.
+
+---
+
+## Before FINAL-3 (version A, superseded 2026-10-13)
 
 > Historical note: this guide previously described an adaptive-percentile
 > threshold system with tiered linear penalties (0.1x/0.2x/0.3x). That design

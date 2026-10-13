@@ -1,0 +1,3803 @@
+{
+  "_about": "FEC committee records (leadership-PAC flag, sponsoring candidates, affiliated committee) for committees the sorting couldn't place from the bulk files: fetched once (FINAL-2 export, run 38328698299, 13 Oct 2026) so each refresh doesn't ask the FEC again; the refresh job fetches only committees missing here. scripts/refresh/lib/final3.mjs.",
+  "C00001727": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00003558": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00010363": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00010793": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00021295": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00068353": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00074633": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00084061": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "BLUEPAC - BLUE CROSS BLUE SHIELD ASSOCIATION PAC"
+  },
+  "C00110585": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00113803": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "AMERICAN OSTEOPATHIC INFORMATION ASSOCIATION"
+  },
+  "C00120238": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "AMERICAN MOTORCYCLIST ASSOCIATION  POLITICAL ACTION COMMITTEE"
+  },
+  "C00127811": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00130658": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "AMERICAN CONSERVATIVE UNION"
+  },
+  "C00135368": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "SIERRA CLUB INDEPENDENT ACTION"
+  },
+  "C00135541": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00136838": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00139659": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00144170": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00147512": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00147975": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00150797": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00151019": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NATIONAL FARMERS UNION"
+  },
+  "C00159954": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00162735": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00163238": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00165159": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00165944": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00187526": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00188193": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00193433": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "WOMEN VOTE"
+  },
+  "C00195024": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00197103": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "AUTOMOBILE CLUB OF MICHIGAN"
+  },
+  "C00197160": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00198861": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00204453": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00207969": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": null
+  },
+  "C00210666": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "AMERICAN SPEECH-LANGUAGE-HEARING ASSOCIATION PAC (ASHA PAC)"
+  },
+  "C00212092": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": null
+  },
+  "C00220764": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00221077": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "CRESCENT RIVER PORT PILOTS ASSOCIATION"
+  },
+  "C00226472": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00228296": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00232629": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00232967": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": null
+  },
+  "C00238204": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00239038": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00240457": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "THE SOCIETY FOR RELIEF OF DISTRESSED AND DECAYED PILOTS"
+  },
+  "C00241380": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00245530": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "AMERICAN SOCIETY OF HELATH SYSTEM PHARMACISTS"
+  },
+  "C00247403": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00250399": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00253187": {
+    "leadershipPac": true,
+    "sponsorCandidates": [],
+    "affiliated": "VALLEY POLITICAL ACTION COMMITTEE"
+  },
+  "C00257956": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00261339": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00265546": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00272153": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00278689": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00287045": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00299701": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00306449": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "AMERICAN ACADEMY OF OTOLARYNGOLOGY - HEAD AND NECK SURGERY ENT PAC"
+  },
+  "C00307314": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "COMMITTEE FOR A LIVABLE FUTURE"
+  },
+  "C00308460": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "A BRTHD AIMED TOWARD EDUC OF IL FED ELEC DEVICE FOR POLITICALLY ACTIVE MOTORCYCLISTS..."
+  },
+  "C00311043": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00318196": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00318766": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "CALIFORNIA INDEPENDENT PETROLEUM ASSOCIATION"
+  },
+  "C00320432": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00324780": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "AMERICAN ACADEMY OF EMERGENCY MEDICINE POLITICAL ACTION COMMITTEE AAEM PAC"
+  },
+  "C00327189": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "MCMORRIS RODGERS WIN THE FUTURE FUND"
+  },
+  "C00328211": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00328401": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "THE LINCOLN CLUB OF ORANGE COUNTY"
+  },
+  "C00330118": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00333427": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": null
+  },
+  "C00336842": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": null
+  },
+  "C00341396": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00342733": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "COASTAL FEDERAL CREDIT UNION"
+  },
+  "C00347476": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00351031": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00351197": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "AMERICAN SOCIETY OF INTERNATIONAL PAIN PHYSICIANS"
+  },
+  "C00351635": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00359380": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NATIONAL LIMOUSINE ASSOCIATION"
+  },
+  "C00359588": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00362178": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00363770": {
+    "leadershipPac": true,
+    "sponsorCandidates": [],
+    "affiliated": "SESSIONS"
+  },
+  "C00366872": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "DETROIT REGIONAL CHAMBER"
+  },
+  "C00368332": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00372201": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00374058": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00378216": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00382028": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "PUBLIC AFFAIRS ALLIANCE OF IRANIAN AMERICANS"
+  },
+  "C00382275": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00383976": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00384578": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "MICHIGAN CHAMBER OF COMMERCE"
+  },
+  "C00384883": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00386755": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00386847": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "DEDICATED TO ESTABLISHING NATIONAL TEAMWORK"
+  },
+  "C00386904": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00389601": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": null
+  },
+  "C00390476": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "CMR POLITICAL ACTION COMMITTEE"
+  },
+  "C00392670": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00393348": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00394452": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "EXCHANGE CONTRACTORS STATE PAC"
+  },
+  "C00395889": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00395947": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00396556": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00398750": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NUNES"
+  },
+  "C00399444": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00400432": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00401034": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00401224": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "BLUE TO THE FUTURE 2024"
+  },
+  "C00401786": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00404319": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00405340": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00407486": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00409342": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00409391": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "RENAL PHYSICIANS ASSOCIATION PAC RPA PAC"
+  },
+  "C00410068": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00411181": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "CATHOLICVOTE.ORG"
+  },
+  "C00413484": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00415539": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": null
+  },
+  "C00415752": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00416131": {
+    "leadershipPac": false,
+    "sponsorCandidates": ["S8MN00438"],
+    "affiliated": "AFS PAC"
+  },
+  "C00416297": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": null
+  },
+  "C00417584": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00417733": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00418582": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "EMERGEORTHO PA"
+  },
+  "C00418897": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "6 STARS VOTEVETS VICTORY FUND"
+  },
+  "C00422428": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00424382": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00425371": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "OHIO CATTLEMEN'S ASSOCIATION"
+  },
+  "C00425439": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00427435": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00427773": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": null
+  },
+  "C00427781": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "ONLINE LENDERS ALLIANCE"
+  },
+  "C00430066": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "KINECTA FEDERAL CREDIT UNION"
+  },
+  "C00430280": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00430421": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00431197": {
+    "leadershipPac": true,
+    "sponsorCandidates": [],
+    "affiliated": "BUFFALO RIVER POLITICAL ACTION COMMITTEE"
+  },
+  "C00431924": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00432096": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00432526": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00432757": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NATIONAL ASSOCIATION OF DISABILITY REPRESENTATIVES"
+  },
+  "C00433730": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00433904": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": null
+  },
+  "C00436022": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00439646": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00439992": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00443705": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": null
+  },
+  "C00444117": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00448373": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00448696": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00450098": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00450429": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "SOUTH TEXANS' PROPERTY RIGHTS ASSOCIATION"
+  },
+  "C00451153": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00451518": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00452748": {
+    "leadershipPac": true,
+    "sponsorCandidates": [],
+    "affiliated": "BISHOP"
+  },
+  "C00452961": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00453563": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "MISSOURI RENEWABLE FUELS ASSOCIATION"
+  },
+  "C00453704": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "EMGAGE ACTION, INC."
+  },
+  "C00454140": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00455048": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00455907": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00458000": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00458463": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00458679": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00459065": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00460550": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "JOBS, ENERGY AND OUR FOUNDING FATHERS PAC"
+  },
+  "C00464727": {
+    "leadershipPac": true,
+    "sponsorCandidates": [],
+    "affiliated": "COURTNEY"
+  },
+  "C00465211": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00466334": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00466870": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00469023": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00472894": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00473249": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00474122": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00475673": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NATIONAL SORGHUM PRODUCERS"
+  },
+  "C00476978": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00478362": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": null
+  },
+  "C00478743": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "FARMERS EDUCATIONAL & COOPERATIVE UNION OF AMERICA ROCKY MTN DIVISION"
+  },
+  "C00482463": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00483693": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00484402": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00485540": {
+    "leadershipPac": true,
+    "sponsorCandidates": [],
+    "affiliated": "LATTA VICTORY FUND"
+  },
+  "C00486563": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "COUNTRY ROADS PAC"
+  },
+  "C00486845": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "LEAGUE OF CONSERVATION VOTERS ACTION FUND"
+  },
+  "C00487181": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00487470": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00488387": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00489419": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00489815": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NATIONAL EDUCATION ASSOCIATION"
+  },
+  "C00489856": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00489898": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00490235": {
+    "leadershipPac": false,
+    "sponsorCandidates": ["H0GA09030"],
+    "affiliated": "NONE"
+  },
+  "C00490847": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "CARPENTERS LEGISLATIVE IMPROVEMENT COMMITTEE UNITED BROTHERHOOD OF CARPENTERS AND JOINERS"
+  },
+  "C00491050": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00491365": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00492058": {
+    "leadershipPac": true,
+    "sponsorCandidates": [],
+    "affiliated": "FAMILIES FOR JAMES LANKFORD"
+  },
+  "C00492579": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00494559": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00495010": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00495028": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "MINNESOTA SECOND DISTRICT VICTORY COMMITTEE"
+  },
+  "C00496679": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00497818": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "BUILDING AND RESTORING THE AMERICAN DREAM FUND"
+  },
+  "C00499947": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00502807": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": null
+  },
+  "C00503094": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00503847": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00504530": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "PROTECT THE HOUSE 2024"
+  },
+  "C00506907": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00511386": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00513713": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00519413": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00520973": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00523381": {
+    "leadershipPac": false,
+    "sponsorCandidates": ["H0IN08114"],
+    "affiliated": "NONE"
+  },
+  "C00523621": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00524314": {
+    "leadershipPac": true,
+    "sponsorCandidates": [],
+    "affiliated": "WITTMAN"
+  },
+  "C00524926": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": null
+  },
+  "C00525543": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "CORY GARDNER FOR SENATE"
+  },
+  "C00525899": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00527283": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00527663": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": null
+  },
+  "C00528349": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": null
+  },
+  "C00528414": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00528554": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00530865": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00536615": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00540443": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00541128": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "FRIENDS OF JOE HECK PAC"
+  },
+  "C00542431": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": null
+  },
+  "C00542514": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00542621": {
+    "leadershipPac": true,
+    "sponsorCandidates": ["H6VT00160"],
+    "affiliated": "WELCH"
+  },
+  "C00543116": {
+    "leadershipPac": true,
+    "sponsorCandidates": ["H2OR01133"],
+    "affiliated": "BONAMICI"
+  },
+  "C00543504": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00544957": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00545236": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "UNITED STATES REPRESENTATIVE JOYCE BEATTY"
+  },
+  "C00548461": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00550491": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": null
+  },
+  "C00550970": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "EQUALITY CONGRESS"
+  },
+  "C00551366": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00551697": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00552851": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00559302": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00559740": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00560003": {
+    "leadershipPac": true,
+    "sponsorCandidates": ["S6NH00166"],
+    "affiliated": "BROWN"
+  },
+  "C00561779": {
+    "leadershipPac": true,
+    "sponsorCandidates": [],
+    "affiliated": "BERA"
+  },
+  "C00562587": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00562777": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00563254": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00563601": {
+    "leadershipPac": true,
+    "sponsorCandidates": [],
+    "affiliated": "PETERS"
+  },
+  "C00564690": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00564823": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00566042": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00566117": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "TOM RICE FOR CONGRESS"
+  },
+  "C00568089": {
+    "leadershipPac": true,
+    "sponsorCandidates": [],
+    "affiliated": "BARRY LOUDERMILK"
+  },
+  "C00568964": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00569806": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00570226": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00570960": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "MIDWEST VALUES PAC"
+  },
+  "C00571091": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00571570": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00571588": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00571943": {
+    "leadershipPac": true,
+    "sponsorCandidates": [],
+    "affiliated": "BILL FOSTER VICTORY FUND 2024"
+  },
+  "C00572123": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "DOLD"
+  },
+  "C00573261": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "LET AMERICA VOTE PAC"
+  },
+  "C00573519": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00575449": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "REINVENTING A NEW DIRECTION POLITICAL ACTION COMMITTEE"
+  },
+  "C00576215": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00578468": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00580068": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "STOP THESE OPPRESSIVE PEOPLE: TYRANTS RACISTS UNQUALIFIEDS MISOGYNISTS PROPAGANDISTS (STOP TRUMP)"
+  },
+  "C00581181": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00585687": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00585893": {
+    "leadershipPac": true,
+    "sponsorCandidates": ["H4AL06098"],
+    "affiliated": "PALMER VICTORY COMMITTEE"
+  },
+  "C00586255": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": null
+  },
+  "C00590356": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "BUCKEYE JOINT FUNDRAISING COMMITTEE"
+  },
+  "C00597062": {
+    "leadershipPac": true,
+    "sponsorCandidates": ["H4GA01039"],
+    "affiliated": "TEAM BUDDY"
+  },
+  "C00603076": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00603258": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00606962": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00607374": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00607838": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00609206": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "CASC"
+  },
+  "C00609966": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00610212": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00610956": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00611798": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": null
+  },
+  "C00613000": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "PUGET SOUND PILOTS"
+  },
+  "C00613489": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "MISSOURI FARM BUREAU FEDERATION"
+  },
+  "C00614552": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00617381": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "ELECT BLACK DEMOCRATS"
+  },
+  "C00620021": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00620443": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00621276": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00621466": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00624817": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "EARN INTERNATIONAL UNION OF OPERATING ENGINEERS"
+  },
+  "C00625145": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00625947": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "ROONEY VICTORY"
+  },
+  "C00626564": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00629063": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00630665": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00632133": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00632398": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "END CITIZENS UNITED"
+  },
+  "C00633248": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "314 ACTION VICTORY FUND"
+  },
+  "C00633404": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "STOP THESE OPPRESSIVE PEOPLE: TYRANTS RACISTS UNQUALIFIEDS MISOGYNISTS PROPAGANDISTS (STOP TRUMP)"
+  },
+  "C00635615": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00636837": {
+    "leadershipPac": true,
+    "sponsorCandidates": [],
+    "affiliated": "JOHN  BERGMAN"
+  },
+  "C00639229": {
+    "leadershipPac": true,
+    "sponsorCandidates": [],
+    "affiliated": "JOHNSON"
+  },
+  "C00640623": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00648246": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00649772": {
+    "leadershipPac": true,
+    "sponsorCandidates": ["H6IL08147"],
+    "affiliated": "TEAM RAJA VICTORY FUND"
+  },
+  "C00650853": {
+    "leadershipPac": true,
+    "sponsorCandidates": ["H6KY01110"],
+    "affiliated": "COMER VICTORY FUND"
+  },
+  "C00651042": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00651505": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00652859": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00653188": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00654079": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00654608": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00655472": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00657452": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00659599": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "STOP THESE OPPRESSIVE PEOPLE: TYRANTS RACISTS UNQUALIFIEDS MISOGYNISTS PROPAGANDISTS (STOP TRUMP)"
+  },
+  "C00660613": {
+    "leadershipPac": true,
+    "sponsorCandidates": ["H6TX15162"],
+    "affiliated": "GONZALEZ"
+  },
+  "C00661272": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "CROSSPARTISAN PAC I"
+  },
+  "C00662221": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00664706": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00665786": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00670695": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "CORNYN VICTORY COMMITTEE"
+  },
+  "C00672576": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00674093": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "KELLY-BRADY FUND FOR A SAFER ILLINOIS"
+  },
+  "C00674127": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "THE IMPACT FUND"
+  },
+  "C00675058": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00677708": {
+    "leadershipPac": true,
+    "sponsorCandidates": [],
+    "affiliated": "ESCOBAR"
+  },
+  "C00678839": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00679191": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00679860": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00680231": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00681429": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00681627": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00683243": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00684969": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00685297": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "PRO-CHOICE WOMEN"
+  },
+  "C00685719": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00686832": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "WAY TO LEAD STATE POWER COMMITTEE"
+  },
+  "C00688655": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00688721": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "ALASKA WILDERNESS LEAGUE ACTION, INC"
+  },
+  "C00689745": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00689828": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "314 ACTION FUND"
+  },
+  "C00690073": {
+    "leadershipPac": true,
+    "sponsorCandidates": [],
+    "affiliated": "BROWN"
+  },
+  "C00690735": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00691790": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": null
+  },
+  "C00692137": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00692319": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "UNITEDEMOCRATS PAC"
+  },
+  "C00692327": {
+    "leadershipPac": true,
+    "sponsorCandidates": ["S8FL00273"],
+    "affiliated": "SCOTT"
+  },
+  "C00692921": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00693127": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00693309": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "WAR VETERANS FUND 2024"
+  },
+  "C00693382": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "DEMOCRACY PAC II"
+  },
+  "C00693424": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "ROYAL NEIGHBORS OF AMERICA"
+  },
+  "C00693515": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00693531": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00693838": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "DAINES SENATE MAJORITY FUND"
+  },
+  "C00696591": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00698092": {
+    "leadershipPac": true,
+    "sponsorCandidates": ["H8MN08043"],
+    "affiliated": "STAUBER VICTORY FUND"
+  },
+  "C00699785": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00704593": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "RED TO BLUE CA"
+  },
+  "C00706689": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00707844": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00708552": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "FIGHT THE RIGHT PAC"
+  },
+  "C00710848": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "JEWISH DEMOCRACY PROJECT"
+  },
+  "C00710889": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "TEAM MORRISEY"
+  },
+  "C00711051": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00712364": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": null
+  },
+  "C00712695": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "VALADAO FOR CONGRESS"
+  },
+  "C00715375": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "DEMAIO"
+  },
+  "C00716423": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00716670": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00717728": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00718346": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00720029": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00720052": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00723577": {
+    "leadershipPac": true,
+    "sponsorCandidates": ["H2CA50026"],
+    "affiliated": "VARGAS"
+  },
+  "C00724443": {
+    "leadershipPac": true,
+    "sponsorCandidates": [],
+    "affiliated": "DAVIDS"
+  },
+  "C00724781": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": null
+  },
+  "C00726729": {
+    "leadershipPac": true,
+    "sponsorCandidates": ["H8NJ02166"],
+    "affiliated": "VAN DREW"
+  },
+  "C00727719": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "TRANSPORT WORKERS UNION OF AMERICA POLITICAL CONTRIBUTIONS COMMITTEE"
+  },
+  "C00727784": {
+    "leadershipPac": true,
+    "sponsorCandidates": [],
+    "affiliated": "BLUE COLORADO FUND"
+  },
+  "C00728360": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00729574": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00730903": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "MISSISSIPPI FARM BUREAU FEDERATION"
+  },
+  "C00731133": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00735183": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00736009": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": null
+  },
+  "C00736637": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00738039": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00738237": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00739003": {
+    "leadershipPac": true,
+    "sponsorCandidates": [],
+    "affiliated": "BIG SKY OPPORTUNITY PAC"
+  },
+  "C00739755": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "CALIFORNIA WATERFOWL ASSOCIATION"
+  },
+  "C00740126": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "VOTER PROTECTION PROJECT"
+  },
+  "C00740225": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00741355": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "ISSA VICTORY FUND"
+  },
+  "C00741611": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00742205": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00744920": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00745513": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00747170": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "ELECT REPUBLICANS PENNSYLVANIA VICTORY FUND"
+  },
+  "C00747907": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00748228": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "FUTURE DEMOCRATS PAC"
+  },
+  "C00748640": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00749572": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00750505": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00750901": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00751214": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "CALIFORNIA CREDIT UNION"
+  },
+  "C00752576": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00753327": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00755173": {
+    "leadershipPac": true,
+    "sponsorCandidates": ["H0TX35015"],
+    "affiliated": "GONZALES"
+  },
+  "C00755199": {
+    "leadershipPac": true,
+    "sponsorCandidates": ["H0GA06192"],
+    "affiliated": "GREENE"
+  },
+  "C00756551": {
+    "leadershipPac": true,
+    "sponsorCandidates": [],
+    "affiliated": "KAT VICTORY COMMITTEE"
+  },
+  "C00756569": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00756825": {
+    "leadershipPac": true,
+    "sponsorCandidates": ["H0IA04145"],
+    "affiliated": "FEENSTRA VICTORY FUND"
+  },
+  "C00757203": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00757344": {
+    "leadershipPac": true,
+    "sponsorCandidates": ["H8PA04116"],
+    "affiliated": "DEAN"
+  },
+  "C00757419": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "CRUSH MAGA PAC"
+  },
+  "C00758078": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00758219": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00758813": {
+    "leadershipPac": true,
+    "sponsorCandidates": [],
+    "affiliated": "FISCHBACH"
+  },
+  "C00760124": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00760397": {
+    "leadershipPac": true,
+    "sponsorCandidates": ["H0NY11078"],
+    "affiliated": "MALLIOTAKIS VICTORY COMMITTEE"
+  },
+  "C00760736": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00760827": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00761064": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00762062": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00762369": {
+    "leadershipPac": true,
+    "sponsorCandidates": ["H6MN02131"],
+    "affiliated": "CRAIG"
+  },
+  "C00763227": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00763359": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "GROUNDWORK - DIRT ROAD VICTORY FUND"
+  },
+  "C00764233": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "DEFEND THE VOTE LEADERSHIP FUND"
+  },
+  "C00764753": {
+    "leadershipPac": true,
+    "sponsorCandidates": [],
+    "affiliated": "LEGER"
+  },
+  "C00765537": {
+    "leadershipPac": true,
+    "sponsorCandidates": ["H0NY17174"],
+    "affiliated": "JONES"
+  },
+  "C00765917": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00765982": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "SFA ACTION"
+  },
+  "C00767640": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "WARRIOR PAC"
+  },
+  "C00767749": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "DIGIDEMS PAC"
+  },
+  "C00767871": {
+    "leadershipPac": true,
+    "sponsorCandidates": [],
+    "affiliated": "WARNOCK"
+  },
+  "C00770214": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "KANSAS CAV PAC"
+  },
+  "C00770255": {
+    "leadershipPac": true,
+    "sponsorCandidates": ["H8IA02043"],
+    "affiliated": "MILLER-MEEKS VICTORY FUND"
+  },
+  "C00770511": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00771113": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00771972": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00772434": {
+    "leadershipPac": true,
+    "sponsorCandidates": ["S8ID00092"],
+    "affiliated": "PAC FOR AMERICA 2"
+  },
+  "C00772848": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00773820": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00774463": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00774497": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00775999": {
+    "leadershipPac": true,
+    "sponsorCandidates": ["H2OH16051"],
+    "affiliated": "MAX MILLER VICTORY"
+  },
+  "C00776419": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00777771": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00781849": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00782508": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00782599": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "CHC BOLD PAC"
+  },
+  "C00783837": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00785014": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00785311": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "MARCH ON PAC"
+  },
+  "C00785899": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "EQUALITY CONGRESS PROJECT PAC"
+  },
+  "C00786186": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "WITH HONOR PAC"
+  },
+  "C00786202": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "WITH HONOR PAC"
+  },
+  "C00786830": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00787002": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00787853": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "HERSCHEL 34 PAC"
+  },
+  "C00787945": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00788992": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "THE WILDERNESS SOCIETY ACTION FUND"
+  },
+  "C00789008": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00789164": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "FOOD SOLUTIONS ACTION"
+  },
+  "C00789867": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00789966": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "FORWARD PARTY - RESTRICTED"
+  },
+  "C00790139": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00792069": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "BO 34 PAC"
+  },
+  "C00793687": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "SAVE DEMOCRACY PAC"
+  },
+  "C00794198": {
+    "leadershipPac": true,
+    "sponsorCandidates": ["H2LA02149"],
+    "affiliated": "CARTER"
+  },
+  "C00794396": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00795534": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00796359": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": null
+  },
+  "C00796862": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00799031": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00799072": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "ALLIANCE FOR CARE AT THE END OF LIFE D/B/A HOSPICE ACTION NETWORK"
+  },
+  "C00799528": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00800037": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00800227": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00802165": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00802389": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00802595": {
+    "leadershipPac": true,
+    "sponsorCandidates": ["H4GA10071", "S6GA00390"],
+    "affiliated": "COLLINS"
+  },
+  "C00803593": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00803742": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00805275": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00806380": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00806604": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00806893": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "KEEP THE 49TH CLIMATE ACTION FUND"
+  },
+  "C00808253": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00808584": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00808998": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00809012": {
+    "leadershipPac": true,
+    "sponsorCandidates": ["H0WI03175"],
+    "affiliated": "VAN ORDEN VICTORY FUND"
+  },
+  "C00809970": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "HISPANIC LEADERSHIP TRUST PARTNERSHIP"
+  },
+  "C00811786": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00812586": {
+    "leadershipPac": true,
+    "sponsorCandidates": [],
+    "affiliated": "MORAN"
+  },
+  "C00813063": {
+    "leadershipPac": true,
+    "sponsorCandidates": ["H2NY01190"],
+    "affiliated": "NICK"
+  },
+  "C00814947": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00815704": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00815753": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00816082": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00816389": {
+    "leadershipPac": true,
+    "sponsorCandidates": ["H6IN09143"],
+    "affiliated": "HOUCHIN"
+  },
+  "C00816876": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "FRIESS WYOMING VICTORY FUND"
+  },
+  "C00818344": {
+    "leadershipPac": true,
+    "sponsorCandidates": [],
+    "affiliated": "DUARTE VICTORY FUND"
+  },
+  "C00818542": {
+    "leadershipPac": true,
+    "sponsorCandidates": ["H2MN01223"],
+    "affiliated": "FINSTAD"
+  },
+  "C00819912": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00820100": {
+    "leadershipPac": true,
+    "sponsorCandidates": [],
+    "affiliated": "KIGGANS"
+  },
+  "C00820845": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00821082": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00822536": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00823500": {
+    "leadershipPac": true,
+    "sponsorCandidates": [],
+    "affiliated": "STRONG"
+  },
+  "C00824342": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "WESTERN FUTURES FUND"
+  },
+  "C00824607": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00825836": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00826297": {
+    "leadershipPac": true,
+    "sponsorCandidates": ["H2NY10308"],
+    "affiliated": "GOLDMAN"
+  },
+  "C00826719": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00826768": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00827055": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00827295": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00827329": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00828038": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00828806": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00829119": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00829598": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00829754": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00829895": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00829903": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00830174": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00830182": {
+    "leadershipPac": true,
+    "sponsorCandidates": ["H2PA17103"],
+    "affiliated": "DELUZIO"
+  },
+  "C00830265": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00831560": {
+    "leadershipPac": true,
+    "sponsorCandidates": ["H4WA04179"],
+    "affiliated": "SMILEY"
+  },
+  "C00831974": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00832493": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00832626": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00833574": {
+    "leadershipPac": true,
+    "sponsorCandidates": ["H2WA03217"],
+    "affiliated": "GLUESENKAMP PEREZ"
+  },
+  "C00835017": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00835413": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00835587": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00836833": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00836890": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00837021": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "314 ACTION FUND"
+  },
+  "C00837591": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00838052": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00838177": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00838797": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00839407": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00839894": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00839910": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "EQUALITY PAC"
+  },
+  "C00839936": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "EQUALITY PROJECT PAC"
+  },
+  "C00840587": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "MICHIGAN WOMEN UNITED FOR ACTION FUND"
+  },
+  "C00840702": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "ELECT DEMOCRATIC WOMEN"
+  },
+  "C00841361": {
+    "leadershipPac": true,
+    "sponsorCandidates": ["H4MN02169"],
+    "affiliated": "RAHM"
+  },
+  "C00842104": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00843003": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00843110": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00843599": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00844639": {
+    "leadershipPac": false,
+    "sponsorCandidates": ["H0NH02181"],
+    "affiliated": "BATTLEGROUND TURNOUT PROJECT PAC"
+  },
+  "C00844795": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NEW DEMOCRAT COALITION ACTION FUND"
+  },
+  "C00845099": {
+    "leadershipPac": true,
+    "sponsorCandidates": [],
+    "affiliated": "SHEEHY"
+  },
+  "C00845214": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00845271": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "MAJORITY FUND"
+  },
+  "C00846022": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00846683": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00847087": {
+    "leadershipPac": true,
+    "sponsorCandidates": ["H4WV02205"],
+    "affiliated": "MOORE"
+  },
+  "C00847673": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "PROGRESSIVE TURNOUT PROJECT"
+  },
+  "C00847897": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "FAITH, HONOR, & COURAGE"
+  },
+  "C00848648": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "DMP VICTORY FUND"
+  },
+  "C00848747": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00848937": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00850099": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00850248": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00851113": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00851204": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "FORWARD PARTY"
+  },
+  "C00851386": {
+    "leadershipPac": true,
+    "sponsorCandidates": [],
+    "affiliated": "MALOY"
+  },
+  "C00852400": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00852657": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00853077": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00853630": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00853887": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00854810": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00855296": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00856195": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00857631": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "BRANDON GILL VICTORY FUND"
+  },
+  "C00857664": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00857680": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00859017": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00859520": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00859538": {
+    "leadershipPac": true,
+    "sponsorCandidates": ["S4MD00327"],
+    "affiliated": "ALSOBROOKS VICTORY FUND"
+  },
+  "C00861179": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00862862": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00863050": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00863217": {
+    "leadershipPac": true,
+    "sponsorCandidates": [],
+    "affiliated": "BRANDON GILL VICTORY FUND"
+  },
+  "C00863696": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00864090": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00864785": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00866640": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "EQUALITY PROJECT PAC"
+  },
+  "C00866772": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00867457": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "TAKE BACK THE HOUSE PAC"
+  },
+  "C00867465": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "EQUALITY PAC"
+  },
+  "C00868042": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00868315": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "EQUALITY PROJECT PAC"
+  },
+  "C00868976": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "MISSION DEMOCRACY PAC"
+  },
+  "C00869321": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00870741": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00870980": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00872234": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00872325": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00872440": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "END CITIZENS UNITED"
+  },
+  "C00872879": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00873281": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "ATOMIC CREDIT UNION"
+  },
+  "C00873356": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00873877": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00874131": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "SUPERIOR CREDIT UNION"
+  },
+  "C00875500": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00876094": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00876391": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00876904": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00877183": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00877233": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00877845": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00878165": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00878173": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00878777": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00878785": {
+    "leadershipPac": true,
+    "sponsorCandidates": [],
+    "affiliated": "CIRCLE THE WAGONS PAC"
+  },
+  "C00879221": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "SD PAC"
+  },
+  "C00880062": {
+    "leadershipPac": true,
+    "sponsorCandidates": [],
+    "affiliated": "CISNEROS"
+  },
+  "C00880237": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00880617": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00881011": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00881326": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00881698": {
+    "leadershipPac": true,
+    "sponsorCandidates": [],
+    "affiliated": "KENNEDY"
+  },
+  "C00882233": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00882571": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "STATE BUILDING & CONSTRUCTION TRADES COUNCIL OF CALIFORNIA"
+  },
+  "C00883058": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00883124": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00884874": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "SD PAC"
+  },
+  "C00885038": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00885137": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00886978": {
+    "leadershipPac": true,
+    "sponsorCandidates": ["H2CA00120"],
+    "affiliated": "PROTECT DEMOCRACY INITIATIVE"
+  },
+  "C00887174": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00887331": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00887810": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00888669": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00888743": {
+    "leadershipPac": true,
+    "sponsorCandidates": ["H4DE00045"],
+    "affiliated": "MCBRIDE"
+  },
+  "C00889345": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00889469": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "THE JUSTICE COALITION ACTION"
+  },
+  "C00889808": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "STOP REPUBLICANS"
+  },
+  "C00890236": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00890889": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00890939": {
+    "leadershipPac": true,
+    "sponsorCandidates": ["H6VA07247"],
+    "affiliated": "HELMER"
+  },
+  "C00890947": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00891473": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00892216": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00892463": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00893081": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00893461": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00893529": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00893958": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00893974": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00894071": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00894295": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "PROGRESSIVE TURNOUT PROJECT"
+  },
+  "C00894428": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "LUMMIS VICTORY COMMITTEE"
+  },
+  "C00894717": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00894881": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "DEMOCRATS WIN FUND ACTION"
+  },
+  "C00895003": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00895607": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00895730": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00895805": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00895847": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00896209": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00896845": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00896860": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00897223": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00897231": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "STOP REPUBLICAN JUDGES"
+  },
+  "C00897934": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00899112": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "DEMOCRATIC TURNOUT PROJECT PAC"
+  },
+  "C00899658": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00900142": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00900159": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "CALIFORNIA CREDIT UNION EMPLOYEES FEDERAL PAC"
+  },
+  "C00900316": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00901157": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00901496": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00902189": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00902403": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "CONGRESSIONAL PROGRESSIVE CAUCUS PAC"
+  },
+  "C00902577": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00902858": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00903054": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00903484": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00903500": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00903880": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00904318": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00904508": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00904623": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": null
+  },
+  "C00904763": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00905745": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00906586": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00906776": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00907188": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00907840": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00908053": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00908483": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00908707": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00908806": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00910737": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "CITIZENS TRUST BANK"
+  },
+  "C00911321": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "MAJORITY FUND"
+  },
+  "C00912592": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00913012": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00913087": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00913178": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00914259": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00915736": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "ELECT DEMOCRATIC WOMEN"
+  },
+  "C00916742": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": null
+  },
+  "C00917179": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "DEFEND THE VOTE"
+  },
+  "C00917187": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00917831": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "ENERGIZED FOR CHANGE FEDERAL PAC"
+  },
+  "C00918326": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00919035": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00919308": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00919696": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00920603": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00922617": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00922971": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00923458": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00924282": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00924803": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00928929": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00929828": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00930404": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00930958": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00932467": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00932715": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "FIG AND OLIVE ACTION"
+  },
+  "C00934877": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00936047": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00936815": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00936831": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00937961": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00938399": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00938571": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00938688": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00939843": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "PROGRESSIVE TURNOUT PROJECT"
+  },
+  "C00940346": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00941781": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "CALIFORNIA LIFE SCIENCES"
+  },
+  "C00943118": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00943472": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00943662": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00945683": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00946772": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "PROGRESSIVE TURNOUT PROJECT"
+  },
+  "C00948232": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00948448": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00949651": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00952515": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C00953356": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  },
+  "C90009945": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": null
+  },
+  "C90014028": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": null
+  },
+  "C90016593": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": null
+  },
+  "C90020249": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": null
+  },
+  "C99002396": {
+    "leadershipPac": false,
+    "sponsorCandidates": [],
+    "affiliated": "NONE"
+  }
+}

@@ -11,6 +11,7 @@ import { CYCLE_LABEL } from '../lib/election.js';
 import {
   concentrationVerdict,
   explainGrade,
+  final3Lines,
   gradeBands,
   headlineFor,
   rankLine,
@@ -268,14 +269,27 @@ export default function Member({ id, kind = 'member' }) {
   const hasMoney = f.totalRaised > 0 && !withheld;
   const lines = hasMoney ? moneyLines(f) : [];
   // The grade is worked out on the money from others: own money set aside (#59)
-  const gradeLines = hasMoney ? moneyLines(othersFigures(f)) : [];
+  // FINAL-3 grades carry their own working, per $100 given (explain.js)
+  const final3 = d?.grade?.detail?.method === 'final-3' ? d.grade.detail : null;
+  const gradeLines = !hasMoney
+    ? []
+    : final3 && final3.given > 0
+      ? final3Lines(final3)
+      : moneyLines(othersFigures(f));
   const ownPct = lines.find(l => l.key === 'own')?.pct ?? 0;
   const conc = unverified
     ? null
-    : concentration({
-        nakamotoCoefficient: d?.nakamotoCoefficient ?? m.nakamotoCoefficient,
-        uniqueDonors: d?.uniqueDonors ?? m.uniqueDonors,
-      });
+    : final3
+      ? final3.reliable && final3.fewestHoldingHalf
+        ? concentration({
+            nakamotoCoefficient: final3.fewestHoldingHalf,
+            uniqueDonors: final3.donors,
+          })
+        : null
+      : concentration({
+          nakamotoCoefficient: d?.nakamotoCoefficient ?? m.nakamotoCoefficient,
+          uniqueDonors: d?.uniqueDonors ?? m.uniqueDonors,
+        });
   const trail = d?.moneyTrail;
   const committees = trail ? [...trail.committees].sort((a, b) => b.raised - a.raised) : [];
   const smallPct = gradeLines.find(l => l.key === 'small')?.pct ?? 0;
@@ -303,7 +317,7 @@ export default function Member({ id, kind = 'member' }) {
   const why = hasMoney
     ? explainGrade({ tier: m.tier, lines: gradeLines, grade: d?.grade, conc, name, ownPct })
     : null;
-  const verdict = conc ? concentrationVerdict(d?.grade?.detail?.trustAnchorBasis) : null;
+  const verdict = conc ? concentrationVerdict(d?.grade?.detail?.trustAnchorBasis, d?.grade) : null;
   const passedOn = committees
     .filter(c => c.role === 'joint' && c.ownFund)
     .reduce((s, c) => s + (c.passedElsewhere || 0), 0);

@@ -26,21 +26,25 @@ const cents = x => Math.round(num(x) * 100) / 100;
  * left out (party money is counted on its own) and so are the member's own
  * committees giving to each other.
  */
-export async function pacGifts(db, recipientIds) {
+export async function pacGifts(db, recipientIds, alsoNotFrom = []) {
   const ids = recipientIds.filter(id => IDS.test(id));
   if (!ids.length) {
     return [];
   }
+  // Givers left out: the recipients themselves, and any other committees of
+  // the member's (`alsoNotFrom`)
+  const notFrom = [...new Set([...ids, ...alsoNotFrom.filter(id => IDS.test(id))])];
   const marks = ids.map(() => '?').join(',');
+  const notMarks = notFrom.map(() => '?').join(',');
   const rows = await db.read(
     `SELECT o.committee_id AS id, sum(o.amount) AS amount, count(*)::INTEGER AS gifts,
         any_value(c.name) AS name, any_value(c.type) AS type, any_value(c.designation) AS designation,
         any_value(c.org_type) AS org_type, any_value(c.connected_org) AS connected_org
      FROM oth o LEFT JOIN cm c ON c.id = o.committee_id
-     WHERE o.tx_type IN ('24K', '24Z') AND o.other_id IN (${marks}) AND o.committee_id NOT IN (${marks})
+     WHERE o.tx_type IN ('24K', '24Z') AND o.other_id IN (${marks}) AND o.committee_id NOT IN (${notMarks})
      GROUP BY o.committee_id`,
     ...ids,
-    ...ids
+    ...notFrom
   );
   return rows
     .filter(r => !PARTY_TYPES.has(r.type) && num(r.amount) > 0)

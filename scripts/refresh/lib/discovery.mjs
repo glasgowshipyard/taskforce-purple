@@ -285,6 +285,7 @@ export async function discoverPeople({
       .filter(r => mine.has(r.committee_id))
       .map(r => ({
         memo_code: null,
+        committee_id: r.committee_id,
         contribution_receipt_amount: r.amount,
         contributor_id: r.other_id,
         contributor: {
@@ -378,8 +379,21 @@ export async function discoverPeople({
       }
     }
     const result = combineVehicleTotals(p.moneyVehicles, p.transfers);
+    // The final candidate's figures: the member's own joint funds in full
+    const whole = combineVehicleTotals(p.moneyVehicles, p.transfers, { wholeOwnFunds: true });
     results.set(p.id, {
       ...result,
+      whole: {
+        totalRaised: whole.totalRaised,
+        grassrootsDonations: whole.grassrootsDonations,
+        largeDonorDonations: whole.largeDonorDonations,
+        pacMoney: whole.pacMoney,
+        partyMoney: whole.partyMoney,
+        invariantsHold: whole.invariantsHold,
+        ownFunds: whole.committees
+          .filter(c => c.role === 'joint' && c.ownFund)
+          .map(c => c.committeeId),
+      },
       donorCommitteeIds: donorCommitteeIds(result),
       ownMoney: ownMoney.get(p.id) || null,
     });
