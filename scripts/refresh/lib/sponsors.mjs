@@ -498,8 +498,10 @@ export function peopleTest(id, sorted, forms = {}, stated = {}) {
   const ein = s.ein || sorted?.irs?.ein || null;
   const form = ein ? forms[ein] : null;
   if (form?.found && form.elect !== null && form.elect !== undefined && s.elected === undefined) {
+    // Line 7a as written (members, stockholders or other persons may elect
+    // or appoint one or more of the governing body); line 6 is reported
     const members = form.members === false ? ' (line 6: no members or stockholders)' : '';
-    const elected = form.elect && form.members !== false;
+    const elected = form.elect;
     return {
       elected,
       ein,

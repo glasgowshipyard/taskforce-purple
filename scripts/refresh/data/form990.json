@@ -4254,5 +4254,50 @@
       "Form 990, Part VI, Section A, Line 6: The BCTGM has approximately 60,000 members in 114 local unions located throughout the UnitedStates and Canada.",
       "Form 990, Part VI, Section A, Line 7a: Union members elect delegates to represent their local union at a quadrennial Constitutional Convention. The Convention delegates elect the Unions President, Secretary-Treasurer, Regional Vice Presidents and Local Union General Executive Board Members. The term of office for all posts is four years."
     ]
+  },
+  "136400405": {
+    "found": true,
+    "name": "INTERNATIONAL LONGSHOREMENS ASSOCIATION",
+    "taxPeriod": "202412",
+    "objectId": "202533219349326363",
+    "members": true,
+    "elect": true,
+    "approve": false,
+    "votingMembers": 30,
+    "revenue": 32600442,
+    "filer": "INTERNATIONAL LONGSHOREMENS ASSOCIATION",
+    "taxYear": 2024,
+    "notes": [
+      "FORM 990, PART VI, SECTION A, LINE 6: ILA DOES HAVE MEMBERS.",
+      "FORM 990, PART VI, SECTION A, LINE 7A: ILA MEMBERS HOLD POWER TO ELECT MEMBERS OF THE GOVERNING BODY."
+    ]
+  },
+  "940577594": {
+    "found": true,
+    "name": "International Longshore and Warehouse Union",
+    "taxPeriod": "202412",
+    "objectId": "202533149349306708",
+    "members": false,
+    "elect": true,
+    "approve": false,
+    "votingMembers": 27,
+    "revenue": 14698024,
+    "filer": "International Longshore and Warehouse Union",
+    "taxYear": 2024,
+    "notes": ["PART VI, LINE 7A:: THE MEMBERS OF THE ORGANIZATION ELECT THE GOVERNING BODY."]
+  },
+  "946082954": {
+    "found": true,
+    "name": "PIPE TRADES DISTRICT COUNCIL #36 APPRENTICE TRAINING FUND",
+    "taxPeriod": "202412",
+    "objectId": "202523149349306562",
+    "members": false,
+    "elect": false,
+    "approve": false,
+    "votingMembers": 8,
+    "revenue": 2996978,
+    "filer": "PIPE TRADES DISTRICT COUNCIL #36 APPRENTICE",
+    "taxYear": 2024,
+    "notes": []
   }
 }

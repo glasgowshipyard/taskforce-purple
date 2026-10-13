@@ -215,6 +215,15 @@ const run = cfg => {
   return cache.get(key);
 };
 const F2 = run(FINAL2).results;
+// Also stricter: line 7a Yes while line 6 says the sponsor has no members
+const noMembers = ein => forms[ein]?.found && forms[ein].elect && forms[ein].members === false;
+for (const p of Object.values(inputs.pacs)) {
+  const ein = p.peopleTest?.ein;
+  if (ein && noMembers(ein) && !STRICT[ein]) {
+    STRICT[ein] =
+      `${forms[ein].name}: line 7a Yes, but line 6 says it has no members or stockholders`;
+  }
+}
 const strictPacs = Object.fromEntries(
   Object.entries(inputs.pacs).map(([id, p]) => [
     id,
@@ -569,7 +578,7 @@ say('');
     id => FS.get(id)?.tier
   );
   say(
-    `**The stricter reading.** Line 7a asks whether members may elect or appoint "one or more" of the governing body, so a Yes doesn't always mean members elect the leaders. ${strictIds.length} PACs' sponsors answer Yes while their own Schedule O says members elect one director, or that the board is its own membership. Counted as BOARD instead, ${inputs.members.filter(m => F2.get(m.id)?.tier !== FS.get(m.id)?.tier).length} grades would change: Democrats ${st.D.up} up, ${st.D.down} down; Republicans ${st.R.up} up, ${st.R.down} down.`
+    `**The stricter reading.** Line 7a asks whether members may elect or appoint "one or more" of the governing body, so a Yes doesn't always mean members elect the leaders. ${strictIds.length} PACs' sponsors answer Yes while their own Schedule O says members elect one director or that the board is its own membership, or while line 6 says the sponsor has no members. Counted as BOARD instead, ${inputs.members.filter(m => F2.get(m.id)?.tier !== FS.get(m.id)?.tier).length} grades would change: Democrats ${st.D.up} up, ${st.D.down} down; Republicans ${st.R.up} up, ${st.R.down} down.`
   );
   say('');
   say('| PAC | Given + directed | What its Form 990 says |');

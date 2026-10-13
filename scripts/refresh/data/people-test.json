@@ -300,6 +300,14 @@
     "ein": "871538441",
     "who": "Food Solutions Action"
   },
+  "C00158576": {
+    "ein": "136400405",
+    "who": "International Longshoremen's Association, AFL-CIO (national, North Bergen NJ): the largest IRS record under the exact name is a district"
+  },
+  "C00176214": {
+    "ein": "940577594",
+    "who": "International Longshore and Warehouse Union (national, San Francisco): the largest IRS record under the exact name is a local"
+  },
   "C00590471": {
     "elected": true,
     "fact": "A private-sector (or postal) union local, covered by the Labor-Management Reporting and Disclosure Act: 29 U.S.C. 481(b) requires it to elect its officers at least every three years by secret ballot of its members. No Form 990 identified for this local."
@@ -395,5 +403,9 @@
   "C00093989": {
     "elected": true,
     "fact": "A private-sector (or postal) union local, covered by the Labor-Management Reporting and Disclosure Act: 29 U.S.C. 481(b) requires it to elect its officers at least every three years by secret ballot of its members. No Form 990 identified for this local."
+  },
+  "C00521286": {
+    "elected": true,
+    "fact": "A private-sector union council or district body, covered by the Labor-Management Reporting and Disclosure Act: 29 U.S.C. 481(d) requires it to elect its officers at least every four years by secret ballot of members or by delegates elected by secret ballot. No Form 990 identified for this body."
   }
 }
