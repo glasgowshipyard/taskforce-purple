@@ -208,6 +208,20 @@ export function fundOwner(disbursementRows, ownerOf = id => id) {
  * @param moneyVehicles [{committeeId, role, name, totals, bigCheques?}]
  * @param transfers     {internal, internalIn?, jfcs:[{committeeId, name, received, totals, registered, bigCheques?}]}
  */
+function fundMix(totals) {
+  const r = num(totals?.receipts);
+  if (!(r > 0)) {
+    return null;
+  }
+  const share = f => Math.round((num(totals[f]) / r) * 1e6) / 1e6;
+  return {
+    s: share('individual_unitemized_contributions'),
+    b: share('individual_itemized_contributions'),
+    p: share('other_political_committee_contributions'),
+    y: share('political_party_committee_contributions'),
+  };
+}
+
 export function combineVehicleTotals(
   moneyVehicles,
   transfers = { internal: 0, jfcs: [] },
@@ -278,6 +292,9 @@ export function combineVehicleTotals(
       bigCheques: j.bigCheques ?? null,
       toMember: j.received,
       passedElsewhere: Math.max(0, transfersOut(j.totals) - j.received),
+      // The fund's own mix, which splits what it passed on (FINAL-2 counts
+      // other politicians' funds' transfers as POLITICIAN money instead)
+      mix: fundMix(j.totals),
     })),
   ];
 

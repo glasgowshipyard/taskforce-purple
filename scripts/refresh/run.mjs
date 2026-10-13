@@ -81,6 +81,9 @@ import { classifyPac, ensureIrs, fecGroup, loadFacts, loadIrsIndex } from './lib
 import { loadStored, saveStored } from './lib/gap-store.mjs';
 import { publishGrades } from './lib/publish.mjs';
 
+// Conduits that pass a gift to whichever candidate the donor picks
+const PLATFORM = /\b(ACTBLUE|WINRED|DEMOCRACY ENGINE)\b/;
+
 // D1's free limits are per day for the whole account, shared with the
 // owner's other projects: 100k rows written and 5M rows read. The job stops
 // well short of both. (2026-10-05: an unindexed lookup read 18.8M rows and
@@ -271,6 +274,9 @@ async function main() {
   let discovered = null;
   let db = null;
   const conduitNames = new Map();
+  // Processing platforms: they pass a gift to whichever candidate the donor
+  // picks (any other conduit directs it: FINAL-2)
+  const platforms = new Set();
   // Every PAC gift to each member, and each giving PAC's own donors (#57)
   const giftsFor = new Map();
   const fundGiftsFor = new Map(); // PAC gifts to the member's own joint funds (final candidate)
@@ -292,6 +298,9 @@ async function main() {
     });
     for (const c of await db.read('SELECT id, name FROM cm')) {
       conduitNames.set(c.id, c.name);
+      if (PLATFORM.test(String(c.name || '').toUpperCase())) {
+        platforms.add(c.id);
+      }
     }
     log(`discovery done: ${discovered.size} member(s), ${fec.calls} FEC calls`);
     // Gifts to the member's campaigns and leadership PAC: the committees
@@ -666,6 +675,7 @@ async function main() {
                   pac: c.pac ?? null,
                   toMember: c.toMember ?? null,
                   ownFund: c.ownFund ?? null,
+                  mix: c.mix ?? null,
                 })),
               },
               reconciliation: { ok, pending },
@@ -675,6 +685,15 @@ async function main() {
                 totalAmount: analysis.totalAmount,
               },
               shape: await memberDonorShape(bulk, p.pool, analysis.nakamotoCoefficient),
+              // FINAL-2: without gifts a committee directed (they count as
+              // that committee's gift), and those gifts by committee
+              shapeDirected: await memberDonorShape(
+                bulk,
+                p.pool,
+                analysis.nakamotoCoefficient,
+                null,
+                { platforms: [...platforms] }
+              ),
               // The donor test with each own joint fund's gifts scaled to the
               // share of the fund's money that reached the member
               shapeJfc: await memberDonorShape(
@@ -815,6 +834,30 @@ async function main() {
     writeFileSync(`${reportPath}.pacs.json`, JSON.stringify(pacTypes, null, 1));
     // Every PAC's inputs, for scripts/simulate: its FEC summary and donors,
     // the committees that funded it, and (frozen) the FEC's own totals
+    // FINAL-2: committees that direct earmarked gifts count as givers, so
+    // they are traced like the PACs that give
+    const directing = [
+      ...new Set(
+        report.flatMap(r =>
+          (r.inputs?.conduits || []).filter(c => c.id && !platforms.has(c.id)).map(c => c.id)
+        )
+      ),
+    ].filter(id => !profiles.has(id));
+    if (directing.length) {
+      const up = await upstreamGifts(db, directing);
+      const upIds = [...up.values()].flatMap(u => u.map(x => x.id));
+      const more = [...new Set([...directing, ...upIds])].filter(id => !profiles.has(id));
+      for (const [id, u] of up) {
+        upstream.set(id, u);
+      }
+      for (const [id, pr] of await pacProfiles(db, file.path, more)) {
+        profiles.set(id, pr);
+      }
+      for (const [id, e] of await pacExtras(db, file.path, more)) {
+        extras.set(id, e);
+      }
+      log(`directing committees: ${directing.length} traced`);
+    }
     const pacIds = [
       ...new Set([
         ...[...giftsFor.values(), ...fundGiftsFor.values()].flatMap(g => g.map(x => x.id)),
@@ -828,6 +871,26 @@ async function main() {
           ...pacIds
         )
       : [];
+    // FINAL-2: a sponsor that is itself a committee (a candidate's, a
+    // leadership PAC, a joint fund, a party): matched on the name as filed
+    const squash = x =>
+      String(x || '')
+        .toUpperCase()
+        .replace(/&/g, ' AND ')
+        .replace(/[^A-Z0-9]/g, '');
+    const byName = new Map();
+    for (const c of await db.read('SELECT id, name, type, designation FROM cm')) {
+      const k = squash(c.name);
+      if (k) {
+        byName.set(k, [...(byName.get(k) || []), c]);
+      }
+    }
+    const connectedOf = c => {
+      const k = squash(c.connected_org);
+      return k && k !== 'NONE'
+        ? (byName.get(k) || []).filter(x => x.id !== c.id).slice(0, 5)
+        : [];
+    };
     const fecTotals = frozen ? snapshot('pac-totals.json') : {};
     // Committees the snapshot has no FEC totals for (givers to members' own
     // joint funds, the final candidate): asked for now, 100 a call
@@ -883,6 +946,7 @@ async function main() {
         sponsor: classifyPac(c.id, asPac(c), irsIndex, facts, committeeFlags.get(c.id)),
         fecRecord: committeeFlags.get(c.id) || null,
         fecGroup: fecGroup(asPac(c)),
+        connectedCommittees: connectedOf(c),
         name: c.name,
         type: c.type,
         designation: c.designation,
@@ -918,6 +982,7 @@ async function main() {
       JSON.stringify({
         snapshot: frozen ? snapshot('manifest.json') : null,
         flags: frozen ? snapshot('flags.json') : [],
+        platforms: [...platforms],
         members: report.map(r => ({
           id: r.id,
           name: r.name,

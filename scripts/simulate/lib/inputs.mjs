@@ -24,21 +24,30 @@ const ITCONT_COLUMNS = `{'CMTE_ID':'VARCHAR','AMNDT_IND':'VARCHAR','RPT_TP':'VAR
  * plus the record check's API rows). `liveN`: the live Nakamoto coefficient,
  * to add up what the same donors hold.
  */
-export async function memberDonorShape(bulk, poolIds, liveN, weights = null) {
+export async function memberDonorShape(bulk, poolIds, liveN, weights = null, opts = {}) {
   if (!poolIds.length || !poolIds.every(id => IDS.test(id))) {
     return null;
   }
   const ids = poolIds.map(i => `'${i}'`).join(',');
+  // FINAL-2: gifts earmarked through a committee that directs them (any
+  // conduit but the processing platforms, `opts.platforms`) count as that
+  // committee's gift, so they leave the donor test
+  const platforms = (opts.platforms || []).filter(id => IDS.test(id));
+  const directed = `(tx_type = '15E' OR regexp_matches(coalesce(memo_text, ''), '(?i)earmark'))
+    AND regexp_matches(coalesce(other_id, ''), '^C[0-9]{8}$')
+    ${platforms.length ? `AND other_id NOT IN (${platforms.map(i => `'${i}'`).join(',')})` : ''}`;
+  const keep = opts.platforms ? `AND NOT (${directed})` : '';
   // `weights` (committee id -> 0-1): each gift counted at that fraction, so a
   // joint fund's donors count only for the money that reached the member
   const w = Object.entries(weights || {}).filter(([id, x]) => IDS.test(id) && Number.isFinite(x));
   const amount = w.length
     ? `amount * CASE committee_id ${w.map(([id, x]) => `WHEN '${id}' THEN ${Math.max(0, Math.min(1, x))}`).join(' ')} ELSE 1 END`
     : 'amount';
-  const rows = `(SELECT * FROM bulk WHERE committee_id IN (${ids}) AND counts
+  const all = `(SELECT * FROM bulk WHERE committee_id IN (${ids}) AND counts
                  AND sub_id NOT IN (SELECT sub_id FROM api)
                  UNION ALL
                  SELECT * FROM api WHERE committee_id IN (${ids}) AND counts)`;
+  const rows = `(SELECT * FROM ${all} WHERE TRUE ${keep})`;
   const [r] = await bulk.read(
     `
     WITH d AS (
@@ -63,6 +72,15 @@ export async function memberDonorShape(bulk, poolIds, liveN, weights = null) {
     FROM agg, nak`,
     Number(liveN) || 0
   );
+  // The directed gifts left out, by the committee that directed them
+  const directedOut = opts.platforms
+    ? Object.fromEntries(
+        (
+          await bulk.read(`SELECT other_id AS id, sum(amount) AS amount FROM ${all}
+             WHERE ${directed} GROUP BY 1 HAVING sum(amount) <> 0`)
+        ).map(d => [d.id, round2(d.amount)])
+      )
+    : undefined;
   return {
     donors: r.donors,
     nakamoto: r.nakamoto,
@@ -70,6 +88,7 @@ export async function memberDonorShape(bulk, poolIds, liveN, weights = null) {
     topLive: round2(r.topLive),
     topPositive: round2(r.topPositive),
     capped: Object.fromEntries(CAPS.map(k => [k, round2(r[`capped${k}`])])),
+    ...(directedOut ? { directedOut } : {}),
   };
 }
 
