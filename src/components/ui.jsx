@@ -1,5 +1,5 @@
 // The pieces every page is built from: the grade stamp, a receipt's lines,
-// the evidence label and a section that opens when asked.
+// the evidence label and a section with a plain heading.
 import React from 'react';
 import { CheckCircle2, Clock3 } from 'lucide-react';
 import { gradeInfo } from '../lib/grades.js';
@@ -93,15 +93,13 @@ export function Barcode({ id = '', height = 34 }) {
   );
 }
 
-/** A section closed until the visitor opens it: a plain heading, then the detail */
-export function Fold({ title, children }) {
+/** A section of a member's page: a plain heading, then the detail */
+export function Section({ title, children }) {
   return (
-    <details className="fold">
-      <summary>
-        <h2 className="fold-title">{title}</h2>
-      </summary>
+    <section className="fold">
+      <h2 className="fold-title">{title}</h2>
       <div className="fold-body">{children}</div>
-    </details>
+    </section>
   );
 }
 

@@ -7,7 +7,7 @@ import React from 'react';
 import { Link } from '../lib/router.js';
 import { pacRows } from '../lib/pacs.js';
 import { usd } from '../lib/people.js';
-import { Fold } from './ui.jsx';
+import { Section } from './ui.jsx';
 
 // `people`: the group whose gifts can be People money
 const PAC_GROUPS = [
@@ -120,7 +120,7 @@ export default function PacPanel({ member, name, pacMoney }) {
       return null;
     }
     return (
-      <Fold title="PAC donations">
+      <Section title="PAC donations">
         <Explainer />
         <ol className="ranked">
           {rows.slice(0, 10).map((p, i) => (
@@ -135,7 +135,7 @@ export default function PacPanel({ member, name, pacMoney }) {
         <p className="fine" style={{ marginTop: 12 }}>
           Of the {usd(pacMoney)} that PACs gave {name}.
         </p>
-      </Fold>
+      </Section>
     );
   }
   if (!s.count && !s.directed?.length) {
@@ -146,7 +146,7 @@ export default function PacPanel({ member, name, pacMoney }) {
   // reports; the list is from the PACs' reports, and the two don't always match
   const differs = Math.abs((s.total || 0) - (pacMoney || 0)) >= 1;
   return (
-    <Fold title="PAC donations">
+    <Section title="PAC donations">
       <Explainer />
       {s.count > 0 && (
         <>
@@ -205,6 +205,6 @@ export default function PacPanel({ member, name, pacMoney }) {
         that it exists to advance a particular country&apos;s interests or its relationship with the
         United States.
       </p>
-    </Fold>
+    </Section>
   );
 }

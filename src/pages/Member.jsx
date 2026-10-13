@@ -5,7 +5,7 @@ import ForeignAgentPanel from '../components/ForeignAgentPanel.jsx';
 import PacPanel from '../components/PacPanel.jsx';
 import ShareDialog from '../components/ShareDialog.jsx';
 import MoneyGraph from '../components/MoneyGraph.jsx';
-import { Barcode, Evidence, Fold, MoneyLines, Skeleton, Stamp } from '../components/ui.jsx';
+import { Barcode, Evidence, Section, MoneyLines, Skeleton, Stamp } from '../components/ui.jsx';
 import { api } from '../lib/api.js';
 import { classifyOrganization, sectorInfo } from '../lib/donor-taxonomy.js';
 import { CYCLE_LABEL } from '../lib/election.js';
@@ -293,266 +293,265 @@ export default function Member({ id, kind = 'member' }) {
             </div>
           </div>
         ) : (
-          <>
-            <section className="member-summary" aria-label={`Grade ${g.mark}, ${g.name}`}>
-              <div className="member-verdict">
-                <Stamp tier={m.tier} size={132} rot={-8} animate delay={0.2} />
-                <div style={{ minWidth: 0 }}>
-                  {sentence && <p className="member-sentence">{sentence}</p>}
-                  {placement && <p className="placement">{placement}</p>}
-                  <p style={{ marginTop: 14 }}>
-                    <Evidence checked={checked} />
-                  </p>
-                </div>
-              </div>
-              {ppi && (
-                <div className="member-graph">
-                  <MoneyGraph ppi={ppi} tier={m.tier} showKey />
-                </div>
-              )}
-            </section>
-
-            <div className="folds">
-              {why && (
-                <Fold title={`Why ${withArticle(g.mark)}`}>
-                  <p className="fold-intro">{why.intro}</p>
-                  <ol className="why-steps">
-                    {why.steps.map((step, k) => (
-                      <li key={step.title} className={`why-step tone-${step.tone}`}>
-                        <span className="why-num" aria-hidden="true">
-                          {k + 1}
-                        </span>
-                        <div>
-                          <h3>{step.title}</h3>
-                          <p>{step.text}</p>
-                        </div>
-                      </li>
-                    ))}
-                  </ol>
-                  <p className="fine" style={{ marginTop: 14 }}>
-                    <Link to="/how">How grades work</Link>
-                  </p>
-                </Fold>
-              )}
-
-              <Fold title="The receipt">
-                <div className="slip">
-                  <p className="slip-title">TASK FORCE PURPLE</p>
-                  <p className="slip-sub">RECEIPT · {CYCLE_LABEL} ELECTION CYCLE</p>
-                  <p className="small muted">
-                    Paid to: {name}, {seatLabel(m)}
-                    {committees.length > 1 && (
-                      <>
-                        <br />
-                        Across {committees.length} committees
-                      </>
-                    )}
-                  </p>
-                  <div className="tear" style={{ marginTop: 18 }} />
-                  <MoneyLines lines={lines} value={l => usd(l.amount)} />
-                  <div className="tear" style={{ marginTop: 6 }} />
-                  <p className="slip-total">
-                    <span>TOTAL</span>
-                    <span>{usd(f.totalRaised)}</span>
-                  </p>
-                  <p style={{ marginTop: 22 }}>
-                    <Evidence checked={checked} long />
-                  </p>
-                  {gradedOn && (
-                    <p className="fine" style={{ marginTop: 8 }}>
-                      Graded {gradedOn}
-                    </p>
-                  )}
-                  <Barcode id={id} />
-                </div>
-              </Fold>
-
-              {ownPct >= 5 && (
-                <Fold title="Their own money">
-                  <p>
-                    {name} put {usd(f.ownMoney)} of their own money into this campaign: {ownPct}% of
-                    everything raised. Candidates can spend as much of their own money as they like.
-                    We leave it out of the grade, because it doesn&apos;t make them depend on
-                    anyone.
-                    {f.ownRepaid > 0 &&
-                      ` Their campaign has paid ${usd(f.ownRepaid)} back to them.`}
-                  </p>
-                </Fold>
-              )}
-
-              {(fewest || states) && (
-                <Fold title="Who gave the big money">
-                  {fewest && <p className="fold-lead">{fewest}</p>}
-                  {states && (
+          <div className="member-layout">
+            <div className="member-slip-col">
+              <div className="slip print-in">
+                <p className="slip-title">TASK FORCE PURPLE</p>
+                <p className="slip-sub">RECEIPT · {CYCLE_LABEL} ELECTION CYCLE</p>
+                <p className="small muted slip-to">
+                  Paid to: {name}, {seatLabel(m)}
+                  {committees.length > 1 && (
                     <>
-                      <p style={{ margin: '14px 0 12px' }}>{states.sentence}</p>
-                      <ul className="share-list">
-                        {states.rows.map(r => (
-                          <li key={r.label} className={r.home ? 'is-home' : undefined}>
-                            <span>
-                              {r.label}
-                              {r.home ? ' (home state)' : ''}
-                            </span>
-                            <span className="share-bar" aria-hidden="true">
-                              <span style={{ width: `${Math.max(1, r.share)}%` }} />
-                            </span>
-                            <strong>{r.text}</strong>
-                          </li>
-                        ))}
-                      </ul>
+                      <br />
+                      Across {committees.length} committees
                     </>
                   )}
-                  <p className="fine" style={{ marginTop: 12 }}>
-                    Big donations are over $200. Each donor is placed by the address on their FEC
-                    records. We don&apos;t list donors by name.
+                </p>
+                <div className="tear" style={{ marginTop: 18 }} />
+                <MoneyLines lines={lines} value={l => usd(l.amount)} />
+                <div className="tear" style={{ marginTop: 6 }} />
+                <p className="slip-total">
+                  <span>TOTAL</span>
+                  <span>{usd(f.totalRaised)}</span>
+                </p>
+                <p style={{ marginTop: 22 }}>
+                  <Evidence checked={checked} long />
+                </p>
+                {gradedOn && (
+                  <p className="fine" style={{ marginTop: 8 }}>
+                    Graded {gradedOn}
                   </p>
-                </Fold>
-              )}
+                )}
+                <Barcode id={id} />
+              </div>
+              <div className="slip-stamp">
+                <Stamp tier={m.tier} size={124} rot={-11} animate delay={0.45} />
+              </div>
+            </div>
 
-              <PacPanel member={m} name={name} pacMoney={f.pacMoney} />
+            <div className="member-main">
+              <section className="member-summary" aria-label={`Grade ${g.mark}, ${g.name}`}>
+                <div className="member-verdict">
+                  {sentence && <p className="member-sentence">{sentence}</p>}
+                  {placement && <p className="placement">{placement}</p>}
+                </div>
+                {ppi && (
+                  <div className="member-graph">
+                    <MoneyGraph ppi={ppi} tier={m.tier} showKey />
+                  </div>
+                )}
+              </section>
 
-              {m.topConduits?.length > 0 && (
-                <Fold title="Bundled donations">
-                  {m.earmarkedIndividualTotal > 0 && (
-                    <p style={{ marginBottom: 12, color: 'var(--ink-2)' }}>
-                      <strong style={{ color: 'var(--ink)' }}>
-                        {usd(m.earmarkedIndividualTotal)}
-                      </strong>{' '}
-                      of the donations from individuals came in through organizations that collect
-                      donations and pass them on, such as online fundraising platforms.
+              <div className="folds">
+                {why && (
+                  <Section title={`Why ${withArticle(g.mark)}`}>
+                    <p className="fold-intro">{why.intro}</p>
+                    <ol className="why-steps">
+                      {why.steps.map((step, k) => (
+                        <li key={step.title} className={`why-step tone-${step.tone}`}>
+                          <span className="why-num" aria-hidden="true">
+                            {k + 1}
+                          </span>
+                          <div>
+                            <h3>{step.title}</h3>
+                            <p>{step.text}</p>
+                          </div>
+                        </li>
+                      ))}
+                    </ol>
+                    <p className="fine" style={{ marginTop: 14 }}>
+                      <Link to="/how">How grades work</Link>
                     </p>
-                  )}
-                  <ul className="ranked">
-                    {m.topConduits.slice(0, 6).map(c => (
-                      <li key={c.name}>
-                        <span className="name">
-                          {c.name}{' '}
-                          {c.country ? (
-                            <span className="pac-chip">Country-focused: {c.country}</span>
-                          ) : (
-                            <span
-                              className="muted"
-                              style={{ fontFamily: 'var(--body)', fontSize: 12 }}
-                            >
-                              · {sectorInfo(classifyOrganization(c.name)).label}
-                            </span>
-                          )}
-                        </span>
-                        <span className="leader" aria-hidden="true" />
-                        <strong>{usdShort(c.amount)}</strong>
-                      </li>
-                    ))}
-                  </ul>
-                  <p className="fine" style={{ marginTop: 12 }}>
-                    &ldquo;Country-focused&rdquo; means the group behind it tells the IRS, on its
-                    own Form 990, that it exists to advance a particular country&apos;s interests or
-                    its relationship with the United States.
-                  </p>
-                </Fold>
-              )}
+                  </Section>
+                )}
 
-              <Fold title="Where the money was raised">
-                {trail ? (
-                  <>
-                    <p style={{ marginBottom: 16, color: 'var(--ink-2)' }}>
-                      {name} raised {usd(trail.raisedInName)} through{' '}
-                      {committees.length === 1
-                        ? 'one committee'
-                        : `${committees.length} committees`}
-                      .
-                      {passedOn > 0 &&
-                        ` ${usd(passedOn)} of that went through ${name}'s joint fundraising committee and on to other committees.`}{' '}
-                      Click a committee to see its filings on the FEC website.
+                {ownPct >= 5 && (
+                  <Section title="Their own money">
+                    <p>
+                      {name} put {usd(f.ownMoney)} of their own money into this campaign: {ownPct}%
+                      of everything raised. Candidates can spend as much of their own money as they
+                      like. We leave it out of the grade, because it doesn&apos;t make them depend
+                      on anyone.
+                      {f.ownRepaid > 0 &&
+                        ` Their campaign has paid ${usd(f.ownRepaid)} back to them.`}
                     </p>
-                    <ul className="trail">
-                      {committees.map(c => {
-                        const own = c.role === 'joint' ? c.toMember || 0 : c.raised;
-                        return (
-                          <li key={c.committeeId}>
-                            <a
-                              href={fecCommitteeUrl(c.committeeId, trail.cycle)}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                            >
-                              <span className="trail-top">
-                                <span style={{ fontWeight: 700 }}>
-                                  {c.name}{' '}
-                                  <ExternalLink
-                                    size={14}
-                                    aria-label="(opens on fec.gov)"
-                                    style={{ display: 'inline', verticalAlign: '-1px' }}
+                  </Section>
+                )}
+
+                {(fewest || states) && (
+                  <Section title="Who gave the big money">
+                    {fewest && <p className="fold-lead">{fewest}</p>}
+                    {states && (
+                      <>
+                        <p style={{ margin: '14px 0 12px' }}>{states.sentence}</p>
+                        <ul className="share-list">
+                          {states.rows.map(r => (
+                            <li key={r.label} className={r.home ? 'is-home' : undefined}>
+                              <span>
+                                {r.label}
+                                {r.home ? ' (home state)' : ''}
+                              </span>
+                              <span className="share-bar" aria-hidden="true">
+                                <span style={{ width: `${Math.max(1, r.share)}%` }} />
+                              </span>
+                              <strong>{r.text}</strong>
+                            </li>
+                          ))}
+                        </ul>
+                      </>
+                    )}
+                    <p className="fine" style={{ marginTop: 12 }}>
+                      Big donations are over $200. Each donor is placed by the address on their FEC
+                      records. We don&apos;t list donors by name.
+                    </p>
+                  </Section>
+                )}
+
+                <PacPanel member={m} name={name} pacMoney={f.pacMoney} />
+
+                {m.topConduits?.length > 0 && (
+                  <Section title="Bundled donations">
+                    {m.earmarkedIndividualTotal > 0 && (
+                      <p style={{ marginBottom: 12, color: 'var(--ink-2)' }}>
+                        <strong style={{ color: 'var(--ink)' }}>
+                          {usd(m.earmarkedIndividualTotal)}
+                        </strong>{' '}
+                        of the donations from individuals came in through organizations that collect
+                        donations and pass them on, such as online fundraising platforms.
+                      </p>
+                    )}
+                    <ul className="ranked">
+                      {m.topConduits.slice(0, 6).map(c => (
+                        <li key={c.name}>
+                          <span className="name">
+                            {c.name}{' '}
+                            {c.country ? (
+                              <span className="pac-chip">Country-focused: {c.country}</span>
+                            ) : (
+                              <span
+                                className="muted"
+                                style={{ fontFamily: 'var(--body)', fontSize: 12 }}
+                              >
+                                · {sectorInfo(classifyOrganization(c.name)).label}
+                              </span>
+                            )}
+                          </span>
+                          <span className="leader" aria-hidden="true" />
+                          <strong>{usdShort(c.amount)}</strong>
+                        </li>
+                      ))}
+                    </ul>
+                    <p className="fine" style={{ marginTop: 12 }}>
+                      &ldquo;Country-focused&rdquo; means the group behind it tells the IRS, on its
+                      own Form 990, that it exists to advance a particular country&apos;s interests
+                      or its relationship with the United States.
+                    </p>
+                  </Section>
+                )}
+
+                <Section title="Where the money was raised">
+                  {trail ? (
+                    <>
+                      <p style={{ marginBottom: 16, color: 'var(--ink-2)' }}>
+                        {name} raised {usd(trail.raisedInName)} through{' '}
+                        {committees.length === 1
+                          ? 'one committee'
+                          : `${committees.length} committees`}
+                        .
+                        {passedOn > 0 &&
+                          ` ${usd(passedOn)} of that went through ${name}'s joint fundraising committee and on to other committees.`}{' '}
+                        Click a committee to see its filings on the FEC website.
+                      </p>
+                      <ul className="trail">
+                        {committees.map(c => {
+                          const own = c.role === 'joint' ? c.toMember || 0 : c.raised;
+                          return (
+                            <li key={c.committeeId}>
+                              <a
+                                href={fecCommitteeUrl(c.committeeId, trail.cycle)}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                              >
+                                <span className="trail-top">
+                                  <span style={{ fontWeight: 700 }}>
+                                    {c.name}{' '}
+                                    <ExternalLink
+                                      size={14}
+                                      aria-label="(opens on fec.gov)"
+                                      style={{ display: 'inline', verticalAlign: '-1px' }}
+                                    />
+                                  </span>
+                                  <span className="mono" style={{ fontWeight: 600 }}>
+                                    {usd(own)}
+                                    {c.role === 'joint' ? ' received' : ''}
+                                  </span>
+                                </span>
+                                <span
+                                  className="small muted"
+                                  style={{ display: 'block', marginTop: 4 }}
+                                >
+                                  <strong>{ROLE[c.role] || 'Committee'}.</strong> {describe(c)}
+                                </span>
+                                <span className="trail-bar" aria-hidden="true">
+                                  <span
+                                    style={{
+                                      width: `${Math.max(1, Math.round((own / (trail.raisedInName || 1)) * 100))}%`,
+                                    }}
                                   />
                                 </span>
-                                <span className="mono" style={{ fontWeight: 600 }}>
-                                  {usd(own)}
-                                  {c.role === 'joint' ? ' received' : ''}
-                                </span>
-                              </span>
-                              <span
-                                className="small muted"
-                                style={{ display: 'block', marginTop: 4 }}
-                              >
-                                <strong>{ROLE[c.role] || 'Committee'}.</strong> {describe(c)}
-                              </span>
-                              <span className="trail-bar" aria-hidden="true">
-                                <span
-                                  style={{
-                                    width: `${Math.max(1, Math.round((own / (trail.raisedInName || 1)) * 100))}%`,
-                                  }}
-                                />
-                              </span>
-                            </a>
-                          </li>
-                        );
-                      })}
-                    </ul>
-                  </>
-                ) : (
-                  <p className="notice">
-                    We haven&apos;t matched all of {name}&apos;s committees in the FEC&apos;s
-                    records yet, so these figures only cover one committee.
-                  </p>
-                )}
-              </Fold>
+                              </a>
+                            </li>
+                          );
+                        })}
+                      </ul>
+                    </>
+                  ) : (
+                    <p className="notice">
+                      We haven&apos;t matched all of {name}&apos;s committees in the FEC&apos;s
+                      records yet, so these figures only cover one committee.
+                    </p>
+                  )}
+                </Section>
 
-              {m.faraEmployerTotal > 0 && (
-                <Fold title="Foreign agents">
-                  <ForeignAgentPanel member={m} />
-                </Fold>
-              )}
+                {m.faraEmployerTotal > 0 && (
+                  <Section title="Foreign agents">
+                    <ForeignAgentPanel member={m} />
+                  </Section>
+                )}
 
-              <Fold title="About these numbers">
-                {checked === false && (
+                <Section title="About these numbers">
+                  {checked === false && (
+                    <p className="fine">
+                      <strong>Still being checked.</strong> This grade is based on the FEC&apos;s
+                      bulk data files, which contain over 99% of the records. We&apos;re now
+                      checking each donation against the FEC&apos;s own records. If anything turns
+                      out to be missing, the grade could change slightly.
+                    </p>
+                  )}
+                  {checked === true && (
+                    <p className="fine">
+                      <strong>Checked.</strong> Every donation behind this grade matches the
+                      FEC&apos;s own records.
+                    </p>
+                  )}
+                  {(d?.evidence?.notes || []).map(n => (
+                    <p className="fine" key={n}>
+                      <strong>Note:</strong> {evidenceNote(n, committees)}
+                    </p>
+                  ))}
                   <p className="fine">
-                    <strong>Still being checked.</strong> This grade is based on the FEC&apos;s bulk
-                    data files, which contain over 99% of the records. We&apos;re now checking each
-                    donation against the FEC&apos;s own records. If anything turns out to be
-                    missing, the grade could change slightly.
+                    <strong>Adding it up:</strong> Money moved between someone&apos;s own committees
+                    is added only once. Money received from a joint fundraising committee is split
+                    into small donations, big donations and PACs in the same proportions as that
+                    committee&apos;s own fundraising.{' '}
+                    {f.allCommittees
+                      ? 'This grade includes all of the committees listed above.'
+                      : 'For now, this grade only includes their campaign committee.'}
                   </p>
-                )}
-                {checked === true && (
-                  <p className="fine">
-                    <strong>Checked.</strong> Every donation behind this grade matches the
-                    FEC&apos;s own records.
-                  </p>
-                )}
-                {(d?.evidence?.notes || []).map(n => (
-                  <p className="fine" key={n}>
-                    <strong>Note:</strong> {evidenceNote(n, committees)}
-                  </p>
-                ))}
-                <p className="fine">
-                  <strong>Adding it up:</strong> Money moved between someone&apos;s own committees
-                  is added only once. Money received from a joint fundraising committee is split
-                  into small donations, big donations and PACs in the same proportions as that
-                  committee&apos;s own fundraising.{' '}
-                  {f.allCommittees
-                    ? 'This grade includes all of the committees listed above.'
-                    : 'For now, this grade only includes their campaign committee.'}
-                </p>
-              </Fold>
+                </Section>
+              </div>
             </div>
-          </>
+          </div>
         )}
       </div>
 

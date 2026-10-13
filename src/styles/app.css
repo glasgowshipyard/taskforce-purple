@@ -1080,6 +1080,49 @@ p {
   padding-bottom: 56px;
 }
 
+.member-slip-col {
+  flex: 1 1 360px;
+  min-width: 0;
+  max-width: 460px;
+  position: relative;
+}
+
+.member-main {
+  flex: 999 1 520px;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 28px;
+}
+
+/* The stamp sits over the "paid to" lines, which keep clear of it: it must
+   never cover a figure */
+.slip-stamp {
+  position: absolute;
+  right: -12px;
+  top: 84px;
+}
+
+@media (max-width: 520px) {
+  .slip-stamp {
+    right: 4px;
+  }
+}
+
+@media (min-width: 900px) {
+  .member-slip-col {
+    position: sticky;
+    top: 16px;
+  }
+}
+
+.slip-to {
+  margin-top: 18px;
+  padding-right: 112px;
+  min-height: 104px;
+  text-transform: uppercase;
+}
+
 .slip {
   background: var(--receipt);
   border: 1px solid var(--line);
@@ -2105,11 +2148,8 @@ p {
 }
 
 .member-verdict {
-  flex: 1 1 320px;
+  flex: 1 1 260px;
   min-width: 0;
-  display: flex;
-  gap: 24px;
-  align-items: center;
 }
 
 .member-sentence {
@@ -2129,74 +2169,24 @@ p {
 }
 
 .member-graph {
-  flex: 1 1 360px;
+  flex: 1 1 320px;
   min-width: 0;
-  max-width: 520px;
-}
-
-@media (max-width: 520px) {
-  .member-verdict {
-    flex-direction: column;
-    align-items: flex-start;
-  }
+  max-width: 480px;
 }
 
 .folds {
-  margin: 28px 0 56px;
-  border-top: 2px solid var(--ink);
-}
-
-.fold {
-  border-bottom: 1px solid var(--line-2);
-}
-
-.fold > summary {
-  list-style: none;
-  cursor: pointer;
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-  padding: 18px 2px;
-}
-
-.fold > summary::-webkit-details-marker {
-  display: none;
-}
-
-/* A plus that turns into a minus when the section is open */
-.fold > summary::after {
-  content: '+';
-  flex: 0 0 auto;
-  font-family: var(--mono);
-  font-size: 26px;
-  line-height: 1;
-  color: var(--purple);
-}
-
-.fold[open] > summary::after {
-  content: '−';
-}
-
-.fold > summary:hover .fold-title {
-  color: var(--purple);
+  flex-direction: column;
+  gap: 36px;
 }
 
 .fold-title {
   font-family: var(--display);
   font-weight: 800;
   font-stretch: 85%;
-  font-size: clamp(22px, 2.4vw, 28px);
-  line-height: 1.1;
-}
-
-.fold-body {
-  padding: 4px 0 28px;
-  max-width: 60em;
-}
-
-.fold-body .slip {
-  max-width: 460px;
+  font-size: clamp(26px, 2.8vw, 34px);
+  line-height: 1.05;
+  margin-bottom: 12px;
 }
 
 .fold-intro {
