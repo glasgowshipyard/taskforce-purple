@@ -1890,26 +1890,6 @@ p {
   gap: 8px;
 }
 
-/* The summary of the "Why": what the money adds up to, before the parts */
-.why-summary {
-  background: var(--white);
-  border: 1px solid var(--line);
-  border-left: 6px solid var(--tone);
-  border-radius: var(--radius);
-  padding: 14px 18px;
-  margin-bottom: 14px;
-  --tone: var(--muted);
-}
-
-.why-summary h3 {
-  font-size: 19px;
-  margin-bottom: 4px;
-}
-
-.why-summary p {
-  color: var(--ink-2);
-}
-
 /* An accordion (owner, 2026-10-17): every headline in view, one step open
    at a time, so the list stays beside the graph */
 .why-step {
@@ -2694,11 +2674,6 @@ p {
   font-size: clamp(26px, 2.8vw, 34px);
   line-height: 1.05;
   margin-bottom: 12px;
-}
-
-.fold-intro {
-  margin-bottom: 14px;
-  color: var(--ink-2);
 }
 
 .fold-lead {

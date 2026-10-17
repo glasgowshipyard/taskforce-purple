@@ -5,7 +5,7 @@
 // site's own helpers, so a pre-built page says what the live page says.
 
 import { CYCLE_LABEL } from '../../src/lib/election.js';
-import { peopleSentence, placementLine } from '../../src/lib/explain.js';
+import { LEFT_OUT, peopleSentence, placementLine } from '../../src/lib/explain.js';
 import { GRADES, LETTERS, PARTS, gradeInfo, isLetter, withArticle } from '../../src/lib/grades.js';
 import { displayName, partyName, roleTitle, seatLabel, usd } from '../../src/lib/people.js';
 import { FINDINGS, LEAD, STUDIES, WISHES } from '../../src/lib/research.js';
@@ -158,11 +158,12 @@ export function howPage() {
 <h1 class="display display-xl">How grades work</h1>
 <p class="lede">Every dollar given to a member of Congress comes from one of three sources: People, Power and Influence. The grade is the share that comes from People.</p>
 <ul>${parts}</ul>
+<p><strong>What's left out?</strong> ${esc(LEFT_OUT)}</p>
 <h2>The grade</h2>
 <ul>${scale}</ul>
 <p>Every figure comes from campaign finance reports filed with the Federal Election Commission (FEC).</p>
 </main>`,
-    signature: 'how-2',
+    signature: 'how-3',
   };
 }
 

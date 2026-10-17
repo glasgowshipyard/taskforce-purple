@@ -139,7 +139,7 @@ describe('moneyStrips', () => {
       for (const part of ['people', 'power', 'influence']) {
         expect(strips.filter(s => s.part === part).reduce((t, s) => t + s.v, 0)).toBe(e.ppi[part]);
       }
-      for (const step of e.steps.filter(s => s.key !== 'result')) {
+      for (const step of e.steps) {
         const fromStrips = strips.filter(s => s.key === step.key).reduce((t, s) => t + s.v, 0);
         expect(step.split.reduce((t, s) => t + s.v, 0)).toBe(fromStrips);
       }
@@ -150,25 +150,15 @@ describe('moneyStrips', () => {
 describe('explainGrade', () => {
   it('goes through each kind of money and where it went', () => {
     const e = explainGrade(schiff);
-    expect(e.intro).toBe(
-      'Where it came from, as shares of all the money given to Adam Schiff. Their own money, loans and transfers are left out.'
-    );
+    expect(e.headline).toBe('85% of the money came from people');
     expect(e.steps.map(s => s.title)).toEqual([
       'Small donations: 45%',
       'Big donations: 46%',
       'PACs: 5%',
       'Gifts passed on by a committee: 2%',
       'Parties and other politicians: 2%',
-      '85% of the money came from people',
     ]);
-    expect(e.steps.map(s => s.key)).toEqual([
-      'small',
-      'big',
-      'pac',
-      'directed',
-      'politicians',
-      'result',
-    ]);
+    expect(e.steps.map(s => s.key)).toEqual(['small', 'big', 'pac', 'directed', 'politicians']);
     // Where each kind of money went, first, so the steps add up to the graph
     expect(e.steps[1].split).toEqual([
       { part: 'people', v: 39 },
@@ -183,27 +173,23 @@ describe('explainGrade', () => {
     expect(e.steps[1].text).toBe(
       'Donations over $200. Half the big money came from just 339 of 6,512 big donors. The fewer the donors who give half of it, the more of it is Power.'
     );
-    expect(e.steps[5].text).toBe(
-      "People 85%, Power 7%, Influence 8%. That's an A: Supported. An A needs 75% and an S needs 90%."
-    );
   });
 
-  it('a middle grade names its line and the next one up', () => {
+  it('a middle grade: few donors make part of the big money Power', () => {
     const e = explainGrade(jacobs);
     expect(e.ppi).toEqual({ people: 47, power: 20, influence: 33 });
     // 32 of 323 is a broad enough share, but only 32 people: the count decides it
     expect(e.steps.find(s => s.key === 'big').text).toBe(
       'Donations over $200. Half the big money came from just 32 of 323 big donors. When that few give half of it, part of it is Power.'
     );
-    expect(e.steps.at(-1).text).toMatch(/That's a C: Mixed\. A C needs 45% and a B needs 60%\.$/);
+    expect(e.headline).toBe('47% of the money came from people');
   });
 
-  it('the top grade says what it needs', () => {
+  it('a broad group of big donors: all of it is People money', () => {
     const e = explainGrade(aoc);
     expect(e.steps[1].text).toMatch(/That's a broad group, so all of it is People money\.$/);
     // All of the big money went to People: one entry, no Power
     expect(e.steps[1].split.map(x => x.part)).toEqual(['people']);
-    expect(e.steps.at(-1).text).toMatch(/That's an S: Grassroots\. An S needs 90%\.$/);
   });
 
   it('never uses the word "count"', () => {
@@ -212,6 +198,7 @@ describe('explainGrade', () => {
       for (const s of e.steps) {
         expect(`${s.title} ${s.text}`).not.toMatch(/\bcount/i);
       }
+      expect(e.headline).not.toMatch(/\bcount/i);
     }
   });
 

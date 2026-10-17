@@ -27,6 +27,16 @@ Owner's list:
   third study had the wrong journal and years. A first version led on a
   2023 Pew opinion poll; the owner dropped it ("it proves nothing, that's
   the site's job").
+- **The "Why" on member pages** (owner): the heading is the grade's own
+  line ("Grade S: 91% of the money came from people"), then the numbered
+  kinds of money. The summary box ("People 91%, Power 0%, Influence 9%.
+  That's an S...") and the "shares of all the money" sentence are gone: the
+  graph already shows the three parts. Why own money, loans, transfers and
+  refunds are left out is said once, on /how ("What's left out?",
+  `LEFT_OUT` in explain.js); each receipt still lists the amounts.
+- **Colour for People, Power and Influence** only where the three are
+  being explained (owner): "How we grade" on the home page, "Three sources"
+  on /how and the key under the member graph.
 - **Home page words:** the hero says "Every member of Congress is graded
   on where their money comes from. Look up your representative to see
   who's funding them." (owner). "How we grade" lists People, Power and

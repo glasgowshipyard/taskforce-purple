@@ -7,12 +7,16 @@
 // People, Power and Influence (peoplePowerInfluence in
 // workers/tier-calculation.js), as shares of the money given. People
 // is the grade's score, so the page has one figure for "from people".
-import { GRADES, LETTERS, withArticle } from './grades.js';
+import { GRADES, LETTERS } from './grades.js';
 import { final3AllowanceLimits, peoplePowerInfluence } from '../../workers/tier-calculation.js';
 
-const BANDS = { S: 90, A: 75, B: 60, C: 45, D: 30, E: 15, F: 0 };
-
 export const isFinal3 = grade => grade?.detail?.method === 'final-3';
+
+// Why some money isn't in the grade, said once on /how rather than on every
+// member's page; each member's receipt still lists the amounts (owner,
+// 2026-10-17). GRASSROOTS_CALCULATION_GUIDE.md Step 0
+export const LEFT_OUT =
+  "A member's own money, loans, transfers and refunds. Their own money means they depend on no one, so it neither helps nor hurts the grade. Loans are borrowed and refunds are money coming back, not gifts. Transfers only move money between their own committees, where it's already counted. Each member's receipt still lists them.";
 
 // Whole numbers in proportion to `values` that add up to exactly `target`
 // (largest remainder)
@@ -114,19 +118,6 @@ export function bigDonorLine(fewest, donors, { just = false } = {}) {
   return `Half the big money came from ${just ? 'just ' : ''}${n(fewest)} of ${n(donors)} big donors.`;
 }
 
-// What the next grade up needs, or that this is the top one
-function nextLine(tier) {
-  const i = LETTERS.indexOf(tier);
-  if (tier === 'S') {
-    return 'An S needs 90%.';
-  }
-  const up = LETTERS[i - 1];
-  const needs = l => `${withArticle(l).replace(/^a/, 'A')} needs ${BANDS[l]}%`;
-  return tier === 'F'
-    ? `${needs('E')}.`
-    : `${needs(tier)} and ${withArticle(up)} needs ${BANDS[up]}%.`;
-}
-
 // The kinds of money, in the order the graph's strips run (people to
 // corporate). Each step and each strip carries its key, so pointing at one
 // lights the other (MoneyGraph)
@@ -185,9 +176,11 @@ function bigMoneyReason(d, power) {
 
 /**
  * The steps from the money given to the grade, each a kind of money and
- * where it went: { intro, steps: [{ key, title, split, text, tone }], ppi },
+ * where it went: { headline, steps: [{ key, title, split, text, tone }], ppi },
  * or null when there's no working to explain. `split` is where that money
  * went ([{ part, v }]), shown first, so the steps visibly add up to the graph.
+ * The headline is the grade's own line; the graph shows the three parts, so
+ * nothing restates them (owner, 2026-10-17).
  */
 export function explainGrade({ tier, grade, name }) {
   if (!isFinal3(grade) || !GRADES[tier] || !LETTERS.includes(tier)) {
@@ -264,16 +257,8 @@ export function explainGrade({ tier, grade, name }) {
     });
   }
 
-  steps.push({
-    key: 'result',
-    title: `${ppi.people}% of the money came from people`,
-    split: [],
-    tone: GRADES[tier].rank >= 6 ? 'good' : GRADES[tier].rank <= 4 ? 'bad' : 'neutral',
-    text: `People ${ppi.people}%, Power ${ppi.power}%, Influence ${ppi.influence}%. That's ${withArticle(tier)}: ${GRADES[tier].name}. ${nextLine(tier)}`,
-  });
-
   return {
-    intro: `Where it came from, as shares of all the money given to ${name}. Their own money, loans and transfers are left out.`,
+    headline: `${ppi.people}% of the money came from people`,
     steps,
     ppi,
   };

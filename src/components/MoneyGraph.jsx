@@ -342,7 +342,7 @@ export default function MoneyGraph({
         <dl className="ppi-key">
           {PARTS.map(p => (
             <div key={p.key}>
-              <dt>{p.label}</dt>
+              <dt className={`part is-${p.key}`}>{p.label}</dt>
               <dd>{p.about}</dd>
             </div>
           ))}

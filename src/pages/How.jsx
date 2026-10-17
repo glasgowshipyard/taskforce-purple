@@ -6,7 +6,7 @@
 import React from 'react';
 import MoneyGraph from '../components/MoneyGraph.jsx';
 import { api } from '../lib/api.js';
-import { peopleSentence } from '../lib/explain.js';
+import { LEFT_OUT, peopleSentence } from '../lib/explain.js';
 import { GRADES, LETTERS, PARTS } from '../lib/grades.js';
 import { useAsync, useTitle } from '../lib/hooks.js';
 import { Link } from '../lib/router.js';
@@ -134,11 +134,14 @@ export default function How() {
           <dl className="piles">
             {PARTS.map(p => (
               <div key={p.key} className="pile">
-                <dt>{p.label}</dt>
+                <dt className={`part is-${p.key}`}>{p.label}</dt>
                 <dd>{PILES[p.key]}</dd>
               </div>
             ))}
           </dl>
+          <p id="left-out" className="how-note">
+            <strong>What&apos;s left out?</strong> {LEFT_OUT}
+          </p>
           <p id="pacs" className="how-note">
             <strong>What&apos;s a PAC?</strong> A political action committee pools money and gives
             it to candidates. A PAC&apos;s money is People money only when the group behind it is
