@@ -43,8 +43,10 @@ function roundTo(values, target) {
  * The money given, per $100, in its three parts and the pieces of each:
  * { ppi, people: { small, big, pac, directed }, power: { big },
  *   influence: { pac, directed, party, funds } }. Each part's pieces add up
- * to that part's share, so every figure on the page agrees. Null without a
- * FINAL-3 grade.
+ * to that part's share, so every figure on the page agrees. A piece can then
+ * be a point off its own dollars over the subtotal (35.4% shown as 36%):
+ * the owner chose the list adding up to the grade (2026-10-17). Null without
+ * a FINAL-3 grade.
  */
 export function moneyPieces(detail) {
   const ppi = peoplePowerInfluence(detail);

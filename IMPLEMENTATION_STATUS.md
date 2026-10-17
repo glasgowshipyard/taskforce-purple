@@ -29,6 +29,10 @@
   `workers/person-funding.js` (match what joint funds passed on to what
   the member's committees report receiving); it can move grades, so it
   waits for a simulation and the owner's yes.
+- **Rounding (owner's choice):** the Why list's shares are rounded so they
+  add up to the grade's People share, so one can be a point off its own
+  dollars (35.4% shown as 36%). Whole numbers can't do both; the list
+  adding up won.
 - **"Why this matters", in plainer words** (owner: "a plain English
   thesis, not a paper"): the chart is "How wealth influences policy",
   Wealthy and Middle class, "Few want it" to "Most want it", "45% chance";
