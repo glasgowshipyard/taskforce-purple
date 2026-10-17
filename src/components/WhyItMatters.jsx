@@ -1,14 +1,12 @@
 // "Why this matters" on the home page (owner's mockup, 2026-10-17): what
-// recent research says about who pays for Congress, every claim linked to
-// its source (lib/research.js). The chart is how many Americans say each
-// side has too much say, the gap between them filled with the graphs'
-// people-to-influence gradient.
+// research says about who pays for Congress, every claim linked to its
+// source (lib/research.js). The chart is Gilens and Page's finding, drawn
+// from the figures the study gives: whose wishes become law, the gap where
+// the richest get their way filled with the graphs' people-to-influence
+// gradient.
 import React from 'react';
 import { GRAPH_GRADIENT } from '../lib/grades.js';
-import { CAVEAT, FINDINGS, SAY, STUDIES, withSources } from '../lib/research.js';
-
-const PEOPLE = GRAPH_GRADIENT[0];
-const DONORS = GRAPH_GRADIENT[GRAPH_GRADIENT.length - 1];
+import { FINDINGS, LEAD, STUDIES, WISHES, withSources } from '../lib/research.js';
 
 function Note({ n }) {
   return (
@@ -20,53 +18,100 @@ function Note({ n }) {
   );
 }
 
-function SayChart() {
+/** Text with its source marks */
+function Sourced({ text }) {
+  return withSources(text).map((p, i) =>
+    p.source ? <Note key={i} n={p.source} /> : <React.Fragment key={i}>{p.text}</React.Fragment>
+  );
+}
+
+// The chart's frame: 0% at the base, 50% at the top
+const X = { few: 70, most: 300 };
+const BASE = 180;
+const y = v => BASE - v * 2.8;
+
+function WishesChart() {
+  const { average: avg, richest: rich } = WISHES;
+  // Where the richest's line crosses the average's: from there on, the
+  // richest get their way more often
+  const t = (avg.few - rich.few) / (rich.most - rich.few - (avg.most - avg.few));
+  const cross = X.few + t * (X.most - X.few);
+  const study = STUDIES[0];
   return (
-    <figure className="say">
+    <figure className="wishes">
       <figcaption>
-        <h3>Who has too much say over Congress?</h3>
+        <h3>Whose wishes become law?</h3>
         <p className="small muted">
-          The share of Americans who say each has too much influence over what members of Congress
-          decide
+          The chance a proposed policy became law, by how many average Americans, or how many of the
+          richest tenth, wanted it
         </p>
       </figcaption>
-      <div
-        className="say-plot"
+      <svg
+        viewBox="0 0 360 212"
         role="img"
-        aria-label={`${SAY.people}% say the people a member represents have too much say. ${SAY.donors}% say people who give a lot to campaigns do.`}
+        aria-label={`When average Americans wanted a policy, it became law about ${avg.few}% of the time, whether one in five or four in five of them wanted it. When the richest tenth wanted it, the chance rose from about ${rich.few}% to ${rich.most}%.`}
       >
-        <div className="say-stats" aria-hidden="true">
-          <p style={{ '--c': PEOPLE }}>
-            <b>{SAY.people}%</b>
-            <span>The people they represent</span>
-          </p>
-          <p className="is-end" style={{ '--c': DONORS }}>
-            <b>{SAY.donors}%</b>
-            <span>People who give a lot to campaigns</span>
-          </p>
-        </div>
-        <div className="say-track" aria-hidden="true">
-          <span
-            className="say-gap"
-            style={{
-              left: `${SAY.people}%`,
-              width: `${SAY.donors - SAY.people}%`,
-              background: `linear-gradient(90deg, ${GRAPH_GRADIENT.join(', ')})`,
-            }}
-          />
-          <span className="say-dot" style={{ left: `${SAY.people}%`, '--c': PEOPLE }} />
-          <span className="say-dot" style={{ left: `${SAY.donors}%`, '--c': DONORS }} />
-        </div>
-        <div className="say-scale mono" aria-hidden="true">
-          <span>0%</span>
-          <span>50%</span>
-          <span>100%</span>
-        </div>
-      </div>
+        <defs>
+          <linearGradient id="wishes-gap" gradientUnits="userSpaceOnUse" x1={cross} x2={X.most}>
+            {GRAPH_GRADIENT.map((c, i) => (
+              <stop key={c} offset={i / (GRAPH_GRADIENT.length - 1)} stopColor={c} />
+            ))}
+          </linearGradient>
+        </defs>
+        <line x1={X.few - 6} x2={X.most + 6} y1={BASE} y2={BASE} className="wishes-base" />
+        <polygon
+          points={`${cross},${y(avg.few)} ${X.most},${y(rich.most)} ${X.most},${y(avg.most)}`}
+          fill="url(#wishes-gap)"
+          className="wishes-gap"
+        />
+        <line
+          x1={X.few}
+          x2={X.most}
+          y1={y(avg.few)}
+          y2={y(avg.most)}
+          className="wishes-line is-average"
+        />
+        <line
+          x1={X.few}
+          x2={X.most}
+          y1={y(rich.few)}
+          y2={y(rich.most)}
+          className="wishes-line is-richest"
+        />
+        {[
+          [X.few, y(avg.few), 'is-average'],
+          [X.most, y(avg.most), 'is-average'],
+          [X.few, y(rich.few), 'is-richest'],
+          [X.most, y(rich.most), 'is-richest'],
+        ].map(([cx, cy, kind]) => (
+          <circle key={`${cx}-${cy}`} cx={cx} cy={cy} r={5} className={`wishes-dot ${kind}`} />
+        ))}
+        <text x={X.few - 12} y={BASE + 4} textAnchor="end" className="wishes-axis">
+          0%
+        </text>
+        <text x={X.few - 12} y={y(avg.few) + 5} textAnchor="end" className="wishes-value">
+          {avg.few}%
+        </text>
+        <text x={X.few - 12} y={y(rich.few) + 5} textAnchor="end" className="wishes-value">
+          {rich.few}%
+        </text>
+        <text x={X.most + 6} y={y(rich.most) - 14} textAnchor="end" className="wishes-label">
+          The richest tenth <tspan className="wishes-value">{rich.most}%</tspan>
+        </text>
+        <text x={X.most + 6} y={y(avg.most) + 24} textAnchor="end" className="wishes-label">
+          Average Americans <tspan className="wishes-value">{avg.most}%</tspan>
+        </text>
+        <text x={X.few} y={BASE + 22} textAnchor="middle" className="wishes-axis">
+          1 in 5 wanted it
+        </text>
+        <text x={X.most} y={BASE + 22} textAnchor="middle" className="wishes-axis">
+          4 in 5 wanted it
+        </text>
+      </svg>
       <p className="small muted">
-        Republicans ({SAY.donorsByParty.republicans}%) and Democrats ({SAY.donorsByParty.democrats}
-        %) agree about donors. Pew Research Center, {SAY.when}.
-        <Note n={1} />
+        With everyone else&apos;s wishes held steady. {WISHES.scope} Source:{' '}
+        <a href={study.url}>{study.cite}</a>
+        <Note n={study.n} />
       </p>
     </figure>
   );
@@ -80,22 +125,14 @@ export default function WhyItMatters() {
       style={{ paddingTop: 0 }}
     >
       <div className="wrap">
-        <div className="section-head">
-          <div style={{ flex: '1 1 420px', minWidth: 0 }}>
-            <p className="eyebrow" style={{ marginBottom: 10 }}>
-              Why it matters
-            </p>
-            <h2 id="matters-title" className="display display-l">
-              Why this matters to all of us
-            </h2>
-          </div>
-          <p style={{ flex: '1 1 320px' }}>
-            The grades show who pays for Congress. Here&apos;s what recent research says about why
-            that matters.
-          </p>
-        </div>
+        <h2 id="matters-title" className="display display-l">
+          Why this matters to all of us
+        </h2>
+        <p className="lede matters-lead">
+          <Sourced text={LEAD} />
+        </p>
         <div className="matters-grid">
-          <SayChart />
+          <WishesChart />
           <div className="matters-findings">
             {FINDINGS.map(f => (
               <div key={f.source} className="finding">
@@ -106,15 +143,6 @@ export default function WhyItMatters() {
                 <p>{f.text}</p>
               </div>
             ))}
-            <p className="matters-caveat">
-              {withSources(CAVEAT).map((p, i) =>
-                p.source ? (
-                  <Note key={i} n={p.source} />
-                ) : (
-                  <React.Fragment key={i}>{p.text}</React.Fragment>
-                )
-              )}
-            </p>
           </div>
         </div>
         <div className="studies">
@@ -123,6 +151,12 @@ export default function WhyItMatters() {
             {STUDIES.map(s => (
               <li key={s.n} id={`study-${s.n}`}>
                 {s.cite}, <a href={s.url}>{s.title}</a>. {s.detail}
+                {s.note && (
+                  <>
+                    {' '}
+                    <a href={s.note.url}>{s.note.text}</a>
+                  </>
+                )}
               </li>
             ))}
           </ol>

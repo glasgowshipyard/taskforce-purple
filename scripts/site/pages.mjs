@@ -8,7 +8,7 @@ import { CYCLE_LABEL } from '../../src/lib/election.js';
 import { peopleSentence, placementLine } from '../../src/lib/explain.js';
 import { GRADES, LETTERS, PARTS, gradeInfo, isLetter, withArticle } from '../../src/lib/grades.js';
 import { displayName, partyName, roleTitle, seatLabel, usd } from '../../src/lib/people.js';
-import { CAVEAT, FINDINGS, SAY, STUDIES } from '../../src/lib/research.js';
+import { FINDINGS, LEAD, STUDIES, WISHES } from '../../src/lib/research.js';
 
 export const SITE = 'https://taskforcepurple.com';
 export const SITE_NAME = 'Task Force Purple';
@@ -123,16 +123,17 @@ export function homePage(members) {
     },
     body: `<main class="wrap section" data-prerendered>
 <h1 class="display display-xl">Who's paying your representatives?</h1>
-<p class="lede">We grade every member of Congress on where their campaign money comes from. Members funded by lots of ordinary donors get high grades. Members who rely on PACs or a small group of wealthy donors get low grades. All the figures come from public FEC filings.</p>
+<p class="lede">Every member of Congress is graded on where their money comes from. Look up your representative to see who's funding them.</p>
 <p>${graded.length} members graded: ${esc(counts)}.</p>
 <p><a href="/congress">See every member of Congress</a> · <a href="/how">How grades work</a></p>
 <h2>Why this matters to all of us</h2>
-<p>${SAY.donors}% of Americans say people who give a lot to campaigns have too much influence over what members of Congress decide; ${SAY.people}% say the same of the people they represent (Pew Research Center, ${SAY.when}).</p>
+<p>${esc(LEAD.replace(/\[\d+\]/g, ''))}</p>
+<h3>Whose wishes become law?</h3>
+<p>When average Americans wanted a policy, it became law about ${WISHES.average.few}% of the time, whether one in five or four in five of them wanted it. When the richest tenth wanted it, the chance rose from about ${WISHES.richest.few}% to ${WISHES.richest.most}%, with everyone else's wishes held steady (${esc(STUDIES[0].cite)}, ${esc(WISHES.scope)})</p>
 ${FINDINGS.map(f => `<h3>${esc(f.head)}</h3>\n<p>${esc(f.text)}</p>`).join('\n')}
-<p>${esc(CAVEAT.replace(/\[\d+\]/g, ''))}</p>
-<ol>${STUDIES.map(st => `<li>${esc(st.cite)}, <a href="${esc(st.url)}">${esc(st.title)}</a>. ${esc(st.detail)}</li>`).join('')}</ol>
+<ol>${STUDIES.map(st => `<li>${esc(st.cite)}, <a href="${esc(st.url)}">${esc(st.title)}</a>. ${esc(st.detail)}${st.note ? ` <a href="${esc(st.note.url)}">${esc(st.note.text)}</a>` : ''}</li>`).join('')}</ol>
 </main>`,
-    signature: JSON.stringify([counts, 'why-1']),
+    signature: JSON.stringify([counts, 'why-2']),
   };
 }
 

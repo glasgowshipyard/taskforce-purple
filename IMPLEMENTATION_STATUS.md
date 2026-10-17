@@ -9,20 +9,29 @@
 Owner's list:
 
 - **"Why this matters to all of us"** on the home page, after "How we
-  grade" (owner's mock-up, recent research only by the owner's choice). A
-  chart from Pew Research Center's July 2023 survey: 80% of Americans say
-  people who give a lot to campaigns have too much influence over Congress,
-  9% say the same of the people members represent (Republicans 83%,
-  Democrats 80% on donors), the gap filled with the graphs' gradient. Then
-  two findings: donors linked to what members talk about (Goel et al. 2023,
-  PLOS ONE, House 1995 to 2018) and money from a few big donors linked to
-  less legislative work (Parmigiani 2025, Journal of Public Economics); and
-  where studies disagree (Fowler, Garro and Spenkuch 2020; Furnas et al.
-  2023). Every figure was read in the source itself; each is linked by DOI.
-  Content in `src/lib/research.js`, also in the pre-built home page. The
-  mock-up's figures were checked and dropped: its Gilens and Page values
-  (80% and 55%) weren't the paper's, its access study wasn't lobbyists, and
-  its third study had the wrong journal and years.
+  grade" (owner's mock-up). Opens on the point: money doesn't have to buy
+  votes to matter; research links it to whose wishes become law, who
+  members make time for and what they work on. The chart is Gilens and
+  Page (2014), drawn from the figures the paper gives: a policy average
+  Americans wanted became law about 30% of the time whether 1 in 5 or 4 in
+  5 of them wanted it; for the richest tenth, about 18% rising to 45% (the
+  gap filled with the graphs' gradient). Then three findings: donors get
+  the meetings (Kalla and Broockman 2016, a field experiment), donors are
+  linked to what members talk about (Goel et al. 2023) and money from a few
+  big donors is linked to less work (Parmigiani 2025). Where serious work
+  disagrees, the source note says so (Enns 2015; Furnas et al. 2023). Every
+  figure was read in the source; each is linked by DOI. Content in
+  `src/lib/research.js`, also in the pre-built home page. The mock-up's
+  figures were checked and dropped: its Gilens and Page values (80% and
+  55%) weren't the paper's, its access study wasn't lobbyists, and its
+  third study had the wrong journal and years. A first version led on a
+  2023 Pew opinion poll; the owner dropped it ("it proves nothing, that's
+  the site's job").
+- **Home page words:** the hero says "Every member of Congress is graded
+  on where their money comes from. Look up your representative to see
+  who's funding them." (owner). "How we grade" lists People, Power and
+  Influence one per line, each word in its colour (`--people`, `--power`,
+  `--influence` in app.css: the grade colours darkened to pass as text).
 - **Flags are pictures, not emoji**, 22px wide in the "Country-focused"
   chips: small PNGs in `public/flags/` made from the flag-icons set (MIT,
   licence beside them), 96 KB for all 104 countries.

@@ -32,6 +32,12 @@
   --own: #e3a008;
   --other: #e2dfd8;
 
+  /* People, Power and Influence as words: the grade colours, darkened to
+     read as text on paper and white */
+  --people: #0a7a5c;
+  --power: #8a6600;
+  --influence: #b23a26;
+
   --checked: #0b7a5c;
   --provisional: #8a5a00;
   --alert-bg: #fff4f1;
@@ -1115,8 +1121,30 @@ p {
   font-size: 22px;
 }
 
-.step p:not(.step-num) {
+.step p:not(.step-num),
+.step li {
   color: var(--ink-2);
+}
+
+.source-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 6px;
+}
+
+/* People, Power and Influence, each in its own colour (owner, 2026-10-17) */
+.part.is-people {
+  color: var(--people);
+}
+
+.part.is-power {
+  color: var(--power);
+}
+
+.part.is-influence {
+  color: var(--influence);
 }
 
 .cta {
@@ -1143,7 +1171,12 @@ p {
   align-items: flex-start;
 }
 
-.say {
+.matters-lead {
+  margin: 18px 0 clamp(28px, 4vw, 40px);
+  max-width: 40em;
+}
+
+.wishes {
   flex: 1 1 440px;
   min-width: 0;
   margin: 0;
@@ -1153,114 +1186,63 @@ p {
   padding: 32px clamp(20px, 4vw, 40px);
 }
 
-.say h3 {
+.wishes h3 {
   font-size: 22px;
   margin-bottom: 4px;
 }
 
-.say-plot {
-  margin: 28px 0 20px;
+.wishes svg {
+  width: 100%;
+  max-width: 460px;
+  margin: 20px auto 16px;
 }
 
-.say-stats {
-  display: flex;
-  justify-content: space-between;
-  gap: 24px;
+.wishes-base {
+  stroke: var(--line-2);
+  stroke-width: 1;
 }
 
-.say-stats p {
-  max-width: 48%;
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
+.wishes-gap {
+  opacity: 0.4;
 }
 
-.say-stats .is-end {
-  text-align: right;
-  align-items: flex-end;
+.wishes-line {
+  stroke-width: 3;
+  stroke-linecap: round;
 }
 
-.say-stats b {
-  font-family: var(--display);
-  font-weight: 900;
-  font-size: clamp(48px, 6vw, 72px);
-  line-height: 0.9;
+.wishes-line.is-average,
+.wishes-dot.is-average {
+  stroke: var(--people);
 }
 
-/* The colour names the side; the words stay in ink */
-.say-stats span {
-  font-size: 15px;
-  line-height: 1.35;
-  color: var(--ink-2);
-  padding-left: 16px;
-  position: relative;
+.wishes-line.is-richest,
+.wishes-dot.is-richest {
+  stroke: var(--influence);
 }
 
-.say-stats .is-end span {
-  padding: 0 16px 0 0;
+.wishes-dot {
+  fill: var(--white);
+  stroke-width: 3;
 }
 
-.say-stats span::before {
-  content: '';
-  position: absolute;
-  left: 0;
-  top: 0.4em;
-  width: 9px;
-  height: 9px;
-  border-radius: 50%;
-  background: var(--c);
+.wishes-label {
+  font-size: 14px;
+  font-weight: 600;
+  fill: var(--ink-2);
 }
 
-.say-stats .is-end span::before {
-  left: auto;
-  right: 0;
+.wishes-value {
+  font-family: var(--mono);
+  font-size: 14px;
+  font-weight: 700;
+  fill: var(--ink);
 }
 
-.say-track {
-  position: relative;
-  height: 16px;
-  margin: 20px 0 8px;
-}
-
-.say-track::before {
-  content: '';
-  position: absolute;
-  left: 0;
-  right: 0;
-  top: 50%;
-  height: 2px;
-  background: var(--line);
-  transform: translateY(-50%);
-}
-
-.say-gap {
-  position: absolute;
-  top: 2px;
-  bottom: 2px;
-  border-radius: 999px;
-}
-
-.say-dot {
-  position: absolute;
-  top: 50%;
-  width: 18px;
-  height: 18px;
-  border-radius: 50%;
-  background: var(--c);
-  border: 3px solid var(--white);
-  box-shadow: 0 0 0 1px var(--line-2);
-  transform: translate(-50%, -50%);
-}
-
-.say-scale {
-  display: grid;
-  grid-template-columns: 1fr auto 1fr;
+.wishes-axis {
+  font-family: var(--mono);
   font-size: 12px;
-  color: var(--muted);
-}
-
-.say-scale span:last-child {
-  text-align: right;
+  fill: var(--muted);
 }
 
 .matters-findings {
@@ -1283,12 +1265,6 @@ p {
 }
 
 .finding p {
-  color: var(--ink-2);
-}
-
-.matters-caveat {
-  border-left: 6px solid var(--purple);
-  padding: 4px 0 4px 18px;
   color: var(--ink-2);
 }
 

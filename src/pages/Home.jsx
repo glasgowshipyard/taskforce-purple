@@ -207,11 +207,20 @@ export function HowSteps() {
       <div className="step">
         <p className="step-num">02</p>
         <h3>It comes from three sources</h3>
-        <p>
-          <strong>People:</strong> money from many different people, whether a check is for $5 or
-          $5,000. <strong>Power:</strong> big money from only a few wealthy donors.{' '}
-          <strong>Influence:</strong> money from PACs, businesses, politicians and parties.
-        </p>
+        <ul className="source-list">
+          <li>
+            <strong className="part is-people">People:</strong> money from many different people,
+            whether a check is for $5 or $5,000.
+          </li>
+          <li>
+            <strong className="part is-power">Power:</strong> big money from only a few wealthy
+            donors.
+          </li>
+          <li>
+            <strong className="part is-influence">Influence:</strong> money from PACs, businesses,
+            politicians and parties.
+          </li>
+        </ul>
       </div>
       <div className="step">
         <p className="step-num">03</p>
@@ -260,9 +269,8 @@ export default function Home() {
               Who&apos;s paying your representatives?
             </h1>
             <p className="lede">
-              We grade every member of Congress on where their campaign money comes from. Members
-              funded by lots of ordinary donors get high grades. Members who rely on PACs or a small
-              group of wealthy donors get low grades. All the figures come from public FEC filings.
+              Every member of Congress is graded on where their money comes from. Look up your
+              representative to see who&apos;s funding them.
             </p>
           </div>
           <div className="hero-stamps" aria-hidden="true">
