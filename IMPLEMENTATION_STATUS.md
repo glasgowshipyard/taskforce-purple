@@ -4,6 +4,39 @@
 
 ---
 
+## 2026-10-17 (later still): receipts from the grade's own figures
+
+- **One source of truth for a member's money** (owner: "the numbers HAVE
+  to be perfect"). The receipt was built from the FEC bucket figures
+  (`personFigures`) while the "Why" used the grade's working
+  (`grade.detail`): same dollars, sorted differently. Money passed on by
+  other politicians' joint funds sat inside "Big donations" on the
+  receipt but under "Parties and other politicians" in the Why; gifts a
+  committee directed were spread across small, big and PAC lines. The
+  receipt now comes from the grade's working (`receiptLines` in
+  `src/lib/people.js`): the five kinds the Why lists, a SUBTOTAL (what the
+  grade is on), then own money and other money under "Not in the grade",
+  then the TOTAL. Whole dollars that add up exactly to the subtotal and the
+  total (largest remainder; each line within a dollar of the exact
+  figure). Lines are never hidden for being small: before, party, own and
+  other money under 1% were dropped, so some receipts didn't add up. The
+  share card shows small, big and PAC money and "Everything else".
+- **Known fault, not fixed yet:** for 2 members (S001232, S001183) the
+  grade's money comes to more than their total raised ($44,025 and
+  $140,744), because money passed on by other politicians' joint funds
+  isn't all in their own campaign's latest report yet. Their receipts
+  show the sum of the lines as the total. The fix belongs in
+  `workers/person-funding.js` (match what joint funds passed on to what
+  the member's committees report receiving); it can move grades, so it
+  waits for a simulation and the owner's yes.
+- **"Why this matters", in plainer words** (owner: "a plain English
+  thesis, not a paper"): the chart is "How wealth influences policy",
+  Wealthy and Middle class, "Few want it" to "Most want it", "45% chance";
+  the caption is just the source. The opening line and the three findings
+  were reworded the same way.
+
+---
+
 ## 2026-10-17 (late night): "Why this matters", flag pictures, graph polish
 
 Owner's list:

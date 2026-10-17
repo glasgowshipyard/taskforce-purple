@@ -128,12 +128,12 @@ export function homePage(members) {
 <p><a href="/congress">See every member of Congress</a> · <a href="/how">How grades work</a></p>
 <h2>Why this matters to all of us</h2>
 <p>${esc(LEAD.replace(/\[\d+\]/g, ''))}</p>
-<h3>Whose wishes become law?</h3>
-<p>When average Americans wanted a policy, it became law about ${WISHES.average.few}% of the time, whether one in five or four in five of them wanted it. When the richest tenth wanted it, the chance rose from about ${WISHES.richest.few}% to ${WISHES.richest.most}%, with everyone else's wishes held steady (${esc(STUDIES[0].cite)}, ${esc(WISHES.scope)})</p>
+<h3>How wealth influences policy</h3>
+<p>When the middle class wanted a policy, it had about a ${WISHES.average.few}% chance of becoming law, whether few or most of them wanted it. When the wealthy wanted it, the chance rose from about ${WISHES.richest.few}% to ${WISHES.richest.most}% (${esc(STUDIES[0].cite)}).</p>
 ${FINDINGS.map(f => `<h3>${esc(f.head)}</h3>\n<p>${esc(f.text)}</p>`).join('\n')}
 <ol>${STUDIES.map(st => `<li>${esc(st.cite)}, <a href="${esc(st.url)}">${esc(st.title)}</a>. ${esc(st.detail)}${st.note ? ` <a href="${esc(st.note.url)}">${esc(st.note.text)}</a>` : ''}</li>`).join('')}</ol>
 </main>`,
-    signature: JSON.stringify([counts, 'why-2']),
+    signature: JSON.stringify([counts, 'why-3']),
   };
 }
 

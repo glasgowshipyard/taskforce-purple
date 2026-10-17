@@ -6,18 +6,17 @@
 // pre-built version (scripts/site/pages.mjs).
 
 // Gilens and Page (2014): the chance a proposed policy change became law,
-// with everyone else's wishes held steady, when one in five or four in five
-// of a group wanted it. Average Americans (middle income): about 0.3 either
-// way. The richest tenth (90th percentile of income): about 18% and 45%
+// with everyone else's wishes held steady, when one in five ("few") or four
+// in five ("most") of a group wanted it. Middle class (median income): about
+// 0.3 either way. Wealthy (90th percentile of income): about 18% and 45%
 export const WISHES = {
   average: { few: 30, most: 30 },
   richest: { few: 18, most: 45 },
-  scope: '1,779 policy questions, 1981 to 2002.',
 };
 
 // Opening line. [n] marks a source
 export const LEAD =
-  "Money doesn't have to buy votes to matter. Whether it changes votes is still argued over,[3] but research keeps linking it to whose wishes become law, who members make time for and what they work on.";
+  "Money doesn't have to buy a vote to matter. Studies link it to whose wishes become law, who gets a meeting and what members spend their time on. Whether it changes votes is still argued over.[3]";
 
 /** The sources, numbered as the page numbers them */
 export const STUDIES = [
@@ -64,17 +63,17 @@ export const STUDIES = [
 export const FINDINGS = [
   {
     head: 'Donors get the meetings',
-    text: 'A political group asked 191 congressional offices for meetings. When the people coming were said to be donors, the member or a senior staffer made time three to four times as often.',
+    text: 'A political group asked 191 congressional offices for meetings. When the office was told the visitors were donors, the member or a top aide was three to four times as likely to meet them.',
     source: 2,
   },
   {
     head: 'Donors are linked to what members talk about',
-    text: 'Across 24 years of the House, the groups that gave a member money were more closely linked to the issues the member spoke about than their party, home state or committees were.',
+    text: 'Over 24 years in the House, the groups that paid a member were a better guide to what that member talked about than their party, home state or committees.',
     source: 3,
   },
   {
     head: 'Money from a few big donors is linked to less work',
-    text: "Members who got more of their money from their biggest donors sponsored fewer bills, spoke less on the floor and testified before fewer committees, most of all on bills about health and social welfare. It's why our grade looks at how few donors gave half the big money.",
+    text: "Members who relied more on their biggest donors put forward fewer bills, gave fewer speeches and spoke at fewer hearings, especially on health and welfare. That's why our grade checks how few donors gave half the big money.",
     source: 4,
   },
 ];

@@ -29,6 +29,7 @@
   --big: #b7a6f5;
   --pac: #15131c;
   --party: #9c98a6;
+  --directed: #6b6578;
   --own: #e3a008;
   --other: #e2dfd8;
 
@@ -1402,6 +1403,22 @@ p {
 
 .slip .lines li {
   padding: 11px 0;
+}
+
+/* What the grade is on; under it, what's shown but left out */
+.slip-subtotal {
+  display: flex;
+  justify-content: space-between;
+  font-weight: 600;
+  padding-top: 12px;
+}
+
+.slip-aside {
+  margin-top: 12px;
+  font-size: 12px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted);
 }
 
 .slip-total {

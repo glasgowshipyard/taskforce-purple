@@ -141,6 +141,18 @@ export const MONEY_KINDS = {
     canvas: '#B7A6F5',
   },
   pac: { label: 'PACs', short: 'PACs', color: 'var(--pac)', canvas: '#15131C' },
+  directed: {
+    label: 'Gifts passed on by a committee',
+    short: 'Passed on',
+    color: 'var(--directed)',
+    canvas: '#6B6578',
+  },
+  politicians: {
+    label: 'Parties and other politicians',
+    short: 'Politicians',
+    color: 'var(--party)',
+    canvas: '#9C98A6',
+  },
   party: { label: 'Party committees', short: 'Party', color: 'var(--party)', canvas: '#9C98A6' },
   own: {
     label: 'Their own money',
@@ -157,8 +169,80 @@ export const MONEY_KINDS = {
 };
 
 /**
- * The receipt's lines: each kind of money, its dollars and its whole
- * percentage. Party and other money appear only when there is some.
+ * Whole dollars that add up exactly to `target` (by default the rounded
+ * total; largest remainder), so a receipt's lines always sum to its total.
+ */
+export function wholeDollars(amounts, target) {
+  const raw = amounts.map(a => Math.max(0, Number(a) || 0));
+  const floors = raw.map(Math.floor);
+  let left =
+    (target ?? Math.round(raw.reduce((s, a) => s + a, 0))) - floors.reduce((s, a) => s + a, 0);
+  const order = raw.map((a, i) => [a - floors[i], i]).sort((x, y) => y[0] - x[0]);
+  for (const [, i] of order) {
+    if (left <= 0) {
+      break;
+    }
+    floors[i]++;
+    left--;
+  }
+  return floors;
+}
+
+/**
+ * The receipt, from the grade's own working (FINAL-3 `grade.detail`), so it
+ * matches the "Why" line for line (owner, 2026-10-17: one source of truth).
+ * `counted`: the kinds of money the grade is on, in the Why's order;
+ * `left`: own money and other money, shown but not graded; whole dollars
+ * that add up exactly to `subtotal` and `total`. `f`: gradedFigures.
+ *
+ * The total is what the FEC says they raised. Where the grade's money comes
+ * to more than that (money passed on by other politicians' joint funds that
+ * the member's own reports don't show yet), the total is the sum of the
+ * lines, so the receipt still adds up. That gap is a fault in how the total
+ * is worked out (workers/person-funding.js), not something to show.
+ */
+export function receiptLines(detail, f) {
+  const v = x => Math.max(0, Number(x) || 0);
+  const counted = [
+    ['small', v(detail.small)],
+    ['big', v(detail.big)],
+    ['pac', v(detail.pac)],
+    ['directed', v(detail.directed)],
+    ['politicians', v(detail.party) + v(detail.otherPoliticiansFunds)],
+  ];
+  const given = counted.reduce((s, [, a]) => s + a, 0);
+  const own = v(f.ownMoney);
+  const left = [
+    ['own', own],
+    ['other', Math.max(0, v(f.totalRaised) - given - own)],
+  ];
+  // Rounded in two steps, so both the subtotal and the total come out exact
+  const subtotal = Math.round(given);
+  const total = Math.round(given + left.reduce((s, [, a]) => s + a, 0));
+  const line = ([key], amount) => ({ key, ...MONEY_KINDS[key], amount });
+  const countedDollars = wholeDollars(
+    counted.map(([, a]) => a),
+    subtotal
+  );
+  const leftDollars = wholeDollars(
+    left.map(([, a]) => a),
+    total - subtotal
+  );
+  const countedLines = counted.map((k, i) => line(k, countedDollars[i]));
+  const leftLines = left.map((k, i) => line(k, leftDollars[i]));
+  return {
+    // Small, big and PAC money always show, even at $0; the rest when there is some
+    counted: countedLines.filter(l => ['small', 'big', 'pac'].includes(l.key) || l.amount > 0),
+    subtotal,
+    left: leftLines.filter(l => l.amount > 0),
+    total,
+  };
+}
+
+/**
+ * The receipt's lines without FINAL-3's working (no grade detail): each
+ * kind of money, its dollars and its whole percentage. Party, own and other
+ * money appear when there is some; the dollars add up to the total.
  */
 export function moneyLines(f) {
   const total = f.totalRaised;
@@ -179,11 +263,18 @@ export function moneyLines(f) {
     keys.map(k => amounts[k] || 0),
     total
   );
+  const dollars = wholeDollars(keys.map(k => amounts[k] || 0));
   return keys
-    .map((key, i) => ({ key, ...MONEY_KINDS[key], amount: amounts[key], pct: pcts[i] }))
+    .map((key, i) => ({
+      key,
+      ...MONEY_KINDS[key],
+      // null: big donations not collected yet, which is not the same as none
+      amount: amounts[key] === null ? null : dollars[i],
+      pct: pcts[i],
+    }))
     .filter(l => {
       if (l.key === 'party' || l.key === 'other' || l.key === 'own') {
-        return l.pct >= 1;
+        return l.amount > 0;
       }
       return true;
     });

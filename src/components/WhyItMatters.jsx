@@ -1,9 +1,10 @@
 // "Why this matters" on the home page (owner's mockup, 2026-10-17): what
 // research says about who pays for Congress, every claim linked to its
-// source (lib/research.js). The chart is Gilens and Page's finding, drawn
-// from the figures the study gives: whose wishes become law, the gap where
-// the richest get their way filled with the graphs' people-to-influence
-// gradient.
+// source (lib/research.js), in plain words for anyone (owner: "a plain
+// English thesis, not a paper"). The chart is Gilens and Page's finding,
+// drawn from the figures the study gives, in the owner's mockup's words;
+// the gap where the wealthy get their way is filled with the graphs'
+// people-to-influence gradient.
 import React from 'react';
 import { GRAPH_GRADIENT } from '../lib/grades.js';
 import { FINDINGS, LEAD, STUDIES, WISHES, withSources } from '../lib/research.js';
@@ -32,24 +33,23 @@ const y = v => BASE - v * 2.8;
 
 function WishesChart() {
   const { average: avg, richest: rich } = WISHES;
-  // Where the richest's line crosses the average's: from there on, the
-  // richest get their way more often
+  // Where the wealthy's line crosses the middle class's: from there on, the
+  // wealthy get their way more often
   const t = (avg.few - rich.few) / (rich.most - rich.few - (avg.most - avg.few));
   const cross = X.few + t * (X.most - X.few);
   const study = STUDIES[0];
   return (
     <figure className="wishes">
       <figcaption>
-        <h3>Whose wishes become law?</h3>
+        <h3>How wealth influences policy</h3>
         <p className="small muted">
-          The chance a proposed policy became law, by how many average Americans, or how many of the
-          richest tenth, wanted it
+          The chance a proposed policy becomes law, depending on who wants it
         </p>
       </figcaption>
       <svg
         viewBox="0 0 360 212"
         role="img"
-        aria-label={`When average Americans wanted a policy, it became law about ${avg.few}% of the time, whether one in five or four in five of them wanted it. When the richest tenth wanted it, the chance rose from about ${rich.few}% to ${rich.most}%.`}
+        aria-label={`When the middle class wanted a policy, it had about a ${avg.few}% chance of becoming law, whether few or most of them wanted it. When the wealthy wanted it, the chance rose from about ${rich.few}% to ${rich.most}%.`}
       >
         <defs>
           <linearGradient id="wishes-gap" gradientUnits="userSpaceOnUse" x1={cross} x2={X.most}>
@@ -96,21 +96,20 @@ function WishesChart() {
           {rich.few}%
         </text>
         <text x={X.most + 6} y={y(rich.most) - 14} textAnchor="end" className="wishes-label">
-          The richest tenth <tspan className="wishes-value">{rich.most}%</tspan>
+          Wealthy <tspan className="wishes-value">{rich.most}%</tspan> chance
         </text>
         <text x={X.most + 6} y={y(avg.most) + 24} textAnchor="end" className="wishes-label">
-          Average Americans <tspan className="wishes-value">{avg.most}%</tspan>
+          Middle class <tspan className="wishes-value">{avg.most}%</tspan> chance
         </text>
         <text x={X.few} y={BASE + 22} textAnchor="middle" className="wishes-axis">
-          1 in 5 wanted it
+          Few want it
         </text>
         <text x={X.most} y={BASE + 22} textAnchor="middle" className="wishes-axis">
-          4 in 5 wanted it
+          Most want it
         </text>
       </svg>
       <p className="small muted">
-        With everyone else&apos;s wishes held steady. {WISHES.scope} Source:{' '}
-        <a href={study.url}>{study.cite}</a>
+        Source: <a href={study.url}>{study.cite}</a>
         <Note n={study.n} />
       </p>
     </figure>

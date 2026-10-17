@@ -4,6 +4,7 @@ import {
   displayName,
   fractionWords,
   moneyLines,
+  receiptLines,
   roleTitle,
   seatLabel,
   usdShort,
@@ -68,6 +69,71 @@ describe('moneyLines', () => {
     const lines = moneyLines({ ...f, pacMoney: 200, partyMoney: 34 });
     expect(lines.map(l => l.key)).toEqual(['small', 'big', 'pac', 'party', 'other']);
     expect(lines.find(l => l.key === 'other').amount).toBe(100);
+  });
+
+  it('dollars that add up to the total, however small a line', () => {
+    const lines = moneyLines({
+      totalRaised: 1000,
+      grassrootsDonations: 333.4,
+      largeDonorDonations: 333.3,
+      pacMoney: 332.3,
+      partyMoney: 1,
+    });
+    expect(lines.map(l => l.key)).toEqual(['small', 'big', 'pac', 'party']);
+    expect(lines.reduce((s, l) => s + l.amount, 0)).toBe(1000);
+  });
+});
+
+describe('receiptLines', () => {
+  // A real member's grade working (2026-10-17), in cents as stored
+  const detail = {
+    small: 4187581.73,
+    big: 6536631.89,
+    pac: 133999.85,
+    party: 1000,
+    otherPoliticiansFunds: 805415.87,
+    directed: 172270,
+    given: 11836899.34,
+  };
+  const f = { totalRaised: 11890907.99, ownMoney: 0 };
+
+  it('the kinds of money the Why lists, adding up to the subtotal and total', () => {
+    const r = receiptLines(detail, f);
+    // Each line within a dollar of the exact figure, and they add up exactly
+    expect(r.counted.map(l => [l.key, l.amount])).toEqual([
+      ['small', 4187581],
+      ['big', 6536632],
+      ['pac', 134000],
+      ['directed', 172270],
+      ['politicians', 806416],
+    ]);
+    expect(r.counted.reduce((s, l) => s + l.amount, 0)).toBe(r.subtotal);
+    expect(r.subtotal).toBe(11836899);
+    expect(r.left.map(l => [l.key, l.amount])).toEqual([['other', 54009]]);
+    expect(r.total).toBe(11890908);
+  });
+
+  it('own money is shown, outside the grade', () => {
+    const r = receiptLines(detail, { totalRaised: 12000000, ownMoney: 100000 });
+    expect(r.left.map(l => [l.key, l.amount])).toEqual([
+      ['own', 100000],
+      ['other', 63101],
+    ]);
+    expect(r.subtotal + 100000 + 63101).toBe(r.total);
+  });
+
+  it('still adds up when the grade counts more than the reported total', () => {
+    const r = receiptLines(detail, { totalRaised: 11000000, ownMoney: 0 });
+    expect(r.left).toEqual([]);
+    expect(r.total).toBe(r.subtotal);
+  });
+
+  it('leaves out kinds with nothing in them, except the main three', () => {
+    const r = receiptLines(
+      { small: 10, big: 0, pac: 0, directed: 0, party: 0 },
+      { totalRaised: 10 }
+    );
+    expect(r.counted.map(l => l.key)).toEqual(['small', 'big', 'pac']);
   });
 });
 

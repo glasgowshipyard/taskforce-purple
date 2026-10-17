@@ -29,9 +29,11 @@ import { gradeInfo, isLetter, isRingfenced, withArticle } from '../lib/grades.js
 import { useAsync, useTitle } from '../lib/hooks.js';
 import { lightHandlers, useLight } from '../lib/light.js';
 import {
+  MONEY_KINDS,
   displayName,
   gradedFigures,
   moneyLines,
+  receiptLines,
   partyName,
   roleTitle,
   seatLabel,
@@ -151,6 +153,25 @@ function findRace(races, pred) {
   return null;
 }
 
+// The share card has room for four lines: small donations, big donations
+// and PACs, then the rest together, so its lines still add up to its total
+function cardLines(lines) {
+  if (lines.length <= 4) {
+    return lines;
+  }
+  const first = lines.slice(0, 3);
+  const rest = lines.slice(3);
+  return [
+    ...first,
+    {
+      key: 'rest',
+      ...MONEY_KINDS.other,
+      short: 'Everything else',
+      amount: rest.reduce((s, l) => s + l.amount, 0),
+    },
+  ];
+}
+
 export default function Member({ id, kind = 'member' }) {
   const isCandidate = kind === 'candidate';
   const list = useAsync(() => api.members(), []);
@@ -225,10 +246,22 @@ export default function Member({ id, kind = 'member' }) {
   const f = gradedFigures(m);
   const withheld = isRingfenced(m.tier);
   const hasMoney = f.totalRaised > 0 && !withheld;
-  const lines = hasMoney ? moneyLines(f) : [];
-  const ownPct = lines.find(l => l.key === 'own')?.pct ?? 0;
   // FINAL-3's working, in dollars (workers/grading.js gradeMemberFinal3)
   const final3 = d?.grade?.detail?.method === 'final-3' ? d.grade.detail : null;
+  // The receipt: from the grade's own working when there is one, so it
+  // matches the "Why" line for line; dollars that add up to the total
+  const receipt = !hasMoney
+    ? null
+    : final3
+      ? receiptLines(final3, f)
+      : (lines => ({
+          counted: lines,
+          subtotal: null,
+          left: [],
+          total: lines.reduce((s, l) => s + (l.amount || 0), 0),
+        }))(moneyLines(f));
+  const ownAmount = receipt?.left.find(l => l.key === 'own')?.amount ?? 0;
+  const ownPct = receipt?.total > 0 ? Math.round((ownAmount / receipt.total) * 100) : 0;
   const ppi = hasMoney ? (m.peoplePowerInfluence ?? peoplePowerInfluence(final3)) : null;
   const score = d?.grade?.score ?? m.individualFundingPercent;
   const trail = d?.moneyTrail;
@@ -271,9 +304,9 @@ export default function Member({ id, kind = 'member' }) {
       ? 'Candidate'
       : { Senator: 'Sen.', Representative: 'Rep.', Delegate: 'Del.' }[title] || title,
     tier: m.tier,
-    lines,
+    lines: receipt ? cardLines([...receipt.counted, ...receipt.left]) : [],
     ppi,
-    total: usdShort(f.totalRaised),
+    total: usdShort(receipt?.total ?? f.totalRaised),
     headline: sentence || '',
     sub: placement ? `${placement}.` : '',
     host: window.location.host,
@@ -353,11 +386,24 @@ export default function Member({ id, kind = 'member' }) {
                   )}
                 </p>
                 <div className="tear" style={{ marginTop: 18 }} />
-                <MoneyLines lines={lines} value={l => usd(l.amount)} />
+                <MoneyLines lines={receipt?.counted ?? []} value={l => usd(l.amount)} />
+                {receipt?.left.length > 0 && (
+                  <>
+                    <div className="tear" style={{ marginTop: 6 }} />
+                    <p className="slip-subtotal">
+                      <span>SUBTOTAL</span>
+                      <span>{usd(receipt.subtotal)}</span>
+                    </p>
+                    <p className="slip-aside">
+                      Not in the grade · <Link to="/how#left-out">why</Link>
+                    </p>
+                    <MoneyLines lines={receipt.left} value={l => usd(l.amount)} />
+                  </>
+                )}
                 <div className="tear" style={{ marginTop: 6 }} />
                 <p className="slip-total">
                   <span>TOTAL</span>
-                  <span>{usd(f.totalRaised)}</span>
+                  <span>{usd(receipt?.total ?? f.totalRaised)}</span>
                 </p>
                 <p style={{ marginTop: 22 }}>
                   <Evidence checked={checked} long />
@@ -465,7 +511,7 @@ export default function Member({ id, kind = 'member' }) {
                 {ownPct >= 5 && (
                   <Section title="Their own money">
                     <p>
-                      {name} put {usd(f.ownMoney)} of their own money into this campaign: {ownPct}%
+                      {name} put {usd(ownAmount)} of their own money into this campaign: {ownPct}%
                       of everything raised. Candidates can spend as much of their own money as they
                       like. We leave it out of the grade, because it doesn&apos;t make them depend
                       on anyone.
