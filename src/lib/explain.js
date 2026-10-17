@@ -273,7 +273,7 @@ export function explainGrade({ tier, grade, name }) {
   });
 
   return {
-    intro: `Every share here is of all the money given to ${name}. Their own money, loans and transfers are left out.`,
+    intro: `Where it came from, as shares of all the money given to ${name}. Their own money, loans and transfers are left out.`,
     steps,
     ppi,
   };

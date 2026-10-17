@@ -151,7 +151,7 @@ describe('explainGrade', () => {
   it('goes through each kind of money and where it went', () => {
     const e = explainGrade(schiff);
     expect(e.intro).toBe(
-      'Every share here is of all the money given to Adam Schiff. Their own money, loans and transfers are left out.'
+      'Where it came from, as shares of all the money given to Adam Schiff. Their own money, loans and transfers are left out.'
     );
     expect(e.steps.map(s => s.title)).toEqual([
       'Small donations: 45%',

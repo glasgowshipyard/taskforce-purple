@@ -1,7 +1,8 @@
 // The pieces every page is built from: the grade stamp, a receipt's lines,
-// the evidence label and a section with a plain heading.
+// the evidence label, a section with a plain heading and a country's flag.
 import React from 'react';
 import { CheckCircle2, Clock3 } from 'lucide-react';
+import { flagSrc } from '../lib/flags.js';
 import { gradeInfo } from '../lib/grades.js';
 
 export function Stamp({
@@ -105,4 +106,12 @@ export function Section({ title, children }) {
 
 export function Skeleton({ height = 20, width = '100%', style }) {
   return <div className="skeleton" style={{ height, width, ...style }} aria-hidden="true" />;
+}
+
+/** A country's flag, beside its name (the name says it; the flag is decoration) */
+export function Flag({ country }) {
+  const src = flagSrc(country);
+  return src ? (
+    <img className="flag" src={src} alt="" width={22} height={16} loading="lazy" decoding="async" />
+  ) : null;
 }

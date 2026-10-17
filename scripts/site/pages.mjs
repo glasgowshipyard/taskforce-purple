@@ -8,6 +8,7 @@ import { CYCLE_LABEL } from '../../src/lib/election.js';
 import { peopleSentence, placementLine } from '../../src/lib/explain.js';
 import { GRADES, LETTERS, PARTS, gradeInfo, isLetter, withArticle } from '../../src/lib/grades.js';
 import { displayName, partyName, roleTitle, seatLabel, usd } from '../../src/lib/people.js';
+import { CAVEAT, FINDINGS, SAY, STUDIES } from '../../src/lib/research.js';
 
 export const SITE = 'https://taskforcepurple.com';
 export const SITE_NAME = 'Task Force Purple';
@@ -125,8 +126,13 @@ export function homePage(members) {
 <p class="lede">We grade every member of Congress on where their campaign money comes from. Members funded by lots of ordinary donors get high grades. Members who rely on PACs or a small group of wealthy donors get low grades. All the figures come from public FEC filings.</p>
 <p>${graded.length} members graded: ${esc(counts)}.</p>
 <p><a href="/congress">See every member of Congress</a> · <a href="/how">How grades work</a></p>
+<h2>Why this matters to all of us</h2>
+<p>${SAY.donors}% of Americans say people who give a lot to campaigns have too much influence over what members of Congress decide; ${SAY.people}% say the same of the people they represent (Pew Research Center, ${SAY.when}).</p>
+${FINDINGS.map(f => `<h3>${esc(f.head)}</h3>\n<p>${esc(f.text)}</p>`).join('\n')}
+<p>${esc(CAVEAT.replace(/\[\d+\]/g, ''))}</p>
+<ol>${STUDIES.map(st => `<li>${esc(st.cite)}, <a href="${esc(st.url)}">${esc(st.title)}</a>. ${esc(st.detail)}</li>`).join('')}</ol>
 </main>`,
-    signature: JSON.stringify(counts),
+    signature: JSON.stringify([counts, 'why-1']),
   };
 }
 

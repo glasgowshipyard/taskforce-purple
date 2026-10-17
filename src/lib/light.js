@@ -1,52 +1,21 @@
-// Which kind of money is lit up on a member's page, shared by the graph's
-// strips and the "Why" steps (owner, 2026-10-17). It breathes only while
-// someone's looking: while the pointer is on it, or for a few breaths after a
-// tap. Tapping anywhere else (outside a strip or a step) puts it out.
-import { useCallback, useEffect, useRef, useState } from 'react';
+// Which kind of money the pointer is on, on a member's page, shared by the
+// graph's strips and the "Why" steps (owner, 2026-10-17). Lit strips breathe
+// while the pointer is on them; an open step lights and breathes its strips
+// too (Member.jsx). Nothing else: no timers, nothing that keeps going.
+import { useCallback, useState } from 'react';
 
-const TAP_BREATHS_MS = 5100;
-// Strips and steps carry this; a tap on anything else clears the light
-const LIGHT_ATTRIBUTE = 'data-light';
-
-/** [light, setLight]: light is { key, breathing }; setLight(key, 'hover' | 'tap'), or (null) */
+/** [key, setKey]: the kind of money under the pointer, or null */
 export function useLight() {
-  const [light, setState] = useState({ key: null, breathing: false });
-  const timer = useRef(null);
-  const setLight = useCallback((key, how = 'hover') => {
-    clearTimeout(timer.current);
-    if (!key) {
-      setState({ key: null, breathing: false });
-      return;
-    }
-    setState({ key, breathing: true });
-    if (how === 'tap') {
-      timer.current = setTimeout(
-        () => setState(s => (s.key === key ? { key, breathing: false } : s)),
-        TAP_BREATHS_MS
-      );
-    }
-  }, []);
-  useEffect(() => {
-    const away = e => {
-      if (e.pointerType !== 'mouse' && !e.target.closest?.(`[${LIGHT_ATTRIBUTE}], .ppi`)) {
-        setLight(null);
-      }
-    };
-    document.addEventListener('pointerdown', away);
-    return () => {
-      clearTimeout(timer.current);
-      document.removeEventListener('pointerdown', away);
-    };
-  }, [setLight]);
-  return [light, setLight];
+  const [key, setState] = useState(null);
+  const setKey = useCallback(next => setState(next || null), []);
+  return [key, setKey];
 }
 
 /** The pointer handlers for something that lights `key` (a "Why" step) */
-export function lightHandlers(key, setLight) {
+export function lightHandlers(key, setKey) {
   return {
-    [LIGHT_ATTRIBUTE]: key,
-    onPointerEnter: e => e.pointerType === 'mouse' && setLight(key, 'hover'),
-    onPointerLeave: e => e.pointerType === 'mouse' && setLight(null),
-    onPointerDown: e => e.pointerType !== 'mouse' && setLight(key, 'tap'),
+    'data-light': key,
+    onPointerEnter: e => e.pointerType === 'mouse' && setKey(key),
+    onPointerLeave: e => e.pointerType === 'mouse' && setKey(null),
   };
 }

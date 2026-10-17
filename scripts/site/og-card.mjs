@@ -7,6 +7,7 @@
 import { createRequire } from 'node:module';
 import { Resvg } from '@resvg/resvg-js';
 import { monotonePath } from '../../src/lib/curve.js';
+import { CYCLE_SHORT } from '../../src/lib/election.js';
 import { GRADES, GRAPH_GRADIENT, PARTS } from '../../src/lib/grades.js';
 
 const require = createRequire(import.meta.url);
@@ -125,9 +126,11 @@ ${wordLines
   .join('')}
 </g>
 <line x1="${left}" x2="${right}" y1="${base + 0.5}" y2="${base + 0.5}" stroke="#DDDAD2" stroke-width="1"/>
-<defs><linearGradient id="graph" gradientUnits="userSpaceOnUse" x1="${pts[0].x}" x2="${pts[2].x}" y1="0" y2="0">${GRAPH_GRADIENT.map((c, i) => `<stop offset="${i / (GRAPH_GRADIENT.length - 1)}" stop-color="${c}"/>`).join('')}</linearGradient></defs>
+<defs><linearGradient id="graph" gradientUnits="userSpaceOnUse" x1="${pts[0].x}" x2="${pts[2].x}" y1="0" y2="0">${GRAPH_GRADIENT.map((c, i) => `<stop offset="${i / (GRAPH_GRADIENT.length - 1)}" stop-color="${c}"/>`).join('')}</linearGradient><clipPath id="line-ends"><rect x="${pts[0].x}" y="0" width="${pts[2].x - pts[0].x}" height="${base + 2}"/></clipPath></defs>
 <path d="${curve} L${pts[2].x},${base} L${pts[0].x},${base} Z" fill="url(#graph)" fill-opacity="0.22"/>
-<path d="${curve}" fill="none" stroke="url(#graph)" stroke-width="4" stroke-linejoin="round" stroke-linecap="round"/>
+<path d="${curve}" fill="none" stroke="url(#graph)" stroke-width="4" stroke-linejoin="round" clip-path="url(#line-ends)"/>
+<circle cx="${right - 16}" cy="${top - 4}" r="16" fill="#FFFEFA" stroke="#3D3A46" stroke-width="2"/>
+<text x="${right - 16}" y="${top + 1.5}" font-family="IBM Plex Mono" font-weight="600" font-size="14" fill="#15131C" text-anchor="middle">${esc(CYCLE_SHORT)}</text>
 ${pts
   .map(
     p => `<text x="${p.x}" y="${base + 30}" font-family="IBM Plex Mono" font-weight="600" font-size="15" fill="#3D3A46" text-anchor="middle">${p.label.toUpperCase()}</text>

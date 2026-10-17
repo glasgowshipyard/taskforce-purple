@@ -7,14 +7,15 @@
 // 2026-10-17): left is people, right is corporate, the grade's own colours.
 // On a member's page the shape is cut into darker strips, one per kind of
 // money in each part, people to corporate (moneyStrips in lib/explain.js).
-// A strip and its "Why" step light each other up; the lit strip breathes
-// only while someone's looking at it (useLight in lib/light.js), and the
-// biggest one breathes three times the first time the graph comes into view.
+// A strip and its "Why" step light each other up, and lit strips breathe:
+// while the pointer is on them, and while their step is open (owner,
+// 2026-10-17: that's all; lib/light.js). Clicking or tapping a strip opens
+// its step.
 // Some readers prefer plain bars, since the three parts are separate: a
 // switch on the member's page draws every graph as bars instead (lib/
 // graph-shape.js), each bar stacked from its strips.
 // Under the graph, the grade letters with this member's circled.
-import React, { useEffect, useId, useRef, useState } from 'react';
+import React, { useId, useState } from 'react';
 import { monotonePath } from '../lib/curve.js';
 import { CYCLE_SHORT } from '../lib/election.js';
 import { setGraphShape, useGraphShape } from '../lib/graph-shape.js';
@@ -48,9 +49,10 @@ export function TierStrip({ tier }) {
 
 /**
  * ppi: { people, power, influence }, whole percentages adding up to 100.
- * strips (member page): moneyStrips(detail); light: { key, breathing } from
- * useLight, and onLight(key, how) to change it; onPick(key) when a strip is
- * clicked or tapped (the member page opens its step). `showToggle` adds the
+ * strips (member page): moneyStrips(detail); light: { key, breathing },
+ * onLight(key) when the pointer is on a strip (null when it leaves), and
+ * onPick(key) when a strip is clicked or tapped (the member page opens its
+ * step). `showToggle` adds the
  * curve-or-bars switch, `showKey` explains the three parts under the graph;
  * `compact` for cards.
  */
@@ -69,31 +71,8 @@ export default function MoneyGraph({
   const bars = shape === 'bars';
   const [active, setActive] = useState(null);
   const [pointed, setPointed] = useState(null);
-  const [hint, setHint] = useState(null);
-  const figure = useRef(null);
   const uid = useId().replace(/[^a-zA-Z0-9]/g, '');
   const hasStrips = Boolean(strips?.length);
-
-  // The first time the graph is properly in view, its biggest strip breathes
-  // three times: a hint that the strips do something. Then it's still
-  useEffect(() => {
-    if (!hasStrips || !figure.current || typeof IntersectionObserver === 'undefined') {
-      return undefined;
-    }
-    const observer = new IntersectionObserver(
-      entries => {
-        if (entries[0].isIntersecting) {
-          setHint([...strips].sort((a, b) => b.v - a.v)[0].key);
-          observer.disconnect();
-        }
-      },
-      { threshold: 0.6 }
-    );
-    observer.observe(figure.current);
-    return () => observer.disconnect();
-    // Once per graph
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [hasStrips]);
 
   if (!ppi) {
     return null;
@@ -115,6 +94,8 @@ export default function MoneyGraph({
   const line = monotonePath(pts);
   const area = `${line} L${x2},${base} L${x0},${base} Z`;
   const paint = `url(#g${uid})`;
+  // The cycle badge's radius: in the right margin, clear of the tallest bar
+  const badge = compact ? 11 : 13;
   const label = `${PARTS.map(p => `${p.label} ${ppi[p.key]}%`).join(', ')} of the money given${
     GRADES[tier] ? `. Grade ${tier}, ${GRADES[tier].name}` : ''
   }.`;
@@ -188,14 +169,12 @@ export default function MoneyGraph({
       b.n % 2 ? 'is-deep' : '',
       light?.key === b.key ? 'is-lit' : '',
       light?.key === b.key && light.breathing ? 'is-breathing' : '',
-      !light?.key && hint === b.key ? 'is-hint' : '',
     ]
       .filter(Boolean)
       .join(' ');
 
   return (
     <figure
-      ref={figure}
       className={`ppi${compact ? ' is-compact' : ''}${hasStrips ? ' has-strips' : ''}${bars ? ' is-bars' : ''}`}
       style={{ '--g': GRADES[tier]?.color || 'var(--purple)' }}
     >
@@ -255,10 +234,12 @@ export default function MoneyGraph({
             <clipPath id={`c${uid}`}>
               <path d={shapePath} />
             </clipPath>
+            {/* The line stops where the shape does: a thick line's ends tilt
+                with the curve and would poke out past the shape's sides */}
+            <clipPath id={`l${uid}`}>
+              <rect x={x0} y={0} width={x2 - x0} height={H} />
+            </clipPath>
           </defs>
-          <text x={W - PAD.right} y={PAD.top + 4} textAnchor="end" className="ppi-cycle">
-            {CYCLE_SHORT}
-          </text>
           {[0, 50, 100].map(v => (
             <g key={v}>
               <line
@@ -273,6 +254,13 @@ export default function MoneyGraph({
               </text>
             </g>
           ))}
+          {/* The election cycle, circled in the corner (and on the share card) */}
+          <g className="ppi-cycle" aria-hidden="true">
+            <circle cx={W - badge - 1} cy={PAD.top + badge} r={badge} />
+            <text x={W - badge - 1} y={PAD.top + badge + 4.5} textAnchor="middle">
+              {CYCLE_SHORT}
+            </text>
+          </g>
           <path d={shapePath} fill={paint} className="ppi-area" />
           {hasStrips && (
             <g clipPath={`url(#c${uid})`}>
@@ -285,25 +273,23 @@ export default function MoneyGraph({
                   height={b.h}
                   fill={paint}
                   className={stripClass(b)}
-                  onAnimationEnd={() => hint === b.key && setHint(null)}
-                  onClick={() => onPick?.(b.key)}
+                  onClick={() => {
+                    setPointed(b.n);
+                    onPick?.(b.key);
+                  }}
                   onPointerEnter={e => {
                     if (e.pointerType === 'mouse') {
                       setPointed(b.n);
-                      onLight(b.key, 'hover');
-                    }
-                  }}
-                  onPointerDown={e => {
-                    if (e.pointerType !== 'mouse') {
-                      setPointed(b.n);
-                      onLight(b.key, 'tap');
+                      onLight(b.key);
                     }
                   }}
                 />
               ))}
             </g>
           )}
-          {!bars && <path d={line} stroke={paint} className="ppi-line" />}
+          {!bars && (
+            <path d={line} stroke={paint} className="ppi-line" clipPath={`url(#l${uid})`} />
+          )}
           {pts.map((p, i) => (
             <g key={p.key}>
               {hover && active === i && !bars && (

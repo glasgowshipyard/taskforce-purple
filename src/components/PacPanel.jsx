@@ -5,10 +5,9 @@
 // gifts on to the member. Members graded before FINAL-3 show the plain list.
 import React from 'react';
 import { Link } from '../lib/router.js';
-import { flagFor } from '../lib/flags.js';
 import { pacRows } from '../lib/pacs.js';
 import { usd } from '../lib/people.js';
-import { Section } from './ui.jsx';
+import { Flag, Section } from './ui.jsx';
 
 // `people`: the group whose gifts can be People money
 const PAC_GROUPS = [
@@ -67,8 +66,8 @@ function Row({ p, i }) {
           {p.country && (
             <>
               {' '}
-              <span className="pac-chip">
-                <span aria-hidden="true">{flagFor(p.country)}</span> Country-focused: {p.country}
+              <span className="pac-chip has-flag">
+                <Flag country={p.country} /> Country-focused: {p.country}
               </span>
             </>
           )}

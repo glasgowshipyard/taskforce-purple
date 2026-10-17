@@ -2,6 +2,7 @@
 // the visitor's browser when they press Share. Nothing is rendered on a
 // server, so it costs nothing however many people share.
 import { monotonePath } from './curve.js';
+import { CYCLE_SHORT } from './election.js';
 import { GRAPH_GRADIENT, PARTS, gradeInfo } from './grades.js';
 import { usdShort } from './people.js';
 
@@ -115,7 +116,25 @@ function drawGraph(x, ppi, left, top, width, height) {
   x.strokeStyle = paint;
   x.lineWidth = 3;
   x.lineJoin = 'round';
+  // The line stops where the shape does
+  x.save();
+  x.beginPath();
+  x.rect(pts[0].x, 0, pts[2].x - pts[0].x, base + 2);
+  x.clip();
   x.stroke(line);
+  x.restore();
+  // The election cycle, circled, as on the page: whose cycle the figures are
+  x.beginPath();
+  x.arc(left + width - 12, top + 4, 12, 0, Math.PI * 2);
+  x.fillStyle = '#FFFEFA';
+  x.fill();
+  x.lineWidth = 1.5;
+  x.strokeStyle = '#3D3A46';
+  x.stroke();
+  x.fillStyle = '#15131C';
+  x.textAlign = 'center';
+  x.font = `700 11px ${MONO}`;
+  x.fillText(CYCLE_SHORT, left + width - 12, top + 8);
   for (const p of pts) {
     x.fillStyle = '#3D3A46';
     x.textAlign = 'center';

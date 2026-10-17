@@ -4,6 +4,36 @@
 
 ---
 
+## 2026-10-17 (late night): "Why this matters", flag pictures, graph polish
+
+Owner's list:
+
+- **"Why this matters to all of us"** on the home page, after "How we
+  grade" (owner's mock-up, recent research only by the owner's choice). A
+  chart from Pew Research Center's July 2023 survey: 80% of Americans say
+  people who give a lot to campaigns have too much influence over Congress,
+  9% say the same of the people members represent (Republicans 83%,
+  Democrats 80% on donors), the gap filled with the graphs' gradient. Then
+  two findings: donors linked to what members talk about (Goel et al. 2023,
+  PLOS ONE, House 1995 to 2018) and money from a few big donors linked to
+  less legislative work (Parmigiani 2025, Journal of Public Economics); and
+  where studies disagree (Fowler, Garro and Spenkuch 2020; Furnas et al.
+  2023). Every figure was read in the source itself; each is linked by DOI.
+  Content in `src/lib/research.js`, also in the pre-built home page. The
+  mock-up's figures were checked and dropped: its Gilens and Page values
+  (80% and 55%) weren't the paper's, its access study wasn't lobbyists, and
+  its third study had the wrong journal and years.
+- **Flags are pictures, not emoji**, 22px wide in the "Country-focused"
+  chips: small PNGs in `public/flags/` made from the flag-icons set (MIT,
+  licence beside them), 96 KB for all 104 countries.
+- **The graph:** the line stops exactly at the shape's sides (it poked out
+  past them); the "Why" summary leads, then the steps; strips breathe only
+  while pointed at or while their step is open; the cycle ('26) is circled,
+  bigger and bolder, on the page, the cards, the share card and link
+  previews.
+
+---
+
 ## 2026-10-17 (night): the graph's strips, linked to the "Why" steps
 
 Owner's design, worked out over mock-ups:

@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { ArrowRight } from 'lucide-react';
 import Lookup from '../components/Lookup.jsx';
 import Receipt from '../components/Receipt.jsx';
+import WhyItMatters from '../components/WhyItMatters.jsx';
 import { Stamp } from '../components/ui.jsx';
 import { api } from '../lib/api.js';
 import { ELECTION_DAY_TEXT, RACES_ARRIVE_TEXT } from '../lib/election.js';
@@ -313,6 +314,8 @@ export default function Home() {
           </p>
         </div>
       </section>
+
+      <WhyItMatters />
 
       <section className="cta band on-dark" aria-labelledby="ballot-title">
         <div className="wrap">

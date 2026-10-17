@@ -1,7 +1,9 @@
 // A country's flag for the "Country-focused" chips, from the country names the
-// refresh job uses (scripts/refresh/lib/country-focus.mjs). Drawn as an emoji
-// from the country's two-letter code; where a system can't draw flags it
-// shows the two letters instead, and the chip still names the country.
+// refresh job uses (scripts/refresh/lib/country-focus.mjs). Small pictures in
+// public/flags/, made from the flag-icons set (MIT, LICENSE.txt there), so
+// every system draws the same flag; emoji flags looked out of place beside
+// the site's own icons, and some systems draw them as two letters (owner,
+// 2026-10-17). The chip still names the country.
 
 const CODES = {
   Afghanistan: 'AF',
@@ -110,8 +112,8 @@ const CODES = {
   Yemen: 'YE',
 };
 
-/** "🇮🇱" for "Israel"; '' for a name we don't know */
-export function flagFor(country) {
+/** "/flags/il.png" for "Israel"; '' for a name we don't know */
+export function flagSrc(country) {
   const code = CODES[country];
-  return code ? String.fromCodePoint(...[...code].map(c => 0x1f1e6 + c.charCodeAt(0) - 65)) : '';
+  return code ? `/flags/${code.toLowerCase()}.png` : '';
 }

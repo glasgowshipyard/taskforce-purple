@@ -1135,6 +1135,200 @@ p {
   color: #e9e2ff;
 }
 
+/* "Why this matters": the research, every claim with its source */
+.matters-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: clamp(28px, 4vw, 48px);
+  align-items: flex-start;
+}
+
+.say {
+  flex: 1 1 440px;
+  min-width: 0;
+  margin: 0;
+  background: var(--white);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 32px clamp(20px, 4vw, 40px);
+}
+
+.say h3 {
+  font-size: 22px;
+  margin-bottom: 4px;
+}
+
+.say-plot {
+  margin: 28px 0 20px;
+}
+
+.say-stats {
+  display: flex;
+  justify-content: space-between;
+  gap: 24px;
+}
+
+.say-stats p {
+  max-width: 48%;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.say-stats .is-end {
+  text-align: right;
+  align-items: flex-end;
+}
+
+.say-stats b {
+  font-family: var(--display);
+  font-weight: 900;
+  font-size: clamp(48px, 6vw, 72px);
+  line-height: 0.9;
+}
+
+/* The colour names the side; the words stay in ink */
+.say-stats span {
+  font-size: 15px;
+  line-height: 1.35;
+  color: var(--ink-2);
+  padding-left: 16px;
+  position: relative;
+}
+
+.say-stats .is-end span {
+  padding: 0 16px 0 0;
+}
+
+.say-stats span::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0.4em;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--c);
+}
+
+.say-stats .is-end span::before {
+  left: auto;
+  right: 0;
+}
+
+.say-track {
+  position: relative;
+  height: 16px;
+  margin: 20px 0 8px;
+}
+
+.say-track::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 50%;
+  height: 2px;
+  background: var(--line);
+  transform: translateY(-50%);
+}
+
+.say-gap {
+  position: absolute;
+  top: 2px;
+  bottom: 2px;
+  border-radius: 999px;
+}
+
+.say-dot {
+  position: absolute;
+  top: 50%;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--c);
+  border: 3px solid var(--white);
+  box-shadow: 0 0 0 1px var(--line-2);
+  transform: translate(-50%, -50%);
+}
+
+.say-scale {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.say-scale span:last-child {
+  text-align: right;
+}
+
+.matters-findings {
+  flex: 1 1 380px;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.finding {
+  border-top: 6px solid var(--ink);
+  padding-top: 16px;
+}
+
+.finding h3 {
+  font-size: 22px;
+  line-height: 1.2;
+  margin-bottom: 8px;
+}
+
+.finding p {
+  color: var(--ink-2);
+}
+
+.matters-caveat {
+  border-left: 6px solid var(--purple);
+  padding: 4px 0 4px 18px;
+  color: var(--ink-2);
+}
+
+.note {
+  font-family: var(--mono);
+  font-size: 0.65em;
+  font-weight: 700;
+  line-height: 0;
+  margin-left: 1px;
+}
+
+.note a {
+  text-decoration: none;
+  padding: 0 1px;
+}
+
+.studies {
+  margin-top: clamp(32px, 4vw, 48px);
+  border-top: 1px solid var(--line-2);
+  padding-top: 20px;
+}
+
+.studies ol {
+  margin: 12px 0 0;
+  padding-left: 20px;
+  display: grid;
+  gap: 8px;
+  font-size: 14px;
+  color: var(--muted);
+  max-width: 62em;
+}
+
+.studies li {
+  scroll-margin-top: 24px;
+}
+
+.studies li:target {
+  color: var(--ink);
+}
+
 /* ---------- Member page ---------- */
 
 .crumbs a {
@@ -1720,6 +1914,26 @@ p {
   gap: 8px;
 }
 
+/* The summary of the "Why": what the money adds up to, before the parts */
+.why-summary {
+  background: var(--white);
+  border: 1px solid var(--line);
+  border-left: 6px solid var(--tone);
+  border-radius: var(--radius);
+  padding: 14px 18px;
+  margin-bottom: 14px;
+  --tone: var(--muted);
+}
+
+.why-summary h3 {
+  font-size: 19px;
+  margin-bottom: 4px;
+}
+
+.why-summary p {
+  color: var(--ink-2);
+}
+
 /* An accordion (owner, 2026-10-17): every headline in view, one step open
    at a time, so the list stays beside the graph */
 .why-step {
@@ -1903,6 +2117,25 @@ p {
   color: var(--ink-2);
   white-space: nowrap;
   vertical-align: 1px;
+}
+
+/* A country chip leads with its flag, big enough to tell apart */
+.pac-chip.has-flag {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 8px 2px 3px;
+  vertical-align: -3px;
+}
+
+.flag {
+  width: 22px;
+  height: auto;
+  aspect-ratio: 4 / 3;
+  border-radius: 3px;
+  box-shadow: 0 0 0 1px rgba(21, 19, 28, 0.14);
+  display: inline-block;
+  flex: none;
 }
 
 .pac-chip.is-heavier {
@@ -2267,10 +2500,6 @@ p {
   animation: ppi-breathe 1.7s ease-in-out infinite;
 }
 
-.ppi-strip.is-hint {
-  animation: ppi-breathe 1.7s ease-in-out 3;
-}
-
 @keyframes ppi-breathe {
   0%,
   100% {
@@ -2283,8 +2512,7 @@ p {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .ppi-strip.is-breathing,
-  .ppi-strip.is-hint {
+  .ppi-strip.is-breathing {
     animation: none;
   }
 }
@@ -2293,7 +2521,8 @@ p {
   fill: none;
   stroke-width: 3;
   stroke-linejoin: round;
-  stroke-linecap: round;
+  /* Square ends, flush with the shape: round ones poke past its edges */
+  stroke-linecap: butt;
 }
 
 .ppi-dot {
@@ -2302,11 +2531,17 @@ p {
   transition: r 0.12s ease;
 }
 
-.ppi-cycle {
+.ppi-cycle circle {
+  fill: var(--receipt);
+  stroke: var(--ink-2);
+  stroke-width: 1.5;
+}
+
+.ppi-cycle text {
   font-family: var(--mono);
-  font-size: 12px;
-  font-weight: 600;
-  fill: var(--muted);
+  font-size: 13px;
+  font-weight: 700;
+  fill: var(--ink);
 }
 
 .ppi svg {
@@ -2740,4 +2975,8 @@ p {
    pre-built page; there its home-page text is hidden */
 [data-fallback] [data-prerendered] {
   display: none;
+}
+
+.ppi.is-compact .ppi-cycle text {
+  font-size: 10.5px;
 }
