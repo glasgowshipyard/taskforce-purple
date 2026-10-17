@@ -148,9 +148,9 @@ function CongressDots({ members }) {
                 All of Congress · one dot for each member
               </p>
               <h2 id="dots-title" className="display display-l">
-                {words
-                  ? `${words} get a D or worse`
-                  : `${low} of ${graded.length} get a D or worse`}
+                {words ? words : `${low} of ${graded.length}`} get a{' '}
+                {/* A grade being explained wears its colour (owner, 2026-10-17) */}
+                <span style={{ color: GRADES.D.color }}>D</span> or worse
               </h2>
             </div>
             <p style={{ flex: '1 1 320px' }}>
