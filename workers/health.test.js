@@ -102,3 +102,20 @@ describe('grade flags waiting on /admin', () => {
     expect(ids({ ...healthy(), staleFlags: null })).toEqual([]);
   });
 });
+
+describe("the site's pre-built pages", () => {
+  it('a build older than the grades, hours after they changed, is a problem', () => {
+    const s = { ...healthy(), listLastUpdated: hoursAgo(8), pagesBuiltAt: hoursAgo(30) };
+    expect(ids(s)).toEqual(['pages-stale']);
+  });
+
+  it('no problem while the rebuild has time, when it is newer, or when unknown', () => {
+    expect(ids({ ...healthy(), listLastUpdated: hoursAgo(1), pagesBuiltAt: hoursAgo(30) })).toEqual(
+      []
+    );
+    expect(ids({ ...healthy(), listLastUpdated: hoursAgo(8), pagesBuiltAt: hoursAgo(7) })).toEqual(
+      []
+    );
+    expect(ids({ ...healthy(), listLastUpdated: hoursAgo(8), pagesBuiltAt: null })).toEqual([]);
+  });
+});

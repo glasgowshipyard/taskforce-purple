@@ -2503,3 +2503,10 @@ p {
   color: var(--white);
   text-decoration: underline;
 }
+
+/* A pre-built page's readable text (scripts/site/prerender.mjs), shown until
+   the site draws the page. index.html is also served for paths that have no
+   pre-built page; there its home-page text is hidden */
+[data-fallback] [data-prerendered] {
+  display: none;
+}

@@ -24,6 +24,10 @@ export const D1_SIZE_ALARM_BYTES = 400 * 1000 * 1000;
 export const MIN_MEMBERS = 530;
 // A grade flag nobody has dealt with after this many days is a problem
 export const FLAG_WAIT_DAYS = 3;
+// The site's pre-built pages should be rebuilt within this long of the
+// published grades changing (refresh.yml starts the build)
+export const PAGES_STALE_MS = 6 * HOUR;
+const SITE = 'https://taskforcepurple.com';
 
 // The proposed fix for each problem, shown in the alert
 export const FIXES = {
@@ -45,6 +49,8 @@ export const FIXES = {
     'Compare the committee’s records with the FEC’s month by month to find the missing ones; until then its members stay pending, not graded.',
   'd1-size-high':
     'The results database is near D1’s 500 MB limit, past which it refuses every write. Find the biggest table (RUNBOOK §6) and pack or remove what isn’t needed before the next refresh.',
+  'pages-stale':
+    'The site still works (its pages load the live grades), but search engines and link previews see old ones. Start a build: Cloudflare dashboard → Workers & Pages → the site → Deployments → retry the latest. If the refresh job’s “Rebuild the site’s pages” step warned that PAGES_DEPLOY_HOOK is missing, add the deploy hook as that GitHub secret.',
   'flags-waiting':
     'Open taskforcepurple.com/admin and deal with each flag: check the member’s figures, then mark it done, or bin it if it’s not a real problem.',
   'd1-over-budget':
@@ -63,6 +69,7 @@ export const FIXES = {
  * @param {number|null} s.d1SizeBytes       tfp-results size, from D1's own figure
  * @param {string|null} s.resultsDbError    set when tfp-results can't be read
  * @param {object|null} s.staleFlags        { count, oldest }: grade flags open longer than FLAG_WAIT_DAYS
+ * @param {string|null} s.pagesBuiltAt      when the site's pre-built pages were last built
  */
 export function evaluateHealth(s, nowMs = Date.now()) {
   const problems = [];
@@ -153,6 +160,15 @@ export function evaluateHealth(s, nowMs = Date.now()) {
     }
   }
 
+  const listAt = Date.parse(s.listLastUpdated || '');
+  const builtAt = Date.parse(s.pagesBuiltAt || '');
+  if (listAt > builtAt && nowMs - listAt > PAGES_STALE_MS) {
+    problem(
+      'pages-stale',
+      `The grades changed ${s.listLastUpdated}, but the site's pre-built pages were last built ${s.pagesBuiltAt}.`
+    );
+  }
+
   if (s.staleFlags?.count > 0) {
     problem(
       'flags-waiting',
@@ -177,7 +193,17 @@ export async function loadHealth(env, now = new Date()) {
     d1SizeBytes: null,
     resultsDbError: null,
     staleFlags: null,
+    pagesBuiltAt: null,
   };
+  // When the site's pages were last built (scripts/site/prerender.mjs)
+  try {
+    const response = await fetch(`${SITE}/prerender-state.json`, {
+      signal: AbortSignal.timeout(3000),
+    });
+    snapshot.pagesBuiltAt = response.ok ? ((await response.json()).builtAt ?? null) : null;
+  } catch {
+    // Unknown: no verdict on it
+  }
   try {
     if (!env.RESULTS_DB) {
       throw new Error('the RESULTS_DB binding is missing from wrangler.toml');

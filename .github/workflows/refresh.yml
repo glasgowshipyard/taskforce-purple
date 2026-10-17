@@ -83,6 +83,22 @@ jobs:
           if [ "$REPORT" = "true" ]; then args+=(--report "$RUNNER_TEMP/grade-report.json"); fi
           node scripts/refresh/run.mjs "${args[@]}"
 
+      # The site's pre-built pages (titles, link previews, sitemap: see
+      # scripts/site/prerender.mjs) are rebuilt only when this run changed
+      # the published grades. The hook is a Cloudflare Pages deploy hook; if
+      # it's missing or the build fails, /api/health reports pages-stale
+      - name: Rebuild the site's pages
+        if: steps.refresh.outputs.list_changed == 'true' && !inputs.dry_run
+        env:
+          HOOK: ${{ secrets.PAGES_DEPLOY_HOOK }}
+        run: |
+          if [ -z "$HOOK" ]; then
+            echo "::warning::PAGES_DEPLOY_HOOK is not set: the site's pre-built pages keep the old grades until the next build"
+            exit 0
+          fi
+          curl -fsS -X POST "$HOOK" > /dev/null
+          echo "Site rebuild started"
+
       - name: Keep the report
         if: always() && inputs.report
         uses: actions/upload-artifact@v4

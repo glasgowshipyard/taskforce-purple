@@ -1,0 +1,8 @@
+# Task Force Purple: every page is open to search engines and AI tools.
+# /admin and the API aren't pages.
+User-agent: *
+Allow: /
+Disallow: /admin
+Disallow: /api/
+
+Sitemap: https://taskforcepurple.com/sitemap.xml

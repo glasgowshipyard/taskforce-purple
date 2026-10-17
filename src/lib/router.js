@@ -1,6 +1,7 @@
 // A small router on the History API: the site has five pages, which doesn't
-// justify a dependency. Cloudflare Pages serves index.html for every path
-// (public/_redirects), so deep links work.
+// justify a dependency. Cloudflare Pages serves a pre-built page where there
+// is one (scripts/site/prerender.mjs) and index.html for every other path
+// (its single-page-app fallback: there is no 404.html), so deep links work.
 import { createElement, useEffect, useState } from 'react';
 
 const listeners = new Set();

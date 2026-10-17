@@ -81,7 +81,12 @@ node scripts/refresh/publish.mjs --dry-run      # what publishing would change
 ```
 
 Frontend deploys automatically when main is pushed to GitHub (Pages
-integration) — there is no manual frontend deploy step. The site (`src/`,
+integration) — there is no manual frontend deploy step. `npm run build`
+also pre-builds a real HTML page per member (plus home, /how, /congress),
+their link-preview pictures, sitemap.xml and llms.txt from the live
+members:list (`scripts/site/prerender.mjs`); the refresh job triggers a
+rebuild through a Pages deploy hook only when it changed the published
+grades. The site (`src/`,
 redesigned 2026-10-07) has no UI framework: `src/styles/app.css` holds the
 design tokens, `src/lib/grades.js` everything said about a grade. The
 district lookup files in `public/geo/` are built once from the Census

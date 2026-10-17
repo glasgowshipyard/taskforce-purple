@@ -74,7 +74,7 @@ function Row({ m }) {
 }
 
 export default function Congress({ search }) {
-  useTitle('All of Congress');
+  useTitle('All of Congress: who funds every member');
   const members = useAsync(() => api.members(), []);
   const params = readParams(search);
   const [shown, setShown] = useState(PAGE);

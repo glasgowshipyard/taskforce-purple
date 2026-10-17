@@ -22,6 +22,22 @@ refresh run, recent grade changes, and today's D1 budgets. A grade flag left
 open more than 3 days becomes a `system-alert` issue. The commands below
 still work without it.
 
+## 0b. Being found (added 2026-10-17)
+
+Every member has a pre-built page with its own title, description and
+link-preview picture (`scripts/site/prerender.mjs`, run by `npm run build`),
+listed in https://taskforcepurple.com/sitemap.xml; AI tools get
+https://taskforcepurple.com/llms.txt and `/llms-full.txt`. A refresh that
+changes the published grades starts a site rebuild (refresh.yml, secret
+`PAGES_DEPLOY_HOOK`); the build tells IndexNow (Bing, ChatGPT search,
+Copilot, DuckDuckGo) which pages changed. If the pages fall more than 6
+hours behind the grades, /api/health reports `pages-stale`.
+
+```bash
+# When the pages were last built, and how many changed then
+curl -s https://taskforcepurple.com/prerender-state.json | jq '{builtAt, pages: (.pages | length)}'
+```
+
 ## 1. The 30-second health check
 
 ```bash

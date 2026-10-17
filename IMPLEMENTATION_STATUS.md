@@ -4,6 +4,31 @@
 
 ---
 
+## 2026-10-17 (later): findable by search engines, AI tools and link previews
+
+- **Pre-built pages** (`scripts/site/prerender.mjs`, part of `npm run
+build`): each member's page, the home page, /how and /congress get a real
+  HTML page with its own title ("Who funds Adam Schiff? A: 85% from
+  people"), description, canonical address, schema.org data (Person on
+  member pages, Dataset on /congress) and a readable version of the page;
+  the app then draws the live page over it. Pages serves them by path; every
+  other path still gets the app (Pages' single-page fallback; the redundant
+  `_redirects` rule is gone).
+- **Link previews:** a 1200×630 picture per member (stamp, the People /
+  Power / Influence graph, the one sentence), drawn at build time with resvg
+  and the site's fonts (`scripts/site/og-card.mjs`), about 65 KB each.
+- **sitemap.xml** (each page's date changes only when what it shows
+  changes, carried over through `prerender-state.json`), **robots.txt**
+  (everything open but /admin and /api), **llms.txt** and **llms-full.txt**
+  (every member's grade as one line), and **IndexNow** on production builds
+  for the pages that changed.
+- **Rebuilds:** the refresh job reports `list_changed`; refresh.yml then
+  calls the Pages deploy hook (secret `PAGES_DEPLOY_HOOK`). Health check
+  `pages-stale` if the pages fall 6 hours behind the grades.
+- The app's page titles match the pre-built ones.
+
+---
+
 ## 2026-10-17: the admin panel, flags and suggestions
 
 - **taskforcepurple.com/admin** (owner's choices, 2026-10-16): logged in

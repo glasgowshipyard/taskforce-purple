@@ -855,6 +855,8 @@ async function main() {
     if (!dryRun) {
       const pub = await publishGrades({ cf, d1, cycle, log });
       summary.gradeChanges = (summary.gradeChanges || 0) + pub.gradeChanges.length;
+      // The site's pre-built pages are rebuilt only when this happened
+      summary.listChanged ||= pub.changed;
     }
     if (cutShort) {
       log(`time budget reached mid-batch: the rest is left for the next run of ${roundId}`);
@@ -972,12 +974,13 @@ async function main() {
     minutes: Math.round((Date.now() - started) / 60000),
   };
   log('summary', JSON.stringify(stats));
-  // For the workflow: whether to start the next run of this round
+  // For the workflow: whether to start the next run of this round, and
+  // whether to rebuild the site's pre-built pages (the published list changed)
   if (process.env.GITHUB_OUTPUT) {
     const progressed = summary.complete + summary.provisional + summary.pending + summary.skipped;
     appendFileSync(
       process.env.GITHUB_OUTPUT,
-      `stop_reason=${stopReason}\nremaining=${remaining}\nprogressed=${progressed}\n`
+      `stop_reason=${stopReason}\nremaining=${remaining}\nprogressed=${progressed}\nlist_changed=${summary.listChanged ? 'true' : 'false'}\n`
     );
   }
   if (!dryRun) {

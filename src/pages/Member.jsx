@@ -162,7 +162,17 @@ export default function Member({ id, kind = 'member' }) {
   }
 
   const name = m ? displayName(m.name) : '';
-  useTitle(name || null);
+  // The same title as the pre-built page (scripts/site/pages.mjs), so
+  // search engines that run the page see one title
+  const titlePeople =
+    m && isLetter(m.tier) ? (m.peoplePowerInfluence?.people ?? d?.grade?.score ?? null) : null;
+  useTitle(
+    name
+      ? Number.isFinite(titlePeople)
+        ? `Who funds ${name}? ${m.tier}: ${Math.round(titlePeople)}% from people`
+        : `Who funds ${name}?`
+      : null
+  );
 
   const loading = !m && (list.loading || detail.loading || (isCandidate && races.loading));
   if (loading) {
