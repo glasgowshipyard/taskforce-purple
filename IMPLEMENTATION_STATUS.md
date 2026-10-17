@@ -4,6 +4,20 @@
 
 ---
 
+## 2026-10-17 (night): "FEC filings to" on receipts
+
+- **How recent the money is** (both outside reviews; owner's yes): each
+  member's figures now carry `filedThrough`, the oldest of the latest FEC
+  reports behind them (each committee's coverage end date, so it's never
+  overstated; `combineVehicleTotals` in person-funding.js, kept in
+  `personFigures`). The receipt reads "FEC filings to Sep 30, 2026 ·
+  Graded Oct 17, 2026" and the share card's header "FEC FILINGS TO ...".
+  It fills in when members are next graded; until then the receipt shows
+  the grading date alone, as before.
+- The method spec's "money from businesses ... counts 0" now reads
+  "companies' PACs" (GRASSROOTS_CALCULATION_GUIDE.md and /how), as
+  elsewhere: wording only.
+
 ## 2026-10-17 (evening): fixes from two outside reviews
 
 The owner had two outside reviews of the site appraised; most of the

@@ -168,6 +168,27 @@ describe('combineVehicleTotals', () => {
     expect(r.invariantsHold).toBe(true);
   });
 
+  it('says what date the figures run to: the oldest latest report', () => {
+    const r = combineVehicleTotals(
+      [
+        {
+          committeeId: 'C1',
+          role: 'campaign',
+          name: 'A',
+          totals: { ...t(1000, 100, 900), coverage_end_date: '2026-09-30T00:00:00' },
+        },
+        {
+          committeeId: 'C4',
+          role: 'leadership',
+          name: 'L',
+          totals: { ...t(500, 0, 500), coverage_end_date: '2026-06-30T00:00:00' },
+        },
+      ],
+      { internal: 0, jfcs: [] }
+    );
+    expect(r.filedThrough).toBe('2026-06-30');
+  });
+
   it('nets money moved between the member own vehicles', () => {
     const r = combineVehicleTotals(
       [

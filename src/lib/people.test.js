@@ -3,6 +3,7 @@ import {
   concentration,
   displayName,
   fractionWords,
+  gradedFigures,
   moneyLines,
   receiptLines,
   roleTitle,
@@ -205,5 +206,16 @@ describe('place', () => {
       'H-OH-04',
       'S-OH-',
     ]);
+  });
+});
+
+describe('gradedFigures', () => {
+  it('carries the date the FEC filings run to, from the all-committees figures', () => {
+    const m = {
+      gradeBasis: 'all-committees',
+      personFigures: { totalRaised: 100, grassrootsDonations: 50, filedThrough: '2026-09-30' },
+    };
+    expect(gradedFigures(m).filedThrough).toBe('2026-09-30');
+    expect(gradedFigures({ totalRaised: 100 }).filedThrough).toBeNull();
   });
 });

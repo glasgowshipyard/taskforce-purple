@@ -74,6 +74,16 @@ const dateText = d =>
   d
     ? new Date(d).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })
     : null;
+// A calendar day ('2026-09-30') as it stands, whatever the reader's time zone
+const dayText = d =>
+  /^\d{4}-\d{2}-\d{2}$/.test(d || '')
+    ? new Date(`${d}T12:00:00Z`).toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric',
+        timeZone: 'UTC',
+      })
+    : null;
 
 // A note reads "C00123456: The FEC's ..."; show the committee's name
 // Both figures are the FEC's own, so the grade can be checked and the note
@@ -281,6 +291,9 @@ export default function Member({ id, kind = 'member' }) {
   const title = isCandidate ? 'Candidate' : roleTitle(m);
   const checked = d?.evidence?.checked ?? m.evidenceChecked ?? null;
   const gradedOn = dateText(d?.collectedAt || m.gradedAt);
+  // How recent the money is, not just the grading (two outside reviews):
+  // the FEC filings the figures run to
+  const filedOn = dayText(f.filedThrough);
   const canShare = isLetter(m.tier) && hasMoney;
   // One figure for "from people" everywhere on the page: People, the score
   const sentence = hasMoney && isLetter(m.tier) ? peopleSentence(ppi ? ppi.people : score) : null;
@@ -322,6 +335,7 @@ export default function Member({ id, kind = 'member' }) {
     sub: placement ? `${placement}.` : '',
     host: window.location.host,
     cycleLabel: CYCLE_LABEL,
+    filedOn,
   };
 
   return (
@@ -419,9 +433,11 @@ export default function Member({ id, kind = 'member' }) {
                 <p style={{ marginTop: 22 }}>
                   <Evidence checked={checked} long />
                 </p>
-                {gradedOn && (
+                {(filedOn || gradedOn) && (
                   <p className="fine" style={{ marginTop: 8 }}>
-                    Graded {gradedOn}
+                    {filedOn && `FEC filings to ${filedOn}`}
+                    {filedOn && gradedOn && ' · '}
+                    {gradedOn && `Graded ${gradedOn}`}
                   </p>
                 )}
                 <Barcode id={id} />

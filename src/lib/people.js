@@ -99,6 +99,8 @@ export function gradedFigures(m) {
     // The candidate's own gifts and loans (#59): shown, not graded
     ownMoney: (f.ownMoney?.contributions || 0) + (f.ownMoney?.loans || 0),
     ownRepaid: f.ownMoney?.repaid || 0,
+    // The date the FEC filings behind the figures run to ('2026-09-30')
+    filedThrough: all ? f.filedThrough || null : null,
   };
 }
 

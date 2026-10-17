@@ -165,7 +165,14 @@ function drawReceipt(x, card) {
   x.fillText('TASK FORCE PURPLE', w / 2, 38);
   x.fillStyle = '#55525E';
   x.font = `400 11px ${MONO}`;
-  x.fillText(`RECEIPT · ${card.cycleLabel}`, w / 2, 56);
+  // How recent the money is, when the filings date is known
+  x.fillText(
+    card.filedOn
+      ? `RECEIPT · FEC FILINGS TO ${card.filedOn.toUpperCase()}`
+      : `RECEIPT · ${card.cycleLabel}`,
+    w / 2,
+    56
+  );
   dashed(x, 24, w - 24, 74);
 
   x.textAlign = 'left';
@@ -241,7 +248,7 @@ function drawStamp(x, g, cx, cy) {
 }
 
 /**
- * card: { id, name, title, tier, lines: [{short, amount, canvas}], ppi (People,
+ * card: { id, name, title, tier, filedOn ('Sep 30, 2026'), lines: [{short, amount, canvas}], ppi (People,
  *         Power, Influence), total, headline, sub, host, cycleLabel }
  */
 export async function drawShareCard(card) {

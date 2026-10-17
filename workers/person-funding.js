@@ -337,8 +337,15 @@ export function combineVehicleTotals(
     })),
   ];
 
+  // The date the figures run to: the oldest of the latest reports behind
+  // them (each committee's FEC coverage end), so it's never overstated
+  const ends = units
+    .map(v => String(v.totals.coverage_end_date || '').slice(0, 10))
+    .filter(d => /^\d{4}-\d{2}-\d{2}$/.test(d))
+    .sort();
   return {
     totalRaised,
+    filedThrough: ends[0] || null,
     ...buckets,
     grassrootsPercent:
       totalRaised > 0 ? Math.round((buckets.grassrootsDonations / totalRaised) * 100) : 0,

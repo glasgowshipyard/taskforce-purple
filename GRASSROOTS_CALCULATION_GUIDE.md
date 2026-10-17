@@ -14,7 +14,7 @@ FINAL-2, FINAL-3; reports in IMPLEMENTATION_STATUS.md). It replaced version A (t
 half credit for PAC money traced to people, and the PAC bar), described below as history.
 The one-page spec, as shown on /how:
 
-**Meaning.** A member's grade is the share of the money given to them, and to their own joint funds, that comes from many different people. Big donations count only as far as the people who gave them are many and spread out. PAC money counts only when the PAC's sponsor is run by its members (they elect most of its board, or it is a union bound by federal labor law to hold member elections), and only as far as the PAC's own money traces back to many people. Money from businesses, politicians, parties, and PACs that answer to a board or to their organizers counts 0.
+**Meaning.** A member's grade is the share of the money given to them, and to their own joint funds, that comes from many different people. Big donations count only as far as the people who gave them are many and spread out. PAC money counts only when the PAC's sponsor is run by its members (they elect most of its board, or it is a union bound by federal labor law to hold member elections), and only as far as the PAC's own money traces back to many people. Money from companies' PACs, politicians, parties, and PACs that answer to a board or to their organizers counts 0.
 
 **Formula** (per member, cycle 2026):
 

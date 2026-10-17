@@ -390,6 +390,7 @@ export async function discoverPeople({
         pacMoney: whole.pacMoney,
         partyMoney: whole.partyMoney,
         invariantsHold: whole.invariantsHold,
+        filedThrough: whole.filedThrough,
         ownFunds: whole.committees
           .filter(c => c.role === 'joint' && c.ownFund)
           .map(c => c.committeeId),

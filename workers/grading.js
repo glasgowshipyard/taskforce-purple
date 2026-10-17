@@ -89,6 +89,7 @@ export function gradeMember(member, analysis, options = null) {
         partyMoney: pf.partyMoney,
         grassrootsPercent: pf.grassrootsPercent,
         ...(own > 0 ? { ownMoney: pf.ownMoney } : {}),
+        ...(pf.filedThrough ? { filedThrough: pf.filedThrough } : {}),
       }
     : null;
   return result;
@@ -140,6 +141,8 @@ export function gradeMemberFinal3(inputs, pacs, shares) {
               ? Math.round((pf.grassrootsDonations / pf.totalRaised) * 100)
               : 0,
             ...(ownMoneyTotal(ownMoney) > 0 ? { ownMoney } : {}),
+            // FEC filings to this date (person-funding.js combineVehicleTotals)
+            ...(pf.filedThrough ? { filedThrough: pf.filedThrough } : {}),
           },
     detail: {
       method: 'final-3',
