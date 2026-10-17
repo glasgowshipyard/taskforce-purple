@@ -1,6 +1,25 @@
 # Task Force Purple - Implementation Status
 
-**Last Updated**: 2026-10-13
+**Last Updated**: 2026-10-16
+
+---
+
+## 2026-10-16: two leftover Workers deleted (owner)
+
+- `taskforce-purple-itemized-prototype` still had a cron every 2 minutes
+  (set 2026-01-07): about 720 runs a day at about 14 ms CPU each, doing
+  nothing anyone used. Deleted by the owner.
+- `taskforce-purple-recalc-gini` (no cron, no traffic since January)
+  deleted too.
+- Left: `taskforce-purple-api` (serves the site) and
+  `taskforce-purple-itemized-analysis` (the stub answering 410). Neither has
+  a cron.
+- The account's "free tier CPU time limit" alert that day came from another
+  project's Worker (`craig-zielinski`, a cron every minute), not from TFP:
+  the API worker had no failures and its slowest requests used under 10 ms.
+- Same day: the member page's receipt went back beside the breakdown and
+  every section is open again (2c0f2de, 13 Oct). Closing them was my
+  over-reading of the brief.
 
 ---
 
