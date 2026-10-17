@@ -2,10 +2,11 @@
 // given in three parts, People, Power and Influence, as shares that add up
 // to 100. People is the grade's score (peoplePowerInfluence in
 // workers/tier-calculation.js). Three points joined by a curve that never
-// overshoots them, so the shape is honest about there being three numbers.
-// Under it, the grade letters with this member's circled.
+// overshoots them, starting and ending at zero at the plot's edges so every
+// member's money is a whole shape (lib/curve.js). Under it, the grade letters
+// with this member's circled.
 import React, { useState } from 'react';
-import { monotonePath } from '../lib/curve.js';
+import { hillPoints, monotonePath } from '../lib/curve.js';
 import { GRADES, LETTERS, PARTS } from '../lib/grades.js';
 
 // Drawn narrower on a card, so its words come out the same size as the page's
@@ -53,8 +54,9 @@ export default function MoneyGraph({ ppi, tier, compact = false, showKey = false
     x: PAD.left + col * (i + 0.5),
     y: y(ppi[p.key] ?? 0),
   }));
-  const line = monotonePath(pts);
-  const area = `${line} L${pts[pts.length - 1].x},${base} L${pts[0].x},${base} Z`;
+  const line = monotonePath(hillPoints(pts, PAD.left, W - PAD.right, base));
+  // The curve ends on the 0% line, so closing it back along that line fills it
+  const area = `${line} Z`;
   const color = GRADES[tier]?.color || 'var(--purple)';
   const label = `${PARTS.map(p => `${p.label} ${ppi[p.key]}%`).join(', ')} of the money given${
     GRADES[tier] ? `. Grade ${tier}, ${GRADES[tier].name}` : ''

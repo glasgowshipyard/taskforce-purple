@@ -1,7 +1,7 @@
 // The share card: a 1200x630 picture of someone's receipt and grade, drawn in
 // the visitor's browser when they press Share. Nothing is rendered on a
 // server, so it costs nothing however many people share.
-import { monotonePath } from './curve.js';
+import { hillPoints, monotonePath } from './curve.js';
 import { PARTS, gradeInfo } from './grades.js';
 import { usdShort } from './people.js';
 
@@ -95,8 +95,9 @@ function drawGraph(x, ppi, color, left, top, width, height) {
     x: left + (width * (2 * i + 1)) / 6,
     y: top + (1 - Math.max(0, Math.min(100, ppi[p.key] ?? 0)) / 100) * height,
   }));
-  const line = new Path2D(monotonePath(pts));
-  const area = new Path2D(`${monotonePath(pts)} L${pts[2].x},${base} L${pts[0].x},${base} Z`);
+  const curve = monotonePath(hillPoints(pts, left, left + width, base));
+  const line = new Path2D(curve);
+  const area = new Path2D(`${curve} Z`);
   x.save();
   x.strokeStyle = '#DDDAD2';
   x.lineWidth = 1;

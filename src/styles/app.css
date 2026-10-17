@@ -835,55 +835,125 @@ p {
   margin-top: 36px;
 }
 
-.lookup-row {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 12px;
-  align-items: flex-end;
-}
-
-.lookup-field {
+.lookup-form {
   display: flex;
   flex-direction: column;
   gap: 8px;
-  flex: 0 1 260px;
-  min-width: 180px;
+  max-width: 620px;
 }
 
-.lookup-field label {
+.lookup-label {
   font-family: var(--mono);
   font-size: 13px;
   letter-spacing: 0.08em;
   color: var(--lilac);
 }
 
-.zip-input {
+/* One box: the ZIP code, the location button inside it, the submit attached */
+.lookup-box {
+  display: flex;
+  align-items: stretch;
   height: 60px;
-  padding: 0 18px;
-  font-family: var(--mono);
-  font-size: 26px;
-  letter-spacing: 0.06em;
   border: 2px solid var(--white);
   border-radius: var(--radius);
   background: var(--ink);
+  overflow: hidden;
+}
+
+.lookup-box:focus-within {
+  outline: 3px solid var(--lilac);
+  outline-offset: 2px;
+}
+
+.zip-input {
+  flex: 1 1 auto;
+  min-width: 0;
+  padding: 0 4px 0 18px;
+  font-family: var(--mono);
+  font-size: 24px;
+  letter-spacing: 0.06em;
+  border: 0;
+  background: transparent;
   color: var(--white);
-  width: 100%;
+}
+
+.zip-input:focus {
+  outline: none;
 }
 
 .zip-input::placeholder {
-  color: #77738a;
+  color: #8f8aa3;
+  letter-spacing: 0;
 }
 
-.lookup-alt {
+.lookup-locate,
+.lookup-go {
+  flex: 0 0 auto;
   display: inline-flex;
   align-items: center;
-  gap: 12px;
+  justify-content: center;
+  gap: 10px;
+  border: 0;
+  cursor: pointer;
+  font: inherit;
 }
 
-.lookup-or {
-  font-family: var(--mono);
-  font-size: 13px;
-  color: var(--on-dark-2);
+.lookup-locate {
+  width: 56px;
+  background: transparent;
+  color: var(--lilac);
+}
+
+.lookup-locate:hover {
+  color: var(--white);
+}
+
+.lookup-locate.is-busy svg {
+  animation: locate-pulse 1s ease-in-out infinite;
+}
+
+@keyframes locate-pulse {
+  50% {
+    opacity: 0.35;
+  }
+}
+
+.lookup-go {
+  padding: 0 22px;
+  background: var(--purple);
+  color: var(--white);
+  font-family: var(--display);
+  font-weight: 800;
+  font-size: 19px;
+  letter-spacing: 0.02em;
+}
+
+.lookup-go:hover {
+  background: #4c1d95;
+}
+
+.lookup-locate:disabled,
+.lookup-go:disabled {
+  cursor: default;
+  opacity: 0.7;
+}
+
+/* On a phone the submit is the arrow alone: one row, nothing stacked */
+@media (max-width: 560px) {
+  .lookup-go-text {
+    display: none;
+  }
+
+  .lookup-go {
+    width: 60px;
+    padding: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lookup-locate.is-busy svg {
+    animation: none;
+  }
 }
 
 .lookup-status {

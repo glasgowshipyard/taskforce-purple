@@ -1,4 +1,5 @@
-// Find your representatives: a ZIP code, or "use my location". Both are
+// Find your representatives: a ZIP code, or the location button inside the
+// same box. Both are
 // looked up in the browser against the Census Bureau's district files
 // (src/lib/geo.js); neither is sent anywhere or remembered.
 import React, { useState } from 'react';
@@ -134,9 +135,13 @@ export default function Lookup({
 
   return (
     <div className="lookup">
-      <form className="lookup-row" onSubmit={byZip} noValidate>
-        <div className="lookup-field">
-          <label htmlFor={`${idPrefix}-zip`}>YOUR ZIP CODE</label>
+      {/* One box (owner, 2026-10-16): the ZIP code, a location button inside
+          it, and the button that finds them attached at the end */}
+      <form className="lookup-form" onSubmit={byZip} noValidate>
+        <label className="lookup-label" htmlFor={`${idPrefix}-zip`}>
+          YOUR ZIP CODE
+        </label>
+        <div className="lookup-box">
           <input
             id={`${idPrefix}-zip`}
             className="zip-input"
@@ -144,27 +149,32 @@ export default function Lookup({
             inputMode="numeric"
             autoComplete="postal-code"
             maxLength={10}
-            placeholder="00000"
+            placeholder="ZIP code"
             value={zip}
             onChange={e => setZip(e.target.value)}
           />
-        </div>
-        <span className="lookup-alt">
-          <span className="lookup-or">or</span>
           <button
             type="button"
-            className="btn btn-big btn-outline"
+            className={`lookup-locate${busy === 'location' ? ' is-busy' : ''}`}
             onClick={byLocation}
             disabled={busy !== null}
+            aria-label={busy === 'location' ? 'Finding you…' : 'Use my location'}
+            title="Use my location"
           >
-            <LocateFixed size={22} aria-hidden="true" />
-            {busy === 'location' ? 'Finding you…' : 'Use my location'}
+            <LocateFixed size={24} aria-hidden="true" />
           </button>
-        </span>
-        <button type="submit" className="btn btn-big btn-purple" disabled={busy !== null}>
-          {busy === 'zip' ? 'Finding…' : submitLabel}
-          <ArrowRight size={22} aria-hidden="true" />
-        </button>
+          <button
+            type="submit"
+            className="lookup-go"
+            disabled={busy !== null}
+            aria-label={busy === 'zip' ? 'Finding…' : submitLabel}
+          >
+            <span className="lookup-go-text" aria-hidden="true">
+              {busy === 'zip' ? 'Finding…' : submitLabel}
+            </span>
+            <ArrowRight size={24} aria-hidden="true" />
+          </button>
+        </div>
       </form>
       <p className="lookup-privacy">
         We look up your district on your own device. Your ZIP code and location aren&apos;t sent
