@@ -123,18 +123,11 @@ function drawGraph(x, ppi, left, top, width, height) {
   x.clip();
   x.stroke(line);
   x.restore();
-  // The election cycle, circled, as on the page: whose cycle the figures are
-  x.beginPath();
-  x.arc(left + width - 12, top + 4, 12, 0, Math.PI * 2);
-  x.fillStyle = '#FFFEFA';
-  x.fill();
-  x.lineWidth = 1.5;
-  x.strokeStyle = '#3D3A46';
-  x.stroke();
-  x.fillStyle = '#15131C';
-  x.textAlign = 'center';
+  // The election cycle, as on the page: whose cycle the figures are
+  x.fillStyle = '#3D3A46';
+  x.textAlign = 'right';
   x.font = `700 11px ${MONO}`;
-  x.fillText(CYCLE_SHORT, left + width - 12, top + 8);
+  x.fillText(CYCLE_SHORT, left + width, top + 8);
   for (const p of pts) {
     x.fillStyle = '#3D3A46';
     x.textAlign = 'center';

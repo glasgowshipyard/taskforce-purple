@@ -76,13 +76,12 @@ function CompareTable({ cands }) {
     },
     {
       label: 'Half the big money came from',
-      value: c => {
-        const share = c.nakamoto > 0 && c.uniqueDonors > 0 ? c.nakamoto / c.uniqueDonors : null;
-        if (share === null) {
-          return '—';
-        }
-        return `${share < 0.01 ? 'under 1' : Math.round(share * 100)}% of big donors`;
-      },
+      // As member pages say it, "52 of 343" (owner, 2026-10-17); the
+      // best-cell mark still compares the shares
+      value: c =>
+        c.nakamoto > 0 && c.uniqueDonors > 0
+          ? `${c.nakamoto.toLocaleString('en-US')} of ${c.uniqueDonors.toLocaleString('en-US')} big donors`
+          : '—',
       score: c => (c.nakamoto > 0 && c.uniqueDonors > 0 ? c.nakamoto / c.uniqueDonors : -1),
     },
   ];

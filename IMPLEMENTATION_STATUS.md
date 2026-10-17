@@ -28,9 +28,13 @@ Owner's list:
   licence beside them), 96 KB for all 104 countries.
 - **The graph:** the line stops exactly at the shape's sides (it poked out
   past them); the "Why" summary leads, then the steps; strips breathe only
-  while pointed at or while their step is open; the cycle ('26) is circled,
-  bigger and bolder, on the page, the cards, the share card and link
-  previews.
+  while pointed at or while their step is open; the cycle ('26) is bolder,
+  above the 100% line, on the page, the cards, the share card and link
+  previews. (A circle round it was tried and dropped the same night: it
+  fought the circled grade letter. The curve-or-bars switch moved left to
+  give the '26 the corner.)
+- **Ballot table:** "Half the big money came from" reads "52 of 343 big
+  donors", as member pages say it, not a percentage.
 
 ---
 

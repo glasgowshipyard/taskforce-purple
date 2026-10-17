@@ -2406,9 +2406,10 @@ p {
 }
 
 /* Curve or bars (lib/graph-shape.js) */
+/* On the left: the cycle ('26) has the top right */
 .ppi-shape {
   display: flex;
-  justify-content: flex-end;
+  justify-content: flex-start;
   gap: 2px;
   margin-bottom: 4px;
 }
@@ -2531,17 +2532,11 @@ p {
   transition: r 0.12s ease;
 }
 
-.ppi-cycle circle {
-  fill: var(--receipt);
-  stroke: var(--ink-2);
-  stroke-width: 1.5;
-}
-
-.ppi-cycle text {
+.ppi-cycle {
   font-family: var(--mono);
   font-size: 13px;
   font-weight: 700;
-  fill: var(--ink);
+  fill: var(--ink-2);
 }
 
 .ppi svg {
@@ -2977,6 +2972,6 @@ p {
   display: none;
 }
 
-.ppi.is-compact .ppi-cycle text {
-  font-size: 10.5px;
+.ppi.is-compact .ppi-cycle {
+  font-size: 11px;
 }

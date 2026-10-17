@@ -94,8 +94,6 @@ export default function MoneyGraph({
   const line = monotonePath(pts);
   const area = `${line} L${x2},${base} L${x0},${base} Z`;
   const paint = `url(#g${uid})`;
-  // The cycle badge's radius: in the right margin, clear of the tallest bar
-  const badge = compact ? 11 : 13;
   const label = `${PARTS.map(p => `${p.label} ${ppi[p.key]}%`).join(', ')} of the money given${
     GRADES[tier] ? `. Grade ${tier}, ${GRADES[tier].name}` : ''
   }.`;
@@ -254,13 +252,17 @@ export default function MoneyGraph({
               </text>
             </g>
           ))}
-          {/* The election cycle, circled in the corner (and on the share card) */}
-          <g className="ppi-cycle" aria-hidden="true">
-            <circle cx={W - badge - 1} cy={PAD.top + badge} r={badge} />
-            <text x={W - badge - 1} y={PAD.top + badge + 4.5} textAnchor="middle">
-              {CYCLE_SHORT}
-            </text>
-          </g>
+          {/* The election cycle above the 100% line (and on the share card), plain:
+              circled, it fought the circled grade below (owner, 2026-10-17) */}
+          <text
+            x={W - PAD.right}
+            y={PAD.top - 3}
+            textAnchor="end"
+            className="ppi-cycle"
+            aria-hidden="true"
+          >
+            {CYCLE_SHORT}
+          </text>
           <path d={shapePath} fill={paint} className="ppi-area" />
           {hasStrips && (
             <g clipPath={`url(#c${uid})`}>
