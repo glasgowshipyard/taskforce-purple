@@ -55,9 +55,9 @@ function shortVersion(cands) {
   const name = c => displayName(c.name);
   const first = `${name(most)} has raised the most, ${usd(most.totalRaised)}.`;
   if (people === most) {
-    return `${first} ${name(most)} also gets the most from people: ${fromPeople(most)} cents of every dollar.`;
+    return `${first} ${name(most)} also gets the most from people: ${fromPeople(most)}% of their money.`;
   }
-  return `${first} ${name(people)} gets the most from people: ${fromPeople(people)} cents of every dollar, compared with ${fromPeople(most)} cents for ${name(most)}.`;
+  return `${first} ${name(people)} gets the most from people: ${fromPeople(people)}% of their money, compared with ${fromPeople(most)}% for ${name(most)}.`;
 }
 
 function CompareTable({ cands }) {

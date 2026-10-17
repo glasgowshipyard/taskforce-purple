@@ -582,6 +582,14 @@ p {
   max-width: 86%;
 }
 
+/* A long name ("Heavily influenced") on two tight lines, inside the ring */
+.stamp-word.is-long {
+  font-size: max(8px, calc(var(--size) * 0.072));
+  letter-spacing: 0.04em;
+  max-width: 76%;
+  line-height: 1.05;
+}
+
 .stamp.is-dark {
   background: var(--ink);
 }
@@ -2081,6 +2089,18 @@ p {
   stroke: var(--receipt);
   stroke-width: 2;
   transition: r 0.12s ease;
+}
+
+.ppi-cycle {
+  font-family: var(--mono);
+  font-size: 12px;
+  font-weight: 600;
+  fill: var(--muted);
+}
+
+.ppi svg {
+  touch-action: pan-y;
+  cursor: crosshair;
 }
 
 .ppi-cross {

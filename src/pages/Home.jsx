@@ -153,8 +153,8 @@ function CongressDots({ members }) {
               </h2>
             </div>
             <p style={{ flex: '1 1 320px' }}>
-              {low} of the {graded.length} members we&apos;ve graded get less than $45 of every $100
-              from people. Only {counts.S} get $90 or more.
+              {low} of the {graded.length} members we&apos;ve graded get less than 45% of their
+              money from people. Only {counts.S} get 90% or more.
               {unchecked > 0 &&
                 ` ${unchecked} more aren't graded yet while we confirm their records.`}{' '}
               Click a grade to see who&apos;s in it. <Link to="/how#pacs">What&apos;s a PAC?</Link>
@@ -216,7 +216,7 @@ export function HowSteps() {
         <p className="step-num">03</p>
         <h3>The grade is the People pile</h3>
         <p>
-          $90 or more of every $100 from people is an S. Under $15 is an F. We grade from the
+          90% or more of the money from people is an S. Under 15% is an F. We grade from the
           FEC&apos;s bulk data first, then check each donation against the FEC&apos;s own records.
         </p>
       </div>

@@ -150,7 +150,7 @@ export default function How() {
           <h2 className="display display-m" style={{ marginTop: 48 }}>
             The grade
           </h2>
-          <p className="how-lead">The grade is the People pile, out of every $100 given.</p>
+          <p className="how-lead">The grade is the People pile’s share of all the money given.</p>
           <ul className="grade-scale">
             {LETTERS.map(l => (
               <li key={l} style={{ '--g': GRADES[l].color }}>

@@ -58,7 +58,7 @@ export function memberPage(m, scores) {
 ${
   f
     ? `<p>${esc(f.sentence)}${placement ? ` ${esc(placement)}.` : ''}</p>
-<p>Of every $100 given to ${esc(name)}: $${f.ppi.people} from people (many different donors), $${f.ppi.power} from power (big money from a few wealthy donors) and $${f.ppi.influence} from influence (PACs, businesses, politicians and parties).</p>
+<p>Of all the money given to ${esc(name)}: ${f.ppi.people}% from people (many different donors), ${f.ppi.power}% from power (big money from a few wealthy donors) and ${f.ppi.influence}% from influence (PACs, businesses, politicians and parties).</p>
 ${raised > 0 ? `<p>Raised ${esc(usd(raised))} in the ${CYCLE_LABEL} election cycle, from public FEC filings.${m.evidenceChecked === true ? ' Every donation checked against the FEC’s records.' : m.evidenceChecked === false ? ' Still being checked against the FEC’s records.' : ''}</p>` : ''}`
     : `<p>${esc(g.meaning)}</p>`
 }
@@ -131,13 +131,15 @@ export function homePage(members) {
 }
 
 export function howPage() {
-  const scale = LETTERS.map(l => `<li>${l}: ${esc(GRADES[l].name)}, ${esc(GRADES[l].range)} of every $100 from people</li>`).join('');
+  const scale = LETTERS.map(
+    l => `<li>${l}: ${esc(GRADES[l].name)}, ${esc(GRADES[l].range)} of the money from people</li>`
+  ).join('');
   const parts = PARTS.map(p => `<li><strong>${p.label}:</strong> ${esc(p.about)}</li>`).join('');
   return {
     path: '/how',
     title: `How grades work${TITLE_SUFFIX}`,
     description:
-      'We sort every dollar given to a member of Congress into three piles: People, Power and Influence. The grade is how much of the money is in the People pile, from S ($90 or more of every $100) to F (under $15).',
+      'We sort every dollar given to a member of Congress into three piles: People, Power and Influence. The grade is how much of the money is in the People pile, from S (90% or more) to F (under 15%).',
     card: {
       eyebrow: 'How grades work',
       headline: 'People, Power and Influence',
@@ -194,7 +196,9 @@ export function congressPage(members) {
 ${rows}
 </ul>
 </main>`,
-    signature: JSON.stringify(members.map(m => [m.bioguideId, m.tier, m.peoplePowerInfluence?.people])),
+    signature: JSON.stringify(
+      members.map(m => [m.bioguideId, m.tier, m.peoplePowerInfluence?.people])
+    ),
   };
 }
 
@@ -202,7 +206,10 @@ ${rows}
 export function fillTemplate(template, page) {
   const url = `${SITE}${page.path}`;
   const image = `${SITE}${page.image}`;
-  const json = JSON.stringify({ '@context': 'https://schema.org', ...page.jsonLd }).replace(/</g, '\\u003c');
+  const json = JSON.stringify({ '@context': 'https://schema.org', ...page.jsonLd }).replace(
+    /</g,
+    '\\u003c'
+  );
   const head = `<title>${esc(page.title)}</title>
     <meta name="description" content="${esc(page.description)}" />
     <link rel="canonical" href="${esc(url)}" />
@@ -219,7 +226,9 @@ export function fillTemplate(template, page) {
   const start = template.indexOf('<!--page-meta-->');
   const end = template.indexOf('<!--/page-meta-->');
   if (start < 0 || end < 0 || !template.includes('<div id="root"></div>')) {
-    throw new Error("dist/index.html lacks the <!--page-meta--> markers or the empty #root: run 'npm run build' (vite build first)");
+    throw new Error(
+      "dist/index.html lacks the <!--page-meta--> markers or the empty #root: run 'npm run build' (vite build first)"
+    );
   }
   return (
     template.slice(0, start) +
@@ -246,7 +255,7 @@ export function llmsTxt(members, lastUpdated) {
 
 > Task Force Purple grades all members of the U.S. Congress, S to F, on where their campaign money comes from, using public Federal Election Commission (FEC) filings. It is not connected to any party or campaign.
 
-Every dollar given to a member (their campaigns, leadership PAC and own joint fundraising committees; their own money, loans and transfers left out) is sorted into three parts: People (money from many different people), Power (big money from a few wealthy donors) and Influence (money from PACs, businesses, politicians and parties). The grade is the People share: S is $90 or more of every $100, A $75 to $89, B $60 to $74, C $45 to $59, D $30 to $44, E $15 to $29, F under $15. Grades are updated after each FEC filing deadline.
+Every dollar given to a member (their campaigns, leadership PAC and own joint fundraising committees; their own money, loans and transfers left out) is sorted into three parts: People (money from many different people), Power (big money from a few wealthy donors) and Influence (money from PACs, businesses, politicians and parties). The grade is the People share: S is 90% or more, A 75% to 89%, B 60% to 74%, C 45% to 59%, D 30% to 44%, E 15% to 29%, F under 15%. Grades are updated after each FEC filing deadline.
 
 ## Pages
 

@@ -33,7 +33,7 @@ export function Stamp({
         {g.mark}
       </span>
       {word && (
-        <span className="stamp-word" aria-hidden="true">
+        <span className={`stamp-word${g.name.length > 12 ? ' is-long' : ''}`} aria-hidden="true">
           {g.name}
         </span>
       )}

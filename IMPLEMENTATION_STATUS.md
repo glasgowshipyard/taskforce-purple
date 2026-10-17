@@ -4,6 +4,28 @@
 
 ---
 
+## 2026-10-17 (evening): percentages, the graph's half-way changes, flags
+
+Owner's call ("do the lot"):
+
+- **One unit: percentages.** Every "$X of every $100" became a percentage:
+  grade meanings and ranges ("75% to 89% of the money came from people"),
+  the "Why" steps ("Here 39% of the money is People and 7% is Power"), the
+  home page, /how, the ballot comparison and the pre-built pages. The $200
+  small/big line stays in dollars.
+- **The graph:** open at the sides again (pinned to zero, it drew slopes
+  that aren't in the data); no dots, pointing at or tapping a part shows it
+  with what it means; "’26" in the corner for the election cycle. The share
+  card and the link-preview pictures match. Whether the curve is the right
+  form (or columns) stays open.
+- **Flags** back on the "Country-focused" chips (🇮🇱), drawn from the
+  country's code (`src/lib/flags.js`, every country the refresh job can
+  name).
+- **Stamps:** long grade names ("Heavily influenced") on two tight lines
+  inside the ring on the small card stamps.
+
+---
+
 ## 2026-10-17 (later): findable by search engines, AI tools and link previews
 
 - **Pre-built pages** (`scripts/site/prerender.mjs`, part of `npm run

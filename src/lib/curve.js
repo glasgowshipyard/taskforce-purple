@@ -1,8 +1,7 @@
 // The curve through a member's three points (People, Power, Influence), for
 // the page's graph and the share card. One function so both draw the same
-// shape. It starts and ends at zero at the plot's edges (owner, 2026-10-16),
-// so every member's money draws as a whole shape; only the three points are
-// figures.
+// shape. It runs from the first point to the last, open at the sides (owner,
+// 2026-10-17: pinned to zero, it drew slopes that aren't in the data).
 
 /**
  * An SVG path through `pts` ([{ x, y }], x increasing): a monotone cubic
@@ -32,12 +31,4 @@ export function monotonePath(pts) {
     d += ` C${pts[i].x + h},${pts[i].y + m[i] * h} ${pts[i + 1].x - h},${pts[i + 1].y - m[i + 1] * h} ${pts[i + 1].x},${pts[i + 1].y}`;
   }
   return d;
-}
-
-/**
- * The member's points with zero added at the plot's left and right edges,
- * `base` being the y of 0%: the curve and its filled area start and end there.
- */
-export function hillPoints(pts, left, right, base) {
-  return [{ x: left, y: base }, ...pts, { x: right, y: base }];
 }

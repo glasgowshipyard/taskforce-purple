@@ -41,6 +41,9 @@ const DIST = 'dist';
 /** IndexNow's key: not a secret, it's published at /<key>.txt to prove the site is ours */
 export const INDEXNOW_KEY = 'd7a4e05294d3e39e0649b9c0b0916778';
 const images = !process.argv.includes('--no-images');
+// Raise when the pages' wording changes, so every page counts as changed
+// (sitemap dates, IndexNow) even though the facts on it didn't
+const WORDING = 2;
 const production = process.env.CF_PAGES === '1' && process.env.CF_PAGES_BRANCH === 'main';
 
 const write = (path, data) => {
@@ -87,7 +90,7 @@ for (const page of pages) {
   if (images) {
     write(join(DIST, page.image), cardPng(page.card));
   }
-  const sig = createHash('sha1').update(page.signature).digest('hex').slice(0, 16);
+  const sig = createHash('sha1').update(`${WORDING}|${page.signature}`).digest('hex').slice(0, 16);
   const old = before.pages?.[page.path];
   const lastmod = old && old.sig === sig ? old.lastmod : today;
   if (!old || old.sig !== sig) {
@@ -96,7 +99,10 @@ for (const page of pages) {
   state.pages[page.path] = { sig, lastmod };
 }
 
-write(join(DIST, 'sitemap.xml'), sitemapXml(pages.map(p => ({ path: p.path, lastmod: state.pages[p.path].lastmod }))));
+write(
+  join(DIST, 'sitemap.xml'),
+  sitemapXml(pages.map(p => ({ path: p.path, lastmod: state.pages[p.path].lastmod })))
+);
 write(join(DIST, 'prerender-state.json'), JSON.stringify(state));
 const llms = llmsTxt(members, list.lastUpdated);
 write(join(DIST, 'llms.txt'), llms.brief);

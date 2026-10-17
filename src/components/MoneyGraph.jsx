@@ -2,11 +2,13 @@
 // given in three parts, People, Power and Influence, as shares that add up
 // to 100. People is the grade's score (peoplePowerInfluence in
 // workers/tier-calculation.js). Three points joined by a curve that never
-// overshoots them, starting and ending at zero at the plot's edges so every
-// member's money is a whole shape (lib/curve.js). Under it, the grade letters
-// with this member's circled.
+// overshoots them, open at the sides (owner, 2026-10-17: pinning it to zero
+// drew slopes that aren't in the data). No dots: pointing at or tapping a
+// part shows it, with what it means. The election cycle in the corner.
+// Under it, the grade letters with this member's circled.
 import React, { useState } from 'react';
-import { hillPoints, monotonePath } from '../lib/curve.js';
+import { monotonePath } from '../lib/curve.js';
+import { CYCLE_SHORT } from '../lib/election.js';
 import { GRADES, LETTERS, PARTS } from '../lib/grades.js';
 
 // Drawn narrower on a card, so its words come out the same size as the page's
@@ -54,14 +56,19 @@ export default function MoneyGraph({ ppi, tier, compact = false, showKey = false
     x: PAD.left + col * (i + 0.5),
     y: y(ppi[p.key] ?? 0),
   }));
-  const line = monotonePath(hillPoints(pts, PAD.left, W - PAD.right, base));
-  // The curve ends on the 0% line, so closing it back along that line fills it
-  const area = `${line} Z`;
+  const line = monotonePath(pts);
+  const area = `${line} L${pts[pts.length - 1].x},${base} L${pts[0].x},${base} Z`;
   const color = GRADES[tier]?.color || 'var(--purple)';
   const label = `${PARTS.map(p => `${p.label} ${ppi[p.key]}%`).join(', ')} of the money given${
     GRADES[tier] ? `. Grade ${tier}, ${GRADES[tier].name}` : ''
   }.`;
   const hover = active === null ? null : pts[active];
+  // The part under the pointer: the whole column answers, not just the curve
+  const nearest = e => {
+    const box = e.currentTarget.getBoundingClientRect();
+    const x = ((e.clientX - box.left) / box.width) * W;
+    return Math.max(0, Math.min(PARTS.length - 1, Math.floor((x - PAD.left) / col)));
+  };
 
   return (
     <figure className={`ppi${compact ? ' is-compact' : ''}`} style={{ '--g': color }}>
@@ -70,8 +77,19 @@ export default function MoneyGraph({ ppi, tier, compact = false, showKey = false
           viewBox={`0 0 ${W} ${H}`}
           role="img"
           aria-label={label}
-          onMouseLeave={() => setActive(null)}
+          onPointerMove={e => e.pointerType === 'mouse' && setActive(nearest(e))}
+          onPointerLeave={e => e.pointerType === 'mouse' && setActive(null)}
+          onPointerDown={e => {
+            // A tap shows a part; tapping it again hides it
+            if (e.pointerType !== 'mouse') {
+              const i = nearest(e);
+              setActive(a => (a === i ? null : i));
+            }
+          }}
         >
+          <text x={W - PAD.right} y={PAD.top + 4} textAnchor="end" className="ppi-cycle">
+            {CYCLE_SHORT}
+          </text>
           {[0, 50, 100].map(v => (
             <g key={v}>
               <line
@@ -93,22 +111,13 @@ export default function MoneyGraph({ ppi, tier, compact = false, showKey = false
               {hover && active === i && (
                 <line x1={p.x} x2={p.x} y1={PAD.top} y2={base} className="ppi-cross" />
               )}
-              <circle cx={p.x} cy={p.y} r={active === i ? 6 : 4.5} className="ppi-dot" />
+              {active === i && <circle cx={p.x} cy={p.y} r={6} className="ppi-dot" />}
               <text x={p.x} y={base + 18} textAnchor="middle" className="ppi-name">
                 {p.label}
               </text>
               <text x={p.x} y={base + 36} textAnchor="middle" className="ppi-value">
                 {p.value}%
               </text>
-              {/* Bigger than the mark: the whole column answers the pointer */}
-              <rect
-                x={p.x - col / 2}
-                y={0}
-                width={col}
-                height={H}
-                fill="transparent"
-                onMouseEnter={() => setActive(i)}
-              />
             </g>
           ))}
         </svg>

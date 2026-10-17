@@ -4,6 +4,8 @@ export const ELECTION_DAY = new Date(2026, 10, 3);
 export const ELECTION_DAY_TEXT = 'Tuesday, November 3';
 export const RACES_ARRIVE_TEXT = 'October 23';
 export const CYCLE_LABEL = '2025–26';
+// The cycle in a corner of a member's graph
+export const CYCLE_SHORT = '’26';
 
 export function daysUntilElection(now = new Date()) {
   const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());

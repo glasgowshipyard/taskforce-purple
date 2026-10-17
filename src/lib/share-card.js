@@ -1,7 +1,7 @@
 // The share card: a 1200x630 picture of someone's receipt and grade, drawn in
 // the visitor's browser when they press Share. Nothing is rendered on a
 // server, so it costs nothing however many people share.
-import { hillPoints, monotonePath } from './curve.js';
+import { monotonePath } from './curve.js';
 import { PARTS, gradeInfo } from './grades.js';
 import { usdShort } from './people.js';
 
@@ -95,9 +95,9 @@ function drawGraph(x, ppi, color, left, top, width, height) {
     x: left + (width * (2 * i + 1)) / 6,
     y: top + (1 - Math.max(0, Math.min(100, ppi[p.key] ?? 0)) / 100) * height,
   }));
-  const curve = monotonePath(hillPoints(pts, left, left + width, base));
+  const curve = monotonePath(pts);
   const line = new Path2D(curve);
-  const area = new Path2D(`${curve} Z`);
+  const area = new Path2D(`${curve} L${pts[2].x},${base} L${pts[0].x},${base} Z`);
   x.save();
   x.strokeStyle = '#DDDAD2';
   x.lineWidth = 1;
@@ -114,13 +114,6 @@ function drawGraph(x, ppi, color, left, top, width, height) {
   x.lineJoin = 'round';
   x.stroke(line);
   for (const p of pts) {
-    x.beginPath();
-    x.arc(p.x, p.y, 5, 0, Math.PI * 2);
-    x.fillStyle = color;
-    x.fill();
-    x.lineWidth = 2;
-    x.strokeStyle = '#FFFEFA';
-    x.stroke();
     x.fillStyle = '#3D3A46';
     x.textAlign = 'center';
     x.font = `600 11px ${MONO}`;

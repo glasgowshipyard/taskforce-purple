@@ -10,6 +10,7 @@ import { Barcode, Evidence, Section, MoneyLines, Skeleton, Stamp } from '../comp
 import { api } from '../lib/api.js';
 import { classifyOrganization, sectorInfo } from '../lib/donor-taxonomy.js';
 import { CYCLE_LABEL } from '../lib/election.js';
+import { flagFor } from '../lib/flags.js';
 import { bigDonorLine, explainGrade, peopleSentence, placementLine } from '../lib/explain.js';
 import { gradeInfo, isLetter, isRingfenced, withArticle } from '../lib/grades.js';
 import { useAsync, useTitle } from '../lib/hooks.js';
@@ -448,7 +449,10 @@ export default function Member({ id, kind = 'member' }) {
                           <span className="name">
                             {c.name}{' '}
                             {c.country ? (
-                              <span className="pac-chip">Country-focused: {c.country}</span>
+                              <span className="pac-chip">
+                                <span aria-hidden="true">{flagFor(c.country)}</span>{' '}
+                                Country-focused: {c.country}
+                              </span>
                             ) : (
                               <span
                                 className="muted"

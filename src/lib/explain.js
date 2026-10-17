@@ -5,7 +5,7 @@
 //
 // The money given is told in three parts (owner and Craig, 2026-10-13):
 // People, Power and Influence (peoplePowerInfluence in
-// workers/tier-calculation.js), in dollars out of every $100 given. People
+// workers/tier-calculation.js), as shares of the money given. People
 // is the grade's score, so the page has one figure for "from people".
 import { GRADES, LETTERS, withArticle } from './grades.js';
 import { peoplePowerInfluence } from '../../workers/tier-calculation.js';
@@ -117,19 +117,19 @@ export function bigDonorLine(fewest, donors) {
 function nextLine(tier) {
   const i = LETTERS.indexOf(tier);
   if (tier === 'S') {
-    return 'An S needs $90.';
+    return 'An S needs 90%.';
   }
   const up = LETTERS[i - 1];
-  const needs = l => `${withArticle(l).replace(/^a/, 'A')} needs $${BANDS[l]}`;
+  const needs = l => `${withArticle(l).replace(/^a/, 'A')} needs ${BANDS[l]}%`;
   return tier === 'F'
     ? `${needs('E')}.`
-    : `${needs(tier)} and ${withArticle(up)} needs $${BANDS[up]}.`;
+    : `${needs(tier)} and ${withArticle(up)} needs ${BANDS[up]}%.`;
 }
 
 // "Here $7 is People money and $3 is Influence."
 function split(people, other, otherName) {
   if (people > 0 && other > 0) {
-    return `Here $${people} is People money and $${other} is ${otherName}.`;
+    return `Here ${people}% of the money is People and ${other}% is ${otherName}.`;
   }
   return people > 0 ? 'Here all of it is People money.' : `Here all of it is ${otherName}.`;
 }
@@ -153,7 +153,7 @@ export function explainGrade({ tier, grade, name }) {
 
   if (people.small > 0) {
     steps.push({
-      title: `Small donations: $${people.small}`,
+      title: `Small donations: ${people.small}%`,
       tone: 'good',
       text: 'Donations under $200. All of it is People money.',
     });
@@ -166,7 +166,7 @@ export function explainGrade({ tier, grade, name }) {
         ? `${bigDonorLine(d.fewestHoldingHalf, d.donors)} The fewer the donors who give half of it, the less of it is People money. `
         : "We don't have enough of the donor records yet to tell how many people gave it, so we use a middle rule. ";
     steps.push({
-      title: `Big donations: $${big}`,
+      title: `Big donations: ${big}%`,
       tone: power.big > 0 ? 'bad' : 'good',
       text: `Donations over $200. ${who}${split(people.big, power.big, 'Power')}`,
     });
@@ -175,7 +175,7 @@ export function explainGrade({ tier, grade, name }) {
   const pac = people.pac + influence.pac;
   if (pac > 0) {
     steps.push({
-      title: `PACs: $${pac}`,
+      title: `PACs: ${pac}%`,
       tone: people.pac > 0 ? 'neutral' : 'bad',
       text: `PAC money is People money only when the group behind the PAC is run by its members, who elect most of its board, as in a union. Even then, only the part of the PAC's own money that came from many people. ${split(people.pac, influence.pac, 'Influence')}`,
     });
@@ -184,7 +184,7 @@ export function explainGrade({ tier, grade, name }) {
   const directed = people.directed + influence.directed;
   if (directed > 0) {
     steps.push({
-      title: `Gifts passed on by a committee: $${directed}`,
+      title: `Gifts passed on by a committee: ${directed}%`,
       tone: people.directed > 0 ? 'neutral' : 'bad',
       text: `Some donors gave through a committee that chose to pass their gifts to ${name}. Those gifts are the committee's, so they follow the same rule as PACs. ${split(people.directed, influence.directed, 'Influence')}`,
     });
@@ -193,20 +193,20 @@ export function explainGrade({ tier, grade, name }) {
   const politicians = influence.party + influence.funds;
   if (politicians > 0) {
     steps.push({
-      title: `Parties and other politicians: $${politicians}`,
+      title: `Parties and other politicians: ${politicians}%`,
       tone: 'bad',
       text: "Money from party committees and from other politicians' joint fundraising committees. All of it is Influence.",
     });
   }
 
   steps.push({
-    title: `$${ppi.people} of every $100 came from people`,
+    title: `${ppi.people}% of the money came from people`,
     tone: GRADES[tier].rank >= 6 ? 'good' : GRADES[tier].rank <= 4 ? 'bad' : 'neutral',
-    text: `People $${ppi.people}, Power $${ppi.power}, Influence $${ppi.influence}. That's ${withArticle(tier)}: ${GRADES[tier].name}. ${nextLine(tier)}`,
+    text: `People ${ppi.people}%, Power ${ppi.power}%, Influence ${ppi.influence}%. That's ${withArticle(tier)}: ${GRADES[tier].name}. ${nextLine(tier)}`,
   });
 
   return {
-    intro: `Every amount here is out of each $100 given to ${name}. Their own money, loans and transfers are left out.`,
+    intro: `Every share here is of all the money given to ${name}. Their own money, loans and transfers are left out.`,
     steps,
     ppi,
   };

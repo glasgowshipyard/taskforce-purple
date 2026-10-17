@@ -6,7 +6,7 @@
 
 import { createRequire } from 'node:module';
 import { Resvg } from '@resvg/resvg-js';
-import { hillPoints, monotonePath } from '../../src/lib/curve.js';
+import { monotonePath } from '../../src/lib/curve.js';
 import { GRADES, PARTS } from '../../src/lib/grades.js';
 
 const require = createRequire(import.meta.url);
@@ -109,7 +109,7 @@ function receipt(tier, ppi) {
     x: left + col * (i + 0.5),
     y: base - ((ppi[p.key] ?? 0) / 100) * (base - top),
   }));
-  const curve = monotonePath(hillPoints(pts, left, right, base));
+  const curve = monotonePath(pts);
   const word = g.name.toUpperCase();
   const wordLines = word.length > 14 && word.includes(' ') ? word.split(' ') : [word];
   return `<rect x="${x0}" y="${y0}" width="${w}" height="${h}" rx="8" fill="#FFFEFA"/>
@@ -125,12 +125,11 @@ ${wordLines
   .join('')}
 </g>
 <line x1="${left}" x2="${right}" y1="${base + 0.5}" y2="${base + 0.5}" stroke="#DDDAD2" stroke-width="1"/>
-<path d="${curve} Z" fill="${g.color}" fill-opacity="0.16"/>
+<path d="${curve} L${pts[2].x},${base} L${pts[0].x},${base} Z" fill="${g.color}" fill-opacity="0.16"/>
 <path d="${curve}" fill="none" stroke="${g.color}" stroke-width="4" stroke-linejoin="round"/>
 ${pts
   .map(
-    p => `<circle cx="${p.x}" cy="${p.y}" r="6.5" fill="${g.color}" stroke="#FFFEFA" stroke-width="2.5"/>
-<text x="${p.x}" y="${base + 30}" font-family="IBM Plex Mono" font-weight="600" font-size="15" fill="#3D3A46" text-anchor="middle">${p.label.toUpperCase()}</text>
+    p => `<text x="${p.x}" y="${base + 30}" font-family="IBM Plex Mono" font-weight="600" font-size="15" fill="#3D3A46" text-anchor="middle">${p.label.toUpperCase()}</text>
 <text x="${p.x}" y="${base + 58}" font-family="IBM Plex Mono" font-weight="600" font-size="22" fill="#15131C" text-anchor="middle">${p.value}%</text>`
   )
   .join('')}`;
