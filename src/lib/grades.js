@@ -3,9 +3,18 @@
 // file only presents them. The names are the owner's and Craig's
 // (2026-10-13). "People", "Power" and "Influence" are the three parts of
 // the money (peoplePowerInfluence in tier-calculation.js): many people, a
-// few wealthy donors, and PACs, businesses, politicians and parties.
+// few wealthy donors, and PACs (companies' PACs among them), politicians and
+// parties. Companies can't give to federal campaigns themselves: their money
+// comes through their PACs (an outside review's catch, 2026-10-17).
 
 export const LETTERS = ['S', 'A', 'B', 'C', 'D', 'E', 'F'];
+
+// What a grade is and isn't, beside every grade a visitor can land on: the
+// member page, the share card and link previews (two outside reviews,
+// 2026-10-17: a letter grade can read as a verdict on the person)
+export const GRADE_SCOPE =
+  'The grade is only about where the money comes from, not how they vote, their character or the law.';
+export const GRADE_SCOPE_SHORT = 'Grades show where the money comes from, not votes or character.';
 
 // The three parts of the money given, as the graph names them
 export const PARTS = [
@@ -14,7 +23,7 @@ export const PARTS = [
   {
     key: 'influence',
     label: 'Influence',
-    about: 'Money from PACs, businesses, politicians and parties',
+    about: "Money from PACs (including companies' PACs), politicians and parties",
   },
 ];
 
@@ -61,7 +70,7 @@ export const GRADES = {
     rank: 4,
     range: '30% to 44%',
     meaning:
-      '30% to 44% of the money came from people. The rest came from a few wealthy donors, or from PACs, businesses and politicians.',
+      '30% to 44% of the money came from people. The rest came from a few wealthy donors, or from PACs and politicians.',
   },
   E: {
     name: 'Heavily influenced',
@@ -70,7 +79,7 @@ export const GRADES = {
     rank: 3,
     range: '15% to 29%',
     meaning:
-      '15% to 29% of the money came from people. The rest came from a few wealthy donors, or from PACs, businesses and politicians.',
+      '15% to 29% of the money came from people. The rest came from a few wealthy donors, or from PACs and politicians.',
   },
   F: {
     name: 'Beholden',

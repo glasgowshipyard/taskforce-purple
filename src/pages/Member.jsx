@@ -25,7 +25,7 @@ import {
   peopleSentence,
   placementLine,
 } from '../lib/explain.js';
-import { gradeInfo, isLetter, isRingfenced, withArticle } from '../lib/grades.js';
+import { GRADE_SCOPE, gradeInfo, isLetter, isRingfenced, withArticle } from '../lib/grades.js';
 import { useAsync, useTitle } from '../lib/hooks.js';
 import { lightHandlers, useLight } from '../lib/light.js';
 import {
@@ -45,6 +45,7 @@ import {
 import { stateByCode } from '../lib/states.js';
 import { peoplePowerInfluence } from '../../workers/tier-calculation.js';
 import { Link, racePath } from '../lib/router.js';
+import { LAST_DIRECTORY } from '../lib/search.js';
 
 const PART_LABEL = { people: 'People', power: 'Power', influence: 'Influence' };
 
@@ -151,6 +152,16 @@ function findRace(races, pred) {
     }
   }
   return null;
+}
+
+// Back to the directory as the visitor left it: same search and filters
+function lastDirectory() {
+  try {
+    const last = sessionStorage.getItem(LAST_DIRECTORY);
+    return last?.startsWith('/congress') ? last : '/congress';
+  } catch {
+    return '/congress';
+  }
 }
 
 // The share card has room for four lines: small donations, big donations
@@ -322,7 +333,7 @@ export default function Member({ id, kind = 'member' }) {
               {isCandidate ? (
                 <Link to="/ballot">Your ballot</Link>
               ) : (
-                <Link to="/congress">All of Congress</Link>
+                <Link to={lastDirectory()}>All of Congress</Link>
               )}
             </p>
             <h1 className="display display-xl" style={{ fontSize: 'clamp(48px, 8vw, 112px)' }}>
@@ -391,7 +402,7 @@ export default function Member({ id, kind = 'member' }) {
                   <>
                     <div className="tear" style={{ marginTop: 6 }} />
                     <p className="slip-subtotal">
-                      <span>SUBTOTAL</span>
+                      <span>GRADED ON</span>
                       <span>{usd(receipt.subtotal)}</span>
                     </p>
                     <p className="slip-aside">
@@ -425,6 +436,7 @@ export default function Member({ id, kind = 'member' }) {
                 <div className="member-verdict">
                   {sentence && <p className="member-sentence">{sentence}</p>}
                   {placement && <p className="placement">{placement}</p>}
+                  {sentence && <p className="grade-scope">{GRADE_SCOPE}</p>}
                   <p className="flag-line">
                     <button type="button" className="link-button" onClick={() => setFlagging(true)}>
                       Something wrong with this grade?

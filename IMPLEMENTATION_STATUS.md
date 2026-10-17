@@ -4,6 +4,37 @@
 
 ---
 
+## 2026-10-17 (evening): fixes from two outside reviews
+
+The owner had two outside reviews of the site appraised; most of the
+second one read old GitHub issues as current. Six resolved issues were
+closed (#1, #16, #39, #47, #57, #61). Done from the reviews:
+
+- **Search finds what people type** (`src/lib/search.js`): every word must
+  match the start of a word in the name, the initials ("AOC"), a common
+  short form of a first name ("Bernie", "Chuck"), the state or its postal
+  code ("NM"), or the party; accents and punctuation ignored. With no full
+  match it shows the closest, and says so. The "no matches" line says
+  what to try and offers "Clear filters" only when there are filters.
+- **"Not graded" filter** on /congress, and member pages lead back to the
+  directory with the visitor's search and filters (`tfp:last-directory`).
+- **"Businesses" was wrong:** companies can't give to federal campaigns;
+  their money comes through their PACs. Influence is now "Money from PACs
+  (including companies' PACs), politicians and parties" everywhere,
+  pre-built pages included (prerender `WORDING` 3: every page re-listed).
+- **What a grade is and isn't**, beside every grade: member pages ("The
+  grade is only about where the money comes from, not how they vote, their
+  character or the law."), the share card and link previews (`GRADE_SCOPE`
+  in grades.js).
+- **The receipt's subtotal reads GRADED ON**, so the percentage's base is
+  named.
+- **Every grade as a spreadsheet**: `/grades.csv` (#67), built with the
+  pre-built pages, linked from /congress and llms.txt.
+- Accessibility: the PAC section's headings no longer skip a level; chart
+  axis text 12px; the curve-or-bars switch 34px tall.
+- **Schweikert re-graded live** (F 14 to E 16, run 39079214252) after the
+  joint-fund fix was merged; one KV write.
+
 ## 2026-10-17 (later still): receipts from the grade's own figures
 
 - **One source of truth for a member's money** (owner: "the numbers HAVE

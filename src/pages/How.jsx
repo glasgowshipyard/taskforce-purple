@@ -67,9 +67,9 @@ const PILES = {
   ),
   influence: (
     <>
-      Money from PACs, businesses, politicians and parties: PACs of companies and trade groups, PACs
-      of groups run by a board, other politicians&apos; PACs and joint fundraising committees, and
-      party committees.
+      Money from PACs, politicians and parties: PACs of companies and trade groups, PACs of groups
+      run by a board, other politicians&apos; PACs and joint fundraising committees, and party
+      committees.
     </>
   ),
 };

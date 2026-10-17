@@ -139,10 +139,11 @@ ${pts
 }
 
 /**
- * A member's card: { eyebrow, headline, sub, tier, ppi }. Without a tier and
- * graph (a withheld grade, or the site's own pages) the text fills the card.
+ * A member's card: { eyebrow, headline, sub, tier, ppi, note }. Without a
+ * tier and graph (a withheld grade, or the site's own pages) the text fills
+ * the card. `note`: one small line above the brand (what a grade is and isn't).
  */
-export function cardSvg({ eyebrow, headline, sub, tier = null, ppi = null }) {
+export function cardSvg({ eyebrow, headline, sub, tier = null, ppi = null, note = null }) {
   const withGraph = Boolean(tier && GRADES[tier] && ppi);
   const x = withGraph ? 512 : 64;
   const width = WIDTH - x - 64;
@@ -167,7 +168,7 @@ export function cardSvg({ eyebrow, headline, sub, tier = null, ppi = null }) {
     subTop = headTop + (lines.length - 1) * Math.round(size * leading) + 54;
     head = { size, lines };
     const bottom = subLines.length ? subTop + (subLines.length - 1) * 36 : subTop - 54;
-    if (lines.length <= 4 && bottom <= HEIGHT - 104) {
+    if (lines.length <= 4 && bottom <= HEIGHT - (note ? 140 : 104)) {
       break;
     }
   }
@@ -177,6 +178,7 @@ ${withGraph ? receipt(tier, ppi) : ''}
 ${textLines(eye.lines, { x, y: 92, size: eye.size, leading: 1.2, family: 'IBM Plex Mono', weight: 600, fill: '#DDD3FE' })}
 ${textLines(head.lines, { x, y: headTop, size: head.size, leading, family: 'Archivo', weight: 900, fill: '#FFFFFF' })}
 ${textLines(subLines, { x, y: subTop, size: 28, leading: 1.3, family: 'Public Sans', weight: 400, fill: '#EDE9F6' })}
+${note ? `<text x="${x}" y="${HEIGHT - 106}" font-family="Public Sans" font-weight="400" font-size="19" fill="#DDD3FE">${esc(note)}</text>` : ''}
 ${brand(x)}
 </svg>`;
 }

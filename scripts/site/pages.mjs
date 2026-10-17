@@ -6,7 +6,15 @@
 
 import { CYCLE_LABEL } from '../../src/lib/election.js';
 import { LEFT_OUT, peopleSentence, placementLine } from '../../src/lib/explain.js';
-import { GRADES, LETTERS, PARTS, gradeInfo, isLetter, withArticle } from '../../src/lib/grades.js';
+import {
+  GRADES,
+  GRADE_SCOPE_SHORT,
+  LETTERS,
+  PARTS,
+  gradeInfo,
+  isLetter,
+  withArticle,
+} from '../../src/lib/grades.js';
 import { displayName, partyName, roleTitle, seatLabel, usd } from '../../src/lib/people.js';
 import { FINDINGS, LEAD, MOTTO, STUDIES, WISHES } from '../../src/lib/research.js';
 
@@ -25,7 +33,7 @@ export const esc = text =>
 const SHORT_TITLE = { Senator: 'Sen.', Representative: 'Rep.', Delegate: 'Del.' };
 
 const HOME_DESCRIPTION =
-  'Task Force Purple grades every member of Congress, S to F, on where their campaign money comes from: many people, a few wealthy donors, or PACs, businesses and politicians. All figures from public FEC filings.';
+  'Task Force Purple grades every member of Congress, S to F, on where their campaign money comes from: many people, a few wealthy donors, or PACs and politicians. All figures from public FEC filings.';
 
 /** A member's three parts and sentence, or null for a withheld grade */
 function figures(m) {
@@ -48,7 +56,7 @@ export function memberPage(m, scores) {
     ? `Who funds ${name}? ${m.tier}: ${f.ppi.people}% from people${TITLE_SUFFIX}`
     : `Who funds ${name}?${TITLE_SUFFIX}`;
   const description = f
-    ? `${name} (${party}, ${seat.replace(' · ', ', ')}) gets ${withArticle(m.tier)}, ${g.name}. ${f.sentence} ${f.ppi.power}% was big money from a few wealthy donors and ${f.ppi.influence}% came from PACs, businesses, politicians and parties. From public FEC filings.`
+    ? `${name} (${party}, ${seat.replace(' · ', ', ')}) gets ${withArticle(m.tier)}, ${g.name}. ${f.sentence} ${f.ppi.power}% was big money from a few wealthy donors and ${f.ppi.influence}% came from PACs, politicians and parties. From public FEC filings.`
     : `${name} (${party}, ${seat.replace(' · ', ', ')}): ${g.meaning}`;
   const raised = m.personFigures?.totalRaised ?? m.totalRaised;
   const body = `<main class="wrap section" data-prerendered>
@@ -59,7 +67,7 @@ export function memberPage(m, scores) {
 ${
   f
     ? `<p>${esc(f.sentence)}${placement ? ` ${esc(placement)}.` : ''}</p>
-<p>Of all the money given to ${esc(name)}: ${f.ppi.people}% from people (many different donors), ${f.ppi.power}% from power (big money from a few wealthy donors) and ${f.ppi.influence}% from influence (PACs, businesses, politicians and parties).</p>
+<p>Of all the money given to ${esc(name)}: ${f.ppi.people}% from people (many different donors), ${f.ppi.power}% from power (big money from a few wealthy donors) and ${f.ppi.influence}% from influence (PACs, politicians and parties).</p>
 ${raised > 0 ? `<p>Raised ${esc(usd(raised))} in the ${CYCLE_LABEL} election cycle, from public FEC filings.${m.evidenceChecked === true ? ' Every donation checked against the FEC’s records.' : m.evidenceChecked === false ? ' Still being checked against the FEC’s records.' : ''}</p>` : ''}`
     : `<p>${esc(g.meaning)}</p>`
 }
@@ -76,6 +84,7 @@ ${raised > 0 ? `<p>Raised ${esc(usd(raised))} in the ${CYCLE_LABEL} election cyc
           sub: `Grade ${m.tier}: ${g.name}.${placement ? ` ${placement}.` : ''}`,
           tier: m.tier,
           ppi: f.ppi,
+          note: GRADE_SCOPE_SHORT,
         }
       : {
           eyebrow: `${SHORT_TITLE[role] || role} ${name}`,
@@ -177,7 +186,7 @@ export function congressPage(members) {
       return `<li><a href="/member/${encodeURIComponent(m.bioguideId)}">${esc(displayName(m.name))}</a>, ${esc(partyName(m.party))}, ${esc(seatLabel(m))}: ${f ? `${esc(m.tier)} (${esc(g.name)}), ${f.ppi.people}% from people` : esc(g.name)}</li>`;
     })
     .join('\n');
-  const description = `Campaign funding grades for all ${members.length} members of Congress, S to F, from public FEC filings: how much of each member's money came from many people, a few wealthy donors, or PACs, businesses and politicians.`;
+  const description = `Campaign funding grades for all ${members.length} members of Congress, S to F, from public FEC filings: how much of each member's money came from many people, a few wealthy donors, or PACs and politicians.`;
   return {
     path: '/congress',
     title: `All of Congress: who funds every member${TITLE_SUFFIX}`,
@@ -257,6 +266,63 @@ ${urls.join('\n')}
 `;
 }
 
+/**
+ * Every grade as a spreadsheet (grades.csv, #67): one row per member, the
+ * figures the site shows. A withheld grade has its word and no percentages.
+ */
+export function gradesCsv(members, lastUpdated) {
+  const cell = v => {
+    const s = String(v ?? '');
+    return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+  };
+  const head = [
+    'bioguide_id',
+    'name',
+    'chamber',
+    'state',
+    'district',
+    'party',
+    'grade',
+    'grade_name',
+    'people_pct',
+    'power_pct',
+    'influence_pct',
+    'total_raised',
+    'records_checked',
+    'cycle',
+    'data_as_of',
+    'page',
+  ];
+  const rows = [...members]
+    .sort((a, b) => displayName(a.name).localeCompare(displayName(b.name)))
+    .map(m => {
+      const f = figures(m);
+      const g = gradeInfo(m.tier, m.withheldReason);
+      const raised = m.personFigures?.totalRaised ?? m.totalRaised;
+      return [
+        m.bioguideId,
+        displayName(m.name),
+        m.chamber,
+        m.state,
+        m.district ?? '',
+        partyName(m.party),
+        isLetter(m.tier) ? m.tier : g.name,
+        isLetter(m.tier) ? g.name : '',
+        f ? f.ppi.people : '',
+        f ? f.ppi.power : '',
+        f ? f.ppi.influence : '',
+        Number.isFinite(raised) ? Math.round(raised) : '',
+        m.evidenceChecked === true ? 'yes' : m.evidenceChecked === false ? 'not yet' : '',
+        CYCLE_LABEL,
+        String(lastUpdated ?? '').slice(0, 10),
+        `${SITE}/member/${encodeURIComponent(m.bioguideId)}`,
+      ]
+        .map(cell)
+        .join(',');
+    });
+  return `${head.join(',')}\n${rows.join('\n')}\n`;
+}
+
 /** llms.txt: the site in brief for AI tools; llms-full.txt adds every grade */
 export function llmsTxt(members, lastUpdated) {
   const graded = members.filter(m => figures(m));
@@ -264,13 +330,14 @@ export function llmsTxt(members, lastUpdated) {
 
 > Task Force Purple grades all members of the U.S. Congress, S to F, on where their campaign money comes from, using public Federal Election Commission (FEC) filings. It is not connected to any party or campaign.
 
-Every dollar given to a member (their campaigns, leadership PAC and own joint fundraising committees; their own money, loans and transfers left out) is sorted into three parts: People (money from many different people), Power (big money from a few wealthy donors) and Influence (money from PACs, businesses, politicians and parties). The grade is the People share: S is 90% or more, A 75% to 89%, B 60% to 74%, C 45% to 59%, D 30% to 44%, E 15% to 29%, F under 15%. Grades are updated after each FEC filing deadline.
+Every dollar given to a member (their campaigns, leadership PAC and own joint fundraising committees; their own money, loans and transfers left out) is sorted into three parts: People (money from many different people), Power (big money from a few wealthy donors) and Influence (money from PACs, including companies' PACs, politicians and parties). The grade is the People share: S is 90% or more, A 75% to 89%, B 60% to 74%, C 45% to 59%, D 30% to 44%, E 15% to 29%, F under 15%. Grades are updated after each FEC filing deadline.
 
 ## Pages
 
 - [How grades work](${SITE}/how): the method in plain English, with the exact formula
 - [All of Congress](${SITE}/congress): every member's grade
 - [Every grade as text](${SITE}/llms-full.txt): one line per member, for AI tools
+- [Every grade as a spreadsheet](${SITE}/grades.csv): one row per member (CSV)
 - Each member has a page at ${SITE}/member/{Bioguide ID}, for example ${SITE}/member/S001150
 `;
   const lines = [...members]

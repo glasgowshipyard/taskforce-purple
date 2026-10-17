@@ -1426,6 +1426,13 @@ p {
   padding: 11px 0;
 }
 
+.grade-scope {
+  margin-top: 8px;
+  font-size: 14px;
+  color: var(--muted);
+  max-width: 34em;
+}
+
 /* What the grade is on; under it, what's shown but left out */
 .slip-subtotal {
   display: flex;
@@ -1650,6 +1657,16 @@ p {
 .grade-chip[aria-pressed='true'] {
   background: var(--g);
   color: var(--white);
+}
+
+/* "Not graded": a word, so a pill, not a circle */
+.grade-chip.is-word {
+  --g: var(--muted);
+  border-radius: 999px;
+  padding: 0 14px;
+  font-family: var(--body);
+  font-weight: 700;
+  font-size: 14px;
 }
 
 .member-rows {
@@ -2410,9 +2427,10 @@ p {
 
 .ppi-shape button {
   font-family: var(--mono);
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 600;
-  padding: 3px 10px;
+  min-height: 34px;
+  padding: 6px 14px;
   border: 1px solid var(--line-2);
   background: transparent;
   color: var(--muted);
@@ -2461,7 +2479,7 @@ p {
 
 .ppi-tick {
   font-family: var(--mono);
-  font-size: 11px;
+  font-size: 12px;
   fill: var(--muted);
 }
 

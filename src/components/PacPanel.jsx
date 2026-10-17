@@ -98,7 +98,7 @@ function Key({ title, groups, s }) {
   }
   return (
     <>
-      <h4 className="pac-key-title">{title}</h4>
+      <h3 className="pac-key-title">{title}</h3>
       <ul className="pac-split-key">
         {groups.map(g => (
           <li key={g.group}>
@@ -172,9 +172,9 @@ export default function PacPanel({ member, name, pacMoney }) {
           </div>
           <Key title="People, in part" groups={groups.filter(g => g.people)} s={s} />
           <Key title="Influence" groups={groups.filter(g => !g.people)} s={s} />
-          <h4 className="eyebrow" style={{ margin: '20px 0 10px' }}>
+          <h3 className="eyebrow" style={{ margin: '20px 0 10px' }}>
             The biggest
-          </h4>
+          </h3>
           <ol className="pac-list">
             {s.list.slice(0, 10).map((p, i) => (
               <Row key={`${p.id}-${p.to}`} p={p} i={i} />
@@ -184,9 +184,9 @@ export default function PacPanel({ member, name, pacMoney }) {
       )}
       {s.directed?.length > 0 && (
         <>
-          <h4 className="eyebrow" style={{ margin: '20px 0 10px' }}>
+          <h3 className="eyebrow" style={{ margin: '20px 0 10px' }}>
             Gifts passed on to {name} by a committee: {usd(s.directedTotal)}
-          </h4>
+          </h3>
           <p className="small" style={{ color: 'var(--ink-2)', marginBottom: 12 }}>
             Some donors gave through a committee that chose to pass their gifts on. Those gifts are
             the committee&apos;s, so they follow the same rule as PACs. ActBlue, WinRed and

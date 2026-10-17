@@ -1,6 +1,6 @@
 // All of Congress: every member's stamp, searchable and filterable. The
 // filters live in the address, so a filtered view can be shared.
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Search } from 'lucide-react';
 import { Skeleton, Stamp } from '../components/ui.jsx';
 import { api } from '../lib/api.js';
@@ -8,6 +8,7 @@ import { GRADES, LETTERS, gradeInfo, isLetter } from '../lib/grades.js';
 import { useAsync, useTitle } from '../lib/hooks.js';
 import { displayName, gradedFigures, partyName, seatLabel } from '../lib/people.js';
 import { Link, memberPath, navigate } from '../lib/router.js';
+import { LAST_DIRECTORY, searchMembers } from '../lib/search.js';
 
 const PAGE = 60;
 const SORTS = {
@@ -17,12 +18,15 @@ const SORTS = {
   name: 'Name',
 };
 
+// "none": the members without a letter grade
+const NOT_GRADED = 'none';
+
 function readParams(search) {
   const p = new URLSearchParams(search);
   const grade = p.get('grade');
   const chamber = p.get('chamber');
   return {
-    grade: LETTERS.includes(grade) ? grade : null,
+    grade: LETTERS.includes(grade) || grade === NOT_GRADED ? grade : null,
     chamber: chamber === 'house' || chamber === 'senate' ? chamber : null,
     q: p.get('q') || '',
     sort: SORTS[p.get('sort')] ? p.get('sort') : 'best',
@@ -83,19 +87,24 @@ export default function Congress({ search }) {
     writeParams({ ...params, ...change });
   };
 
-  const list = useMemo(() => {
+  useEffect(() => {
+    try {
+      sessionStorage.setItem(LAST_DIRECTORY, `/congress${search || ''}`);
+    } catch {
+      // Private windows can refuse storage; the link then goes to the plain list
+    }
+  }, [search]);
+
+  const { list, partial } = useMemo(() => {
     const all = members.data?.members || [];
-    const q = params.q.trim().toLowerCase();
-    const out = all.filter(
+    const filtered = all.filter(
       m =>
-        (!params.grade || m.tier === params.grade) &&
-        (!params.chamber || m.chamber.toLowerCase() === params.chamber) &&
-        (!q ||
-          displayName(m.name).toLowerCase().includes(q) ||
-          m.name.toLowerCase().includes(q) ||
-          m.state.toLowerCase().includes(q) ||
-          (m.party || '').toLowerCase().includes(q))
+        (!params.grade ||
+          (params.grade === NOT_GRADED ? !isLetter(m.tier) : m.tier === params.grade)) &&
+        (!params.chamber || m.chamber.toLowerCase() === params.chamber)
     );
+    const found = searchMembers(filtered, params.q);
+    const out = [...found.members];
     const rank = m => GRADES[m.tier]?.rank ?? -1;
     // Within a grade: the grade's own figure, the share from people
     const pct = m => (Number.isFinite(m.individualFundingPercent) ? m.individualFundingPercent : 0);
@@ -111,8 +120,9 @@ export default function Congress({ search }) {
       raised: (a, b) => gradedFigures(b).totalRaised - gradedFigures(a).totalRaised,
       name: byName,
     };
-    return out.sort(sorters[params.sort]);
+    return { list: out.sort(sorters[params.sort]), partial: found.partial };
   }, [members.data, params.q, params.grade, params.chamber, params.sort]);
+  const filtering = Boolean(params.grade || params.chamber);
 
   return (
     <div className="wrap section">
@@ -125,7 +135,11 @@ export default function Congress({ search }) {
         </div>
         <p>
           Every senator, representative and non-voting delegate, graded on where their campaign
-          money comes from. You can search by name, state or party.
+          money comes from. You can search by name, state or party, or{' '}
+          <a href="/grades.csv" download>
+            download every grade as a spreadsheet
+          </a>
+          .
         </p>
       </div>
 
@@ -179,6 +193,14 @@ export default function Congress({ search }) {
               {l}
             </button>
           ))}
+          <button
+            type="button"
+            className="grade-chip is-word"
+            aria-pressed={params.grade === NOT_GRADED}
+            onClick={() => set({ grade: params.grade === NOT_GRADED ? null : NOT_GRADED })}
+          >
+            Not graded
+          </button>
         </div>
         <label className="small" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           Sort
@@ -214,9 +236,28 @@ export default function Congress({ search }) {
         <>
           <p className="count-line" role="status" style={{ marginBottom: 12 }}>
             {list.length === 0
-              ? 'No members match. Try removing a filter.'
-              : `Showing ${Math.min(shown, list.length)} of ${list.length}`}
-            {params.grade && ` · grade ${params.grade}, ${GRADES[params.grade].name}`}
+              ? params.q.trim()
+                ? `No members match “${params.q.trim()}”. Try a last name or a state${filtering ? ', or clear the filters' : ''}.`
+                : 'No members match. Try clearing the filters.'
+              : partial
+                ? `No one matches every word of “${params.q.trim()}”. Showing the ${list.length} closest.`
+                : `Showing ${Math.min(shown, list.length)} of ${list.length}`}
+            {params.grade &&
+              (params.grade === NOT_GRADED
+                ? ' · not graded'
+                : ` · grade ${params.grade}, ${GRADES[params.grade].name}`)}
+            {list.length === 0 && filtering && (
+              <>
+                {' '}
+                <button
+                  type="button"
+                  className="link-button"
+                  onClick={() => set({ grade: null, chamber: null })}
+                >
+                  Clear filters
+                </button>
+              </>
+            )}
           </p>
           <ul className="member-rows">
             {list.slice(0, shown).map(m => (

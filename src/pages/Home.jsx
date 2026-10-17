@@ -217,8 +217,8 @@ export function HowSteps() {
             donors.
           </li>
           <li>
-            <strong className="part is-influence">Influence:</strong> money from PACs, businesses,
-            politicians and parties.
+            <strong className="part is-influence">Influence:</strong> money from PACs (including
+            companies&apos; PACs), politicians and parties.
           </li>
         </ul>
       </div>

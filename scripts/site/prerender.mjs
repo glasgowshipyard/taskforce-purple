@@ -31,6 +31,7 @@ import {
   fillTemplate,
   homePage,
   howPage,
+  gradesCsv,
   llmsTxt,
   memberPage,
   sitemapXml,
@@ -43,7 +44,7 @@ export const INDEXNOW_KEY = 'd7a4e05294d3e39e0649b9c0b0916778';
 const images = !process.argv.includes('--no-images');
 // Raise when the pages' wording changes, so every page counts as changed
 // (sitemap dates, IndexNow) even though the facts on it didn't
-const WORDING = 2;
+const WORDING = 3;
 const production = process.env.CF_PAGES === '1' && process.env.CF_PAGES_BRANCH === 'main';
 
 const write = (path, data) => {
@@ -107,6 +108,7 @@ write(join(DIST, 'prerender-state.json'), JSON.stringify(state));
 const llms = llmsTxt(members, list.lastUpdated);
 write(join(DIST, 'llms.txt'), llms.brief);
 write(join(DIST, 'llms-full.txt'), llms.full);
+write(join(DIST, 'grades.csv'), gradesCsv(members, list.lastUpdated));
 write(join(DIST, `${INDEXNOW_KEY}.txt`), INDEXNOW_KEY);
 
 console.log(
