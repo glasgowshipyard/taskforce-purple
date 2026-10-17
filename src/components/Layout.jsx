@@ -70,9 +70,9 @@ export function Footer() {
           {/* Who runs it and what's kept (owner, 2026-10-17: one person, no
               campaign or PAC money; "we" left the site the same day) */}
           <p>
-            Task Force Purple is one person, with friends and family who test it and send feedback.
+            Task Force Purple is one person with friends and family who test and provide feedback.
             It isn&apos;t connected to any party or campaign, has no ads and takes no money from
-            campaigns or PACs. Grades are based on public FEC filings and Congress.gov data, and
+            campaigns or PACs. All grades are based on public FEC filings and Congress.gov data, and
             they&apos;re updated after each FEC filing deadline. The code and the method are public.
           </p>
           <p className="footer-privacy">
