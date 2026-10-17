@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Info, LayoutGrid, Receipt, Vote } from 'lucide-react';
 import FeedbackDialog from './FeedbackDialog.jsx';
 import { Link } from '../lib/router.js';
+import { MOTTO } from '../lib/research.js';
 
 const NAV = [
   { to: '/', label: 'Your reps', short: 'Your reps', icon: Receipt, pages: ['home', 'member'] },
@@ -64,11 +65,14 @@ export function Footer() {
   return (
     <footer className="site-footer">
       <div className="wrap">
-        <p style={{ maxWidth: '42em' }}>
-          Task Force Purple isn&apos;t connected to any party or campaign. Grades are based on
-          public FEC filings and Congress.gov data, and we update them after each FEC filing
-          deadline.
-        </p>
+        <div style={{ maxWidth: '42em' }}>
+          <p className="footer-motto">{MOTTO}</p>
+          <p>
+            Task Force Purple isn&apos;t connected to any party or campaign. Grades are based on
+            public FEC filings and Congress.gov data, and we update them after each FEC filing
+            deadline.
+          </p>
+        </div>
         <p>
           <Link to="/how">How grades work</Link> ·{' '}
           <a href="https://github.com/glasgowshipyard/taskforce-purple">Open source</a> ·{' '}

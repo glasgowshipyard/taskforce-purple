@@ -7,7 +7,7 @@
 // people-to-influence gradient.
 import React from 'react';
 import { GRAPH_GRADIENT } from '../lib/grades.js';
-import { FINDINGS, LEAD, STUDIES, WISHES, withSources } from '../lib/research.js';
+import { FINDINGS, LEAD, MOTTO, STUDIES, WISHES, withSources } from '../lib/research.js';
 
 function Note({ n }) {
   return (
@@ -127,6 +127,7 @@ export default function WhyItMatters() {
         <h2 id="matters-title" className="display display-l">
           Why this matters to all of us
         </h2>
+        <p className="matters-motto">{MOTTO}</p>
         <p className="lede matters-lead">
           <Sourced text={LEAD} />
         </p>

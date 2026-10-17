@@ -14,6 +14,10 @@ export const WISHES = {
   richest: { few: 18, most: 45 },
 };
 
+// The owner's line (2026-10-17): it opens "Why this matters" and signs off
+// every page in the footer
+export const MOTTO = 'It doesn’t matter which side wins if everyone loses.';
+
 // Opening line. [n] marks a source
 export const LEAD =
   "Money doesn't have to buy a vote to matter. Studies link it to whose wishes become law, who gets a meeting and what members spend their time on. Whether it changes votes is still argued over.[3]";

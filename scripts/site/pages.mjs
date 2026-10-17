@@ -8,7 +8,7 @@ import { CYCLE_LABEL } from '../../src/lib/election.js';
 import { LEFT_OUT, peopleSentence, placementLine } from '../../src/lib/explain.js';
 import { GRADES, LETTERS, PARTS, gradeInfo, isLetter, withArticle } from '../../src/lib/grades.js';
 import { displayName, partyName, roleTitle, seatLabel, usd } from '../../src/lib/people.js';
-import { FINDINGS, LEAD, STUDIES, WISHES } from '../../src/lib/research.js';
+import { FINDINGS, LEAD, MOTTO, STUDIES, WISHES } from '../../src/lib/research.js';
 
 export const SITE = 'https://taskforcepurple.com';
 export const SITE_NAME = 'Task Force Purple';
@@ -127,13 +127,14 @@ export function homePage(members) {
 <p>${graded.length} members graded: ${esc(counts)}.</p>
 <p><a href="/congress">See every member of Congress</a> · <a href="/how">How grades work</a></p>
 <h2>Why this matters to all of us</h2>
+<p><strong>${esc(MOTTO)}</strong></p>
 <p>${esc(LEAD.replace(/\[\d+\]/g, ''))}</p>
 <h3>How wealth influences policy</h3>
 <p>When the middle class wanted a policy, it had about a ${WISHES.average.few}% chance of becoming law, whether few or most of them wanted it. When the wealthy wanted it, the chance rose from about ${WISHES.richest.few}% to ${WISHES.richest.most}% (${esc(STUDIES[0].cite)}).</p>
 ${FINDINGS.map(f => `<h3>${esc(f.head)}</h3>\n<p>${esc(f.text)}</p>`).join('\n')}
 <ol>${STUDIES.map(st => `<li>${esc(st.cite)}, <a href="${esc(st.url)}">${esc(st.title)}</a>. ${esc(st.detail)}${st.note ? ` <a href="${esc(st.note.url)}">${esc(st.note.text)}</a>` : ''}</li>`).join('')}</ol>
 </main>`,
-    signature: JSON.stringify([counts, 'why-3']),
+    signature: JSON.stringify([counts, 'why-4']),
   };
 }
 

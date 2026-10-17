@@ -438,6 +438,16 @@ p {
   color: var(--white);
 }
 
+/* The owner's line, signing off every page */
+.footer-motto {
+  font-family: var(--display);
+  font-weight: 800;
+  font-size: 20px;
+  line-height: 1.25;
+  color: var(--white);
+  margin-bottom: 10px;
+}
+
 /* ---------- Buttons and inputs ---------- */
 
 .btn {
@@ -1172,8 +1182,19 @@ p {
   align-items: flex-start;
 }
 
+/* The owner's line, set big, then the plain opening */
+.matters-motto {
+  margin-top: 18px;
+  font-family: var(--display);
+  font-weight: 800;
+  font-size: clamp(24px, 3vw, 34px);
+  line-height: 1.15;
+  max-width: 24em;
+  color: var(--purple);
+}
+
 .matters-lead {
-  margin: 18px 0 clamp(28px, 4vw, 40px);
+  margin: 12px 0 clamp(28px, 4vw, 40px);
   max-width: 40em;
 }
 
