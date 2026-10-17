@@ -201,7 +201,14 @@ describe('combineVehicleTotals', () => {
         transfers_from_other_authorized_committee: 421839,
       },
     };
-    const r = combineVehicleTotals([campaign], { internal: 0, jfcs });
+    // A leadership PAC's totals name its transfers in differently
+    const leadership = {
+      committeeId: 'C4',
+      role: 'leadership',
+      name: 'L',
+      totals: { ...t(25000, 0, 5000, 20000), transfers_from_affiliated_party: 0 },
+    };
+    const r = combineVehicleTotals([campaign, leadership], { internal: 0, jfcs });
     const counted = r.committees.filter(c => c.role === 'joint').map(c => c.toMemberCounted);
     expect(counted[0] + counted[1]).toBeCloseTo(421839);
     expect(counted[0] / counted[1]).toBeCloseTo(400000 / 168683);

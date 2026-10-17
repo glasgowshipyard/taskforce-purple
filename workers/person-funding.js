@@ -237,10 +237,11 @@ function fundMix(totals) {
 export function otherFundsCounted(withTotals, transfers) {
   const others = (transfers.jfcs || []).filter(j => !isMembersOwnFund(j) && num(j.received) > 0);
   const owed = others.reduce((s, j) => s + num(j.received), 0);
+  // A campaign's totals and a PAC's name the field differently (the FEC's
+  // CommitteeTotalsHouseSenate and CommitteeTotalsPacParty)
   const reported = withTotals.map(
     v =>
-      v.totals.transfers_from_other_authorized_committee ??
-      v.totals.transfers_from_affiliated_committee
+      v.totals.transfers_from_other_authorized_committee ?? v.totals.transfers_from_affiliated_party
   );
   if (!(owed > 0) || reported.some(x => x === undefined || x === null)) {
     return new Map();
