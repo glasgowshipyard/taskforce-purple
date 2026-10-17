@@ -2096,6 +2096,48 @@ p {
   position: relative;
 }
 
+/* Curve or bars (lib/graph-shape.js) */
+.ppi-shape {
+  display: flex;
+  justify-content: flex-end;
+  gap: 2px;
+  margin-bottom: 4px;
+}
+
+.ppi-shape button {
+  font-family: var(--mono);
+  font-size: 12px;
+  font-weight: 600;
+  padding: 3px 10px;
+  border: 1px solid var(--line-2);
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.ppi-shape button:first-child {
+  border-radius: 999px 0 0 999px;
+}
+
+.ppi-shape button:last-child {
+  border-radius: 0 999px 999px 0;
+}
+
+.ppi-shape button[aria-pressed='true'] {
+  background: var(--ink);
+  border-color: var(--ink);
+  color: var(--white);
+}
+
+/* Bars carry more colour than a curve's wash */
+.ppi.is-bars .ppi-area {
+  fill-opacity: 0.55;
+}
+
+.ppi.is-bars.has-strips .ppi-area {
+  fill-opacity: 0.18;
+}
+
 .ppi svg {
   display: block;
   width: 100%;

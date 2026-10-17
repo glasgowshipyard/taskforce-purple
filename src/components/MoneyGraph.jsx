@@ -10,10 +10,14 @@
 // A strip and its "Why" step light each other up; the lit strip breathes
 // only while someone's looking at it (useLight in lib/light.js), and the
 // biggest one breathes three times the first time the graph comes into view.
+// Some readers prefer plain bars, since the three parts are separate: a
+// switch on the member's page draws every graph as bars instead (lib/
+// graph-shape.js), each bar stacked from its strips.
 // Under the graph, the grade letters with this member's circled.
 import React, { useEffect, useId, useRef, useState } from 'react';
 import { monotonePath } from '../lib/curve.js';
 import { CYCLE_SHORT } from '../lib/election.js';
+import { setGraphShape, useGraphShape } from '../lib/graph-shape.js';
 import { SOURCES } from '../lib/explain.js';
 import { GRADES, GRAPH_GRADIENT as GRADIENT, LETTERS, PARTS } from '../lib/grades.js';
 
@@ -56,7 +60,10 @@ export default function MoneyGraph({
   strips = null,
   light = null,
   onLight = () => {},
+  showToggle = false,
 }) {
+  const shape = useGraphShape();
+  const bars = shape === 'bars';
   const [active, setActive] = useState(null);
   const [pointed, setPointed] = useState(null);
   const [hint, setHint] = useState(null);
@@ -109,20 +116,57 @@ export default function MoneyGraph({
     GRADES[tier] ? `. Grade ${tier}, ${GRADES[tier].name}` : ''
   }.`;
 
-  // Each part gets an equal third of the shape; its strips share that third
-  // in proportion to their shares of the part
+  // Bars: one per part, rounded at the top, as tall as the part's share
+  const bw = Math.min(col * 0.46, 56);
+  const barPath = p => {
+    const top = p.y;
+    const r = Math.min(4, Math.max(0, base - top));
+    const l = p.x - bw / 2;
+    const rt = p.x + bw / 2;
+    return `M${l},${base} V${top + r} Q${l},${top} ${l + r},${top} H${rt - r} Q${rt},${top} ${rt},${top + r} V${base} Z`;
+  };
+  const shapePath = bars ? pts.map(barPath).join(' ') : area;
+
+  // The strips. On the curve, each part gets an equal third of the shape and
+  // its strips share that third in proportion to their shares of the part.
+  // On bars, each bar is stacked from its strips, people at the bottom
   const third = (x2 - x0) / PARTS.length;
   const bands = [];
   if (hasStrips) {
     PARTS.forEach((p, i) => {
       const total = ppi[p.key] || 0;
       let x = x0 + third * i;
+      let acc = 0;
       strips
         .filter(s => s.part === p.key && total > 0)
         .forEach(s => {
-          const w = (third * s.v) / total;
-          bands.push({ ...s, x, w, n: bands.length });
-          x += w;
+          if (bars) {
+            const yTop = y(acc + s.v);
+            bands.push({
+              ...s,
+              n: bands.length,
+              x: pts[i].x - bw / 2,
+              w: bw,
+              y: yTop,
+              h: y(acc) - yTop,
+              tipX: pts[i].x,
+              tipY: yTop,
+            });
+          } else {
+            const w = (third * s.v) / total;
+            bands.push({
+              ...s,
+              n: bands.length,
+              x,
+              w: w + 0.4,
+              y: PAD.top,
+              h: plotH,
+              tipX: x + w / 2,
+              tipY: pts[i].y,
+            });
+            x += w;
+          }
+          acc += s.v;
         });
     });
   }
@@ -149,9 +193,26 @@ export default function MoneyGraph({
   return (
     <figure
       ref={figure}
-      className={`ppi${compact ? ' is-compact' : ''}${hasStrips ? ' has-strips' : ''}`}
+      className={`ppi${compact ? ' is-compact' : ''}${hasStrips ? ' has-strips' : ''}${bars ? ' is-bars' : ''}`}
       style={{ '--g': GRADES[tier]?.color || 'var(--purple)' }}
     >
+      {showToggle && (
+        <div className="ppi-shape" role="group" aria-label="How to draw the graph">
+          {[
+            ['curve', 'Curve'],
+            ['bars', 'Bars'],
+          ].map(([value, text]) => (
+            <button
+              key={value}
+              type="button"
+              aria-pressed={shape === value}
+              onClick={() => setGraphShape(value)}
+            >
+              {text}
+            </button>
+          ))}
+        </div>
+      )}
       <div className="ppi-plot">
         <svg
           viewBox={`0 0 ${W} ${H}`}
@@ -189,7 +250,7 @@ export default function MoneyGraph({
               ))}
             </linearGradient>
             <clipPath id={`c${uid}`}>
-              <path d={area} />
+              <path d={shapePath} />
             </clipPath>
           </defs>
           <text x={W - PAD.right} y={PAD.top + 4} textAnchor="end" className="ppi-cycle">
@@ -209,16 +270,16 @@ export default function MoneyGraph({
               </text>
             </g>
           ))}
-          <path d={area} fill={paint} className="ppi-area" />
+          <path d={shapePath} fill={paint} className="ppi-area" />
           {hasStrips && (
             <g clipPath={`url(#c${uid})`}>
               {bands.map(b => (
                 <rect
                   key={`${b.part}-${b.key}`}
                   x={b.x}
-                  y={PAD.top}
-                  width={b.w + 0.4}
-                  height={plotH}
+                  y={b.y}
+                  width={b.w}
+                  height={b.h}
                   fill={paint}
                   className={stripClass(b)}
                   onAnimationEnd={() => hint === b.key && setHint(null)}
@@ -238,10 +299,10 @@ export default function MoneyGraph({
               ))}
             </g>
           )}
-          <path d={line} stroke={paint} className="ppi-line" />
+          {!bars && <path d={line} stroke={paint} className="ppi-line" />}
           {pts.map((p, i) => (
             <g key={p.key}>
-              {hover && active === i && (
+              {hover && active === i && !bars && (
                 <>
                   <line x1={p.x} x2={p.x} y1={PAD.top} y2={base} className="ppi-cross" />
                   <circle cx={p.x} cy={p.y} r={6} fill={paint} className="ppi-dot" />
@@ -272,8 +333,8 @@ export default function MoneyGraph({
           <div
             className="ppi-tip"
             style={{
-              left: `${((tipStrip.x + tipStrip.w / 2) / W) * 100}%`,
-              top: `${(pts.find(p => p.key === tipStrip.part).y / H) * 100}%`,
+              left: `${(tipStrip.tipX / W) * 100}%`,
+              top: `${(tipStrip.tipY / H) * 100}%`,
             }}
             aria-hidden="true"
           >

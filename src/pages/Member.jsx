@@ -378,6 +378,7 @@ export default function Member({ id, kind = 'member' }) {
                       strips={why ? moneyStrips(final3) : null}
                       light={light}
                       onLight={setLight}
+                      showToggle
                     />
                   </div>
                 )}

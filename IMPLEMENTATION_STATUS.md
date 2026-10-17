@@ -26,6 +26,12 @@ Owner's design, worked out over mock-ups:
   than 100 people gave half the big money, else the share
   (`final3AllowanceLimits` in tier-calculation.js, the same maths the grade
   uses; no grade changes).
+- **Curve or bars** (owner, for readers who want plain bars since the
+  three parts are separate): a switch on the member page's graph draws every
+  graph on the site as bars, remembered on that device
+  (`src/lib/graph-shape.js`). On the member page each bar is stacked from
+  its strips, people at the bottom, with the same linking and breathing.
+  Pre-built pages and link previews keep the curve.
 
 ---
 
