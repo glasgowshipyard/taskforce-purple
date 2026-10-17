@@ -1,6 +1,7 @@
 // One person's full receipt: a sitting member, or a candidate on the ballot.
 import React, { useMemo, useState } from 'react';
 import { ExternalLink, Share2 } from 'lucide-react';
+import FeedbackDialog from '../components/FeedbackDialog.jsx';
 import ForeignAgentPanel from '../components/ForeignAgentPanel.jsx';
 import PacPanel from '../components/PacPanel.jsx';
 import ShareDialog from '../components/ShareDialog.jsx';
@@ -142,6 +143,7 @@ export default function Member({ id, kind = 'member' }) {
     [id, kind]
   );
   const [sharing, setSharing] = useState(false);
+  const [flagging, setFlagging] = useState(false);
 
   const members = list.data?.members || [];
   const inRace = useMemo(
@@ -289,6 +291,11 @@ export default function Member({ id, kind = 'member' }) {
               <div style={{ flex: '1 1 300px' }}>
                 <h2 style={{ fontSize: 22, marginBottom: 8 }}>{g.name}</h2>
                 <p>{g.meaning}</p>
+                <p className="flag-line">
+                  <button type="button" className="link-button" onClick={() => setFlagging(true)}>
+                    Something wrong here?
+                  </button>
+                </p>
               </div>
             </div>
           </div>
@@ -334,6 +341,11 @@ export default function Member({ id, kind = 'member' }) {
                 <div className="member-verdict">
                   {sentence && <p className="member-sentence">{sentence}</p>}
                   {placement && <p className="placement">{placement}</p>}
+                  <p className="flag-line">
+                    <button type="button" className="link-button" onClick={() => setFlagging(true)}>
+                      Something wrong with this grade?
+                    </button>
+                  </p>
                 </div>
                 {ppi && (
                   <div className="member-graph">
@@ -574,6 +586,13 @@ export default function Member({ id, kind = 'member' }) {
           </div>
         </section>
       )}
+
+      <FeedbackDialog
+        open={flagging}
+        onClose={() => setFlagging(false)}
+        kind="flag"
+        member={{ id, name }}
+      />
 
       {canShare && (
         <ShareDialog

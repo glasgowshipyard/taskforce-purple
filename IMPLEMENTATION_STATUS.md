@@ -1,6 +1,30 @@
 # Task Force Purple - Implementation Status
 
-**Last Updated**: 2026-10-16
+**Last Updated**: 2026-10-17
+
+---
+
+## 2026-10-17: the admin panel, flags and suggestions
+
+- **taskforcepurple.com/admin** (owner's choices, 2026-10-16): logged in
+  with the admin key (`ADMIN_SECRET`, lifted from Let's Find Out); one page
+  with what needs you (the `/api/health` checks and fixes, now shared through
+  `loadHealth` in `workers/health.js`), open grade flags and suggestions,
+  the grade counts, the last refresh run, recent grade changes and today's D1
+  budgets. Served by the API worker (`workers/admin/`, TypeScript, the first
+  converted files of #72) through a Pages Function (`functions/admin`) so
+  the cookie belongs to the site.
+- **Flags:** "Something wrong with this grade?" on every member and
+  candidate page: The figures look wrong / Wrong person / Out of date /
+  Something else (needs a note), with an optional note. **Suggestions:**
+  "Suggest something" in the footer: Idea / Bug / Something else. Both:
+  Cloudflare Turnstile (free; `TURNSTILE_SECRET`), a hidden field for form
+  bots, 10 a day per person and 300 for the site, one row each in D1
+  `feedback` (indexed; checked with EXPLAIN QUERY PLAN). Shown on /admin
+  only, each with a one-click GitHub issue.
+- **Health:** a grade flag open more than 3 days is the problem
+  `flags-waiting`, so the end-of-refresh alert opens a `system-alert` issue.
+- Also (2026-10-16): graphs start and end at zero; the ZIP lookup is one box.
 
 ---
 

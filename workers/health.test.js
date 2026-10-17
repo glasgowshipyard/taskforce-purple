@@ -85,3 +85,20 @@ describe('evaluateHealth', () => {
     expect(ids({ ...healthy(), resultsDbError: 'no binding' })).toEqual(['results-db-unreadable']);
   });
 });
+
+describe('grade flags waiting on /admin', () => {
+  it('a flag open longer than FLAG_WAIT_DAYS is a problem with a fix', () => {
+    const verdict = evaluateHealth(
+      { ...healthy(), staleFlags: { count: 2, oldest: '2026-10-14T09:00:00Z' } },
+      NOW
+    );
+    expect(verdict.problems.map(p => p.id)).toEqual(['flags-waiting']);
+    expect(verdict.problems[0].message).toMatch(/2 grade flag\(s\)/);
+    expect(verdict.problems[0].fix).toMatch(/taskforcepurple\.com\/admin/);
+  });
+
+  it('none waiting, or not read yet: no problem', () => {
+    expect(ids({ ...healthy(), staleFlags: { count: 0, oldest: null } })).toEqual([]);
+    expect(ids({ ...healthy(), staleFlags: null })).toEqual([]);
+  });
+});

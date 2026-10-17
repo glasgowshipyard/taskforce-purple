@@ -11,6 +11,17 @@ add the command that can.
 
 ---
 
+## 0. The admin panel (added 2026-10-17)
+
+**taskforcepurple.com/admin**, logged in with the admin key (the API
+worker's `ADMIN_SECRET`; set or change it with
+`npx wrangler secret put ADMIN_SECRET`). One page: what needs you (the same
+checks and proposed fixes as `/api/health`), visitors' grade flags and
+suggestions (each with Make an issue, Done, Bin), the grade counts, the last
+refresh run, recent grade changes, and today's D1 budgets. A grade flag left
+open more than 3 days becomes a `system-alert` issue. The commands below
+still work without it.
+
 ## 1. The 30-second health check
 
 ```bash

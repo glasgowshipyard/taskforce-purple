@@ -562,6 +562,24 @@ power, influence }`: the money given in three parts, whole percentages
   same test for every country); null otherwise.
 - **`GET /api/races`** candidates carry `peoplePowerInfluence` too.
 
+## Admin panel and feedback (2026-10-17)
+
+- **`/admin`** (HTML, served on taskforcepurple.com/admin through the Pages
+  Function `functions/admin`): the login form, then the panel. The admin key
+  (secret `ADMIN_SECRET`) sets a cookie `tfp_admin` (a hash of the key, Path
+  `/admin`, HttpOnly, SameSite=Strict); `Authorization: Bearer $ADMIN_SECRET`
+  works too. `POST /admin/login`, `POST /admin/logout`,
+  `POST /admin/item/{id}/{open|done|binned}`. Code: `workers/admin/`
+  (TypeScript).
+- **`POST /api/feedback/flag`**: `{ memberId, reason, text?, page, token,
+website }`. `reason`: `figures`, `person`, `outdated` or `other` (needs
+  `text`). **`POST /api/feedback/suggestion`**: `{ reason (idea, bug, other),
+text, page, token, website }`. `token` is Cloudflare Turnstile's (secret
+  `TURNSTILE_SECRET`, verified for taskforcepurple.com); `website` is a
+  hidden field only bots fill in (dropped quietly). Answers `{ ok: true }`,
+  or `{ error }` in words for the form (400, 403 failed bot check, 429 over
+  the daily limit: 10 a person, 300 for the site). Stored in D1 `feedback`.
+
 ## The 2026 races (2026-10-07, ROADMAP Phase E)
 
 - **`GET /api/races`**: KV `races:list` as stored:

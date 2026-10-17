@@ -142,3 +142,24 @@ CREATE TABLE IF NOT EXISTS rounds (
   reason TEXT,
   finished_at TEXT
 );
+
+-- What visitors send in (2026-10-16): "Something wrong with this grade?"
+-- flags and "Suggest something" suggestions. Listed on /admin only. `who` is
+-- the sender's IP address hashed with the day (workers/admin/feedback.ts),
+-- for the daily limits; a person flagging the same member again the same day
+-- replaces their flag.
+CREATE TABLE IF NOT EXISTS feedback (
+  id INTEGER PRIMARY KEY,
+  kind TEXT NOT NULL,                  -- 'flag' or 'suggestion'
+  at TEXT NOT NULL,                    -- ISO time sent
+  day TEXT NOT NULL,                   -- UTC day, for the limits
+  who TEXT NOT NULL,
+  member_id TEXT,                      -- flags: the member or candidate
+  reason TEXT NOT NULL,                -- flags: figures, person, outdated, other; suggestions: idea, bug, other
+  text TEXT,                           -- the note or the suggestion
+  page TEXT,                           -- the page it was sent from
+  status TEXT NOT NULL DEFAULT 'open'  -- open, done, binned
+);
+CREATE INDEX IF NOT EXISTS feedback_day ON feedback (day, who);
+CREATE INDEX IF NOT EXISTS feedback_status ON feedback (status, at);
+CREATE UNIQUE INDEX IF NOT EXISTS feedback_one_flag ON feedback (member_id, who, day) WHERE kind = 'flag';

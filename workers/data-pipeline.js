@@ -1,7 +1,8 @@
 // Task Force Purple Data Pipeline
 // Cloudflare Worker to fetch and process congressional data
 
-import { evaluateHealth } from './health.js';
+import { handleAdmin, handleFeedback } from './admin/routes.ts';
+import { evaluateHealth, loadHealth } from './health.js';
 import {
   LIST_KEY,
   MemberWriter,
@@ -44,6 +45,14 @@ export default {
     }
 
     try {
+      // The admin panel (taskforcepurple.com/admin, through functions/admin)
+      // and the visitors' flags and suggestions (workers/admin)
+      if (url.pathname === '/admin' || url.pathname.startsWith('/admin/')) {
+        return await handleAdmin(request, env, url);
+      }
+      if (url.pathname.startsWith('/api/feedback/')) {
+        return await handleFeedback(request, env, url, corsHeaders);
+      }
       switch (url.pathname) {
         case '/api/members':
           return await handleMembers(env, corsHeaders);
@@ -471,44 +480,7 @@ async function handleMembers(env, corsHeaders) {
 // job's record in D1 tfp-results. Read-only; checked hourly by
 // .github/workflows/health-alert.yml, which opens an issue on a problem.
 async function handleHealth(env, corsHeaders) {
-  const body = await getListBody(env);
-  const snapshot = {
-    listMembers: body?.members?.length ?? null,
-    listLastUpdated: body?.lastUpdated ?? null,
-    lastRun: null,
-    failingMembers: [],
-    mismatchedCommittees: [],
-    d1RowsToday: null,
-    d1RowsReadToday: null,
-    d1SizeBytes: null,
-    resultsDbError: null,
-  };
-  try {
-    if (!env.RESULTS_DB) {
-      throw new Error('the RESULTS_DB binding is missing from wrangler.toml');
-    }
-    const today = new Date().toISOString().slice(0, 10);
-    const [run, failing, mismatched, ledger] = await env.RESULTS_DB.batch([
-      env.RESULTS_DB.prepare(
-        'SELECT run_id, status, started_at, finished_at FROM runs ORDER BY started_at DESC LIMIT 1'
-      ),
-      env.RESULTS_DB.prepare(
-        "SELECT bioguide_id, attempts, last_error FROM member_progress WHERE status = 'failed' ORDER BY updated_at DESC"
-      ),
-      env.RESULTS_DB.prepare("SELECT committee_id, name FROM committees WHERE status = 'mismatch'"),
-      env.RESULTS_DB.prepare('SELECT * FROM d1_write_budget WHERE day = ?').bind(today),
-    ]);
-    snapshot.lastRun = run.results[0] ?? null;
-    snapshot.failingMembers = failing.results;
-    snapshot.mismatchedCommittees = mismatched.results;
-    snapshot.d1RowsToday = ledger.results[0]?.rows_written ?? 0;
-    snapshot.d1RowsReadToday = ledger.results[0]?.rows_read ?? 0;
-    // D1 reports the database's size with every query
-    snapshot.d1SizeBytes =
-      [run, failing, mismatched, ledger].map(r => r?.meta?.size_after).find(Boolean) ?? null;
-  } catch (error) {
-    snapshot.resultsDbError = error.message;
-  }
+  const snapshot = await loadHealth(env);
   const verdict = evaluateHealth(snapshot);
   return new Response(
     JSON.stringify({ checkedAt: new Date().toISOString(), ...verdict }, null, 2),

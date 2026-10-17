@@ -203,6 +203,11 @@ redesigned them wasted days and, twice, proposed breaking them. Build on them.
   FEC matches. Grading no longer reads them; identity comes only from the
   crosswalk. A member with implausible figures: check their crosswalk entry
   (`workers/fec-crosswalk.js`), then re-grade them (RUNBOOK §8).
+- **Admin panel:** taskforcepurple.com/admin (`workers/admin/`, TypeScript;
+  `functions/admin` hands it to the API worker). Visitors' grade flags and
+  suggestions land there only (D1 `feedback`). New Worker-only code may be
+  TypeScript (#72 converts the rest after the election); code the refresh
+  job's Node also runs stays JavaScript until then.
 - **Alerts:** `workers/health.js` (served at the API worker's `/api/health`).
   `scripts/health-alert.sh` turns it into a `system-alert` GitHub issue for
   the owner, each problem with a proposed fix; it runs at the end of every

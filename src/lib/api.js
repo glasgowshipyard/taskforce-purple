@@ -1,6 +1,6 @@
 // The site's data, from the API worker (workers/data-pipeline.js). Read only.
 
-const API_BASE_URL = 'https://taskforce-purple-api.dev-a4b.workers.dev/api';
+export const API_BASE_URL = 'https://taskforce-purple-api.dev-a4b.workers.dev/api';
 
 const cache = new Map();
 

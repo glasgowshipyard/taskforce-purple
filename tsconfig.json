@@ -22,6 +22,6 @@
     "noUnusedParameters": false,
     "noFallthroughCasesInSwitch": true
   },
-  "include": ["src"],
+  "include": ["src", "workers/admin"],
   "references": [{ "path": "./tsconfig.node.json" }]
 }

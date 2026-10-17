@@ -5,7 +5,11 @@
 // serves the site from KV. Anything worth telling the owner about is a
 // problem, with the reason and a proposed fix; everything else is a note.
 //
-// Pure: takes a snapshot, returns a verdict.
+// evaluateHealth is pure: takes a snapshot, returns a verdict. loadHealth
+// reads the snapshot (KV and D1, every lookup on an index); /api/health and
+// /admin both use it.
+
+import { getListBody } from './member-store.js';
 
 const HOUR = 3600 * 1000;
 // A GitHub job can't run longer than 6 hours: a run still "running" after 7
@@ -18,6 +22,8 @@ export const D1_READ_ALARM_ROWS = 4000000;
 // D1 refuses writes to a database over 500 MB (2026-10-05: it happened)
 export const D1_SIZE_ALARM_BYTES = 400 * 1000 * 1000;
 export const MIN_MEMBERS = 530;
+// A grade flag nobody has dealt with after this many days is a problem
+export const FLAG_WAIT_DAYS = 3;
 
 // The proposed fix for each problem, shown in the alert
 export const FIXES = {
@@ -39,6 +45,8 @@ export const FIXES = {
     'Compare the committee’s records with the FEC’s month by month to find the missing ones; until then its members stay pending, not graded.',
   'd1-size-high':
     'The results database is near D1’s 500 MB limit, past which it refuses every write. Find the biggest table (RUNBOOK §6) and pack or remove what isn’t needed before the next refresh.',
+  'flags-waiting':
+    'Open taskforcepurple.com/admin and deal with each flag: check the member’s figures, then mark it done, or bin it if it’s not a real problem.',
   'd1-over-budget':
     'The job stops itself at 85,000. Find which of the account’s other projects wrote the rest before running it again today.',
 };
@@ -54,6 +62,7 @@ export const FIXES = {
  * @param {number|null} s.d1RowsReadToday   tfp-results d1_write_budget rows read today
  * @param {number|null} s.d1SizeBytes       tfp-results size, from D1's own figure
  * @param {string|null} s.resultsDbError    set when tfp-results can't be read
+ * @param {object|null} s.staleFlags        { count, oldest }: grade flags open longer than FLAG_WAIT_DAYS
  */
 export function evaluateHealth(s, nowMs = Date.now()) {
   const problems = [];
@@ -144,5 +153,70 @@ export function evaluateHealth(s, nowMs = Date.now()) {
     }
   }
 
+  if (s.staleFlags?.count > 0) {
+    problem(
+      'flags-waiting',
+      `${s.staleFlags.count} grade flag(s) from visitors have waited more than ${FLAG_WAIT_DAYS} days on /admin; the oldest was sent ${String(s.staleFlags.oldest ?? '').slice(0, 10)}.`
+    );
+  }
+
   return { ok: problems.length === 0, problems, notes };
+}
+
+/** The snapshot evaluateHealth judges: KV's member list, and tfp-results */
+export async function loadHealth(env, now = new Date()) {
+  const body = await getListBody(env);
+  const snapshot = {
+    listMembers: body?.members?.length ?? null,
+    listLastUpdated: body?.lastUpdated ?? null,
+    lastRun: null,
+    failingMembers: [],
+    mismatchedCommittees: [],
+    d1RowsToday: null,
+    d1RowsReadToday: null,
+    d1SizeBytes: null,
+    resultsDbError: null,
+    staleFlags: null,
+  };
+  try {
+    if (!env.RESULTS_DB) {
+      throw new Error('the RESULTS_DB binding is missing from wrangler.toml');
+    }
+    const today = now.toISOString().slice(0, 10);
+    const [run, failing, mismatched, ledger] = await env.RESULTS_DB.batch([
+      env.RESULTS_DB.prepare(
+        'SELECT run_id, status, started_at, finished_at FROM runs ORDER BY started_at DESC LIMIT 1'
+      ),
+      env.RESULTS_DB.prepare(
+        "SELECT bioguide_id, attempts, last_error FROM member_progress WHERE status = 'failed' ORDER BY updated_at DESC"
+      ),
+      env.RESULTS_DB.prepare("SELECT committee_id, name FROM committees WHERE status = 'mismatch'"),
+      env.RESULTS_DB.prepare('SELECT * FROM d1_write_budget WHERE day = ?').bind(today),
+    ]);
+    snapshot.lastRun = run.results[0] ?? null;
+    snapshot.failingMembers = failing.results;
+    snapshot.mismatchedCommittees = mismatched.results;
+    snapshot.d1RowsToday = ledger.results[0]?.rows_written ?? 0;
+    snapshot.d1RowsReadToday = ledger.results[0]?.rows_read ?? 0;
+    // D1 reports the database's size with every query
+    snapshot.d1SizeBytes =
+      [run, failing, mismatched, ledger].map(r => r?.meta?.size_after).find(Boolean) ?? null;
+  } catch (error) {
+    snapshot.resultsDbError = error.message;
+  }
+  // On its own, so the feedback table can't hide the checks above
+  if (env.RESULTS_DB && !snapshot.resultsDbError) {
+    try {
+      const before = new Date(now.getTime() - FLAG_WAIT_DAYS * 86400000).toISOString();
+      const row = await env.RESULTS_DB.prepare(
+        "SELECT COUNT(*) AS count, MIN(at) AS oldest FROM feedback WHERE status = 'open' AND at < ? AND kind = 'flag'"
+      )
+        .bind(before)
+        .first();
+      snapshot.staleFlags = { count: row?.count ?? 0, oldest: row?.oldest ?? null };
+    } catch (error) {
+      snapshot.resultsDbError = `the feedback table: ${error.message}`;
+    }
+  }
+  return snapshot;
 }

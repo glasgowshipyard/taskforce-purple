@@ -1,5 +1,6 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Info, LayoutGrid, Receipt, Vote } from 'lucide-react';
+import FeedbackDialog from './FeedbackDialog.jsx';
 import { Link } from '../lib/router.js';
 
 const NAV = [
@@ -59,6 +60,7 @@ export function TabBar({ page }) {
 }
 
 export function Footer() {
+  const [suggesting, setSuggesting] = useState(false);
   return (
     <footer className="site-footer">
       <div className="wrap">
@@ -69,8 +71,12 @@ export function Footer() {
         </p>
         <p>
           <Link to="/how">How grades work</Link> ·{' '}
-          <a href="https://github.com/glasgowshipyard/taskforce-purple">Open source</a>
+          <a href="https://github.com/glasgowshipyard/taskforce-purple">Open source</a> ·{' '}
+          <button type="button" className="link-button" onClick={() => setSuggesting(true)}>
+            Suggest something
+          </button>
         </p>
+        <FeedbackDialog open={suggesting} onClose={() => setSuggesting(false)} kind="suggestion" />
       </div>
     </footer>
   );
