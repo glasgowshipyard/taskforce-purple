@@ -179,6 +179,65 @@ describe('combineVehicleTotals', () => {
     expect(r.totalRaised).toBe(6511960 + 897390 - 730000);
   });
 
+  it("never counts another politician's fund's money twice (one member, 2026-10-17)", () => {
+    // The campaign re-reported $145,852 of a fund's transfers as the donations
+    // behind them: its totals show $421,839 of transfers in, the fund's
+    // rows $568,683. Only what the reports show arriving counts as fund money
+    const fund = (id, received) => ({
+      committeeId: id,
+      name: id,
+      registered: false,
+      ownedByMember: false,
+      received,
+      totals: t(1000000, 0, 900000, 100000),
+    });
+    const jfcs = [fund('C8', 400000), fund('C9', 168683)];
+    const campaign = {
+      committeeId: 'C1',
+      role: 'campaign',
+      name: 'A',
+      totals: {
+        ...t(1704713, 24420, 587286, 663227),
+        transfers_from_other_authorized_committee: 421839,
+      },
+    };
+    const r = combineVehicleTotals([campaign], { internal: 0, jfcs });
+    const counted = r.committees.filter(c => c.role === 'joint').map(c => c.toMemberCounted);
+    expect(counted[0] + counted[1]).toBeCloseTo(421839);
+    expect(counted[0] / counted[1]).toBeCloseTo(400000 / 168683);
+    expect(r.committees.find(c => c.committeeId === 'C8').toMember).toBe(400000);
+    // The money given now fits inside what was raised
+    const given = r.grassrootsDonations + r.largeDonorDonations + r.pacMoney + r.partyMoney;
+    expect(given).toBeLessThanOrEqual(r.totalRaised);
+  });
+
+  it("counts a fund's transfers in full when the reports show them arriving, or can't say", () => {
+    const fund = {
+      committeeId: 'C8',
+      name: 'F',
+      ownedByMember: false,
+      received: 50000,
+      totals: t(1e6, 0, 1e6),
+    };
+    const shown = combineVehicleTotals(
+      [
+        {
+          committeeId: 'C1',
+          role: 'campaign',
+          name: 'A',
+          totals: { ...t(5e5, 1e5, 3e5), transfers_from_other_authorized_committee: 60000 },
+        },
+      ],
+      { internal: 0, jfcs: [fund] }
+    );
+    expect(shown.committees.find(c => c.committeeId === 'C8').toMemberCounted).toBe(50000);
+    const unknown = combineVehicleTotals(
+      [{ committeeId: 'C1', role: 'campaign', name: 'A', totals: t(5e5, 1e5, 3e5) }],
+      { internal: 0, jfcs: [fund] }
+    );
+    expect(unknown.committees.find(c => c.committeeId === 'C8').toMemberCounted).toBe(50000);
+  });
+
   it('can never net more money than was raised', () => {
     const r = combineVehicleTotals(
       [{ committeeId: 'C1', role: 'campaign', name: 'A', totals: t(100, 50, 50) }],

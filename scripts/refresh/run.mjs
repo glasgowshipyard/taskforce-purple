@@ -713,6 +713,7 @@ async function main() {
                   raised: c.raised,
                   pac: c.pac ?? null,
                   toMember: c.toMember ?? null,
+                  toMemberCounted: c.toMemberCounted ?? null,
                   ownFund: c.ownFund ?? null,
                   mix: c.mix ?? null,
                 })),
