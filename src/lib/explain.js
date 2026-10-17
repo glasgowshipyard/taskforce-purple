@@ -163,7 +163,7 @@ const splitOf = pairs => pairs.filter(([, v]) => v > 0).map(([part, v]) => ({ pa
  */
 function bigMoneyReason(d, power) {
   if (!(d.reliable && d.fewestHoldingHalf && d.donors)) {
-    return "We don't have enough of the donor records yet to tell how many people gave it, so we use a middle rule.";
+    return "There aren't enough of the donor records yet to tell how many people gave it, so a middle rule is used.";
   }
   const n = d.fewestHoldingHalf;
   const { shareLimit, countLimit } = final3AllowanceLimits(n, d.donors);

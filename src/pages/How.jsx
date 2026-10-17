@@ -61,8 +61,8 @@ const PILES = {
   ),
   power: (
     <>
-      Big donations, over $200, when only a few donors gave most of them. We find how few donors
-      gave half of the big money. The fewer they are, the more of the big money is Power.
+      Big donations, over $200, when only a few donors gave most of them. The grade counts how few
+      donors gave half of the big money. The fewer they are, the more of the big money is Power.
     </>
   ),
   influence: (
@@ -127,7 +127,7 @@ export default function How() {
             Three sources
           </h2>
           <p className="how-lead">
-            We add up everything given to the member: their campaigns, their leadership PAC and
+            Everything given to the member is added up: their campaigns, their leadership PAC and
             their own joint fundraising committees. Their own money, loans and transfers are left
             out. Every dollar comes from one of three sources.
           </p>
@@ -146,8 +146,8 @@ export default function How() {
             <strong>What&apos;s a PAC?</strong> A political action committee pools money and gives
             it to candidates. A PAC&apos;s money is People money only when the group behind it is
             run by its members, who elect most of its board (a union, for example), and only the
-            part of the PAC&apos;s own money that came from many people. We check who runs each
-            group on its own tax return to the IRS, the Form 990.
+            part of the PAC&apos;s own money that came from many people. Who runs each group is
+            checked on its own tax return to the IRS, the Form 990.
           </p>
 
           <h2 className="display display-m" style={{ marginTop: 48 }}>
@@ -189,10 +189,10 @@ export default function How() {
           </h2>
           <p className="how-lead">
             Every figure comes from campaign finance reports filed with the Federal Election
-            Commission (FEC). We grade from the FEC&apos;s bulk data files first, then check each
-            donation against the FEC&apos;s own records. Until that check is finished, the
-            member&apos;s page says the grade is still being checked. Grades change only when new
-            reports are filed. <Link to="/congress">See every member of Congress</Link>.
+            Commission (FEC). Grades come from the FEC&apos;s bulk data files first, then each
+            donation is checked against the FEC&apos;s own records. Until that check is finished,
+            the member&apos;s page says the grade is still being checked. Grades change only when
+            new reports are filed. <Link to="/congress">See every member of Congress</Link>.
           </p>
 
           <details className="fold" style={{ marginTop: 40, borderTop: '2px solid var(--ink)' }}>

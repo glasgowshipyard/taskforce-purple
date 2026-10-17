@@ -254,7 +254,7 @@ export default function Member({ id, kind = 'member' }) {
   if (!m) {
     return (
       <div className="wrap section">
-        <h1 className="display display-l">We couldn&apos;t find that page</h1>
+        <h1 className="display display-l">That page isn&apos;t here</h1>
         <p className="lede" style={{ marginTop: 16 }}>
           The link may be out of date. You can <Link to="/congress">search all of Congress</Link>{' '}
           instead.
@@ -541,8 +541,8 @@ export default function Member({ id, kind = 'member' }) {
                     <p>
                       {name} put {usd(ownAmount)} of their own money into this campaign: {ownPct}%
                       of everything raised. Candidates can spend as much of their own money as they
-                      like. We leave it out of the grade, because it doesn&apos;t make them depend
-                      on anyone.
+                      like. It&apos;s left out of the grade, because it doesn&apos;t make them
+                      depend on anyone.
                       {f.ownRepaid > 0 &&
                         ` Their campaign has paid ${usd(f.ownRepaid)} back to them.`}
                     </p>
@@ -573,7 +573,7 @@ export default function Member({ id, kind = 'member' }) {
                     )}
                     <p className="fine" style={{ marginTop: 12 }}>
                       Big donations are over $200. Each donor is placed by the address on their FEC
-                      records. We don&apos;t list donors by name.
+                      records. Donors aren&apos;t listed by name.
                     </p>
                   </Section>
                 )}
@@ -680,7 +680,7 @@ export default function Member({ id, kind = 'member' }) {
                     </>
                   ) : (
                     <p className="notice">
-                      We haven&apos;t matched all of {name}&apos;s committees in the FEC&apos;s
+                      Not all of {name}&apos;s committees have been matched in the FEC&apos;s
                       records yet, so these figures only cover one committee.
                     </p>
                   )}
@@ -696,9 +696,9 @@ export default function Member({ id, kind = 'member' }) {
                   {checked === false && (
                     <p className="fine">
                       <strong>Still being checked.</strong> This grade is based on the FEC&apos;s
-                      bulk data files, which contain over 99% of the records. We&apos;re now
-                      checking each donation against the FEC&apos;s own records. If anything turns
-                      out to be missing, the grade could change slightly.
+                      bulk data files, which contain over 99% of the records. Each donation is now
+                      being checked against the FEC&apos;s own records. If anything turns out to be
+                      missing, the grade could change slightly.
                     </p>
                   )}
                   {checked === true && (

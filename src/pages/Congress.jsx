@@ -228,8 +228,7 @@ export default function Congress({ search }) {
       )}
       {members.error && (
         <p className="notice notice-warn">
-          <strong>We couldn&apos;t load Congress just now.</strong> Check your connection and
-          reload.
+          <strong>The list didn&apos;t load just now.</strong> Check your connection and reload.
         </p>
       )}
       {members.data && (

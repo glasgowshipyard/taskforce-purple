@@ -67,10 +67,18 @@ export function Footer() {
       <div className="wrap">
         <div style={{ maxWidth: '42em' }}>
           <p className="footer-motto">{MOTTO}</p>
+          {/* Who runs it and what's kept (owner, 2026-10-17: one person, no
+              campaign or PAC money; "we" left the site the same day) */}
           <p>
-            Task Force Purple isn&apos;t connected to any party or campaign. Grades are based on
-            public FEC filings and Congress.gov data, and we update them after each FEC filing
-            deadline.
+            Task Force Purple is one person, with friends and family who test it and send feedback.
+            It isn&apos;t connected to any party or campaign, has no ads and takes no money from
+            campaigns or PACs. Grades are based on public FEC filings and Congress.gov data, and
+            they&apos;re updated after each FEC filing deadline. The code and the method are public.
+          </p>
+          <p className="footer-privacy">
+            Privacy: your ZIP code and location stay on your device. If you send feedback,
+            Cloudflare checks you&apos;re a person, and only what you wrote is kept, plus a code
+            that changes every day to stop spam.
           </p>
         </div>
         <p>

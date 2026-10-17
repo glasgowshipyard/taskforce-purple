@@ -82,7 +82,7 @@ export default function Lookup({
       const parts = parseZipEntry(zips?.[z]);
       if (parts.length === 0) {
         setStatus(
-          `We couldn't find ZIP code ${z}. Some ZIP codes only cover PO boxes or a single building. You can use your location instead, or choose your state.`
+          `ZIP code ${z} wasn't found. Some ZIP codes only cover PO boxes or a single building. You can use your location instead, or choose your state.`
         );
         setPickState(true);
       } else if (parts.length === 1) {
@@ -94,7 +94,7 @@ export default function Lookup({
         setChoices(parts);
       }
     } catch {
-      setStatus("We couldn't load the ZIP code list. Check your connection and try again.");
+      setStatus("The ZIP code list didn't load. Check your connection and try again.");
     } finally {
       setBusy(null);
     }
@@ -116,7 +116,7 @@ export default function Lookup({
         setPickState(true);
       } else if (found.near.length) {
         setStatus(
-          "You're close to a district boundary, so we can't tell which district you're in. Which one is yours?"
+          "You're close to a district boundary, so it isn't clear which district you're in. Which one is yours?"
         );
         setChoices([found.key, ...found.near].map(parseDistrict));
       } else {
@@ -126,7 +126,7 @@ export default function Lookup({
       setStatus(
         err?.code === 1
           ? "Your browser didn't share your location. You can enter your ZIP code instead."
-          : "We couldn't get your location. You can enter your ZIP code instead."
+          : "Your location couldn't be found. You can enter your ZIP code instead."
       );
     } finally {
       setBusy(null);
@@ -177,7 +177,7 @@ export default function Lookup({
         </div>
       </form>
       <p className="lookup-privacy">
-        We look up your district on your own device. Your ZIP code and location aren&apos;t sent
+        Your district is looked up on your own device. Your ZIP code and location aren&apos;t sent
         anywhere.
       </p>
 

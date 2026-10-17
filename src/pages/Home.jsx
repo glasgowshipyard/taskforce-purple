@@ -91,7 +91,7 @@ function YourReps({ members, place, onChange, arrived }) {
               <p className="eyebrow">House</p>
               <p className="receipt-name">This seat is vacant</p>
               <p className="small muted">
-                Nobody holds this House seat right now. We&apos;ll grade the next member once
+                Nobody holds this House seat right now. The next member will be graded once
                 they&apos;re sworn in.
               </p>
             </div>
@@ -154,10 +154,10 @@ function CongressDots({ members }) {
               </h2>
             </div>
             <p style={{ flex: '1 1 320px' }}>
-              {low} of the {graded.length} members we&apos;ve graded get less than 45% of their
-              money from people. Only {counts.S} get 90% or more.
+              {low} of the {graded.length} graded members get less than 45% of their money from
+              people. Only {counts.S} get 90% or more.
               {unchecked > 0 &&
-                ` ${unchecked} more aren't graded yet while we confirm their records.`}{' '}
+                ` ${unchecked} more aren't graded yet while their records are checked.`}{' '}
               Click a grade to see who&apos;s in it. <Link to="/how#pacs">What&apos;s a PAC?</Link>
             </p>
           </div>
@@ -198,7 +198,7 @@ export function HowSteps() {
     <div className="steps">
       <div className="step">
         <p className="step-num">01</p>
-        <h3>We add up their money</h3>
+        <h3>Their money is added up</h3>
         <p>
           Everything given to the member: their campaigns, their leadership PAC and their own joint
           fundraising committees. Their own money, loans and transfers are left out.
@@ -226,8 +226,9 @@ export function HowSteps() {
         <p className="step-num">03</p>
         <h3>The grade is the People share</h3>
         <p>
-          90% or more of the money from people is an S. Under 15% is an F. We grade from the
-          FEC&apos;s bulk data first, then check each donation against the FEC&apos;s own records.
+          90% or more of the money from people is an S. Under 15% is an F. Grades come from the
+          FEC&apos;s bulk data first, then each donation is checked against the FEC&apos;s own
+          records.
         </p>
       </div>
     </div>
@@ -295,8 +296,8 @@ export default function Home() {
       {members.error && (
         <div className="wrap section-tight">
           <p className="notice notice-warn">
-            <strong>We couldn&apos;t load the grades just now.</strong> Check your connection and
-            reload the page.
+            <strong>The grades didn&apos;t load just now.</strong> Check your connection and reload
+            the page.
           </p>
         </div>
       )}
@@ -314,7 +315,7 @@ export default function Home() {
       <section className="section" aria-labelledby="how-title" style={{ paddingTop: 24 }}>
         <div className="wrap">
           <h2 id="how-title" className="display display-l" style={{ marginBottom: 28 }}>
-            How we grade
+            How grades work
           </h2>
           <HowSteps />
           <p style={{ marginTop: 24 }}>
@@ -340,8 +341,8 @@ export default function Home() {
             </h2>
             <p className="lede" style={{ marginTop: 18 }}>
               {races.data
-                ? 'We grade everyone running for Congress the same way we grade current members. See who is paying each candidate in your district and state.'
-                : `Candidates for Congress file their last campaign finance reports before the election on October 22. We'll grade every candidate by ${RACES_ARRIVE_TEXT}, using the same method we use for current members.`}
+                ? 'Everyone running for Congress is graded the same way as current members. See who is paying each candidate in your district and state.'
+                : `Candidates for Congress file their last campaign finance reports before the election on October 22. Every candidate will be graded by ${RACES_ARRIVE_TEXT}, the same way as current members.`}
             </p>
           </div>
           {races.data ? (

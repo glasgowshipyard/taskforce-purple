@@ -31,7 +31,7 @@ function candidatePerson(c) {
     figures: graded ? figures : null,
     note: graded
       ? null
-      : "Not graded yet. We haven't found a campaign committee for this election that we can grade.",
+      : 'Not graded yet. No campaign committee for this election has been found to grade.',
     evidenceChecked: c.evidenceChecked,
     ppi: c.peoplePowerInfluence ?? null,
     href: c.bioguideId
@@ -207,7 +207,7 @@ function RaceView({ race, others }) {
                 In each row, the figure in bold is the most people-funded. Grades are based only on
                 where the money comes from.
                 {notInCongress &&
-                  " Candidates who aren't in Congress are graded from the FEC's bulk data files. We check their donations against the FEC's own records afterwards."}
+                  " Candidates who aren't in Congress are graded from the FEC's bulk data files. Their donations are checked against the FEC's own records afterwards."}
                 {race.office === 'H' &&
                   ' Some states redrew their congressional districts for this election. If yours did, your district number may be different. You can check at vote.gov.'}
               </p>
@@ -298,9 +298,8 @@ function NotYet() {
           </h1>
           <p className="lede" style={{ marginTop: 22, color: 'var(--on-dark)' }}>
             Candidates for Congress file their last campaign finance reports before the election on
-            October 22. We&apos;ll grade every candidate the next day, using the same method we use
-            for current members, and you&apos;ll be able to compare the candidates in your district
-            and state.
+            October 22. Every candidate will be graded the next day, the same way as current
+            members, and you&apos;ll be able to compare the candidates in your district and state.
           </p>
           <div className="row" style={{ marginTop: 28 }}>
             <Link to="/" className="btn btn-big btn-light">
@@ -347,7 +346,7 @@ export default function Ballot({ raceKey }) {
   if (raceKey && !race) {
     return (
       <div className="wrap section">
-        <h1 className="display display-l">We couldn&apos;t find that race</h1>
+        <h1 className="display display-l">That race isn&apos;t here</h1>
         <p className="lede" style={{ marginTop: 16 }}>
           The link may be out of date. <Link to="/ballot">See the races where you live</Link>.
         </p>
@@ -364,7 +363,7 @@ export default function Ballot({ raceKey }) {
             </p>
             <h1 className="display display-xl" style={{ fontSize: 'clamp(48px, 7.4vw, 104px)' }}>
               {place
-                ? `We didn't find any races for Congress in ${stateName(place.state)}`
+                ? `No races for Congress found in ${stateName(place.state)}`
                 : 'Where are you registered to vote?'}
             </h1>
             <Lookup

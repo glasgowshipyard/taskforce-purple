@@ -438,6 +438,11 @@ p {
   color: var(--white);
 }
 
+.footer-privacy {
+  margin-top: 10px;
+  color: var(--on-dark-2);
+}
+
 /* The owner's line, signing off every page */
 .footer-motto {
   font-family: var(--display);

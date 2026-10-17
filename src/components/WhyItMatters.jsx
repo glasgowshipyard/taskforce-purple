@@ -146,7 +146,7 @@ export default function WhyItMatters() {
           </div>
         </div>
         <div className="studies">
-          <h3 className="eyebrow">Don&apos;t take our word for it</h3>
+          <h3 className="eyebrow">Read the studies yourself</h3>
           <ol>
             {STUDIES.map(s => (
               <li key={s.n} id={`study-${s.n}`}>

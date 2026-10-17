@@ -44,14 +44,14 @@ export default function FeedbackDialog({ open, onClose, kind, member = null }) {
     if ((!flag || reason === 'other') && text.trim().length < 3) {
       setState(s => ({
         ...s,
-        error: flag ? 'Tell us what looks wrong.' : 'Write a few words first.',
+        error: flag ? 'Say what looks wrong.' : 'Write a few words first.',
       }));
       return;
     }
     if (!token) {
       setState(s => ({
         ...s,
-        error: 'One moment: we’re checking you’re a person. Try again in a second.',
+        error: 'One moment: still checking you’re a person. Try again in a second.',
       }));
       return;
     }
@@ -96,10 +96,10 @@ export default function FeedbackDialog({ open, onClose, kind, member = null }) {
         {state.sent ? (
           <div className="feedback-done" role="status">
             <p>
-              <strong>Thanks, we’ve got it.</strong>{' '}
+              <strong>Thanks, got it.</strong>{' '}
               {flag
-                ? `We’ll check ${member?.name ?? 'this member'}’s figures against the FEC’s records.`
-                : 'We read every one.'}
+                ? `${member?.name ?? 'This member'}’s figures will be checked against the FEC’s records.`
+                : 'Every one gets read.'}
             </p>
             <button type="button" className="btn btn-dark" onClick={onClose}>
               Close
@@ -110,7 +110,7 @@ export default function FeedbackDialog({ open, onClose, kind, member = null }) {
             <form className="feedback-form" onSubmit={submit} noValidate>
               {flag && (
                 <p className="small muted">
-                  About {member?.name}’s grade. Tell us what looks wrong and we’ll check it against
+                  About {member?.name}’s grade. Say what looks wrong and it will be checked against
                   the FEC’s records.
                 </p>
               )}

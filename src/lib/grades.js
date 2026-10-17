@@ -107,7 +107,7 @@ export const GRADES = {
     light: '#C4B5FD',
     rank: 0,
     meaning:
-      "Our totals for this campaign don't match the FEC's own, so we're not showing a grade until we've fixed that. It's a problem with our data, not something we found about this member.",
+      "This site's totals for this campaign don't match the FEC's own, so no grade is shown until that's fixed. It's a problem with this site's data, not something found about this member.",
   },
   // We couldn't yet confirm the FEC records are this member's (#41)
   UNVERIFIED: {
@@ -117,7 +117,7 @@ export const GRADES = {
     light: '#CFCBD8',
     rank: 0,
     meaning:
-      "We haven't yet confirmed that the campaign records we found belong to this member, so we're not showing a grade or any figures. It's a problem with our records, not something we found about this member.",
+      "The campaign records found for this member haven't been confirmed as theirs yet, so no grade or figures are shown. It's a problem with this site's records, not something found about this member.",
   },
 };
 
@@ -133,12 +133,12 @@ const WITHHELD = {
   'no-campaign-committee': {
     name: 'No campaign records',
     meaning:
-      "The FEC has no campaign committee on file for this member for this election, so there are no campaign records we can check and grade. It's a gap in the records, not something we found about this member.",
+      "The FEC has no campaign committee on file for this member for this election, so there are no campaign records to check and grade. It's a gap in the records, not something found about this member.",
   },
   'not-graded': {
     name: 'Checking records',
     meaning:
-      "We couldn't confirm this member's campaign records for this election yet, so we're not showing a grade or any figures. It's a problem with our records, not something we found about this member.",
+      "This member's campaign records for this election couldn't be confirmed yet, so no grade or figures are shown. It's a problem with this site's records, not something found about this member.",
   },
 };
 

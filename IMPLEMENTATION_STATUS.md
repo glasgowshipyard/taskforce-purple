@@ -4,6 +4,25 @@
 
 ---
 
+## 2026-10-17 (late): no "we"; who runs it, in the footer
+
+- **"We" is gone from the site** (owner: one person runs it; without "we"
+  the copy reads more data-driven and less like an actor with motives).
+  About 45 lines rewritten as ordinary sentences: "Their money is added
+  up", "Grades come from the FEC's bulk data first, then each donation is
+  checked...", "How grades work" (was "How we grade"), "Thanks, got it.
+  Every one gets read.", "Read the studies yourself". Withheld grades keep
+  their ownership: "It's a problem with this site's data, not something
+  found about this member." "Why this matters to all of us" keeps its
+  "us" (everyone). Write new copy the same way.
+- **Footer:** "Task Force Purple is one person, with friends and family
+  who test it and send feedback. It isn't connected to any party or
+  campaign, has no ads and takes no money from campaigns or PACs..." and a
+  privacy line: the ZIP code and location stay on the device; feedback is
+  checked by Cloudflare Turnstile and only what's written is kept, with a
+  daily-changing code to stop spam (owner confirmed both).
+- The dots headline's "D" wears the D grade's colour.
+
 ## 2026-10-17 (night): "FEC filings to" on receipts
 
 - **How recent the money is** (both outside reviews; owner's yes): each

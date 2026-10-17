@@ -37,8 +37,7 @@ export default function ShareDialog({ open, onClose, card, url, text, filename }
         }
       })
       .catch(
-        () =>
-          !cancelled && setNote("We couldn't create the image, but you can still copy the link.")
+        () => !cancelled && setNote("The image couldn't be made, but you can still copy the link.")
       );
     return () => {
       cancelled = true;

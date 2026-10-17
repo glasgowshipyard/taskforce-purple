@@ -77,7 +77,7 @@ export const FINDINGS = [
   },
   {
     head: 'Money from a few big donors is linked to less work',
-    text: "Members who relied more on their biggest donors put forward fewer bills, gave fewer speeches and spoke at fewer hearings, especially on health and welfare. That's why our grade checks how few donors gave half the big money.",
+    text: "Members who relied more on their biggest donors put forward fewer bills, gave fewer speeches and spoke at fewer hearings, especially on health and welfare. That's why the grade checks how few donors gave half the big money.",
     source: 4,
   },
 ];

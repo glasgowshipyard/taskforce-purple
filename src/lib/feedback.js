@@ -33,7 +33,7 @@ export async function sendFeedback(kind, body) {
       body: JSON.stringify(body),
     });
   } catch {
-    throw new Error("We couldn't send that. Check your connection and try again.");
+    throw new Error("That didn't send. Check your connection and try again.");
   }
   const data = await response.json().catch(() => null);
   if (!response.ok || !data?.ok) {
