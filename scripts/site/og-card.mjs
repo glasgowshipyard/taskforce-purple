@@ -7,7 +7,7 @@
 import { createRequire } from 'node:module';
 import { Resvg } from '@resvg/resvg-js';
 import { monotonePath } from '../../src/lib/curve.js';
-import { GRADES, PARTS } from '../../src/lib/grades.js';
+import { GRADES, GRAPH_GRADIENT, PARTS } from '../../src/lib/grades.js';
 
 const require = createRequire(import.meta.url);
 const font = path => require.resolve(`@expo-google-fonts/${path}`);
@@ -125,8 +125,9 @@ ${wordLines
   .join('')}
 </g>
 <line x1="${left}" x2="${right}" y1="${base + 0.5}" y2="${base + 0.5}" stroke="#DDDAD2" stroke-width="1"/>
-<path d="${curve} L${pts[2].x},${base} L${pts[0].x},${base} Z" fill="${g.color}" fill-opacity="0.16"/>
-<path d="${curve}" fill="none" stroke="${g.color}" stroke-width="4" stroke-linejoin="round"/>
+<defs><linearGradient id="graph" gradientUnits="userSpaceOnUse" x1="${pts[0].x}" x2="${pts[2].x}" y1="0" y2="0">${GRAPH_GRADIENT.map((c, i) => `<stop offset="${i / (GRAPH_GRADIENT.length - 1)}" stop-color="${c}"/>`).join('')}</linearGradient></defs>
+<path d="${curve} L${pts[2].x},${base} L${pts[0].x},${base} Z" fill="url(#graph)" fill-opacity="0.22"/>
+<path d="${curve}" fill="none" stroke="url(#graph)" stroke-width="4" stroke-linejoin="round" stroke-linecap="round"/>
 ${pts
   .map(
     p => `<text x="${p.x}" y="${base + 30}" font-family="IBM Plex Mono" font-weight="600" font-size="15" fill="#3D3A46" text-anchor="middle">${p.label.toUpperCase()}</text>

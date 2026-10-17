@@ -1731,6 +1731,53 @@ p {
   --tone: var(--muted);
 }
 
+.why-step.is-lit {
+  border-color: var(--tone);
+  box-shadow: 0 0 0 1px var(--tone);
+}
+
+.why-step[data-light] {
+  cursor: pointer;
+}
+
+.why-split {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 2px 0 6px;
+}
+
+/* Where a kind of money went, in the graph's colours */
+.split-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--mono);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.split-chip::before {
+  content: '';
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+  background: var(--c);
+}
+
+.split-chip.is-people {
+  --c: #0c8e6b;
+}
+
+.split-chip.is-power {
+  --c: #a67c00;
+}
+
+.split-chip.is-influence {
+  --c: #c2412b;
+}
+
 .why-step h3 {
   font-size: 19px;
   margin-bottom: 4px;
@@ -2073,19 +2120,65 @@ p {
 }
 
 .ppi-area {
-  fill: var(--g);
-  fill-opacity: 0.14;
+  fill-opacity: 0.22;
+}
+
+/* On a member's page the strips carry the colour; the shape is a faint wash */
+.ppi.has-strips .ppi-area {
+  fill-opacity: 0.12;
+}
+
+/* The kinds of money in each part, people to corporate, a little darker
+   than the shape; neighbours alternate in depth so each strip shows */
+.ppi-strip {
+  fill-opacity: 0.34;
+  cursor: pointer;
+  transition: fill-opacity 0.3s ease;
+}
+
+.ppi-strip.is-deep {
+  fill-opacity: 0.52;
+}
+
+.ppi-strip.is-lit {
+  fill-opacity: 0.92;
+}
+
+/* Breathing: only while someone's looking (lib/light.js) */
+.ppi-strip.is-breathing {
+  animation: ppi-breathe 1.7s ease-in-out infinite;
+}
+
+.ppi-strip.is-hint {
+  animation: ppi-breathe 1.7s ease-in-out 3;
+}
+
+@keyframes ppi-breathe {
+  0%,
+  100% {
+    fill-opacity: 0.55;
+  }
+
+  50% {
+    fill-opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ppi-strip.is-breathing,
+  .ppi-strip.is-hint {
+    animation: none;
+  }
 }
 
 .ppi-line {
   fill: none;
-  stroke: var(--g);
-  stroke-width: 2.5;
+  stroke-width: 3;
   stroke-linejoin: round;
+  stroke-linecap: round;
 }
 
 .ppi-dot {
-  fill: var(--g);
   stroke: var(--receipt);
   stroke-width: 2;
   transition: r 0.12s ease;

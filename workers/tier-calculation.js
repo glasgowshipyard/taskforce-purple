@@ -552,11 +552,23 @@ export function final3Allowance(nRaw, NRaw, reliable) {
   if (!reliable) {
     return FINAL3.fallback;
   }
+  const { shareLimit, countLimit } = final3AllowanceLimits(nRaw, NRaw);
+  return Math.min(shareLimit, countLimit);
+}
+
+/**
+ * The two limits the allowance is the smaller of: one from how small a share
+ * of the big donors gave half the big money, one from how few people that is
+ * (under 100). The member page says which one applied.
+ */
+export function final3AllowanceLimits(nRaw, NRaw) {
   const n = Number(nRaw) || 0;
   const N = Number(NRaw) || 0;
   const share = N > 0 ? n / N : 0;
-  const smooth = 0.1 + 0.9 * clamp01((share - 0.025) / 0.075, 0, 1);
-  return Math.min(smooth, Math.min(1, n / 100));
+  return {
+    shareLimit: 0.1 + 0.9 * clamp01((share - 0.025) / 0.075, 0, 1),
+    countLimit: Math.min(1, n / 100),
+  };
 }
 
 /**

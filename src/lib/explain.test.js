@@ -5,6 +5,7 @@ import {
   bigDonorLine,
   explainGrade,
   moneyPieces,
+  moneyStrips,
   peopleSentence,
   placementLine,
 } from './explain.js';
@@ -118,6 +119,34 @@ describe('moneyPieces', () => {
   });
 });
 
+describe('moneyStrips', () => {
+  it("the graph's strips: each kind of money in each part, people to corporate", () => {
+    expect(moneyStrips(schiff.grade.detail)).toEqual([
+      { key: 'small', part: 'people', v: 45 },
+      { key: 'big', part: 'people', v: 39 },
+      { key: 'pac', part: 'people', v: 1 },
+      { key: 'big', part: 'power', v: 7 },
+      { key: 'pac', part: 'influence', v: 4 },
+      { key: 'directed', part: 'influence', v: 2 },
+      { key: 'politicians', part: 'influence', v: 2 },
+    ]);
+  });
+
+  it('every strip adds up to its part, and every step to its strips', () => {
+    for (const m of [schiff, jacobs, aoc]) {
+      const strips = moneyStrips(m.grade.detail);
+      const e = explainGrade(m);
+      for (const part of ['people', 'power', 'influence']) {
+        expect(strips.filter(s => s.part === part).reduce((t, s) => t + s.v, 0)).toBe(e.ppi[part]);
+      }
+      for (const step of e.steps.filter(s => s.key !== 'result')) {
+        const fromStrips = strips.filter(s => s.key === step.key).reduce((t, s) => t + s.v, 0);
+        expect(step.split.reduce((t, s) => t + s.v, 0)).toBe(fromStrips);
+      }
+    }
+  });
+});
+
 describe('explainGrade', () => {
   it('goes through each kind of money and where it went', () => {
     const e = explainGrade(schiff);
@@ -132,10 +161,28 @@ describe('explainGrade', () => {
       'Parties and other politicians: 2%',
       '85% of the money came from people',
     ]);
-    expect(e.steps[1].text).toMatch(/Half the big money came from only 5% of big donors\./);
-    expect(e.steps[1].text).toMatch(/Here 39% of the money is People and 7% is Power\.$/);
-    expect(e.steps[2].text).toMatch(/Here 1% of the money is People and 4% is Influence\.$/);
-    expect(e.steps[3].text).toMatch(/Here all of it is Influence\.$/);
+    expect(e.steps.map(s => s.key)).toEqual([
+      'small',
+      'big',
+      'pac',
+      'directed',
+      'politicians',
+      'result',
+    ]);
+    // Where each kind of money went, first, so the steps add up to the graph
+    expect(e.steps[1].split).toEqual([
+      { part: 'people', v: 39 },
+      { part: 'power', v: 7 },
+    ]);
+    expect(e.steps[2].split).toEqual([
+      { part: 'people', v: 1 },
+      { part: 'influence', v: 4 },
+    ]);
+    expect(e.steps[3].split).toEqual([{ part: 'influence', v: 2 }]);
+    // 339 of 6,512: the share decides it, so the share is the reason given
+    expect(e.steps[1].text).toBe(
+      'Donations over $200. Half the big money came from only 5% of big donors. The fewer the donors who give half of it, the more of it is Power.'
+    );
     expect(e.steps[5].text).toBe(
       "People 85%, Power 7%, Influence 8%. That's an A: Supported. An A needs 75% and an S needs 90%."
     );
@@ -144,12 +191,18 @@ describe('explainGrade', () => {
   it('a middle grade names its line and the next one up', () => {
     const e = explainGrade(jacobs);
     expect(e.ppi).toEqual({ people: 47, power: 20, influence: 33 });
+    // 32 of 323 is a broad enough share, but only 32 people: the count decides it
+    expect(e.steps.find(s => s.key === 'big').text).toBe(
+      'Donations over $200. Half the big money came from just 32 people. When that few give half of it, part of it is Power.'
+    );
     expect(e.steps.at(-1).text).toMatch(/That's a C: Mixed\. A C needs 45% and a B needs 60%\.$/);
   });
 
   it('the top grade says what it needs', () => {
     const e = explainGrade(aoc);
-    expect(e.steps[1].text).toMatch(/Here all of it is People money\.$/);
+    expect(e.steps[1].text).toMatch(/That's a broad group, so all of it is People money\.$/);
+    // All of the big money went to People: one entry, no Power
+    expect(e.steps[1].split.map(x => x.part)).toEqual(['people']);
     expect(e.steps.at(-1).text).toMatch(/That's an S: Grassroots\. An S needs 90%\.$/);
   });
 

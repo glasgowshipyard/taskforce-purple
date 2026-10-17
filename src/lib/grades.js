@@ -112,6 +112,10 @@ export const GRADES = {
   },
 };
 
+// Every graph's colours, left (people) to right (corporate): the grades' own,
+// S to E (owner, 2026-10-17). The page, the share card and link previews
+export const GRAPH_GRADIENT = ['S', 'B', 'C', 'D', 'E'].map(l => GRADES[l].color);
+
 const UNKNOWN = { ...GRADES['N/A'], name: 'Not graded' };
 
 // Why a grade is withheld, when the general words don't fit

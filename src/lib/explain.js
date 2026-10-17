@@ -8,7 +8,7 @@
 // workers/tier-calculation.js), as shares of the money given. People
 // is the grade's score, so the page has one figure for "from people".
 import { GRADES, LETTERS, withArticle } from './grades.js';
-import { peoplePowerInfluence } from '../../workers/tier-calculation.js';
+import { final3AllowanceLimits, peoplePowerInfluence } from '../../workers/tier-calculation.js';
 
 const BANDS = { S: 90, A: 75, B: 60, C: 45, D: 30, E: 15, F: 0 };
 
@@ -126,18 +126,67 @@ function nextLine(tier) {
     : `${needs(tier)} and ${withArticle(up)} needs ${BANDS[up]}%.`;
 }
 
-// "Here $7 is People money and $3 is Influence."
-function split(people, other, otherName) {
-  if (people > 0 && other > 0) {
-    return `Here ${people}% of the money is People and ${other}% is ${otherName}.`;
+// The kinds of money, in the order the graph's strips run (people to
+// corporate). Each step and each strip carries its key, so pointing at one
+// lights the other (MoneyGraph)
+export const SOURCES = {
+  small: 'Small donations',
+  big: 'Big donations',
+  pac: 'PACs',
+  directed: 'Gifts passed on by a committee',
+  politicians: 'Parties and other politicians',
+};
+
+/**
+ * The graph's strips: each kind of money's share inside each part, people to
+ * corporate. [{ key, part: 'people'|'power'|'influence', v }], v in whole
+ * percentages adding up to the part's share. Null without a FINAL-3 grade.
+ */
+export function moneyStrips(detail) {
+  const parts = moneyPieces(detail);
+  if (!parts) {
+    return null;
   }
-  return people > 0 ? 'Here all of it is People money.' : `Here all of it is ${otherName}.`;
+  const { people, power, influence } = parts;
+  return [
+    { key: 'small', part: 'people', v: people.small },
+    { key: 'big', part: 'people', v: people.big },
+    { key: 'pac', part: 'people', v: people.pac },
+    { key: 'directed', part: 'people', v: people.directed },
+    { key: 'big', part: 'power', v: power.big },
+    { key: 'pac', part: 'influence', v: influence.pac },
+    { key: 'directed', part: 'influence', v: influence.directed },
+    { key: 'politicians', part: 'influence', v: influence.party + influence.funds },
+  ].filter(s => s.v > 0);
+}
+
+// Where a kind of money went, for the step's first line: [{ part, v }]
+const splitOf = pairs => pairs.filter(([, v]) => v > 0).map(([part, v]) => ({ part, v }));
+
+/**
+ * Why the big money is split as it is: whichever of the allowance's two limits
+ * applied (final3AllowanceLimits in tier-calculation.js).
+ */
+function bigMoneyReason(d, power) {
+  if (!(d.reliable && d.fewestHoldingHalf && d.donors)) {
+    return "We don't have enough of the donor records yet to tell how many people gave it, so we use a middle rule.";
+  }
+  const n = d.fewestHoldingHalf;
+  const { shareLimit, countLimit } = final3AllowanceLimits(n, d.donors);
+  if (!(power > 0)) {
+    return `${bigDonorLine(n, d.donors)} That's a broad group, so all of it is People money.`;
+  }
+  if (countLimit < shareLimit) {
+    return `Half the big money came from just ${n} ${n === 1 ? 'person' : 'people'}. When that few give half of it, part of it is Power.`;
+  }
+  return `${bigDonorLine(n, d.donors)} The fewer the donors who give half of it, the more of it is Power.`;
 }
 
 /**
  * The steps from the money given to the grade, each a kind of money and
- * where it went: { intro, steps: [{ title, text, tone }], ppi }, or null
- * when there's no working to explain.
+ * where it went: { intro, steps: [{ key, title, split, text, tone }], ppi },
+ * or null when there's no working to explain. `split` is where that money
+ * went ([{ part, v }]), shown first, so the steps visibly add up to the graph.
  */
 export function explainGrade({ tier, grade, name }) {
   if (!isFinal3(grade) || !GRADES[tier] || !LETTERS.includes(tier)) {
@@ -153,54 +202,71 @@ export function explainGrade({ tier, grade, name }) {
 
   if (people.small > 0) {
     steps.push({
-      title: `Small donations: ${people.small}%`,
+      key: 'small',
+      title: `${SOURCES.small}: ${people.small}%`,
+      split: splitOf([['people', people.small]]),
       tone: 'good',
       text: 'Donations under $200. All of it is People money.',
     });
   }
 
   const big = people.big + power.big;
-  if (d.big > 0) {
-    const who =
-      d.reliable && d.fewestHoldingHalf
-        ? `${bigDonorLine(d.fewestHoldingHalf, d.donors)} The fewer the donors who give half of it, the less of it is People money. `
-        : "We don't have enough of the donor records yet to tell how many people gave it, so we use a middle rule. ";
+  if (big > 0) {
     steps.push({
-      title: `Big donations: ${big}%`,
+      key: 'big',
+      title: `${SOURCES.big}: ${big}%`,
+      split: splitOf([
+        ['people', people.big],
+        ['power', power.big],
+      ]),
       tone: power.big > 0 ? 'bad' : 'good',
-      text: `Donations over $200. ${who}${split(people.big, power.big, 'Power')}`,
+      text: `Donations over $200. ${bigMoneyReason(d, power.big)}`,
     });
   }
 
   const pac = people.pac + influence.pac;
   if (pac > 0) {
     steps.push({
-      title: `PACs: ${pac}%`,
+      key: 'pac',
+      title: `${SOURCES.pac}: ${pac}%`,
+      split: splitOf([
+        ['people', people.pac],
+        ['influence', influence.pac],
+      ]),
       tone: people.pac > 0 ? 'neutral' : 'bad',
-      text: `PAC money is People money only when the group behind the PAC is run by its members, who elect most of its board, as in a union. Even then, only the part of the PAC's own money that came from many people. ${split(people.pac, influence.pac, 'Influence')}`,
+      text: "PAC money is People money only when the group behind the PAC is run by its members, who elect most of its board, as in a union. Even then, only the part of the PAC's own money that came from many people. The rest is Influence.",
     });
   }
 
   const directed = people.directed + influence.directed;
   if (directed > 0) {
     steps.push({
-      title: `Gifts passed on by a committee: ${directed}%`,
+      key: 'directed',
+      title: `${SOURCES.directed}: ${directed}%`,
+      split: splitOf([
+        ['people', people.directed],
+        ['influence', influence.directed],
+      ]),
       tone: people.directed > 0 ? 'neutral' : 'bad',
-      text: `Some donors gave through a committee that chose to pass their gifts to ${name}. Those gifts are the committee's, so they follow the same rule as PACs. ${split(people.directed, influence.directed, 'Influence')}`,
+      text: `Some donors gave through a committee that chose to pass their gifts to ${name}. Those gifts are the committee's, so they follow the same rule as PACs.`,
     });
   }
 
   const politicians = influence.party + influence.funds;
   if (politicians > 0) {
     steps.push({
-      title: `Parties and other politicians: ${politicians}%`,
+      key: 'politicians',
+      title: `${SOURCES.politicians}: ${politicians}%`,
+      split: splitOf([['influence', politicians]]),
       tone: 'bad',
       text: "Money from party committees and from other politicians' joint fundraising committees. All of it is Influence.",
     });
   }
 
   steps.push({
+    key: 'result',
     title: `${ppi.people}% of the money came from people`,
+    split: [],
     tone: GRADES[tier].rank >= 6 ? 'good' : GRADES[tier].rank <= 4 ? 'bad' : 'neutral',
     text: `People ${ppi.people}%, Power ${ppi.power}%, Influence ${ppi.influence}%. That's ${withArticle(tier)}: ${GRADES[tier].name}. ${nextLine(tier)}`,
   });

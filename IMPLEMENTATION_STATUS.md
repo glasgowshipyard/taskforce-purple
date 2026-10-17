@@ -4,6 +4,31 @@
 
 ---
 
+## 2026-10-17 (night): the graph's strips, linked to the "Why" steps
+
+Owner's design, worked out over mock-ups:
+
+- **One gradient for every graph**, fill and line: green (people) on the
+  left to red (corporate) on the right, the grades' own colours
+  (`GRAPH_GRADIENT` in `src/lib/grades.js`); the page, the cards, the share
+  card and the link previews. The grade keeps its colour in the stamp and
+  the circled letter.
+- **Strips on the member page:** the shape is cut into darker strips, one
+  per kind of money in each part, people to corporate (`moneyStrips` in
+  `src/lib/explain.js`). A strip and its "Why" step light each other up
+  (`src/lib/light.js`); the lit strip breathes only while someone's looking
+  (pointer on it, or five seconds after a tap), and the biggest kind of
+  money breathes three times the first time the graph is in view. Still for
+  "reduce motion".
+- **The "Why" steps** lead with where each kind of money went ("20% People ·
+  17% Power"), so they visibly add up to the graph. Big donations give the
+  real reason for any Power share: the count ("just 52 people") when fewer
+  than 100 people gave half the big money, else the share
+  (`final3AllowanceLimits` in tier-calculation.js, the same maths the grade
+  uses; no grade changes).
+
+---
+
 ## 2026-10-17 (evening): percentages, the graph's half-way changes, flags
 
 Owner's call ("do the lot"):

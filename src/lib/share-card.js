@@ -2,7 +2,7 @@
 // the visitor's browser when they press Share. Nothing is rendered on a
 // server, so it costs nothing however many people share.
 import { monotonePath } from './curve.js';
-import { PARTS, gradeInfo } from './grades.js';
+import { GRAPH_GRADIENT, PARTS, gradeInfo } from './grades.js';
 import { usdShort } from './people.js';
 
 const W = 1200;
@@ -87,7 +87,7 @@ function dashed(x, x0, x1, y) {
 }
 
 // The member's graph: People, Power and Influence, as on their page
-function drawGraph(x, ppi, color, left, top, width, height) {
+function drawGraph(x, ppi, left, top, width, height) {
   const base = top + height;
   const pts = PARTS.map((p, i) => ({
     ...p,
@@ -105,11 +105,14 @@ function drawGraph(x, ppi, color, left, top, width, height) {
   x.moveTo(left, base + 0.5);
   x.lineTo(left + width, base + 0.5);
   x.stroke();
-  x.globalAlpha = 0.16;
-  x.fillStyle = color;
+  // The site's graph colours, people (left) to corporate (right)
+  const paint = x.createLinearGradient(pts[0].x, 0, pts[2].x, 0);
+  GRAPH_GRADIENT.forEach((c, i) => paint.addColorStop(i / (GRAPH_GRADIENT.length - 1), c));
+  x.globalAlpha = 0.22;
+  x.fillStyle = paint;
   x.fill(area);
   x.globalAlpha = 1;
-  x.strokeStyle = color;
+  x.strokeStyle = paint;
   x.lineWidth = 3;
   x.lineJoin = 'round';
   x.stroke(line);
@@ -177,7 +180,7 @@ function drawReceipt(x, card) {
   x.fillText(total, w - 24 - x.measureText(total).width, y + 14);
 
   if (card.ppi) {
-    drawGraph(x, card.ppi, gradeInfo(card.tier).color, 24, y + 34, w - 48, 54);
+    drawGraph(x, card.ppi, 24, y + 34, w - 48, 54);
     y += graph;
   }
   // a barcode from the person's ID, for the look of the thing

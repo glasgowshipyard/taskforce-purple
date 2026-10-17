@@ -11,9 +11,16 @@ import { api } from '../lib/api.js';
 import { classifyOrganization, sectorInfo } from '../lib/donor-taxonomy.js';
 import { CYCLE_LABEL } from '../lib/election.js';
 import { flagFor } from '../lib/flags.js';
-import { bigDonorLine, explainGrade, peopleSentence, placementLine } from '../lib/explain.js';
+import {
+  bigDonorLine,
+  explainGrade,
+  moneyStrips,
+  peopleSentence,
+  placementLine,
+} from '../lib/explain.js';
 import { gradeInfo, isLetter, isRingfenced, withArticle } from '../lib/grades.js';
 import { useAsync, useTitle } from '../lib/hooks.js';
+import { lightHandlers, useLight } from '../lib/light.js';
 import {
   displayName,
   gradedFigures,
@@ -29,6 +36,8 @@ import {
 import { stateByCode } from '../lib/states.js';
 import { peoplePowerInfluence } from '../../workers/tier-calculation.js';
 import { Link, racePath } from '../lib/router.js';
+
+const PART_LABEL = { people: 'People', power: 'Power', influence: 'Influence' };
 
 const ROLE = {
   campaign: 'Campaign committee',
@@ -145,6 +154,8 @@ export default function Member({ id, kind = 'member' }) {
   );
   const [sharing, setSharing] = useState(false);
   const [flagging, setFlagging] = useState(false);
+  // The kind of money lit up in the graph and the "Why" steps together
+  const [light, setLight] = useLight();
 
   const members = list.data?.members || [];
   const inRace = useMemo(
@@ -360,7 +371,14 @@ export default function Member({ id, kind = 'member' }) {
                 </div>
                 {ppi && (
                   <div className="member-graph">
-                    <MoneyGraph ppi={ppi} tier={m.tier} showKey />
+                    <MoneyGraph
+                      ppi={ppi}
+                      tier={m.tier}
+                      showKey
+                      strips={why ? moneyStrips(final3) : null}
+                      light={light}
+                      onLight={setLight}
+                    />
                   </div>
                 )}
               </section>
@@ -371,12 +389,25 @@ export default function Member({ id, kind = 'member' }) {
                     <p className="fold-intro">{why.intro}</p>
                     <ol className="why-steps">
                       {why.steps.map((step, k) => (
-                        <li key={step.title} className={`why-step tone-${step.tone}`}>
+                        <li
+                          key={step.key}
+                          className={`why-step tone-${step.tone}${light.key && light.key === step.key ? ' is-lit' : ''}`}
+                          {...(step.split.length ? lightHandlers(step.key, setLight) : {})}
+                        >
                           <span className="why-num" aria-hidden="true">
                             {k + 1}
                           </span>
                           <div>
                             <h3>{step.title}</h3>
+                            {step.split.length > 0 && (
+                              <p className="why-split">
+                                {step.split.map(s => (
+                                  <span key={s.part} className={`split-chip is-${s.part}`}>
+                                    {s.v}% {PART_LABEL[s.part]}
+                                  </span>
+                                ))}
+                              </p>
+                            )}
                             <p>{step.text}</p>
                           </div>
                         </li>
