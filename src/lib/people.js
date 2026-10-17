@@ -309,7 +309,16 @@ export function fractionWords(r) {
     [9 / 10, 'Nine in ten'],
   ];
   const hit = known.find(([v]) => Math.abs(r - v) <= 0.03);
-  return hit ? hit[1] : null;
+  if (!hit) {
+    return null;
+  }
+  // Never round a share up or down to a fraction it isn't: 47.6% is "Nearly
+  // half", not "Half" (a reviewer's catch, 2026-10-17)
+  const [v, words] = hit;
+  if (Math.abs(r - v) < 0.005) {
+    return words;
+  }
+  return r < v ? `Nearly ${words.toLowerCase()}` : `Just over ${words.toLowerCase()}`;
 }
 
 const PARTY_CODES = {

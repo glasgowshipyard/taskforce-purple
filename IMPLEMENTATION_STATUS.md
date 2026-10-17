@@ -29,6 +29,11 @@
   `workers/person-funding.js` (match what joint funds passed on to what
   the member's committees report receiving); it can move grades, so it
   waits for a simulation and the owner's yes.
+- **No rounding to a fraction it isn't:** the home page's dots headline
+  said "Half get a D or worse" for 254 of 534 (47.6%); fractionWords now
+  says "Nearly half" or "Just over" unless the share is within half a
+  point (an outside review's catch). "Whether it changes votes is still
+  argued over" left the "Why this matters" opening (owner: redundant).
 - **The owner's line**, "It doesn't matter which side wins if everyone
   loses.", opens "Why this matters" in big type and signs off every page in
   the footer (`MOTTO` in `src/lib/research.js`).

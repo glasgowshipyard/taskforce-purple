@@ -155,7 +155,10 @@ describe('concentration', () => {
 
 describe('words and money', () => {
   it('names simple fractions only when close', () => {
-    expect(fractionWords(415 / 537)).toBe('Three in four');
+    expect(fractionWords(0.75)).toBe('Three in four');
+    // Never rounded to a fraction it isn't
+    expect(fractionWords(415 / 537)).toBe('Just over three in four');
+    expect(fractionWords(254 / 534)).toBe('Nearly half');
     expect(fractionWords(0.6)).toBeNull();
   });
 
