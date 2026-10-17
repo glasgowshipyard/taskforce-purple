@@ -1,5 +1,5 @@
 // How grades work, in plain words (owner and Craig, 2026-10-13): the money
-// in three piles, the grade scale, real members' graphs as examples (not
+// from three sources, the grade scale, real members' graphs as examples (not
 // named), and the exact method (FINAL-3, src/lib/spec.js) behind "Show the
 // exact math", as written. Must agree with workers/tier-calculation.js
 // (gradeFinal3).
@@ -50,7 +50,7 @@ function blocks(md) {
   return out;
 }
 
-// What goes in each pile, a little more fully than the graph's key
+// What each source covers, a little more fully than the graph's key
 const PILES = {
   people: (
     <>
@@ -114,8 +114,8 @@ export default function How() {
               How grades work
             </h1>
             <p className="lede">
-              We sort every dollar given to a member of Congress into three piles: People, Power and
-              Influence. The grade is how much of the money is in the People pile.
+              Every dollar given to a member of Congress comes from one of three sources: People,
+              Power and Influence. The grade is the share that comes from People.
             </p>
           </div>
         </div>
@@ -124,12 +124,12 @@ export default function How() {
       <section className="section how" aria-labelledby="piles-title">
         <div className="wrap" style={{ maxWidth: '56em' }}>
           <h2 id="piles-title" className="display display-m">
-            The three piles
+            Three sources
           </h2>
           <p className="how-lead">
             We add up everything given to the member: their campaigns, their leadership PAC and
             their own joint fundraising committees. Their own money, loans and transfers are left
-            out. Then each dollar goes in one pile.
+            out. Every dollar comes from one of three sources.
           </p>
           <dl className="piles">
             {PARTS.map(p => (
@@ -150,7 +150,7 @@ export default function How() {
           <h2 className="display display-m" style={{ marginTop: 48 }}>
             The grade
           </h2>
-          <p className="how-lead">The grade is the People pile’s share of all the money given.</p>
+          <p className="how-lead">The grade is the share that comes from People.</p>
           <ul className="grade-scale">
             {LETTERS.map(l => (
               <li key={l} style={{ '--g': GRADES[l].color }}>

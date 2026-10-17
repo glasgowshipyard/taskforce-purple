@@ -139,23 +139,23 @@ export function howPage() {
     path: '/how',
     title: `How grades work${TITLE_SUFFIX}`,
     description:
-      'We sort every dollar given to a member of Congress into three piles: People, Power and Influence. The grade is how much of the money is in the People pile, from S (90% or more) to F (under 15%).',
+      'Every dollar given to a member of Congress comes from one of three sources: People, Power and Influence. The grade is the share that comes from People, from S (90% or more) to F (under 15%).',
     card: {
       eyebrow: 'How grades work',
       headline: 'People, Power and Influence',
-      sub: 'The grade is how much of the money is in the People pile.',
+      sub: 'The grade is the share that comes from People.',
     },
     cardAlt: 'How Task Force Purple grades work: People, Power and Influence',
     jsonLd: { '@type': 'WebPage', name: 'How grades work', url: `${SITE}/how` },
     body: `<main class="wrap section" data-prerendered>
 <h1 class="display display-xl">How grades work</h1>
-<p class="lede">We sort every dollar given to a member of Congress into three piles: People, Power and Influence. The grade is how much of the money is in the People pile.</p>
+<p class="lede">Every dollar given to a member of Congress comes from one of three sources: People, Power and Influence. The grade is the share that comes from People.</p>
 <ul>${parts}</ul>
 <h2>The grade</h2>
 <ul>${scale}</ul>
 <p>Every figure comes from campaign finance reports filed with the Federal Election Commission (FEC).</p>
 </main>`,
-    signature: 'how-1',
+    signature: 'how-2',
   };
 }
 

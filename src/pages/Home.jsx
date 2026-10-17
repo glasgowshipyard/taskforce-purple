@@ -205,7 +205,7 @@ export function HowSteps() {
       </div>
       <div className="step">
         <p className="step-num">02</p>
-        <h3>We sort it into three piles</h3>
+        <h3>It comes from three sources</h3>
         <p>
           <strong>People:</strong> money from many different people, whether a check is for $5 or
           $5,000. <strong>Power:</strong> big money from only a few wealthy donors.{' '}
@@ -214,7 +214,7 @@ export function HowSteps() {
       </div>
       <div className="step">
         <p className="step-num">03</p>
-        <h3>The grade is the People pile</h3>
+        <h3>The grade is the People share</h3>
         <p>
           90% or more of the money from people is an S. Under 15% is an F. We grade from the
           FEC&apos;s bulk data first, then check each donation against the FEC&apos;s own records.
