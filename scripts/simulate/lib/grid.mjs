@@ -312,7 +312,7 @@ export function gradeOne(m, pacs, shares, cfg, opts = {}) {
   let j = 0;
   if (cfg.nonOwnAsPolitician) {
     for (const c of (m.pf.committees || []).filter(x => x.role === 'joint' && !x.ownFund)) {
-      const t = num(c.toMember);
+      const t = num(c.toMemberCounted ?? c.toMember);
       if (t > 0 && c.mix) {
         s -= t * num(c.mix.s);
         b -= t * num(c.mix.b);
@@ -463,7 +463,7 @@ export function gradeOne(m, pacs, shares, cfg, opts = {}) {
   if (cfg.nonOwnFundsZero) {
     const nonOwn = (m.pf.committees || [])
       .filter(c => c.role === 'joint' && !c.ownFund)
-      .reduce((t, c) => t + num(c.toMember), 0);
+      .reduce((t, c) => t + num(c.toMemberCounted ?? c.toMember), 0);
     x = Math.max(0, x - (Math.min(nonOwn, s + counted) / D) * 100);
   }
   const score = Math.round(x);

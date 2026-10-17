@@ -660,7 +660,8 @@ export function final3Band(score) {
 /**
  * One member's FINAL-3 grade. `m`: {
  *   pf: the person's figures (combineVehicleTotals), committees with each
- *       joint fund's role, ownFund, toMember and mix;
+ *       joint fund's role, ownFund, toMember (toMemberCounted: what the
+ *       member's own reports show arriving, otherFundsCounted) and mix;
  *   whole: the same with the member's own joint funds in full;
  *   reconciliation: { ok, pending }; record: the stored member record;
  *   shapeDirected: { donors, nakamoto, total, directedOut: { id: $ } };
@@ -690,7 +691,7 @@ export function gradeFinal3(m, pacs, shares) {
   // Other politicians' joint funds: out of each bucket by the fund's mix
   let j = 0;
   for (const c of (m.pf.committees || []).filter(x => x.role === 'joint' && !x.ownFund)) {
-    const t = n0(c.toMember);
+    const t = n0(c.toMemberCounted ?? c.toMember);
     if (t > 0 && c.mix) {
       s -= t * n0(c.mix.s);
       b -= t * n0(c.mix.b);

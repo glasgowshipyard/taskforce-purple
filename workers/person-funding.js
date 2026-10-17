@@ -222,6 +222,43 @@ function fundMix(totals) {
   };
 }
 
+/**
+ * What to count of each other politician's joint fund's transfers: never
+ * more, all together, than the member's committees report receiving as
+ * transfers (their FEC totals), less what came from their own committees
+ * and own funds. A campaign can re-report a fund's transfer as the
+ * individual donations behind it: its totals then hold that money as
+ * donations, already counted, and counting the fund's transfer as well
+ * counted it twice (one member by $145,852, 2026-10-17). When the reports
+ * show less arriving, every such fund's share is scaled down alike.
+ * Returns Map(jfc -> dollars), empty when there's nothing to scale or a
+ * committee's totals don't give its transfers in.
+ */
+export function otherFundsCounted(withTotals, transfers) {
+  const others = (transfers.jfcs || []).filter(j => !isMembersOwnFund(j) && num(j.received) > 0);
+  const owed = others.reduce((s, j) => s + num(j.received), 0);
+  // A campaign's totals and a PAC's name the field differently (the FEC's
+  // CommitteeTotalsHouseSenate and CommitteeTotalsPacParty)
+  const reported = withTotals.map(
+    v =>
+      v.totals.transfers_from_other_authorized_committee ?? v.totals.transfers_from_affiliated_party
+  );
+  if (!(owed > 0) || reported.some(x => x === undefined || x === null)) {
+    return new Map();
+  }
+  const ownFunds = (transfers.jfcs || [])
+    .filter(j => isMembersOwnFund(j))
+    .reduce((s, j) => s + num(j.received), 0);
+  const room = Math.max(
+    0,
+    reported.reduce((s, x) => s + num(x), 0) - num(transfers.internal) - ownFunds
+  );
+  if (owed <= room) {
+    return new Map();
+  }
+  return new Map(others.map(j => [j, (num(j.received) * room) / owed]));
+}
+
 export function combineVehicleTotals(
   moneyVehicles,
   transfers = { internal: 0, jfcs: [] },
@@ -241,19 +278,18 @@ export function combineVehicleTotals(
     pacMoney: sum('other_political_committee_contributions'),
     partyMoney: sum('political_party_committee_contributions'),
   };
+  const counted = otherFundsCounted(withTotals, transfers);
   for (const j of transfers.jfcs || []) {
     const r = num(j.totals?.receipts);
     if (wholeFunds.includes(j)) {
       continue; // counted in full above
     }
-    if (r > 0 && j.received > 0) {
-      buckets.grassrootsDonations +=
-        j.received * (num(j.totals.individual_unitemized_contributions) / r);
-      buckets.largeDonorDonations +=
-        j.received * (num(j.totals.individual_itemized_contributions) / r);
-      buckets.pacMoney += j.received * (num(j.totals.other_political_committee_contributions) / r);
-      buckets.partyMoney +=
-        j.received * (num(j.totals.political_party_committee_contributions) / r);
+    const got = counted.get(j) ?? j.received;
+    if (r > 0 && got > 0) {
+      buckets.grassrootsDonations += got * (num(j.totals.individual_unitemized_contributions) / r);
+      buckets.largeDonorDonations += got * (num(j.totals.individual_itemized_contributions) / r);
+      buckets.pacMoney += got * (num(j.totals.other_political_committee_contributions) / r);
+      buckets.partyMoney += got * (num(j.totals.political_party_committee_contributions) / r);
     }
   }
 
@@ -291,6 +327,9 @@ export function combineVehicleTotals(
       raised: num(j.totals?.receipts),
       bigCheques: j.bigCheques ?? null,
       toMember: j.received,
+      // What the grade counts of it (otherFundsCounted); the same unless the
+      // member's own reports show less arriving
+      toMemberCounted: counted.get(j) ?? j.received,
       passedElsewhere: Math.max(0, transfersOut(j.totals) - j.received),
       // The fund's own mix, which splits what it passed on (FINAL-2 counts
       // other politicians' funds' transfers as POLITICIAN money instead)
