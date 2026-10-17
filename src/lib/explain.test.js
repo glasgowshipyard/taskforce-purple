@@ -181,7 +181,7 @@ describe('explainGrade', () => {
     expect(e.steps[3].split).toEqual([{ part: 'influence', v: 2 }]);
     // 339 of 6,512: the share decides it, so the share is the reason given
     expect(e.steps[1].text).toBe(
-      'Donations over $200. Half the big money came from only 5% of big donors. The fewer the donors who give half of it, the more of it is Power.'
+      'Donations over $200. Half the big money came from just 339 of 6,512 big donors. The fewer the donors who give half of it, the more of it is Power.'
     );
     expect(e.steps[5].text).toBe(
       "People 85%, Power 7%, Influence 8%. That's an A: Supported. An A needs 75% and an S needs 90%."
@@ -193,7 +193,7 @@ describe('explainGrade', () => {
     expect(e.ppi).toEqual({ people: 47, power: 20, influence: 33 });
     // 32 of 323 is a broad enough share, but only 32 people: the count decides it
     expect(e.steps.find(s => s.key === 'big').text).toBe(
-      'Donations over $200. Half the big money came from just 32 people. When that few give half of it, part of it is Power.'
+      'Donations over $200. Half the big money came from just 32 of 323 big donors. When that few give half of it, part of it is Power.'
     );
     expect(e.steps.at(-1).text).toMatch(/That's a C: Mixed\. A C needs 45% and a B needs 60%\.$/);
   });
@@ -236,10 +236,13 @@ describe('the lines at the top of a member page', () => {
     expect(placementLine(50, scores.slice(0, 10))).toBeNull();
   });
 
-  it('how few donors gave half the big money, as a share of them', () => {
-    expect(bigDonorLine(339, 6512)).toBe('Half the big money came from only 5% of big donors.');
-    expect(bigDonorLine(4609, 31235)).toBe('Half the big money came from 15% of big donors.');
-    expect(bigDonorLine(1, 500)).toBe('Half the big money came from under 1% of big donors.');
+  it('how few donors gave half the big money, out of how many', () => {
+    expect(bigDonorLine(52, 343, { just: true })).toBe(
+      'Half the big money came from just 52 of 343 big donors.'
+    );
+    expect(bigDonorLine(4609, 31235)).toBe(
+      'Half the big money came from 4,609 of 31,235 big donors.'
+    );
     expect(bigDonorLine(0, 500)).toBeNull();
   });
 });

@@ -243,7 +243,10 @@ export default function Member({ id, kind = 'member' }) {
   const why = hasMoney ? explainGrade({ tier: m.tier, grade: d?.grade, name }) : null;
   const fewest =
     final3?.reliable && final3.fewestHoldingHalf
-      ? bigDonorLine(final3.fewestHoldingHalf, final3.donors)
+      ? bigDonorLine(final3.fewestHoldingHalf, final3.donors, {
+          // "just" when the concentration cost People money (some is Power)
+          just: (ppi?.power ?? 0) > 0,
+        })
       : null;
   const states = hasMoney ? stateShares(d?.bigByState, stateCode(m.state)) : null;
   const passedOn = committees

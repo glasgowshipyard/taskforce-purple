@@ -101,16 +101,17 @@ export function placementLine(score, scores) {
   return 'Pretty mid for grassroots funding';
 }
 
-/** "Half the big money came from only 5% of big donors." */
-export function bigDonorLine(fewest, donors) {
+/**
+ * "Half the big money came from just 52 of 343 big donors." (owner,
+ * 2026-10-17: the count and the total, no pronouns). `just` when that
+ * concentration cost the member some People money.
+ */
+export function bigDonorLine(fewest, donors, { just = false } = {}) {
   if (!(fewest > 0) || !(donors > 0)) {
     return null;
   }
-  const share = (fewest / donors) * 100;
-  if (share < 1) {
-    return 'Half the big money came from under 1% of big donors.';
-  }
-  return `Half the big money came from ${share <= 10 ? 'only ' : ''}${Math.round(share)}% of big donors.`;
+  const n = v => Math.round(v).toLocaleString('en-US');
+  return `Half the big money came from ${just ? 'just ' : ''}${n(fewest)} of ${n(donors)} big donors.`;
 }
 
 // What the next grade up needs, or that this is the top one
@@ -177,9 +178,9 @@ function bigMoneyReason(d, power) {
     return `${bigDonorLine(n, d.donors)} That's a broad group, so all of it is People money.`;
   }
   if (countLimit < shareLimit) {
-    return `Half the big money came from just ${n} ${n === 1 ? 'person' : 'people'}. When that few give half of it, part of it is Power.`;
+    return `${bigDonorLine(n, d.donors, { just: true })} When that few give half of it, part of it is Power.`;
   }
-  return `${bigDonorLine(n, d.donors)} The fewer the donors who give half of it, the more of it is Power.`;
+  return `${bigDonorLine(n, d.donors, { just: true })} The fewer the donors who give half of it, the more of it is Power.`;
 }
 
 /**
