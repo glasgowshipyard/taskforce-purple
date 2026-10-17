@@ -21,14 +21,24 @@
   figure). Lines are never hidden for being small: before, party, own and
   other money under 1% were dropped, so some receipts didn't add up. The
   share card shows small, big and PAC money and "Everything else".
-- **Known fault, not fixed yet:** for 2 members (S001232, S001183) the
-  grade's money comes to more than their total raised ($44,025 and
-  $140,744), because money passed on by other politicians' joint funds
-  isn't all in their own campaign's latest report yet. Their receipts
-  show the sum of the lines as the total. The fix belongs in
-  `workers/person-funding.js` (match what joint funds passed on to what
-  the member's committees report receiving); it can move grades, so it
-  waits for a simulation and the owner's yes.
+- **Joint-fund money counted twice, fixed** (owner's yes after a
+  simulation). For 2 members the grade's money came to more than their
+  total raised. Sheehy (S001232): the stored campaign total was from an
+  older report than the rest; the next run's fresh totals fixed it on
+  their own. Schweikert (S001183): a real double count. His campaign
+  re-reported $145,852 of other politicians' joint-fund transfers as the
+  individual donations behind them, so its FEC totals show $421,839 of
+  transfers in against the funds' $568,683, and the grade counted that
+  money twice. Other politicians' funds now count, all together, no more
+  than the member's committees report receiving as transfers, less what
+  came from their own committees and funds (`otherFundsCounted` in
+  `workers/person-funding.js`; a PAC's totals call the field
+  `transfers_from_affiliated_party`). Simulated with two dry runs on the
+  same day's data (39063594700 current code, 39066782543 the fix): of 536
+  members only Schweikert changes, F 14 to E 16; no graded member's money
+  is left above their total raised. The first fix run showed no change
+  at all because I had the PAC field name wrong, so every member with a
+  leadership PAC was skipped; caught by the result, fixed and re-run.
 - **No rounding to a fraction it isn't:** the home page's dots headline
   said "Half get a D or worse" for 254 of 534 (47.6%); fractionWords now
   says "Nearly half" or "Just over" unless the share is within half a
