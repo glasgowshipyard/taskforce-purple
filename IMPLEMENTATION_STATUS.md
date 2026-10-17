@@ -32,6 +32,13 @@ Owner's design, worked out over mock-ups:
   (`src/lib/graph-shape.js`). On the member page each bar is stacked from
   its strips, people at the bottom, with the same linking and breathing.
   Pre-built pages and link previews keep the curve.
+- **The "Why" steps are an accordion** (owner): every headline in view,
+  one step open at a time, opening smoothly (instantly for "reduce
+  motion"), so the explanation stays beside the graph. Opening a step lights
+  its strips (still); pointing breathes them; clicking or tapping a strip
+  opens its step. Headlines are buttons that say whether they're open.
+- "Piles" became "sources" (People, Power and Influence) on /how, the home
+  page and the pre-built /how page.
 
 ---
 

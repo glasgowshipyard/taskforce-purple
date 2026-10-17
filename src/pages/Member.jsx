@@ -1,6 +1,6 @@
 // One person's full receipt: a sitting member, or a candidate on the ballot.
 import React, { useMemo, useState } from 'react';
-import { ExternalLink, Share2 } from 'lucide-react';
+import { ChevronDown, ExternalLink, Share2 } from 'lucide-react';
 import FeedbackDialog from '../components/FeedbackDialog.jsx';
 import ForeignAgentPanel from '../components/ForeignAgentPanel.jsx';
 import PacPanel from '../components/PacPanel.jsx';
@@ -154,8 +154,13 @@ export default function Member({ id, kind = 'member' }) {
   );
   const [sharing, setSharing] = useState(false);
   const [flagging, setFlagging] = useState(false);
-  // The kind of money lit up in the graph and the "Why" steps together
+  // The kind of money lit up in the graph and the "Why" steps together, and
+  // the one step that's open (the steps are an accordion: owner, 2026-10-17).
+  // An open step keeps its strips lit, still; pointing or tapping breathes
   const [light, setLight] = useLight();
+  const [openStep, setOpenStep] = useState(null);
+  const lit = light.key ? light : { key: openStep, breathing: false };
+  const toggleStep = key => setOpenStep(k => (k === key ? null : key));
 
   const members = list.data?.members || [];
   const inRace = useMemo(
@@ -376,8 +381,9 @@ export default function Member({ id, kind = 'member' }) {
                       tier={m.tier}
                       showKey
                       strips={why ? moneyStrips(final3) : null}
-                      light={light}
+                      light={lit}
                       onLight={setLight}
+                      onPick={key => setOpenStep(key)}
                       showToggle
                     />
                   </div>
@@ -389,30 +395,56 @@ export default function Member({ id, kind = 'member' }) {
                   <Section title={`Why ${withArticle(g.mark)}`}>
                     <p className="fold-intro">{why.intro}</p>
                     <ol className="why-steps">
-                      {why.steps.map((step, k) => (
-                        <li
-                          key={step.key}
-                          className={`why-step tone-${step.tone}${light.key && light.key === step.key ? ' is-lit' : ''}`}
-                          {...(step.split.length ? lightHandlers(step.key, setLight) : {})}
-                        >
-                          <span className="why-num" aria-hidden="true">
-                            {k + 1}
-                          </span>
-                          <div>
-                            <h3>{step.title}</h3>
-                            {step.split.length > 0 && (
-                              <p className="why-split">
-                                {step.split.map(s => (
-                                  <span key={s.part} className={`split-chip is-${s.part}`}>
-                                    {s.v}% {PART_LABEL[s.part]}
-                                  </span>
-                                ))}
-                              </p>
-                            )}
-                            <p>{step.text}</p>
-                          </div>
-                        </li>
-                      ))}
+                      {why.steps.map((step, k) => {
+                        const isOpen = openStep === step.key;
+                        const linked = step.split.length > 0;
+                        return (
+                          <li
+                            key={step.key}
+                            className={`why-step tone-${step.tone}${lit.key === step.key ? ' is-lit' : ''}${isOpen ? ' is-open' : ''}`}
+                            {...(linked ? lightHandlers(step.key, setLight) : {})}
+                          >
+                            <h3 className="why-head">
+                              <button
+                                type="button"
+                                aria-expanded={isOpen}
+                                aria-controls={`why-${step.key}`}
+                                onClick={() => toggleStep(step.key)}
+                                onFocus={e =>
+                                  linked &&
+                                  e.currentTarget.matches(':focus-visible') &&
+                                  setLight(step.key, 'hover')
+                                }
+                                onBlur={() => linked && setLight(null)}
+                              >
+                                <span className="why-num" aria-hidden="true">
+                                  {k + 1}
+                                </span>
+                                <span className="why-title">{step.title}</span>
+                                <ChevronDown className="why-chevron" size={20} aria-hidden="true" />
+                              </button>
+                            </h3>
+                            <div
+                              className="why-panel"
+                              id={`why-${step.key}`}
+                              inert={isOpen ? undefined : ''}
+                            >
+                              <div className="why-panel-inner">
+                                {linked && (
+                                  <p className="why-split">
+                                    {step.split.map(s => (
+                                      <span key={s.part} className={`split-chip is-${s.part}`}>
+                                        {s.v}% {PART_LABEL[s.part]}
+                                      </span>
+                                    ))}
+                                  </p>
+                                )}
+                                <p>{step.text}</p>
+                              </div>
+                            </div>
+                          </li>
+                        );
+                      })}
                     </ol>
                     <p className="fine" style={{ marginTop: 14 }}>
                       <Link to="/how">How grades work</Link>

@@ -49,8 +49,10 @@ export function TierStrip({ tier }) {
 /**
  * ppi: { people, power, influence }, whole percentages adding up to 100.
  * strips (member page): moneyStrips(detail); light: { key, breathing } from
- * useLight, and onLight(key, how) to change it. `showKey` explains the three
- * parts under the graph; `compact` for cards.
+ * useLight, and onLight(key, how) to change it; onPick(key) when a strip is
+ * clicked or tapped (the member page opens its step). `showToggle` adds the
+ * curve-or-bars switch, `showKey` explains the three parts under the graph;
+ * `compact` for cards.
  */
 export default function MoneyGraph({
   ppi,
@@ -61,6 +63,7 @@ export default function MoneyGraph({
   light = null,
   onLight = () => {},
   showToggle = false,
+  onPick = null,
 }) {
   const shape = useGraphShape();
   const bars = shape === 'bars';
@@ -283,6 +286,7 @@ export default function MoneyGraph({
                   fill={paint}
                   className={stripClass(b)}
                   onAnimationEnd={() => hint === b.key && setHint(null)}
+                  onClick={() => onPick?.(b.key)}
                   onPointerEnter={e => {
                     if (e.pointerType === 'mouse') {
                       setPointed(b.n);
