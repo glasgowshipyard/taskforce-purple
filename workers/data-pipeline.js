@@ -518,14 +518,11 @@ async function handleStatus(env, corsHeaders) {
     const fecGrassroots = m => (body ? m.rawFECGrassrootsPercent : m.grassrootsPercent);
     const withFinancialData = members.filter(m => m.totalRaised > 0);
     const withPACDetails = members.filter(m => m.pacDetailsStatus === 'complete');
-    const tierCounts = {
-      S: members.filter(m => m.tier === 'S').length,
-      A: members.filter(m => m.tier === 'A').length,
-      B: members.filter(m => m.tier === 'B').length,
-      C: members.filter(m => m.tier === 'C').length,
-      D: members.filter(m => m.tier === 'D').length,
-      'N/A': members.filter(m => m.tier === 'N/A').length,
-    };
+    // Every grade, S to F, and each withheld word (it counted only S to D)
+    const tierCounts = {};
+    for (const m of members) {
+      tierCounts[m.tier || 'none'] = (tierCounts[m.tier || 'none'] || 0) + 1;
+    }
     const recentUpdates = withFinancialData
       .sort((a, b) => new Date(b.lastUpdated) - new Date(a.lastUpdated))
       .slice(0, 10)
