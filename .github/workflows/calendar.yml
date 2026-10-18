@@ -78,6 +78,20 @@ jobs:
           git commit -m 'Roster update: regenerate the FEC crosswalk (#53)'
           git push
 
+      # Seats, parties and names are on the pre-built pages too (the refresh
+      # rebuilds them only when grades change)
+      - name: Rebuild the site's pages
+        if: steps.roster.outputs.changed != '' || steps.roster.outputs.removed != ''
+        env:
+          HOOK: ${{ secrets.PAGES_DEPLOY_HOOK }}
+        run: |
+          if [ -z "$HOOK" ]; then
+            echo "::warning::PAGES_DEPLOY_HOOK is not set: the pre-built pages keep the old roster until the next build"
+            exit 0
+          fi
+          curl -fsS -X POST "$HOOK" > /dev/null
+          echo "Site rebuild started"
+
       - name: Grade new members
         if: steps.roster.outputs.added != ''
         env:
