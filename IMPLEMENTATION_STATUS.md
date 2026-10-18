@@ -4,6 +4,34 @@
 
 ---
 
+## 2026-10-18 (early): the roster update and the filing calendar (#53, #54)
+
+- **The roster update** (#53): `scripts/refresh/roster.mjs` (logic in
+  `lib/roster.mjs`, tested) keeps `members:list` in step with the public
+  roster the identity crosswalk is built from (unitedstates/
+  congress-legislators). New members get a record and a list entry
+  (ungraded until graded on the campaign that won their seat); members who
+  left come off the list (records kept); a changed party or seat is
+  updated; `workers/fec-crosswalk.js` is regenerated when the FEC IDs
+  change. KV writes only for members who changed, plus one list write.
+  Refuses a roster under 530 legislators, or over 120 arrivals or
+  departures at once without `--allow-big` (a new Congress). Its first
+  look found two real errors on the site, both confirmed by the House
+  Clerk's list (1 October 2026): Kevin Kiley (CA-3) is an Independent, not
+  a Republican, and Matt Van Epps holds TN-7, not TN-8 (so TN-7's ZIP
+  codes didn't find him).
+- **The filing-calendar check** (#54): `scripts/refresh/calendar.mjs`
+  (rule in `lib/calendar.mjs`, tested) asks the FEC for its reporting
+  dates (one request) and, 3 days after a deadline members file for (Q1,
+  Q2, Q3, year-end, pre- and post-general) that hasn't been refreshed for,
+  starts the refresh: grade-only, then the record check. Deadlines handled
+  are kept in D1 `calendar_marks` (by primary key). The workflow,
+  `.github/workflows/calendar.yml`, also runs the roster update (and grades
+  any new member) and `health-alert.sh`. **Its daily schedule is off until
+  the owner says yes** (CLAUDE.md "don't add clocks"; REBUILD_SPEC §8
+  allows this one); started by hand meanwhile. Retries with growing gaps
+  (§8) aren't built: a failed member retries on the next refresh.
+
 ## 2026-10-17 (late): the New Year rollover guard (#53)
 
 - **1 January 2027 no longer empties every grade.** Every job's default

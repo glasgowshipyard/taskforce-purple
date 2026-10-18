@@ -135,6 +135,13 @@ CREATE TABLE IF NOT EXISTS fara_employer_matches (
 );
 
 -- One full refresh pass (see migrations/2026-10-04-rounds.sql)
+-- The filing deadlines the daily calendar check has refreshed for (#54):
+-- 'YYYY-MM-DD TYPE', read by primary key. Created by calendar.mjs too
+CREATE TABLE IF NOT EXISTS calendar_marks (
+  deadline TEXT PRIMARY KEY,
+  started_at TEXT NOT NULL
+);
+
 CREATE TABLE IF NOT EXISTS rounds (
   round_id TEXT PRIMARY KEY,
   cycle INTEGER NOT NULL,

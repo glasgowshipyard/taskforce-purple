@@ -285,6 +285,24 @@ node scripts/refresh/publish.mjs --dry-run
 curl -X POST "https://taskforce-purple-api.dev-a4b.workers.dev/api/clear-fec-mapping?bioguideId=C001096" -H "Authorization: Bearer $UPDATE_SECRET"
 ```
 
+### The filing calendar and the roster (#53, #54)
+
+```bash
+# The daily check, by hand (its schedule is off until the owner's yes): a
+# refresh after a filing deadline members file for, the roster, then /health
+gh workflow run calendar.yml -f dry_run=true     # says what it would do
+gh workflow run calendar.yml -f dry_run=false
+# Just the roster: who'd be added, taken off or changed (no writes)
+node scripts/refresh/roster.mjs --dry-run
+# Deadlines already refreshed for
+npx wrangler d1 execute tfp-results --remote --command "SELECT * FROM calendar_marks ORDER BY deadline DESC LIMIT 5"
+```
+
+A new member gets a record and a list entry, ungraded until the refresh the
+check starts grades them; a member who left comes off the list (their record
+stays, so old links work). More than 120 arrivals or departures at once (a
+new Congress on 3 January) need `node scripts/refresh/roster.mjs --allow-big`.
+
 ### The 2026 races
 
 ```bash
