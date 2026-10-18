@@ -11,6 +11,8 @@
  *
  *   node scripts/refresh/check-candidates.mjs [--cycle 2026] [--dry-run]
  *     [--budget-minutes 320] [--batch 25] [--bulk-dir DIR]
+ *     [--committees C00...,C00...]   these committees only, checked or not
+ *                                    (for trying the check: use --dry-run)
  *
  * A pass can outlast one run: each run skips committees already checked this
  * cycle and stops cleanly at its time budget. Writes `stop_reason`,
@@ -61,19 +63,25 @@ async function main() {
   const fec = createFecClient(fecKey());
   const d1 = (sql, params) => cf.d1(RESULTS_DB, sql, params);
 
+  const only = arg('--committees', '')
+    .split(',')
+    .map(s => s.trim())
+    .filter(Boolean);
   // The candidates on the ballot who aren't sitting members (members are
   // checked by the refresh job), from the published races
-  const races = JSON.parse((await cf.kvGet(RACES_KEY)) || 'null');
-  if (!races?.races?.length) {
+  const races = only.length ? null : JSON.parse((await cf.kvGet(RACES_KEY)) || 'null');
+  if (!only.length && !races?.races?.length) {
     log('no races published yet: nothing to check');
     output('stop_reason=done\nremaining=0\nchecked=0\n');
     return;
   }
-  const candidateIds = [
-    ...new Set(
-      races.races.flatMap(r => r.candidates.filter(c => !c.bioguideId).map(c => c.candidateId))
-    ),
-  ];
+  const candidateIds = only.length
+    ? []
+    : [
+        ...new Set(
+          races.races.flatMap(r => r.candidates.filter(c => !c.bioguideId).map(c => c.candidateId))
+        ),
+      ];
   // Each candidate's committees, by primary key
   const committees = new Set();
   for (const id of candidateIds) {
@@ -87,8 +95,8 @@ async function main() {
   }
   // Those not yet checked this cycle (a member's committee checked by the
   // refresh job counts too)
-  const todo = [];
-  for (const id of committees) {
+  const todo = [...only];
+  for (const id of only.length ? [] : committees) {
     const [prior] = await d1('SELECT status FROM committees WHERE committee_id = ? AND cycle = ?', [
       id,
       cycle,
