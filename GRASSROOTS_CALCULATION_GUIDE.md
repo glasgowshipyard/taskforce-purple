@@ -1,6 +1,6 @@
 # Tier Calculation Guide
 
-**Last Updated**: 2026-10-13
+**Last Updated**: 2026-10-18
 **Implementation**: `workers/tier-calculation.js` `gradeFinal3` (pure, unit-tested; checked
 member by member against the simulation by `scripts/simulate/check-final3.mjs`), wrapped by
 `workers/grading.js` `gradeMemberFinal3`. Inputs gathered by the refresh job
@@ -11,7 +11,8 @@ test in `scripts/refresh/lib/sponsors.mjs` with the data in `scripts/refresh/dat
 
 The owner froze this on 2026-10-12 after four simulation rounds on one FEC snapshot (Final,
 FINAL-2, FINAL-3; reports in IMPLEMENTATION_STATUS.md). It replaced version A (the trust anchor,
-half credit for PAC money traced to people, and the PAC bar), described below as history.
+half credit for PAC money traced to people, and the PAC bar), now in
+`docs/history/method-version-a.md`.
 The one-page spec, as shown on /how:
 
 **Meaning.** A member's grade is the share of the money given to them, and to their own joint funds, that comes from many different people. Big donations count only as far as the people who gave them are many and spread out. PAC money counts only when the PAC's sponsor is run by its members (they elect most of its board, or it is a union bound by federal labor law to hold member elections), and only as far as the PAC's own money traces back to many people. Money from companies' PACs, politicians, parties, and PACs that answer to a board or to their organizers counts 0.
@@ -19,7 +20,7 @@ The one-page spec, as shown on /how:
 **Formula** (per member, cycle 2026):
 
 - money given: `G = s + b + p + y` across the member's campaigns, leadership PACs and own joint funds (in full; transfers between them counted once). Own money, interest, refunds, loans and transfers are left out.
-- other politicians' joint funds: what they passed to the member comes out of `s, b, p, y` by each fund's own mix and counts 0 (POLITICIAN); it stays in `G`.
+- other politicians' joint funds: what they passed to the member comes out of `s, b, p, y` by each fund's own mix and counts 0 (POLITICIAN); it stays in `G`. Together they never count for more than the member's committees report receiving as transfers, less what came from the member's own committees and funds (a campaign can re-report a fund's transfer as the donations behind it; counting both counted that money twice; 2026-10-18).
 - directed gifts: gifts earmarked through a committee other than ActBlue, WinRed or Democracy Engine come out of `b` and the donor test, and count as that committee's gift: `e × share` if it passes the people test, else 0. Never under the PAC cap.
 - donor test, on the remaining big-donor records of those committees, each donor's gifts at full size, donors who net above $0: `N` big donors, `n` the fewest who gave half the big-donor money.
 - allowance: `a = min(0.10 + 0.90 × clamp((n/N − 0.025) / 0.075, 0, 1), min(1, n/100))`; `a = 0.40` only when the records cover under half the FEC's big-donor total.
@@ -37,24 +38,6 @@ The one-page spec, as shown on /how:
 
 ---
 
-## Before FINAL-3 (version A, superseded 2026-10-13)
-
-> Historical note: this guide previously described an adaptive-percentile
-> threshold system with tiered linear penalties (0.1x/0.2x/0.3x). That design
-> was replaced in January 2026 by the dynamic trust anchor system documented
-> here, and hardened in July 2026 (penalty cap, score floor, reliability
-> check). If a doc or comment references the percentile system, it is stale.
-
-## Philosophy
-
-Tiers reflect **funding diffusion** — whether a member's power comes from many
-small donors with distributed influence, or from concentrated wealthy
-individuals and institutions. The system distinguishes:
-
-- **Individual support** (grassroots + itemized donations from people)
-- **Institutional capture** (PAC money, weighted by transparency)
-- **Coordination risk** (how few donors could organize to threaten funding)
-
 ## Whose money, and whose donors
 
 The unit is the member, not a committee (agreed 2026-09-26). Two different
@@ -63,7 +46,9 @@ questions, answered separately (`workers/person-funding.js`):
 1. **The money graded** is what the member _received_: their campaign(s)
    and leadership PAC, plus whatever any joint fund transferred to them,
    split into small donors, large donors, PACs and party by that fund's own
-   mix. Transfers between the member's own committees count once.
+   mix. Transfers between the member's own committees count once. Money
+   from other politicians' funds never counts for more than the member's
+   own reports show arriving as transfers (`otherFundsCounted`).
 2. **The donors tested for concentration** are those of every committee in
    the member's pool: their campaign(s), leadership PAC, and their **own**
    joint funds in full.
@@ -90,9 +75,7 @@ record against the FEC (`scripts/refresh/`). Until the check is done the
 grade is provisional (`evidenceChecked: false`); the check confirms it or
 shifts it.
 
-## The Calculation
-
-### Step 0: The candidate's own money is set aside (#59, owner 2026-10-08)
+## The candidate's own money is set aside (#59, owner 2026-10-08)
 
 A candidate's own gifts and loans to their campaign (FEC candidate summary
 file `weball`: `CAND_CONTRIB` + `CAND_LOANS`, across every candidate ID they
@@ -107,145 +90,7 @@ came from others, with 2% tolerance), the figures don't reconcile to
 source: no grade, `DISPUTED` with `disputeReason: own-money-exceeds-receipts`
 (#62). `workers/grading.js`.
 
-### Step 1: Individual funding percent
-
-```
-individualFunding = grassrootsDonations + largeDonorDonations
-individualFundingPercent = individualFunding / totalRaised × 100
-```
-
-- `grassrootsDonations`: FEC `individual_unitemized_contributions` (<$200)
-- `largeDonorDonations`: FEC `individual_itemized_contributions` (>$200)
-
-### Step 2: Itemized share (the "human element" ratio)
-
-```
-itemizedShare = largeDonorDonations / individualFunding × 100
-```
-
-The denominator is **individual funding, not total raised**. Of the people who
-gave, how reliant is the member on big checks? Using totalRaised would let PAC
-money dilute the ratio.
-
-### Step 3: Dynamic trust anchor
-
-The allowed itemized share before penalties depends on how easily the donor
-base could coordinate, measured by the **Nakamoto coefficient** (number of top
-donors controlling 50% of itemized money) from the donor concentration
-analysis:
-
-| Condition                          | Anchor | Meaning                            |
-| ---------------------------------- | ------ | ---------------------------------- |
-| Nakamoto < 50 donors               | 10%    | Dinner party: coordination trivial |
-| Nakamoto % of donors < 5%          | 25%    | Elite capture: country-club scale  |
-| Nakamoto % of donors < 10%         | 40%    | Standard: requires organization    |
-| Nakamoto % of donors ≥ 10%         | 50%    | Movement: coordination impossible  |
-| No / unreliable concentration data | 40%    | Neutral default                    |
-
-**Reliability check (added July 2026)**: a concentration snapshot only counts
-if it has ≥10 unique donors AND its collected total covers ≥50% of the
-member's FEC-reported itemized contributions. Early-cycle partial snapshots
-previously read as "tiny donor base" and wrongly triggered the 10% anchor.
-
-### Step 4: Itemization penalty (excess money)
-
-```
-excess  = max(0, itemizedShare − anchor)          // points of INDIVIDUAL money
-penalty = excess / 100 × rawIndividualFundingPercent   // same money, as points of TOTAL
-individualFundingPercent −= penalty
-```
-
-Itemized money above the anchor stops counting as people-funding. That is
-the whole rule: a broad donor base (movement anchor, 50%) keeps credit for
-more of its itemized money than a dinner party (10%). A score can never fall
-below the member's small-donor share, so no cap or floor is needed.
-
-**Why it changed (September 2026, #42).** From July to September the penalty
-was `min(excess² / 20, 40)`, floored at 0. It measured the excess in points of
-individual money, squared it, and subtracted it from a share of total money —
-two different denominators — so raw penalties reached 200–390 points. A cap
-of 40 and a floor at 0 were bolted on to stop negative scores, and together
-they put **145 members on an identical 0**, erasing every difference below
-40%. The cap also _limited_ the penalty for the most concentrated donor
-bases, letting them sit a tier or more above where their filings put them.
-Simulated on live data before deploying (`scripts/simulations/penalty-model-sim.mjs`):
-zeros 145 → 0; top of the table unchanged (the reference S/A members carry no
-penalty under either model).
-
-### Step 4b: PAC money traced to people (#57, owner 2026-10-09)
-
-A PAC isn't good or bad by itself: what matters is who funded it. Each PAC
-that gave to the member is looked through to its own donors with the same
-rules as a member's (`pacPeopleShare`): its share from individuals, less big
-donations above the allowance its donor concentration earns. Money the PAC
-got from other committees counts as far as those committees' own donors pass
-the same test ("one level deeper", depth 2); anything still untraced counts
-as not people. Half of the result counts (`PAC_TRACING = { credit: 0.5,
-depth: 2 }`): a PAC's leaders, not its donors, choose where the money goes.
-
-```
-peopleShare(PAC) = (individuals − itemizationPenalty) / receipts
-                   + Σ upstream gift × upstream peopleShare / receipts
-pacPeopleCredit  = Σ gift × peopleShare(PAC) × 0.5        (dollars)
-score           += pacPeopleCredit / totalRaised × 100     (capped at 100)
-```
-
-Inputs, from the FEC bulk files (`scripts/refresh/lib/pacs.mjs`): every 24K
-and 24Z gift to the member's campaigns and leadership PAC (`oth`, giver-
-reported); each PAC's receipts and individual contributions (`webk`); its
-named donors and Nakamoto coefficient (`indiv`); the committees that gave to
-it (`oth` 24K/24G/24Z with OTHER_ID = the PAC). Party committees are left
-out (party money is counted on its own).
-
-Simulated across all 536 gradable members before deploying (2026-10-09,
-grade-report artifacts of runs 37998209219 and 38010301349): see
-IMPLEMENTATION_STATUS.md for the tier distributions at 25/50/100% credit and
-the party split. The method page states the credit and its sensitivity.
-
-### Step 5: PAC transparency penalty (threshold shift)
-
-Weighted concerning PAC money shifts the tier thresholds upward, max 30
-points:
-
-| PAC type                                | Weight                                     |
-| --------------------------------------- | ------------------------------------------ |
-| `O` Super PAC                           | 2.0x                                       |
-| `D` Leadership PAC (another politician) | 1.5x (multiplies; 1.0-1.5 being simulated) |
-| `B` Lobbyist/registrant designation     | 1.0x since 2026-10-09 (was 1.5x)           |
-| `P`/`A` Candidate/Authorized committees | 0.15x (never penalized)                    |
-| Unknown metadata                        | 1.0x (neutral, never penalized)            |
-
-Designation `B` stopped counting extra in version A (owner, 2026-10-09): it
-covers about 77% of PAC money to members, company and union PACs alike, so it
-said nothing about who funds a PAC; Step 4b measures that directly.
-
-```
-concerningPercent = Σ(amount × weight, where weight > 1) / totalRaised × 100
-pacPenalty = min(floor(concerningPercent), 30)
-```
-
-### Step 6: Tier assignment
-
-```
-S ≥ 90+pacPenalty   A ≥ 75+…   B ≥ 60+…   C ≥ 45+…   D ≥ 30+…   E ≥ 15+…   else F
-```
-
-**Which PAC list (#57, 2026-10-09).** The penalty and Step 4b read every PAC
-gift to the member's campaigns and leadership PAC from the FEC bulk files
-(`member.pacContributions`, with `pacListComplete: true`). Until 2026-10-09
-the penalty read only the old pipeline's top-20 gifts to the campaign
-committee (Martin Heinrich: $100,000 of $1.1M).
-
-### Fallback path
-
-Members with no PAC metadata AND no reliable concentration data were tiered
-on raw grassroots percent against the unshifted thresholds: a small-donor
-share alone, which put Radewagen on 0%. A complete PAC list is data even when
-it's empty (`pacListComplete`), so since 2026-10-09 every member graded by the
-refresh job takes the full path, with the default allowance when the donor
-concentration isn't reliable. Members with `totalRaised = 0` are `N/A`.
-
-### Withheld grades (one rule, owner 2026-10-09)
+## Withheld grades (one rule, owner 2026-10-09)
 
 A letter grade is published only when it was worked out from this cycle's
 FEC records, matched to the member and reconciled with the FEC's own totals
@@ -256,13 +101,18 @@ registered for the cycle (UNVERIFIED, `no-campaign-committee`); figures that
 don't reconcile, such as own money larger than the receipts (DISPUTED). A
 stored letter grade from the old pipeline is never shown in their place.
 
-## Reference cases (locked in unit tests)
+## How the site shows a grade
 
-| Member                               | Itemized share | Anchor         | Penalty | Tier |
-| ------------------------------------ | -------------- | -------------- | ------- | ---- |
-| Sanders (13k donors, Nakamoto 11.7%) | 20%            | 50% (movement) | 0       | S    |
-| Pelosi (2.6k donors, Nakamoto 4.4%)  | 35%            | 25% (elite)    | 5       | A    |
-| Zero-donor snapshot (junk data)      | any            | 40% (default)  | bounded | —    |
+A member's receipt, graph and "Why" all come from the grade's own working
+(`grade.detail`, `workers/grading.js` `gradeMemberFinal3`), so they agree
+line for line (owner, 2026-10-17). The receipt's lines are whole dollars
+that add up exactly to its subtotal (the money the grade is on) and total.
+The three parts are whole percentages adding up to 100 (`peoplePowerInfluence`
+in tier-calculation.js), and the Why list's pieces are rounded to add up to
+their part, so one piece can be a point off its own dollars (the owner's
+choice).
+
+## Reference members (locked in unit tests)
 
 **Real-data reference members** (`workers/reference-cases.test.js`,
 2026-10-07): the live grading inputs of Sanders (S, movement donor base),
