@@ -1,27 +1,28 @@
 # Rebuild spec: collection, storage and grading around the person
 
-**Status: v3, APPROVED by the owner 2026-10-03.**
+**Status: v3, APPROVED by the owner 2026-10-03. Built** (status
+2026-10-18; what runs today is in IMPLEMENTATION_STATUS.md's current state).
 
-- **Stage 0:** COMPLETE.
-- **Stage 1:** COMPLETE (exit check passed 2026-10-05: 0 CPU kills in 51 h, KV
-  writes at most 103/day).
-- **Stage 2:** IN PROGRESS. The job is built and the full record check of
-  Congress is running itself (462 of 539 done, none failed, 2026-10-07).
-- **Stage 3:** LIVE apart from three items.
-  - Done: grades published 2026-10-05 (grade first, confirm after, D7) and
-    the reference tests (2026-10-07).
-  - Tabled by the owner 2026-10-07: cycle labels, the rollover and the
-    roster update (the New Year work).
-  - To come: the filing-calendar trigger.
-- **The 2026 races** (ROADMAP Phase E): built; they publish themselves on
-  23 October.
+- **Stages 0 to 3:** COMPLETE. Stage 1's exit check passed 2026-10-05 (0 CPU
+  kills in 51 h, KV writes at most 103 a day); the first full record check
+  of Congress finished 2026-10-07; grades publish from the refresh job
+  (2026-10-05, grade first, confirm after).
+- **§8, the filing calendar:** live 2026-10-18 (`calendar.yml`, daily at
+  9 am Pacific, the one clock), with the roster update. Not built: the
+  retries with growing gaps.
+- **§9, the New Year rollover:** the guard is live (`gradingCycle`: the
+  finished cycle stays graded until 1 May of the odd year; labels follow
+  each member's cycle). Not built: the "current trajectory" view.
+- **§13, stock trading:** dropped by the owner (2026-10-17).
+- **The 2026 races:** built; they publish themselves on 23 October, and the
+  candidates' record check follows.
+
+The sections below are the plan as approved, kept as the design record;
+where they say "will", it's built unless the list above says otherwise.
 
 Written by Claude, who wrote the code this replaces. This version replaces
 v1 and v2 (git history has them). Everything about the API backfill, lanes,
 shards and the every-minute collector is gone. Umbrella issue: #47.
-
-**All scheduled jobs are paused** (2026-10-03, owner's decision) until this
-is built. See `IMPLEMENTATION_STATUS.md`.
 
 Anyone building this: read the whole document, then `CLAUDE.md`. Numbers
 were measured, or checked against Cloudflare's or the FEC's docs, on the
