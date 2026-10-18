@@ -18,7 +18,7 @@
  * from the FEC's bulk files, shown as still being double-checked (grade
  * first, confirm after). Their identity is the FEC's candidate ID.
  */
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { appendFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { FEC_CROSSWALK } from '../../workers/fec-crosswalk.js';
@@ -34,13 +34,22 @@ import { analyzePool, loadFara } from './lib/analysis.mjs';
 import { buildPacs, directingCommittees, platformIds } from './lib/final3.mjs';
 import { pacGifts, pacProfiles, upstreamGifts } from './lib/pacs.mjs';
 import { ensureIrs, loadIrsIndex } from './lib/sponsors.mjs';
-import { ensureBulkFile, loadBulk } from './lib/bulk.mjs';
+import { apiRowToBulkShape, ensureBulkFile, insertApiRows, loadBulk } from './lib/bulk.mjs';
+import { loadStored } from './lib/gap-store.mjs';
+import {
+  classifyScheduleARow,
+  countsAsItemizedIndividual,
+} from '../../workers/schedule-a-classify.js';
 import { RESULTS_DB, createCloudflare } from './lib/cloudflare.mjs';
 import { discoverPeople, ensureZip, loadDiscoveryFiles } from './lib/discovery.mjs';
 import { createFecClient } from './lib/fec.mjs';
 import { buildRaces, displayName, parseWeball } from './lib/races.mjs';
 
 export const RACES_KEY = 'races:list';
+// A committee whose check has an outcome (as in the refresh job)
+const SETTLED = new Set(['reconciled', 'reconciled-with-note', 'mismatch']);
+const RECONCILED = new Set(['reconciled', 'reconciled-with-note']);
+const countsApi = r => countsAsItemizedIndividual(classifyScheduleARow(r));
 const TEST_FLOOR = 500000;
 
 const arg = (name, dflt) => {
@@ -190,6 +199,9 @@ async function main() {
     'SELECT employer, fara_firm, registration_number FROM fara_employer_matches'
   );
   const graded = new Map();
+  // Candidates not yet fully checked: the workflow starts the candidate
+  // check while there are any (#55)
+  let unchecked = 0;
   for (let b = 0; b < others.length; b += batchSize) {
     const batch = others.slice(b, b + batchSize);
     const ids = [
@@ -197,6 +209,24 @@ async function main() {
     ];
     const bulk = await loadBulk(file.path, ids.length ? ids : ['C00000000']);
     await loadFara(bulk, fara);
+    // Committees already checked against the FEC's records (#55: the
+    // candidate check, check-candidates.mjs, or a member's): their fetched
+    // records join the bulk file's, as in the refresh job
+    const checkedStatus = new Map();
+    for (const id of ids) {
+      const [prior] = await d1(
+        'SELECT status FROM committees WHERE committee_id = ? AND cycle = ?',
+        [id, cycle]
+      );
+      checkedStatus.set(id, prior?.status || 'unchecked');
+      if (prior && SETTLED.has(prior.status)) {
+        const stored = await loadStored(d1, id, cycle);
+        await insertApiRows(
+          bulk.conn,
+          [...stored.gap, ...stored.earmarked].map(row => apiRowToBulkShape(row, countsApi(row)))
+        );
+      }
+    }
     for (const c of batch) {
       const pf = discovered.get(c.candidateId);
       if (!pf?.donorCommitteeIds?.length) {
@@ -221,11 +251,18 @@ async function main() {
       );
       const gifts = giftsFor.get(c.candidateId) || [];
       const fundGifts = fundGiftsFor.get(c.candidateId) || [];
+      // Checked when every committee reconciled; until then provisional
+      const statuses = pf.donorCommitteeIds.map(id => checkedStatus.get(id) || 'unchecked');
+      const ok = statuses.every(s => RECONCILED.has(s));
+      const pending = !ok && statuses.every(s => RECONCILED.has(s) || s === 'unchecked');
+      if (!ok) {
+        unchecked++;
+      }
       const grade = gradeMemberFinal3(
         {
           pf,
           whole: pf.whole || null,
-          reconciliation: { ok: false, pending: true },
+          reconciliation: { ok, pending },
           record: null,
           shapeDirected,
           gifts: gifts.map(g => [g.id, g.amount]),
@@ -250,7 +287,7 @@ async function main() {
         // Where the big money came from, by donor state (owner and Craig, 2026-10-13)
         byState: shapeDirected.byState || [],
       };
-      graded.set(c.candidateId, { status: 'provisional', pf, analysis, grade });
+      graded.set(c.candidateId, { status: ok ? 'complete' : 'provisional', pf, analysis, grade });
     }
     log(`graded ${Math.min(b + batchSize, others.length)} of ${others.length}`);
   }
@@ -383,8 +420,11 @@ async function main() {
     );
   }
   log(
-    `done in ${Math.round((Date.now() - started) / 60000)} min: ${fec.calls} FEC calls, ${cf.stats.d1RowsWritten} D1 rows written, ${cf.stats.kvWrites} KV writes`
+    `done in ${Math.round((Date.now() - started) / 60000)} min: ${fec.calls} FEC calls, ${cf.stats.d1RowsWritten} D1 rows written, ${cf.stats.kvWrites} KV writes; ${unchecked} candidate(s) not yet fully checked`
   );
+  if (process.env.GITHUB_OUTPUT) {
+    appendFileSync(process.env.GITHUB_OUTPUT, `unchecked=${dryRun ? 0 : unchecked}\n`);
+  }
 }
 
 main().catch(error => {

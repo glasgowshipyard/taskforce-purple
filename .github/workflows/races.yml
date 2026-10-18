@@ -47,6 +47,7 @@ jobs:
         run: npm ci # includes DuckDB (devDependencies, pinned)
 
       - name: Grade and publish the races
+        id: races
         env:
           FEC_API_KEY: ${{ secrets.FEC_API_KEY }}
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
@@ -61,6 +62,15 @@ jobs:
           if [ "$DRY_RUN" = "true" ]; then args+=(--dry-run); fi
           if [ -n "$STATES" ]; then args+=(--states "$STATES"); fi
           node scripts/refresh/races.mjs "${args[@]}"
+
+      # Candidates graded from the bulk files are still being double-checked:
+      # start the record-by-record check for them (#55, races-check.yml)
+      - name: Start the candidates' check
+        if: steps.races.outputs.unchecked != '' && steps.races.outputs.unchecked != '0' && !inputs.dry_run
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: gh workflow run races-check.yml -f dry_run=false
 
       - name: Alert on failure
         if: failure()

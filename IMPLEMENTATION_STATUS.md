@@ -4,6 +4,24 @@
 
 ---
 
+## 2026-10-18 (early): the record check for race candidates (#55)
+
+- **Candidates are checked like members:** `scripts/refresh/check-candidates.mjs`
+  checks each challenger's and open-seat candidate's committees against
+  the FEC's own records with the refresh job's own `reconcileCommittee`,
+  into the same tables (`committees`, packed records in `gap_packs`;
+  round `races-check`). Candidates come from the published `races:list`,
+  their committees from `race_candidates` by primary key; committees
+  already checked this cycle (a member's too) are skipped.
+- **The races job reuses the checks** (races.mjs): a checked committee's
+  fetched records join the bulk file's, and a candidate whose committees
+  all reconcile is graded as checked (`status` complete), as members are.
+- **Workflows:** races.yml starts `races-check.yml` after grading when
+  candidates are still unchecked; the check runs at 30 FEC calls a minute
+  (beside the members' check's 86), starts its own next run when a pass
+  outlasts one, and the run that finishes it re-grades and republishes the
+  races itself (races.yml switches itself off after 27 October). No clock.
+
 ## 2026-10-18 (early): the roster update and the filing calendar (#53, #54)
 
 - **The roster update** (#53): `scripts/refresh/roster.mjs` (logic in

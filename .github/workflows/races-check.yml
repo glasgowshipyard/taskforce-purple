@@ -1,0 +1,82 @@
+name: Races check
+
+# The record-by-record check for the race candidates (#55): each challenger's
+# and open-seat candidate's committees checked against the FEC's own records,
+# as members' are. Started by the races job when candidates are still being
+# double-checked; a pass that outlasts one run starts its own next run, and
+# the run that finishes it re-grades and republishes the races, so checked
+# candidates show as checked. No clock: it runs only after the races job.
+on:
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Dry run: check and report, write nothing'
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+  issues: write
+  actions: write # to start its own next run
+
+concurrency:
+  group: races-check
+  cancel-in-progress: false
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 350
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install
+        run: npm ci # includes DuckDB (devDependencies, pinned)
+
+      - name: Check the candidates' committees
+        id: check
+        env:
+          FEC_API_KEY: ${{ secrets.FEC_API_KEY }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
+          DRY_RUN: ${{ inputs.dry_run }}
+          # 30 FEC calls a minute, beside the members' check's 86 (the key
+          # allows 120 a minute)
+          FEC_MIN_INTERVAL_MS: '2000'
+        run: |
+          args=(--bulk-dir "$RUNNER_TEMP/bulk" --budget-minutes 300)
+          if [ "$DRY_RUN" = "true" ]; then args+=(--dry-run); fi
+          node scripts/refresh/check-candidates.mjs "${args[@]}"
+
+      # The pass is finished and this run checked something: re-grade the
+      # races with the checked records and republish them
+      - name: Re-grade the races
+        if: steps.check.outputs.stop_reason == 'done' && steps.check.outputs.checked != '0' && !inputs.dry_run
+        env:
+          FEC_API_KEY: ${{ secrets.FEC_API_KEY }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
+          FEC_MIN_INTERVAL_MS: '2000'
+        run: node scripts/refresh/races.mjs --bulk-dir "$RUNNER_TEMP/bulk"
+
+      - name: Continue the pass
+        if: steps.check.outputs.stop_reason == 'time' && steps.check.outputs.checked != '0' && !inputs.dry_run
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          echo "${{ steps.check.outputs.remaining }} committee(s) left: starting the next run"
+          gh workflow run races-check.yml -f dry_run=false
+
+      - name: Alert on failure
+        if: failure()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          JOB_FAILED_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: bash scripts/health-alert.sh
