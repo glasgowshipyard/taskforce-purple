@@ -88,20 +88,16 @@ npx wrangler d1 execute tfp-results --remote --command "SELECT bioguide_id, atte
 npx wrangler d1 execute tfp-results --remote --command "SELECT round_id, reason, started_at, finished_at FROM rounds ORDER BY started_at DESC LIMIT 3"
 ```
 
-```bash
-curl -s "https://taskforce-purple-api.dev-a4b.workers.dev/api/status" | jq '{status, progress, tierCounts}'
-```
-
-## 3. Watch the workers actually work (live logs)
+## 3. Live logs
 
 ```bash
 npx wrangler tail taskforce-purple-api --format=pretty
 ```
 
-The API worker only serves the site now (no crons), so the tail shows
-requests. The refresh job's work (FEC calls, reconciliation, grades) is in
-its GitHub Actions log (§2). The itemized worker is retired: every URL
-answers 410.
+The API worker only serves the site, so the tail shows requests. The jobs'
+work (FEC calls, record checks, grades) is in their GitHub Actions logs:
+`gh run list --workflow refresh.yml` (and `calendar.yml`, `races.yml`,
+`races-check.yml`).
 
 ## 4. Progress and coverage
 
@@ -119,15 +115,17 @@ curl -s "https://taskforce-purple-api.dev-a4b.workers.dev/api/member-detail?biog
 
 ## 5. Data-quality invariants (the Cramer check)
 
-Individual donations are a subset of total receipts, so these must be 0:
+For every letter grade, donations from people are a part of everything
+raised, and the score is between 0 and 100. All three must be 0:
 
 ```bash
-curl -s "https://taskforce-purple-api.dev-a4b.workers.dev/api/members" | jq '{impossibleMoney: ([.members[] | select(.totalRaised > 0 and .largeDonorDonations != null and (.grassrootsDonations + .largeDonorDonations) > (.totalRaised * 1.02))] | length), scoresOver100: ([.members[] | select(.individualFundingPercent > 100)] | length), negativeScores: ([.members[] | select(.individualFundingPercent < 0)] | length)}'
+curl -s "https://taskforce-purple-api.dev-a4b.workers.dev/api/members" | jq '[.members[] | select(.tier | test("^[SABCDEF]$")) | (.personFigures // .) as $f | {score: .individualFundingPercent, t: $f.totalRaised, g: $f.grassrootsDonations, b: $f.largeDonorDonations}] | {impossibleMoney: ([.[] | select(.t > 0 and .b != null and (.g + .b) > (.t * 1.02))] | length), scoresOver100: ([.[] | select(.score > 100)] | length), negativeScores: ([.[] | select(.score != null and .score < 0)] | length)}'
 ```
 
-Nonzero = data corruption (see IMPLEMENTATION_STATUS 2026-07-18 post-mortem
-for the last occurrence and the repair procedure: re-fetch affected members
-with a grade-only refresh for them, §8).
+Nonzero is a data fault: find the member, check their crosswalk entry and
+their committees' checks (below), then re-grade them (§8). Withheld grades
+(DISPUTED, UNVERIFIED) are left out on purpose: they're withheld because
+their figures don't reconcile.
 
 ### Identity: is every member's money actually theirs? (added 2026-09-26)
 
@@ -135,12 +133,12 @@ with a grade-only refresh for them, §8).
 curl -s "https://taskforce-purple-api.dev-a4b.workers.dev/api/members" | jq '{verified: ([.members[] | select(.fecIdentityVerified == true)] | length), unverified: ([.members[] | select(.fecIdentityVerified == false)] | length), unstamped: ([.members[] | select(has("fecIdentityVerified") | not)] | length), shownAsChecking: ([.members[] | select(.tier == "UNVERIFIED")] | length)}'
 ```
 
-`unstamped` must be 0. `shownAsChecking` should shrink toward 0 as the
-pipeline refetches members under their correct FEC identity (one per Phase 1
-run). A member stuck there for days has no FEC record under their crosswalk IDs
-— check `workers/fec-crosswalk.js` and regenerate it
-(`node scripts/build-fec-crosswalk.mjs`) if Congress membership changed. See
-IMPLEMENTATION_STATUS 2026-09-26 for why identity is never inferred from names.
+`unstamped` must be 0. `shownAsChecking` is the members whose FEC identity
+isn't confirmed: usually a new member whose campaign the FEC hasn't linked
+yet. The daily calendar check's roster update rewrites
+`workers/fec-crosswalk.js` when the public roster's FEC IDs change; a member
+stuck for days has no FEC record under their crosswalk IDs. Identity is
+never inferred from names (`docs/history/log-2025-26.md`, 2026-09-26).
 
 ### Money trail and grade basis (added 2026-09-27, #32)
 
@@ -149,34 +147,34 @@ IMPLEMENTATION_STATUS 2026-09-26 for why identity is never inferred from names.
 curl -s "https://taskforce-purple-api.dev-a4b.workers.dev/api/members" | jq '[.members[].gradeBasis] | group_by(.) | map({(.[0] // "none"): length}) | add'
 ```
 
-`all-committees` grows as pooled collections complete and reconcile.
-`campaign-committee-rechecking` = collected but did not match the FEC to the
-dollar; a few is normal (a filing landed mid-collection), a lot is a defect.
+`all-committees` is normal for everyone graded. `campaign-committee` or
+none is a member the refresh couldn't grade on all their committees (no FEC
+identity, or withheld).
 
 ```bash
 # One member's committees, what each raised, and where joint-fund money went
 curl -s "https://taskforce-purple-api.dev-a4b.workers.dev/api/member-detail?bioguideId=P000197" | jq '{personLevel, moneyTrail: (.moneyTrail | if . then {raisedInName, committees: [.committees[] | {name, role, raised}]} else null end)}'
 ```
 
-`moneyTrail: null` = the hourly discovery sweep hasn't reached them yet.
+`moneyTrail: null` = the refresh hasn't graded them (no FEC identity yet).
 
-**Check any member's figures against the FEC yourself** (read-only, ~1 h for
-a big member, resumable):
+**How each of a member's committees checked against the FEC's own records**
+(the record check's verdict, per committee):
 
 ```bash
-caffeinate -i npm run trial:pool -- P000197
+curl -s "https://taskforce-purple-api.dev-a4b.workers.dev/api/member-detail?bioguideId=P000197" | jq -r '.moneyTrail.committees[].committeeId' | while read c; do npx wrangler d1 execute tfp-results --remote --json --command "SELECT committee_id, name, status, bulk_count, fec_individual_count, gap_filled FROM committees WHERE committee_id = '$c' AND cycle = 2026" | jq -c '.[0].results[0]'; done
 ```
 
-Result: `scripts/trials/output/<id>/summary.md` — says first whether every
-count and dollar reconciles.
+`reconciled` (or `reconciled-with-note`) is the goal; `mismatch` keeps the
+member's grade withheld or provisional.
 
 ## 6. Budgets (free-tier meters)
 
 ```bash
-# D1 last-24h usage. Free caps: 5M rows read, 100k rows written per day.
-# HARD-ENFORCED since ~2026-09-01 - exceeding either returns errors until
-# 00:00 UTC. Treat any reading over cap as a defect, not a warning.
-npx wrangler d1 info taskforce-purple-donors
+# The results database's last-24h use and size. Free caps: 5M rows read and
+# 100k written a day for the whole account, enforced: over either, D1
+# returns errors until 00:00 UTC. Any reading near a cap is a defect.
+npx wrangler d1 info tfp-results
 ```
 
 **D1 by database, from Cloudflare's own figures.** D1's free limits are per
@@ -218,27 +216,17 @@ If `rows_read` spikes, suspect a query using the wrong index. `EXPLAIN QUERY
 PLAN` in front of any statement shows which one it picked, and costs nothing:
 
 ```bash
-npx wrangler d1 execute taskforce-purple-donors --remote \
-  --command "EXPLAIN QUERY PLAN DELETE FROM itemized_transactions WHERE bioguide_id='S000033' AND cycle=2026;"
+npx wrangler d1 execute tfp-results --remote \
+  --command "EXPLAIN QUERY PLAN SELECT status FROM committees WHERE committee_id = 'C00540617' AND cycle = 2026"
 ```
 
-Wanted: `USING INDEX idx_bioguide`. An index on a low-cardinality column
-(`cycle` has two values) means a full scan — that cost 18.8M reads a day
-until it was dropped on 2026-09-02.
+Wanted: `SEARCH ... USING INDEX` (or `USING PRIMARY KEY`). `SCAN` means
+every row is read: an unindexed lookup cost 18.8M reads on 2026-10-05 and
+locked the account out of D1 until midnight UTC.
 
-KV daily ops (1,000 writes/day is the binding cap; steady state ~350–600):
-the Cloudflare dashboard → Workers & Pages → KV → namespace → Metrics.
-Cloudflare emails at 50% of writes — at our cruising altitude that email
-is normal background noise, not an incident.
-
-### Storage health since Stage 1 (CPU kills and KV writes)
-
-```bash
-# Cloudflare's own figures since the Stage 1 migration: CPU-limit kills on
-# the API worker (must be 0) and KV writes per day (must stay below the
-# pre-pause 290-500). Read-only; uses your wrangler login.
-node scripts/verify/stage1-exit-check.mjs
-```
+KV writes (1,000 a day is the cap): the refresh writes the list once per
+batch and the roster update a few records, so a normal day is a handful.
+Cloudflare dashboard → Workers & Pages → KV → namespace → Metrics.
 
 ## 7. Deploys and CI
 
@@ -280,11 +268,6 @@ gh workflow run refresh.yml -f grade_only=true -f dry_run=false -f members=C0010
 node scripts/refresh/publish.mjs --dry-run
 ```
 
-```bash
-# Clear a member's cached FEC candidate match (wrong-twin fix)
-curl -X POST "https://taskforce-purple-api.dev-a4b.workers.dev/api/clear-fec-mapping?bioguideId=C001096" -H "Authorization: Bearer $UPDATE_SECRET"
-```
-
 ### The filing calendar and the roster (#53, #54)
 
 ```bash
@@ -300,8 +283,10 @@ npx wrangler d1 execute tfp-results --remote --command "SELECT * FROM calendar_m
 
 A new member gets a record and a list entry, ungraded until the refresh the
 check starts grades them; a member who left comes off the list (their record
-stays, so old links work). More than 120 arrivals or departures at once (a
-new Congress on 3 January) need `node scripts/refresh/roster.mjs --allow-big`.
+stays, so old links work). A new Congress (about 60 arrivals on 3 January)
+goes through on its own; more than 120 arrivals or departures at once looks
+like a broken download and is refused unless run by hand with
+`node scripts/refresh/roster.mjs --allow-big`.
 
 ### The 2026 races
 
@@ -311,6 +296,9 @@ curl -s "https://taskforce-purple-api.dev-a4b.workers.dev/api/races" | jq '{fiel
 # Grade and publish now (normally automatic on 23 and 27 October)
 gh workflow run races.yml
 gh workflow run races.yml -f dry_run=true -f states=ME
+# The candidates' record check (started by the races job; by hand any time)
+gh run list --workflow races-check.yml --limit 3
+gh workflow run races-check.yml -f dry_run=true -f committees=C00540617
 ```
 
 ## 9. Known failure signatures
@@ -318,7 +306,7 @@ gh workflow run races.yml -f dry_run=true -f states=ME
 | Symptom                                   | Likely cause                                         | First move                                                    |
 | ----------------------------------------- | ---------------------------------------------------- | ------------------------------------------------------------- |
 | Member with implausible zeros             | Wrong or missing FEC identity in the crosswalk       | Check `workers/fec-crosswalk.js`; re-grade the member (§8)    |
-| Score >100% or itemized > total           | Cross-cycle record corruption                        | §5 check, reprocess affected, recalc                          |
+| Score >100% or itemized > total           | Figures that don't reconcile                         | §5 check; the member's committee checks; re-grade them (§8)   |
 | A refresh run failed or a member failed   | The reason is in the run's log and `member_progress` | §2; the alert issue carries the proposed fix                  |
 | Frontend changes not visible              | Pages build failed                                   | §7 deployment list; check the build log link it prints        |
 | Everything frozen, no logs at all         | Cloudflare incident                                  | `curl -s https://www.cloudflarestatus.com/api/v2/status.json` |
@@ -327,14 +315,15 @@ gh workflow run races.yml -f dry_run=true -f states=ME
 
 ## 10. Alerts (automatic — you get a GitHub notification)
 
-At the end of every refresh job, `scripts/health-alert.sh` reads the live
-verdict (`/api/health`) and, if anything is wrong, opens an issue labelled
+At the end of every refresh job and every daily calendar check,
+`scripts/health-alert.sh` reads the live verdict (`/api/health`) and, if
+anything is wrong, opens an issue labelled
 `system-alert` that @mentions you. Each problem comes with a proposed fix.
 It comments again only if the set of problems changes, and closes the issue
 itself once every check passes. Delivery is by GitHub's own notifications
 (email and/or the mobile app, depending on your GitHub notification
-settings). The hourly Health alert workflow stays off (REBUILD_SPEC §8): the
-system only does work when a refresh runs.
+settings). The hourly Health alert workflow stays off: the daily calendar
+check runs the alert once a day instead.
 
 What it checks (`workers/health.js`, with tests):
 
@@ -351,6 +340,8 @@ What it checks (`workers/health.js`, with tests):
 | `d1-size-high`          | The results database is 400 MB+ (D1 refuses its writes at 500 MB)              |
 | `d1-reads-high`         | 4M+ D1 rows read today (the account-wide limit is 5M; the job stops at 3M)     |
 | `results-db-unreadable` | The refresh job's database can't be read                                       |
+| `pages-stale`           | The pre-built pages are more than 6 hours behind the grades                    |
+| `flags-waiting`         | A visitor's grade flag has waited more than 3 days on /admin                   |
 | `health-unreachable`    | The health page itself didn't answer — the API worker may be down              |
 
 ```bash
@@ -369,3 +360,5 @@ DRY_RUN=1 bash scripts/health-alert.sh
 - `DATABASE_REFERENCE.md` — every KV key and D1 table with query commands
 - `ROADMAP.md` — what's next and why
 - `API_STRUCTURES.md` — all worker endpoints
+- `docs/history/` — the log and roadmap from before the rebuild (don't build
+  on them)
