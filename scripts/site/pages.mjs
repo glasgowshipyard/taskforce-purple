@@ -144,11 +144,11 @@ export function homePage(members) {
 <p><strong>${esc(MOTTO)}</strong></p>
 <p>${esc(LEAD.replace(/\[\d+\]/g, ''))}</p>
 <h3>How wealth influences policy</h3>
-<p>When the middle class wanted a policy, it had about a ${WISHES.average.few}% chance of becoming law, whether few or most of them wanted it. When the wealthy wanted it, the chance rose from about ${WISHES.richest.few}% to ${WISHES.richest.most}% (${esc(STUDIES[0].cite)}).</p>
+<p>When the middle class wanted a policy, it had about a ${WISHES.average.few}% chance of becoming law, whether they strongly opposed or strongly supported it. When the wealthy wanted it, the chance rose from about ${WISHES.richest.few}% to ${WISHES.richest.most}% (${esc(STUDIES[0].cite)}).</p>
 ${FINDINGS.map(f => `<h3>${esc(f.head)}</h3>\n<p>${esc(f.text)}</p>`).join('\n')}
 <ol>${STUDIES.map(st => `<li>${esc(st.cite)}, <a href="${esc(st.url)}">${esc(st.title)}</a>. ${esc(st.detail)}${st.note ? ` <a href="${esc(st.note.url)}">${esc(st.note.text)}</a>` : ''}</li>`).join('')}</ol>
 </main>`,
-    signature: JSON.stringify([counts, 'why-6']),
+    signature: JSON.stringify([counts, 'why-7']),
   };
 }
 

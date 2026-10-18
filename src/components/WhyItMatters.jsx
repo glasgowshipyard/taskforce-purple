@@ -43,13 +43,13 @@ function WishesChart() {
       <figcaption>
         <h3>How wealth influences policy</h3>
         <p className="small muted">
-          The chance a proposed policy becomes law, depending on who wants it
+          The chance a proposed policy becomes law, depending on who supports it
         </p>
       </figcaption>
       <svg
-        viewBox="0 0 360 212"
+        viewBox="0 0 360 222"
         role="img"
-        aria-label={`When the middle class wanted a policy, it had about a ${avg.few}% chance of becoming law, whether few or most of them wanted it. When the wealthy wanted it, the chance rose from about ${rich.few}% to ${rich.most}%.`}
+        aria-label={`When the middle class wanted a policy, it had about a ${avg.few}% chance of becoming law, whether they strongly opposed or strongly supported it. When the wealthy wanted it, the chance rose from about ${rich.few}% to ${rich.most}%.`}
       >
         <defs>
           <linearGradient id="wishes-gap" gradientUnits="userSpaceOnUse" x1={cross} x2={X.most}>
@@ -101,11 +101,19 @@ function WishesChart() {
         <text x={X.most + 6} y={y(avg.most) + 24} textAnchor="end" className="wishes-label">
           Middle class <tspan className="wishes-value">{avg.most}%</tspan> chance
         </text>
-        <text x={X.few} y={BASE + 22} textAnchor="middle" className="wishes-axis">
-          Few want it
+        {/* The mockup's words (owner, 2026-10-18): one in five or four in
+            five of the group in favour */}
+        <text x={X.few} y={BASE + 20} textAnchor="middle" className="wishes-axis">
+          <tspan x={X.few}>Strongly</tspan>
+          <tspan x={X.few} dy="14">
+            opposed
+          </tspan>
         </text>
-        <text x={X.most} y={BASE + 22} textAnchor="middle" className="wishes-axis">
-          Most want it
+        <text x={X.most} y={BASE + 20} textAnchor="middle" className="wishes-axis">
+          <tspan x={X.most}>Strongly</tspan>
+          <tspan x={X.most} dy="14">
+            supported
+          </tspan>
         </text>
       </svg>
       <p className="small muted">
