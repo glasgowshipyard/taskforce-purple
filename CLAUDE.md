@@ -1,38 +1,40 @@
 # CLAUDE.md
 
-Task Force Purple: rates all 537 members of Congress (S–F tiers) by campaign
-funding integrity, using Congress.gov and OpenFEC data. **This repo is
-public** — never commit keys, tokens, or the update secret. Local secrets
+Task Force Purple: grades all 539 members and delegates of Congress, S to F,
+on where their campaign money comes from (People, Power, Influence; FINAL-3),
+from FEC data. **This repo is public** — never commit keys, tokens, or the
+update secret. Local secrets
 live in `API_KEYS.md` and `.claude-reference.md` (both gitignored).
 
 ## Start here
 
 **The old Worker crons and the hourly health workflow stay off (owner's
-decision, 2026-10-03).** Work runs in GitHub Actions: the refresh job
-(started by hand or by its own previous run of a pass), the races job
-(23 and 27 October 2026, then it switches itself off), and the filing
-calendar check (`calendar.yml`, REBUILD_SPEC §8: starts a refresh after a
-filing deadline and keeps the roster in step; daily at 9 am Pacific, the one
-clock, owner's yes 2026-10-18). Don't add other clocks.
+decision, 2026-10-03).** Work runs in GitHub Actions: the filing calendar
+check (`calendar.yml`, REBUILD_SPEC §8: daily at 9 am Pacific, the one
+clock, owner's yes 2026-10-18; starts a refresh after a filing deadline and
+keeps the roster in step), the refresh job (started by the calendar check,
+by hand, or by its own previous run of a pass), the races job (23 and 27
+October 2026, then it switches itself off) and the candidates' record check
+it starts (`races-check.yml`). Don't add other clocks.
 
-0. `REBUILD_SPEC.md` — the APPROVED (2026-10-03) rebuild: all FEC work in
-   a filing-calendar-triggered GitHub Actions job; Workers only serve. Where
-   it differs from the description below of the current system, the spec
-   is the target. Don't patch the old collection/storage paths.
-1. `IMPLEMENTATION_STATUS.md` — current system state, dated change log,
-   known limitations. Read this first; it is kept accurate.
+0. `IMPLEMENTATION_STATUS.md` — the current state (what runs when, limits,
+   known limitations, open issues) and a dated change log. Read this first;
+   it is kept accurate.
+1. `REBUILD_SPEC.md` — the APPROVED (2026-10-03) rebuild, now built: all FEC
+   work in GitHub Actions; Workers only serve. Its status block says what
+   isn't built. Don't patch the old collection/storage paths.
 2. `RUNBOOK.md` — self-serve health/log/progress checks from a terminal.
    The owner uses this to verify the system without an AI in the loop;
    keep its commands working when changing endpoints or keys.
-3. `ROADMAP.md` — what should happen next, with designs, costs, and
-   dependencies. Phase D (security) is deliberately parked — owner's call.
+3. `ROADMAP.md` — the dates that run themselves, what's next by hand, and
+   what's parked. Phase D (security) is deliberately parked — owner's call.
 4. `GRASSROOTS_CALCULATION_GUIDE.md` — the tier algorithm as deployed.
 5. `DATABASE_REFERENCE.md` — every KV key and D1 table, with query commands.
 6. `API_STRUCTURES.md` — worker endpoints (secrets shown as `$PLACEHOLDER`).
 
-Docs marked "historical" or "superseded" (`taskforce-purple.md` spec,
-prototype warnings in `DONOR_CONCENTRATION_ANALYSIS.md`) describe abandoned
-designs — don't code against them.
+`docs/history/` holds the log before the rebuild and the July roadmap:
+abandoned designs (Worker crons, the itemized worker, `members:all`) —
+don't code against them.
 
 ## Architecture
 
@@ -61,7 +63,9 @@ answering 410 (`workers/itemized-retired.js`).
 - All tier math lives in `workers/tier-calculation.js` as pure functions with
   unit tests. Never reimplement tier logic inline in the pipeline.
 - FEC election cycles are named by the even END year (2025 → cycle 2026).
-  Use `cycleForYear()` from tier-calculation.js; don't hand-roll it.
+  Use `cycleForYear()` from tier-calculation.js; don't hand-roll it. The
+  cycle the jobs grade and publish is `gradingCycle()`: the finished cycle
+  stays graded until 1 May of the odd year (the New Year rollover).
 
 ## Commands
 
@@ -81,6 +85,14 @@ node scripts/refresh/run.mjs --members W000788 --dry-run
 # settled decisions); grades publish to the site at the end of each batch
 gh workflow run refresh.yml -f grade_only=true -f dry_run=false
 node scripts/refresh/publish.mjs --dry-run      # what publishing would change
+
+# Simulate a grading change: dry, grade-only runs with the report, on main
+# and on the change's branch, then compare every member
+gh workflow run refresh.yml --ref BRANCH -f grade_only=true -f dry_run=true -f report=true
+
+# The daily check by hand, and the roster on its own
+gh workflow run calendar.yml -f dry_run=true
+node scripts/refresh/roster.mjs --dry-run
 ```
 
 Frontend deploys automatically when main is pushed to GitHub (Pages
@@ -204,9 +216,9 @@ redesigned them wasted days and, twice, proposed breaking them. Build on them.
   both were replaced and the fallbacks removed. To rotate again:
   `bash scripts/rotate-secrets.sh` (the owner pastes the key; Claude does not
   handle credential values). Current values are in the gitignored API_KEYS.md.
-- No queues and no strikes in the target design: a failing member never
-  blocks others, is never dropped, and retries on the daily calendar check
-  with an alert (REBUILD_SPEC §5, §8).
+- No queues and no strikes: a failing member never blocks others, is never
+  dropped, and retries on the next refresh, with an alert (the growing
+  gaps between retries in REBUILD_SPEC §8 aren't built).
 - `fec_mapping_{bioguideId}` KV keys are legacy: the old pipeline's cached
   FEC matches. Grading no longer reads them; identity comes only from the
   crosswalk. A member with implausible figures: check their crosswalk entry
@@ -219,7 +231,8 @@ redesigned them wasted days and, twice, proposed breaking them. Build on them.
 - **Alerts:** `workers/health.js` (served at the API worker's `/api/health`).
   `scripts/health-alert.sh` turns it into a `system-alert` GitHub issue for
   the owner, each problem with a proposed fix; it runs at the end of every
-  refresh job (the hourly `health-alert.yml` stays off, REBUILD_SPEC §8).
+  refresh job and every daily calendar check (the hourly `health-alert.yml`
+  stays off).
   When you add a way for the system to fail quietly, add a check there — a
   failure nobody is told about is how AOC sat stuck for three months.
 - `.claude/settings.local.json` is local-only and gitignored — never commit.
@@ -228,5 +241,25 @@ redesigned them wasted days and, twice, proposed breaking them. Build on them.
 
 - Public-facing text: extremely plain English ("explain like talking to your
   neighbor"), apolitical, no politician names in UI examples.
+- **The site's copy (owner, 2026-10-17):**
+  - no "we", "our" or "us" about the site: it describes the data, not
+    itself ("Their money is added up", "Grades come from..."); a withheld
+    grade still owns the fault ("a problem with this site's data, not
+    something found about this member");
+  - write it as a person would say it out loud: full sentences, never
+    clipped fragments ("All their money, added up" is out);
+  - People, Power and Influence wear their colours (`--people`, `--power`,
+    `--influence`) only where they're being explained, and a grade letter
+    being explained wears its grade colour; never in running sentences;
+  - beside every grade a visitor can land on (member pages, share card,
+    link previews): it's only about where the money comes from, not votes,
+    character or the law (`GRADE_SCOPE` in grades.js);
+  - a figure is never rounded into a claim it isn't ("Nearly half", not
+    "Half", for 47.6%); every claim about research links its source.
+- **The numbers have one source (owner, 2026-10-17):** a member's receipt,
+  graph and "Why" all come from the grade's own working (`grade.detail`);
+  receipts add up exactly in whole dollars; the Why list's shares are
+  rounded to add up to the grade (so one can be a point off its own
+  dollars: the owner's choice).
 - Update `IMPLEMENTATION_STATUS.md` with a dated entry for any significant
   fix or behavior change — it is the project's memory.
