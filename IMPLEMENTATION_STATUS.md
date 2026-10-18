@@ -4,6 +4,15 @@
 
 ---
 
+## 2026-10-17 (late): issues tidied; stock trading dropped
+
+- **Stock trading is dropped** (owner: too subjective to grade). #31
+  closed as not planned; REBUILD_SPEC.md §13 and ROADMAP.md say so. The
+  site grades only where campaign money comes from.
+- Closed as done: #65 (/how in plain English; its PAC list moves to #67,
+  whose PACs.csv carries the FEC's group and TFP's) and #66 (the graph,
+  the Why steps and the PAC section show the working). 13 issues open.
+
 ## 2026-10-17 (late): no "we"; who runs it, in the footer
 
 - **"We" is gone from the site** (owner: one person runs it; without "we"

@@ -25,7 +25,8 @@ why). Ordering reflects dependencies — Phase A unblocks most of Phase C.
   labels and the rollover rule (REBUILD_SPEC §9), and the roster update:
   nothing adds new members since the old pipeline was retired, and about
   60 join on 3 January 2027.
-- **Parked:** stock trading (§13 of the spec) and Phase D (security).
+- **Parked:** Phase D (security). **Dropped:** stock trading (§13 of the
+  spec), too subjective to grade (owner, 2026-10-17).
 
 ---
 
@@ -125,7 +126,7 @@ funding routes visible, behavior included. Same rules for all 537.
   decision on joint-fund attribution → itemized worker collects donors from
   all of a member's committees → full-Congress simulation together with the
   Step 4 fix (#42) → one deploy.
-- **C3. STOCK Act trading composite (#31)** — needs committee data (#18)
+- **C3. STOCK Act trading composite (#31)**: dropped by the owner 2026-10-17 (too subjective to grade). Was: needs committee data (#18)
   and **historical tier tracking** (new: store tier snapshots per recalc;
   design the KV/D1 shape against write budget before starting).
 - **C4. FARA cross-reference (#34)** — cheap once A1/A2 give clean

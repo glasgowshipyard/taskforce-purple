@@ -512,7 +512,11 @@ remainder).
   an even split (top two within 1%) is shared, nobody's own. Before this, a
   tie went to whichever committee came first in the data.
 
-## 13. Stock trading (paused by the owner)
+## 13. Stock trading (dropped by the owner, 2026-10-17)
+
+**Dropped:** too subjective to grade (owner, 2026-10-17; #31 closed as not
+planned). The site grades only where campaign money comes from. The notes
+below are kept as the record of what was looked at.
 
 Owner's principle (T1): "anyone making trades that produce financial benefit
 while in office are dirty". The discussion is paused. What has been checked
