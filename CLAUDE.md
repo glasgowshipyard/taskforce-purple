@@ -12,8 +12,8 @@ decision, 2026-10-03).** Work runs in GitHub Actions: the refresh job
 (started by hand or by its own previous run of a pass), the races job
 (23 and 27 October 2026, then it switches itself off), and the filing
 calendar check (`calendar.yml`, REBUILD_SPEC §8: starts a refresh after a
-filing deadline and keeps the roster in step; its daily schedule is off
-until the owner says yes, so it's started by hand). Don't add clocks.
+filing deadline and keeps the roster in step; daily at 9 am Pacific, the one
+clock, owner's yes 2026-10-18). Don't add other clocks.
 
 0. `REBUILD_SPEC.md` — the APPROVED (2026-10-03) rebuild: all FEC work in
    a filing-calendar-triggered GitHub Actions job; Workers only serve. Where

@@ -45,9 +45,8 @@
   starts the refresh: grade-only, then the record check. Deadlines handled
   are kept in D1 `calendar_marks` (by primary key). The workflow,
   `.github/workflows/calendar.yml`, also runs the roster update (and grades
-  any new member) and `health-alert.sh`. **Its daily schedule is off until
-  the owner says yes** (CLAUDE.md "don't add clocks"; REBUILD_SPEC §8
-  allows this one); started by hand meanwhile. Retries with growing gaps
+  any new member) and `health-alert.sh`. **Daily at 9 am Pacific** (the
+  owner's yes, 2026-10-18: the one clock, REBUILD_SPEC §8). Retries with growing gaps
   (§8) aren't built: a failed member retries on the next refresh.
 
 ## 2026-10-17 (late): the New Year rollover guard (#53)

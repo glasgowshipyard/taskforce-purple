@@ -288,8 +288,8 @@ curl -X POST "https://taskforce-purple-api.dev-a4b.workers.dev/api/clear-fec-map
 ### The filing calendar and the roster (#53, #54)
 
 ```bash
-# The daily check, by hand (its schedule is off until the owner's yes): a
-# refresh after a filing deadline members file for, the roster, then /health
+# The daily check (runs itself at 9 am Pacific; by hand any time): a refresh
+# after a filing deadline members file for, the roster, then /health
 gh workflow run calendar.yml -f dry_run=true     # says what it would do
 gh workflow run calendar.yml -f dry_run=false
 # Just the roster: who'd be added, taken off or changed (no writes)

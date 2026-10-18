@@ -10,11 +10,11 @@ name: Filing calendar
 #     change): update the site's list and the identity crosswalk, and grade
 #     any new member (#53).
 #   - Then turn /api/health into an alert if anything is wrong.
-# The daily schedule is switched off until the owner's yes (CLAUDE.md: no
-# clocks without it). Started by hand meanwhile.
+# The daily schedule is the one clock (owner's yes, 2026-10-18); it can also
+# be started by hand.
 on:
-  # schedule:
-  #   - cron: '0 16 * * *' # 9 am Pacific
+  schedule:
+    - cron: '0 16 * * *' # 9 am Pacific (8 am in winter)
   workflow_dispatch:
     inputs:
       dry_run:
