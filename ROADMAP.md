@@ -37,6 +37,10 @@ roadmap (the pre-rebuild phases) is in `docs/history/roadmap-2026-07.md`.
 
 ## Ideas, not scheduled
 
+- **Flux Capacitor (#73), after the election:** sitting members' past
+  cycles (from 2016 or 2018) behind the graph's cycle badge, then former
+  members; graded once from the bulk files, with the caveats on #73.
+
 - **Outside spending (#71):** super PACs for and against each member, shown
   beside the grade, not in it.
 - **Connected organisations (#33):** the conduit and earmarked parts are
