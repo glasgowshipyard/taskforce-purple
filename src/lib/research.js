@@ -16,7 +16,7 @@ export const WISHES = {
 
 // The owner's line (2026-10-17): it opens "Why this matters" and signs off
 // every page in the footer
-export const MOTTO = 'It doesn’t matter which side wins if everyone loses.';
+export const MOTTO = 'It doesn’t matter who wins if everyone loses.';
 
 // Opening line. [n] marks a source
 export const LEAD =

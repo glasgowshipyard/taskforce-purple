@@ -6,7 +6,7 @@ people, a few wealthy donors, or PACs, politicians and parties. Straight
 from public FEC filings, checked record by record. Live at
 **https://taskforcepurple.com**.
 
-It doesn't matter which side wins if everyone loses. Task Force Purple is
+It doesn't matter who wins if everyone loses. Task Force Purple is
 one person and a cat; friends and family test it and send feedback. No ads,
 no money taken, not connected to a party, campaign or PAC, and the same
 rules for everyone.

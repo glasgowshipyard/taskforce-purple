@@ -148,7 +148,7 @@ export function homePage(members) {
 ${FINDINGS.map(f => `<h3>${esc(f.head)}</h3>\n<p>${esc(f.text)}</p>`).join('\n')}
 <ol>${STUDIES.map(st => `<li>${esc(st.cite)}, <a href="${esc(st.url)}">${esc(st.title)}</a>. ${esc(st.detail)}${st.note ? ` <a href="${esc(st.note.url)}">${esc(st.note.text)}</a>` : ''}</li>`).join('')}</ol>
 </main>`,
-    signature: JSON.stringify([counts, 'why-5']),
+    signature: JSON.stringify([counts, 'why-6']),
   };
 }
 

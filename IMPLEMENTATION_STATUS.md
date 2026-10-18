@@ -60,6 +60,11 @@ clean-up, #71 outside spending, #72 TypeScript (after the election).
 
 ## Change log
 
+## 2026-10-18: the owner's line, shorter
+
+"It doesn't matter who wins if everyone loses." (was "which side wins";
+owner). `MOTTO` in `src/lib/research.js`: "Why this matters" and the footer.
+
 ## 2026-10-18: the docs cleaned up
 
 - Deleted six docs about the abandoned 2025 system (the 2025 spec,
