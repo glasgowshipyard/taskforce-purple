@@ -49,7 +49,7 @@ export default function Receipt({ person, delay = 0, animate = true, headingLeve
 
       {ppi ? (
         <div className="tear" style={{ paddingTop: 16 }}>
-          <MoneyGraph ppi={ppi} tier={person.tier} compact />
+          <MoneyGraph ppi={ppi} tier={person.tier} cycle={person.cycle} compact />
           <p className="receipt-sentence">{peopleSentence(ppi.people)}</p>
         </div>
       ) : lines ? (

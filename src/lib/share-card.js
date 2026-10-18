@@ -2,7 +2,7 @@
 // the visitor's browser when they press Share. Nothing is rendered on a
 // server, so it costs nothing however many people share.
 import { monotonePath } from './curve.js';
-import { CYCLE_SHORT } from './election.js';
+import { cycleShort } from './election.js';
 import { GRADE_SCOPE_SHORT, GRAPH_GRADIENT, PARTS, gradeInfo } from './grades.js';
 import { usdShort } from './people.js';
 
@@ -88,7 +88,7 @@ function dashed(x, x0, x1, y) {
 }
 
 // The member's graph: People, Power and Influence, as on their page
-function drawGraph(x, ppi, left, top, width, height) {
+function drawGraph(x, ppi, left, top, width, height, cycle = null) {
   const base = top + height;
   const pts = PARTS.map((p, i) => ({
     ...p,
@@ -127,7 +127,7 @@ function drawGraph(x, ppi, left, top, width, height) {
   x.fillStyle = '#3D3A46';
   x.textAlign = 'right';
   x.font = `700 11px ${MONO}`;
-  x.fillText(CYCLE_SHORT, left + width, top + 8);
+  x.fillText(cycleShort(cycle ?? undefined), left + width, top + 8);
   for (const p of pts) {
     x.fillStyle = '#3D3A46';
     x.textAlign = 'center';
@@ -199,7 +199,7 @@ function drawReceipt(x, card) {
   x.fillText(total, w - 24 - x.measureText(total).width, y + 14);
 
   if (card.ppi) {
-    drawGraph(x, card.ppi, 24, y + 34, w - 48, 54);
+    drawGraph(x, card.ppi, 24, y + 34, w - 48, 54, card.cycle);
     y += graph;
   }
   // a barcode from the person's ID, for the look of the thing

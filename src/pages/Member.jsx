@@ -17,7 +17,7 @@ import {
 } from '../components/ui.jsx';
 import { api } from '../lib/api.js';
 import { classifyOrganization, sectorInfo } from '../lib/donor-taxonomy.js';
-import { CYCLE_LABEL } from '../lib/election.js';
+import { cycleLabel } from '../lib/election.js';
 import {
   bigDonorLine,
   explainGrade,
@@ -334,7 +334,8 @@ export default function Member({ id, kind = 'member' }) {
     headline: sentence || '',
     sub: placement ? `${placement}.` : '',
     host: window.location.host,
-    cycleLabel: CYCLE_LABEL,
+    cycleLabel: cycleLabel(m.gradeCycle ?? undefined),
+    cycle: m.gradeCycle ?? null,
     filedOn,
   };
 
@@ -400,7 +401,9 @@ export default function Member({ id, kind = 'member' }) {
             <div className="member-slip-col">
               <div className="slip print-in">
                 <p className="slip-title">TASK FORCE PURPLE</p>
-                <p className="slip-sub">RECEIPT · {CYCLE_LABEL} ELECTION CYCLE</p>
+                <p className="slip-sub">
+                  RECEIPT · {cycleLabel(m.gradeCycle ?? undefined)} ELECTION CYCLE
+                </p>
                 <p className="small muted slip-to">
                   Paid to: {name}, {seatLabel(m)}
                   {committees.length > 1 && (
@@ -470,6 +473,7 @@ export default function Member({ id, kind = 'member' }) {
                       onLight={setHoverKey}
                       onPick={key => setOpenStep(key)}
                       showToggle
+                      cycle={m.gradeCycle ?? null}
                     />
                   </div>
                 )}

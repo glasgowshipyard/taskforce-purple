@@ -52,6 +52,9 @@ export const LIST_FIELDS = [
   'pacDetailsStatus',
   'withheldReason',
   'peoplePowerInfluence',
+  // The cycle the grade is on, so the site's labels follow the New Year
+  // rollover (REBUILD_SPEC §9)
+  'gradeCycle',
   'lastUpdated',
 ];
 

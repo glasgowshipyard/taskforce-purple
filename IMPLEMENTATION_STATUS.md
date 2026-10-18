@@ -4,6 +4,22 @@
 
 ---
 
+## 2026-10-17 (late): the New Year rollover guard (#53)
+
+- **1 January 2027 no longer empties every grade.** Every job's default
+  cycle was `cycleForYear(this year)`, which turns to 2028 on 1 January:
+  a cycle with almost no money in it yet. `gradingCycle()` in
+  tier-calculation.js keeps the finished cycle graded until 1 May of the
+  odd year (the new cycle's first quarterly report is due 15 April), then
+  moves on (REBUILD_SPEC §9, simplified to one date for everyone). Used by
+  run.mjs, races.mjs, publish.mjs and gap-records.mjs.
+- **Cycle labels follow the grade:** "2025–26" and "’26" were fixed text;
+  they now come from each member's `gradeCycle` (`cycleLabel`,
+  `cycleShort` in election.js; `gradeCycle` added to `members:list`, so
+  the next publish rewrites the list once). The "current trajectory" part
+  of §9 (showing the new cycle's money so far before the switch) isn't
+  built.
+
 ## 2026-10-17 (late): issues tidied; stock trading dropped
 
 - **Stock trading is dropped** (owner: too subjective to grade). #31

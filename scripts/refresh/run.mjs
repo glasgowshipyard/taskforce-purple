@@ -60,7 +60,7 @@ import {
   classifyScheduleARow,
   countsAsItemizedIndividual,
 } from '../../workers/schedule-a-classify.js';
-import { cycleForYear, final3PacShares, tracePacs } from '../../workers/tier-calculation.js';
+import { final3PacShares, gradingCycle, tracePacs } from '../../workers/tier-calculation.js';
 import { PLATFORM, buildPacs, directingCommittees } from './lib/final3.mjs';
 import { analyzePool, loadFara } from './lib/analysis.mjs';
 import { ensureFara } from './lib/fara.mjs';
@@ -134,7 +134,7 @@ async function main() {
   const started = Date.now();
   const dryRun = process.argv.includes('--dry-run');
   const gradeOnly = process.argv.includes('--grade-only');
-  const cycle = Number(arg('--cycle', cycleForYear(new Date().getUTCFullYear())));
+  const cycle = Number(arg('--cycle', gradingCycle()));
   const only = arg('--members', '')
     .split(',')
     .map(s => s.trim())

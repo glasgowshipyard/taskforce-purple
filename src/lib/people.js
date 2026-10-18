@@ -362,6 +362,7 @@ export function memberPerson(m, detail) {
     figures: gradedFigures(m),
     evidenceChecked: m.evidenceChecked ?? null,
     ppi: m.peoplePowerInfluence ?? peoplePowerInfluence(detail?.grade?.detail),
+    cycle: m.gradeCycle ?? null,
     href: memberPath(m.bioguideId),
   };
 }

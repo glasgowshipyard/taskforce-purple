@@ -7,7 +7,7 @@
 import { createRequire } from 'node:module';
 import { Resvg } from '@resvg/resvg-js';
 import { monotonePath } from '../../src/lib/curve.js';
-import { CYCLE_SHORT } from '../../src/lib/election.js';
+import { cycleShort } from '../../src/lib/election.js';
 import { GRADES, GRAPH_GRADIENT, PARTS } from '../../src/lib/grades.js';
 
 const require = createRequire(import.meta.url);
@@ -93,7 +93,7 @@ function brand(x) {
 }
 
 // The receipt panel: the stamp and the graph, as on the member's page
-function receipt(tier, ppi) {
+function receipt(tier, ppi, cycle = null) {
   const g = GRADES[tier];
   const x0 = 56;
   const y0 = 56;
@@ -129,7 +129,7 @@ ${wordLines
 <defs><linearGradient id="graph" gradientUnits="userSpaceOnUse" x1="${pts[0].x}" x2="${pts[2].x}" y1="0" y2="0">${GRAPH_GRADIENT.map((c, i) => `<stop offset="${i / (GRAPH_GRADIENT.length - 1)}" stop-color="${c}"/>`).join('')}</linearGradient><clipPath id="line-ends"><rect x="${pts[0].x}" y="0" width="${pts[2].x - pts[0].x}" height="${base + 2}"/></clipPath></defs>
 <path d="${curve} L${pts[2].x},${base} L${pts[0].x},${base} Z" fill="url(#graph)" fill-opacity="0.22"/>
 <path d="${curve}" fill="none" stroke="url(#graph)" stroke-width="4" stroke-linejoin="round" clip-path="url(#line-ends)"/>
-<text x="${right}" y="${top + 1.5}" font-family="IBM Plex Mono" font-weight="700" font-size="14" fill="#3D3A46" text-anchor="end">${esc(CYCLE_SHORT)}</text>
+<text x="${right}" y="${top + 1.5}" font-family="IBM Plex Mono" font-weight="700" font-size="14" fill="#3D3A46" text-anchor="end">${esc(cycleShort(cycle ?? undefined))}</text>
 ${pts
   .map(
     p => `<text x="${p.x}" y="${base + 30}" font-family="IBM Plex Mono" font-weight="600" font-size="15" fill="#3D3A46" text-anchor="middle">${p.label.toUpperCase()}</text>
@@ -143,7 +143,15 @@ ${pts
  * tier and graph (a withheld grade, or the site's own pages) the text fills
  * the card. `note`: one small line above the brand (what a grade is and isn't).
  */
-export function cardSvg({ eyebrow, headline, sub, tier = null, ppi = null, note = null }) {
+export function cardSvg({
+  eyebrow,
+  headline,
+  sub,
+  tier = null,
+  ppi = null,
+  note = null,
+  cycle = null,
+}) {
   const withGraph = Boolean(tier && GRADES[tier] && ppi);
   const x = withGraph ? 512 : 64;
   const width = WIDTH - x - 64;
@@ -174,7 +182,7 @@ export function cardSvg({ eyebrow, headline, sub, tier = null, ppi = null, note 
   }
   return `<svg xmlns="http://www.w3.org/2000/svg" width="${WIDTH}" height="${HEIGHT}" viewBox="0 0 ${WIDTH} ${HEIGHT}">
 ${BACKGROUND}
-${withGraph ? receipt(tier, ppi) : ''}
+${withGraph ? receipt(tier, ppi, cycle) : ''}
 ${textLines(eye.lines, { x, y: 92, size: eye.size, leading: 1.2, family: 'IBM Plex Mono', weight: 600, fill: '#DDD3FE' })}
 ${textLines(head.lines, { x, y: headTop, size: head.size, leading, family: 'Archivo', weight: 900, fill: '#FFFFFF' })}
 ${textLines(subLines, { x, y: subTop, size: 28, leading: 1.3, family: 'Public Sans', weight: 400, fill: '#EDE9F6' })}

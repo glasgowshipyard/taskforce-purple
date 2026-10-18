@@ -67,6 +67,23 @@ export function cycleForYear(year) {
   return year % 2 === 0 ? year : year + 1;
 }
 
+/**
+ * The cycle the jobs grade and publish on a given day (REBUILD_SPEC §9, the
+ * New Year rollover): a member's grade is their most recent complete cycle
+ * until the new one has its first quarterly report. On 1 January of an odd
+ * year cycleForYear moves to a cycle with almost no money in it yet; grading
+ * on it would empty every grade. So the finished cycle stays the graded one
+ * until 1 May (the Q1 report is due 15 April; a fortnight for the FEC to
+ * process it and the refresh to run), then the new cycle takes over.
+ */
+export function gradingCycle(date = new Date()) {
+  const year = date.getUTCFullYear();
+  if (year % 2 === 1 && date.getUTCMonth() < 4) {
+    return year - 1;
+  }
+  return cycleForYear(year);
+}
+
 // How much more (or less) concerning each kind of PAC money is, for the PAC
 // bar (calculateTransparencyPenalty). A simulation can pass its own
 // (options.pacWeights).

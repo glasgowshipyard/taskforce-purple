@@ -4,7 +4,7 @@
 // Pure: everything comes from members:list (and races:list), worded with the
 // site's own helpers, so a pre-built page says what the live page says.
 
-import { CYCLE_LABEL } from '../../src/lib/election.js';
+import { DEFAULT_CYCLE, cycleLabel } from '../../src/lib/election.js';
 import { LEFT_OUT, peopleSentence, placementLine } from '../../src/lib/explain.js';
 import {
   GRADES,
@@ -42,6 +42,10 @@ function figures(m) {
   return graded ? { ppi, sentence: peopleSentence(ppi.people) } : null;
 }
 
+// The cycle the list's grades are on: the newest any member is graded on
+const listCycle = members =>
+  members.reduce((c, m) => Math.max(c, Number(m.gradeCycle) || 0), 0) || DEFAULT_CYCLE;
+
 /** One member's page: the live page's facts, for crawlers and previews */
 export function memberPage(m, scores) {
   const name = displayName(m.name);
@@ -68,7 +72,7 @@ ${
   f
     ? `<p>${esc(f.sentence)}${placement ? ` ${esc(placement)}.` : ''}</p>
 <p>Of all the money given to ${esc(name)}: ${f.ppi.people}% from people (many different donors), ${f.ppi.power}% from power (big money from a few wealthy donors) and ${f.ppi.influence}% from influence (PACs, politicians and parties).</p>
-${raised > 0 ? `<p>Raised ${esc(usd(raised))} in the ${CYCLE_LABEL} election cycle, from public FEC filings.${m.evidenceChecked === true ? ' Every donation checked against the FEC’s records.' : m.evidenceChecked === false ? ' Still being checked against the FEC’s records.' : ''}</p>` : ''}`
+${raised > 0 ? `<p>Raised ${esc(usd(raised))} in the ${cycleLabel(m.gradeCycle ?? undefined)} election cycle, from public FEC filings.${m.evidenceChecked === true ? ' Every donation checked against the FEC’s records.' : m.evidenceChecked === false ? ' Still being checked against the FEC’s records.' : ''}</p>` : ''}`
     : `<p>${esc(g.meaning)}</p>`
 }
 <p><a href="/how">How grades work</a></p>
@@ -85,6 +89,7 @@ ${raised > 0 ? `<p>Raised ${esc(usd(raised))} in the ${CYCLE_LABEL} election cyc
           tier: m.tier,
           ppi: f.ppi,
           note: GRADE_SCOPE_SHORT,
+          cycle: m.gradeCycle ?? null,
         }
       : {
           eyebrow: `${SHORT_TITLE[role] || role} ${name}`,
@@ -199,7 +204,7 @@ export function congressPage(members) {
     cardAlt: 'Task Force Purple: every member of Congress graded',
     jsonLd: {
       '@type': 'Dataset',
-      name: `Campaign funding grades for every member of Congress, ${CYCLE_LABEL}`,
+      name: `Campaign funding grades for every member of Congress, ${cycleLabel(listCycle(members))}`,
       description,
       url: `${SITE}/congress`,
       creator: { '@type': 'Organization', name: SITE_NAME, url: `${SITE}/` },
@@ -313,7 +318,7 @@ export function gradesCsv(members, lastUpdated) {
         f ? f.ppi.influence : '',
         Number.isFinite(raised) ? Math.round(raised) : '',
         m.evidenceChecked === true ? 'yes' : m.evidenceChecked === false ? 'not yet' : '',
-        CYCLE_LABEL,
+        cycleLabel(m.gradeCycle ?? undefined),
         String(lastUpdated ?? '').slice(0, 10),
         `${SITE}/member/${encodeURIComponent(m.bioguideId)}`,
       ]
@@ -352,7 +357,7 @@ Every dollar given to a member (their campaigns, leadership PAC and own joint fu
       }. ${SITE}/member/${encodeURIComponent(m.bioguideId)}`;
     });
   const full = `${brief}
-## Every member's grade (${CYCLE_LABEL} election cycle, data as of ${String(lastUpdated ?? '').slice(0, 10)})
+## Every member's grade (${cycleLabel(listCycle(members))} election cycle, data as of ${String(lastUpdated ?? '').slice(0, 10)})
 
 ${graded.length} of ${members.length} members graded.
 

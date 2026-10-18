@@ -17,7 +17,7 @@
 // Under the graph, the grade letters with this member's circled.
 import React, { useId, useState } from 'react';
 import { monotonePath } from '../lib/curve.js';
-import { CYCLE_SHORT } from '../lib/election.js';
+import { cycleShort } from '../lib/election.js';
 import { setGraphShape, useGraphShape } from '../lib/graph-shape.js';
 import { SOURCES } from '../lib/explain.js';
 import { GRADES, GRAPH_GRADIENT as GRADIENT, LETTERS, PARTS } from '../lib/grades.js';
@@ -66,6 +66,7 @@ export default function MoneyGraph({
   onLight = () => {},
   showToggle = false,
   onPick = null,
+  cycle = null,
 }) {
   const shape = useGraphShape();
   const bars = shape === 'bars';
@@ -261,7 +262,7 @@ export default function MoneyGraph({
             className="ppi-cycle"
             aria-hidden="true"
           >
-            {CYCLE_SHORT}
+            {cycleShort(cycle ?? undefined)}
           </text>
           <path d={shapePath} fill={paint} className="ppi-area" />
           {hasStrips && (

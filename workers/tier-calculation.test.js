@@ -5,6 +5,7 @@ import {
   calculateTier,
   calculateTransparencyPenalty,
   cycleForYear,
+  gradingCycle,
   CAPPED_QUADRATIC_OPTIONS,
   DEFAULT_OPTIONS,
   EXCESS_MONEY_OPTIONS,
@@ -52,6 +53,23 @@ const pelosiConcentration = {
   uniqueDonors: 2597,
   totalAmount: 680000,
 };
+
+describe('gradingCycle: the New Year rollover (REBUILD_SPEC §9)', () => {
+  const on = d => gradingCycle(new Date(`${d}T12:00:00Z`));
+  it('grades the cycle being raised for in an election year', () => {
+    expect(on('2026-10-17')).toBe(2026);
+    expect(on('2026-12-31')).toBe(2026);
+  });
+  it('keeps the finished cycle until the new one has its first quarterly report', () => {
+    expect(on('2027-01-01')).toBe(2026);
+    expect(on('2027-04-30')).toBe(2026);
+  });
+  it('moves to the new cycle from 1 May of the odd year', () => {
+    expect(on('2027-05-01')).toBe(2028);
+    expect(on('2027-11-30')).toBe(2028);
+    expect(on('2028-03-01')).toBe(2028);
+  });
+});
 
 describe('cycleForYear', () => {
   it('maps odd years UP to the even end-year (FEC convention)', () => {

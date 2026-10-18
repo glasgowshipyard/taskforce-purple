@@ -25,8 +25,8 @@ import { FEC_CROSSWALK } from '../../workers/fec-crosswalk.js';
 import { committeesFinal3, gradeMemberFinal3 } from '../../workers/grading.js';
 import { LIST_KEY, sameValue } from '../../workers/member-store.js';
 import {
-  cycleForYear,
   final3PacShares,
+  gradingCycle,
   peoplePowerInfluence,
 } from '../../workers/tier-calculation.js';
 import { memberDonorShape } from '../simulate/lib/inputs.mjs';
@@ -80,7 +80,7 @@ async function preGeneralFilers(fec, cycle) {
 
 async function main() {
   const started = Date.now();
-  const cycle = Number(arg('--cycle', cycleForYear(new Date().getUTCFullYear())));
+  const cycle = Number(arg('--cycle', gradingCycle()));
   const field = arg('--field', '12g');
   const dryRun = process.argv.includes('--dry-run') || field === 'test';
   const states = arg('--states', '')

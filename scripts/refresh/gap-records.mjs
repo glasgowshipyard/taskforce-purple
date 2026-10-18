@@ -10,7 +10,7 @@
  * Read-only: one D1 query, a handful of rows.
  */
 import { writeFileSync } from 'node:fs';
-import { cycleForYear } from '../../workers/tier-calculation.js';
+import { gradingCycle } from '../../workers/tier-calculation.js';
 import { RESULTS_DB, createCloudflare } from './lib/cloudflare.mjs';
 import { loadStored } from './lib/gap-store.mjs';
 
@@ -25,7 +25,7 @@ if (!/^C\d{8}$/.test(committeeId || '')) {
   );
   process.exit(1);
 }
-const cycle = Number(arg('--cycle', cycleForYear(new Date().getUTCFullYear())));
+const cycle = Number(arg('--cycle', gradingCycle()));
 const out = arg('--out', `${committeeId}-${cycle}.jsonl`);
 
 const cf = createCloudflare();
