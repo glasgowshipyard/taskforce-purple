@@ -60,6 +60,25 @@ clean-up, #71 outside spending, #72 TypeScript (after the election).
 
 ## Change log
 
+## 2026-10-18: the docs cleaned up
+
+- Deleted six docs about the abandoned 2025 system (the 2025 spec,
+  DONOR_CONCENTRATION_ANALYSIS, SMART_BATCHING_STRATEGY, the January bug
+  write-up, deploy-instructions, the legislative-alignment idea). Moved to
+  `docs/history/`: this file's log before the rebuild, the July roadmap and
+  the version A method.
+- Rewritten to match what's live: this file's current state (above),
+  API_STRUCTURES (by endpoint), DATABASE_REFERENCE (KV keys and D1 tables,
+  indexed queries), ROADMAP (the dates that run themselves, what's next by
+  hand), README, CLAUDE.md (the site's copy rules and one source for the
+  numbers as conventions), the method guide; REBUILD_SPEC's status says
+  what's built.
+- RUNBOOK checked command by command. Its §5 data check counted members
+  with no score as negative and used campaign-only figures, so it flagged
+  a withheld member: fixed. `/api/status` counted only S to D: fixed in the
+  worker, live at the next deploy (with health.js's new `site-data-short`
+  advice).
+
 ## 2026-10-18 (early): the record check for race candidates (#55)
 
 - **Candidates are checked like members:** `scripts/refresh/check-candidates.mjs`
