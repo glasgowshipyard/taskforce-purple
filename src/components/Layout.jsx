@@ -73,11 +73,12 @@ export function Footer() {
             The site is ad free, takes no money, and is not connected to a party, campaign or PAC.
           </p>
           <p className="footer-privacy">
-            Grades are calculated from public FEC filings and Congress.gov data, updated after each
-            FEC filing deadline. Code and method are public.
+            Grades are calculated from public FEC filings and updated after each FEC filing
+            deadline. Code and method are public.
           </p>
           <p className="footer-privacy">
-            Privacy: ZIP code and location data stay on your device. No data other than feedback.
+            Privacy: ZIP code and location data stay on your device. No data other than feedback is
+            retained.
           </p>
         </div>
         <p>
