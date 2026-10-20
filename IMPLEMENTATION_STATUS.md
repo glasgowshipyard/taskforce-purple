@@ -60,6 +60,13 @@ clean-up, #71 outside spending, #72 TypeScript (after the election).
 
 ## Change log
 
+## 2026-10-20: the grades' licence
+
+Google Search Console asked for a `license` on the Dataset structured data
+(/congress). The grades are CC BY 4.0 (owner): free to reuse with credit.
+The Dataset now carries the licence, the grades.csv download and a date
+range that follows the graded cycle; /congress says it beside the link.
+
 ## 2026-10-18: the owner's line, shorter
 
 "It doesn't matter who wins if everyone loses." (was "which side wins";

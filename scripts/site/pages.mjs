@@ -208,8 +208,15 @@ export function congressPage(members) {
       description,
       url: `${SITE}/congress`,
       creator: { '@type': 'Organization', name: SITE_NAME, url: `${SITE}/` },
-      temporalCoverage: '2025-01-01/2026-12-31',
+      temporalCoverage: `${listCycle(members) - 1}-01-01/${listCycle(members)}-12-31`,
       isAccessibleForFree: true,
+      // The grades may be reused with credit (owner, 2026-10-20)
+      license: 'https://creativecommons.org/licenses/by/4.0/',
+      distribution: {
+        '@type': 'DataDownload',
+        encodingFormat: 'text/csv',
+        contentUrl: `${SITE}/grades.csv`,
+      },
       variableMeasured: ['Grade (S to F)', ...PARTS.map(p => `${p.label} share of money given`)],
     },
     body: `<main class="wrap section" data-prerendered>
@@ -219,9 +226,10 @@ export function congressPage(members) {
 ${rows}
 </ul>
 </main>`,
-    signature: JSON.stringify(
-      members.map(m => [m.bioguideId, m.tier, m.peoplePowerInfluence?.people])
-    ),
+    signature: JSON.stringify([
+      'dataset-2',
+      members.map(m => [m.bioguideId, m.tier, m.peoplePowerInfluence?.people]),
+    ]),
   };
 }
 

@@ -138,8 +138,9 @@ export default function Congress({ search }) {
           money comes from. You can search by name, state or party, or{' '}
           <a href="/grades.csv" download>
             download every grade as a spreadsheet
-          </a>
-          .
+          </a>{' '}
+          (free to reuse with credit,{' '}
+          <a href="https://creativecommons.org/licenses/by/4.0/">CC BY 4.0</a>).
         </p>
       </div>
 
