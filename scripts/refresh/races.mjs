@@ -67,7 +67,10 @@ function fecKey() {
   return existsSync(local) ? readFileSync(local, 'utf8').match(/`([A-Za-z0-9]{40})`/)?.[1] : null;
 }
 
-// Committees that filed the pre-general report: the general-election field
+// Committees that filed the pre-general report: the general-election field.
+// The FEC's processed filings list takes days to catch up after the
+// deadline (on 23 October 2026 it had 689 of 1,181 filers), so the
+// electronic filings, listed within minutes, are read as well
 async function preGeneralFilers(fec, cycle) {
   const ids = new Set();
   for (let page = 1; ; page++) {
@@ -82,9 +85,32 @@ async function preGeneralFilers(fec, cycle) {
       ids.add(f.committee_id);
     }
     if (page >= (d.pagination?.pages || 1)) {
-      return ids;
+      break;
     }
   }
+  const processed = ids.size;
+  for (const form_type of ['F3N', 'F3A']) {
+    for (let page = 1; ; page++) {
+      const d = await fec('/efile/filings/', {
+        form_type,
+        min_receipt_date: `${cycle}-10-01`,
+        per_page: 100,
+        page,
+      });
+      for (const f of d.results || []) {
+        if (f.document_description === `PRE-GENERAL ${cycle}`) {
+          ids.add(f.committee_id);
+        }
+      }
+      if (page >= (d.pagination?.pages || 1)) {
+        break;
+      }
+    }
+  }
+  log(
+    `pre-general filers: ${processed} processed, ${ids.size - processed} more filed electronically`
+  );
+  return ids;
 }
 
 async function main() {
@@ -128,7 +154,9 @@ async function main() {
         )
       : [];
     fieldIds = links.map(l => l.candidate_id).filter(id => weball.has(id));
-    log(`pre-general reports: ${filers.length} committees, ${fieldIds.length} candidates`);
+    log(
+      `pre-general reports: ${filers.length} committees, ${links.length} candidates linked, ${fieldIds.length} in the FEC's candidate summaries`
+    );
   }
   let field_ = fieldIds.map(id => weball.get(id));
   if (states.length) {

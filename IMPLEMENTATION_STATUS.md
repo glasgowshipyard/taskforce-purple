@@ -1,6 +1,6 @@
 # Task Force Purple: implementation status
 
-**Last updated**: 2026-10-18. Current state first, then a dated change log
+**Last updated**: 2026-10-23. Current state first, then a dated change log
 (newest first, from the rebuild on 2026-10-03). The log before the rebuild
 is in `docs/history/log-2025-26.md`.
 
@@ -59,6 +59,20 @@ clean-up, #71 outside spending, #72 TypeScript (after the election).
 ---
 
 ## Change log
+
+## 2026-10-23: the ballot missed late filers
+
+The races job's first run (started by hand at 9 am PDT, run 39983291535)
+published 395 races with 623 candidates, 213 races showing one person.
+I wrote the job to read only the FEC's processed filings list, which takes
+days to catch up after a deadline: it had 689 of the 1,181 campaigns that
+had filed the pre-general report (Alaska's Senate race showed Sullivan
+alone; Peltola filed on the 22nd). `preGeneralFilers` in races.mjs now
+also reads the electronic filings list (forms F3N and F3A from 1 October,
+described "PRE-GENERAL 2026"), which lists a report within minutes. Same
+report, same rule; the grading is unchanged. The log now says how many
+filers came from each list and how many candidates were dropped for not
+being in the FEC's candidate summaries. Re-run the same day.
 
 ## 2026-10-20: the grades' licence
 
