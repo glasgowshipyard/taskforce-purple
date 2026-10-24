@@ -1,10 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import {
+  bandOf,
   isOpen,
   nationalFigures,
   racesInView,
   searchRaces,
-  shadeOf,
   stateFigures,
 } from './races.js';
 
@@ -36,14 +36,17 @@ describe('the Races page (2026-10-23)', () => {
   });
 
   it('leaves withheld grades out of every count', () => {
-    expect(stateFigures(races).TX).toEqual({ races: 1, graded: 1, mostlyPeople: 1 });
+    expect(stateFigures(races).TX).toEqual({ races: 1, graded: 1, mostlyPeople: 1, typical: 80 });
   });
 
-  it('shades each state by its share of mostly people-funded candidates', () => {
+  it("colours each state as its typical candidate's share would be graded", () => {
     const s = stateFigures(races);
-    expect(s.AK).toEqual({ races: 2, graded: 4, mostlyPeople: 3 });
-    expect(shadeOf(s.AK)).toBe(3);
-    expect(shadeOf(undefined)).toBeNull();
+    // 48, 52, 62 and 94: the middle two average 57, a C
+    expect(s.AK).toEqual({ races: 2, graded: 4, mostlyPeople: 3, typical: 57 });
+    expect(bandOf(s.AK.typical)).toBe('C');
+    expect(bandOf(90)).toBe('S');
+    expect(bandOf(14)).toBe('F');
+    expect(bandOf(null)).toBeNull();
   });
 
   it('filters by view and state, never ranking by the figures', () => {

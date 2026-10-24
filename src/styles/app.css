@@ -3122,24 +3122,6 @@ p {
   cursor: default;
 }
 
-/* One hue, light to dark: the people colour */
-.shade-0 {
-  background: color-mix(in oklab, var(--people) 12%, var(--receipt));
-}
-.shade-1 {
-  background: color-mix(in oklab, var(--people) 30%, var(--receipt));
-}
-.shade-2 {
-  background: color-mix(in oklab, var(--people) 50%, var(--receipt));
-}
-.shade-3 {
-  background: color-mix(in oklab, var(--people) 72%, var(--receipt));
-}
-.shade-4 {
-  background: var(--people);
-  color: var(--white);
-}
-
 .tile-key {
   display: flex;
   flex-wrap: wrap;

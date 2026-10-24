@@ -8,18 +8,25 @@ import Lookup from '../components/Lookup.jsx';
 import { Skeleton, Stamp } from '../components/ui.jsx';
 import { api } from '../lib/api.js';
 import { ELECTION_LABEL, daysUntilElection } from '../lib/election.js';
-import { GRADE_SCOPE_SHORT, PARTS, gradeInfo, isLetter, withheldReasonOf } from '../lib/grades.js';
+import {
+  GRADES,
+  GRADE_SCOPE_SHORT,
+  LETTERS,
+  PARTS,
+  gradeInfo,
+  isLetter,
+  withheldReasonOf,
+} from '../lib/grades.js';
 import { useAsync, useCountUp, useInView, useTitle } from '../lib/hooks.js';
 import { ballotPartyName, displayName, raceSeat, stateName, usdShort } from '../lib/people.js';
 import { savePlace } from '../lib/place.js';
 import {
-  SHADES,
   VIEWS,
+  bandOf,
   nationalFigures,
   peopleShare,
   racesInView,
   searchRaces,
-  shadeOf,
   stateFigures,
 } from '../lib/races.js';
 import { Link, navigate, racePath } from '../lib/router.js';
@@ -97,26 +104,32 @@ function TileMap({ byState, selected, onPick }) {
   return (
     <section className="section-tight" aria-labelledby="map-title">
       <h2 id="map-title" className="display display-m">
-        Where candidates get most of their money from people
+        Where the candidates&apos; money comes from, state by state
       </h2>
       <p style={{ margin: '10px 0 18px', maxWidth: '44em', color: 'var(--ink-2)' }}>
-        The darker a state, the more of its graded candidates get over half their money from people.
-        Tap a state to see its races.
+        Each state takes the colour of its typical candidate: the one in the middle when the
+        state&apos;s graded candidates are ranked by how much of their money came from people. Tap a
+        state to see its races.
       </p>
       <div className={`tilemap${seen ? ' is-in' : ''}`} ref={ref}>
         {Object.entries(TILES).map(([code, [row, col]]) => {
           const s = byState[code];
-          const shade = shadeOf(s);
+          const band = bandOf(s?.typical ?? null);
           const name = stateName(code);
           const words = s?.graded
-            ? `${count(s.mostlyPeople)} of ${count(s.graded)} graded candidates get most of their money from people`
+            ? `the typical graded candidate gets ${s.typical}% of their money from people (${band} range). ${count(s.mostlyPeople)} of ${count(s.graded)} get most of their money from people`
             : 'no graded candidates';
           return (
             <button
               key={code}
               type="button"
-              className={`tile${shade === null ? ' is-empty' : ` shade-${shade}`}`}
-              style={{ gridRow: row + 1, gridColumn: col + 1, '--d': `${col * 40 + row * 25}ms` }}
+              className={`tile${band ? '' : ' is-empty'}`}
+              style={{
+                gridRow: row + 1,
+                gridColumn: col + 1,
+                '--d': `${col * 40 + row * 25}ms`,
+                ...(band ? { background: GRADES[band].light } : {}),
+              }}
               aria-pressed={selected === code}
               aria-label={`${name}: ${words}. Show its races.`}
               title={`${name}: ${words}`}
@@ -128,14 +141,16 @@ function TileMap({ byState, selected, onPick }) {
           );
         })}
       </div>
-      <ol
-        className="tile-key"
-        aria-label="Share of a state's graded candidates mostly funded by people"
-      >
-        {SHADES.map((x, i) => (
-          <li key={x.label}>
-            <span className={`tile-swatch shade-${i}`} aria-hidden="true" />
-            {x.label}
+      <ol className="tile-key" aria-label="The typical candidate's share of money from people">
+        {LETTERS.map(l => (
+          <li key={l}>
+            <span
+              className="tile-swatch"
+              style={{ background: GRADES[l].light }}
+              aria-hidden="true"
+            />
+            {/* A grade letter being explained wears its colour (owner, 2026-10-17) */}
+            <b style={{ color: GRADES[l].color }}>{l}</b> {GRADES[l].range}
           </li>
         ))}
       </ol>

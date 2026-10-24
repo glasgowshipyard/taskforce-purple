@@ -28,35 +28,45 @@ export function nationalFigures(races) {
   };
 }
 
-/** Each state's graded candidates and how many get most from people */
+/**
+ * Each state's graded candidates, how many get most from people, and its
+ * typical candidate's share from people: the middle one when they're ranked
+ * (the mean of the two middle ones for an even count), whole percent
+ */
 export function stateFigures(races) {
   const out = {};
   for (const r of races) {
-    const s = (out[r.state] ||= { races: 0, graded: 0, mostlyPeople: 0 });
+    const s = (out[r.state] ||= { races: 0, graded: 0, mostlyPeople: 0, shares: [] });
     s.races += 1;
     const g = graded(r.candidates);
     s.graded += g.length;
     s.mostlyPeople += g.filter(mostlyPeople).length;
+    s.shares.push(...g.map(peopleShare));
+  }
+  for (const s of Object.values(out)) {
+    const v = [...s.shares].sort((a, b) => a - b);
+    const mid = Math.floor(v.length / 2);
+    s.typical = v.length ? Math.round(v.length % 2 ? v[mid] : (v[mid - 1] + v[mid]) / 2) : null;
+    delete s.shares;
   }
   return out;
 }
 
-/** The map's five shades, from the share of graded candidates mostly funded by people */
-export const SHADES = [
-  { upTo: 20, label: 'Under 20%' },
-  { upTo: 40, label: '20% to 39%' },
-  { upTo: 60, label: '40% to 59%' },
-  { upTo: 80, label: '60% to 79%' },
-  { upTo: Infinity, label: '80% or more' },
+// The grade bands (FINAL3.bands in workers/tier-calculation.js): the map
+// colours a state as its typical candidate's share would be graded (owner,
+// 2026-10-23: "coloured like the gradient")
+const BANDS = [
+  ['S', 90],
+  ['A', 75],
+  ['B', 60],
+  ['C', 45],
+  ['D', 30],
+  ['E', 15],
+  ['F', -Infinity],
 ];
 
-export function shadeOf(s) {
-  if (!s?.graded) {
-    return null;
-  }
-  const pct = (s.mostlyPeople / s.graded) * 100;
-  return SHADES.findIndex(x => pct < x.upTo);
-}
+/** The grade letter a share from people falls in */
+export const bandOf = pct => (pct === null ? null : BANDS.find(([, min]) => pct >= min)[0]);
 
 /** No one in the race holds the seat now */
 export const isOpen = race => !race.candidates.some(c => c.ici === 'I');
