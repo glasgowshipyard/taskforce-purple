@@ -51,13 +51,14 @@ export const api = {
 
   /**
    * The 2026 races (ROADMAP Phase E). Null until November's field is
-   * published (FEC pre-general reports). VITE_RACES_URL: a local file
-   * instead, for checking the pages in development.
+   * published (Wikipedia's lists matched to the FEC: races.mjs and
+   * lib/ballot.mjs). VITE_RACES_URL: a local file instead, for checking
+   * the pages in development.
    */
   races: () =>
     once('races', async () => {
       const data = await getJson(import.meta.env.VITE_RACES_URL || `${API_BASE_URL}/races`);
-      const live = data?.field === '12g' || (import.meta.env.DEV && data?.field === 'test');
+      const live = data?.field === 'ballot' || (import.meta.env.DEV && data?.field === 'test');
       return live && data.races?.length ? data : null;
     }),
 };

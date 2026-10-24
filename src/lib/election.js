@@ -1,5 +1,5 @@
 // The 2026 general election. Candidates file their last reports before it on
-// 22 October (FEC pre-general, 12G); the races job publishes the next day.
+// 22 October (FEC pre-general, 12G); the races job publishes from the 23rd.
 export const ELECTION_DAY = new Date(2026, 10, 3);
 export const ELECTION_DAY_TEXT = 'Tuesday, November 3';
 export const RACES_ARRIVE_TEXT = 'October 23';

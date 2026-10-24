@@ -60,19 +60,45 @@ clean-up, #71 outside spending, #72 TypeScript (after the election).
 
 ## Change log
 
-## 2026-10-23: the ballot missed late filers
+## 2026-10-23: who's on the ballot, from Wikipedia matched to the FEC
 
-The races job's first run (started by hand at 9 am PDT, run 39983291535)
-published 395 races with 623 candidates, 213 races showing one person.
-I wrote the job to read only the FEC's processed filings list, which takes
-days to catch up after a deadline: it had 689 of the 1,181 campaigns that
-had filed the pre-general report (Alaska's Senate race showed Sullivan
-alone; Peltola filed on the 22nd). `preGeneralFilers` in races.mjs now
-also reads the electronic filings list (forms F3N and F3A from 1 October,
-described "PRE-GENERAL 2026"), which lists a report within minutes. Same
-report, same rule; the grading is unchanged. The log now says how many
-filers came from each list and how many candidates were dropped for not
-being in the FEC's candidate summaries. Re-run the same day.
+The races job's first two runs (started by hand, 39983291535 and 39987805327) published the wrong field, and I wrote the rule that caused
+it: "only general-election candidates file the pre-general report". It's
+false. Campaigns that lost a primary or are retiring still file it (Cornyn
+after losing the runoff, Schakowsky retiring, Biss after losing in
+Illinois 9); joint funds linked to several candidates brought in people
+not running (Tipton); and people with two FEC IDs showed twice. The second
+run also read only the FEC's processed filings list, which had 689 of
+1,181 pre-general filers the day after the deadline (the first run showed
+213 one-candidate races; Alaska's Senate race had Sullivan alone). The
+owner disabled races.yml and races-check.yml, cancelled both record
+checks and emptied `races:list` (`field: "withdrawn"`) at about 10 am PDT.
+
+The field now (owner's design): Wikipedia's 2026 House and Senate election
+pages list who's running for each seat (read through its API, the revision
+kept in `sources`); each listed candidate is matched to their own FEC
+registration for that seat (`scripts/refresh/lib/ballot.mjs`, cn file).
+A match needs exactly one person in the seat to fit the name (either order,
+short forms, middle initials telling two Dan Sullivans apart); one person
+with two IDs is one person (same principal committee, or the same name
+registered twice). A House candidate registered for another district of
+the same state (lines redrawn) matches only on a full name. Candidates on
+the ballot who never registered (under $5,000) show without a grade.
+
+The check: everyone whose campaign filed the pre-general report (processed
+and electronic lists) but isn't listed. A seat with one is held back, with
+a `system-alert` issue, until `scripts/refresh/data/ballot.json` records
+why they're off the ballot, with a source. On 23 October: 72 people in 66
+seats, all checked (retiring, running for other office, lost the primary,
+withdrew, write-in; members' reasons from news reports, others from the
+state election pages' cited sources, California's from its certified list).
+California's certified list (52 districts) and Indiana's official list (9)
+match Wikipedia exactly. Three hand matches where Wikipedia's spelling
+differs from the FEC's are in the same file.
+
+First pass on the 23rd: 475 seats, 1,296 candidates; 1,166 matched by full
+name, 58 by family name (people who go by a short name: Ro Khanna is
+ROHIT), 3 by hand, 69 not registered with the FEC, none unclear.
 
 ## 2026-10-20: the grades' licence
 
@@ -1002,7 +1028,8 @@ Owner's go, with the four recommendations: November's ballot, provisional
 grades, a Races tab, and third-party candidates who file.
 
 - **Who's on the ballot:** campaigns that filed the FEC's pre-general report
-  (12G, due 22 October), mapped to candidates through the committee links.
+  (12G, due 22 October), mapped to candidates through the committee links
+  (wrong, replaced 2026-10-23: losers file it too).
   Nothing outside FEC data is used. Before the 22nd there's no way to tell
   primary losers apart (the summary file's election-result fields are
   empty), so `--field test` (candidates over $500,000) is a dry run only.

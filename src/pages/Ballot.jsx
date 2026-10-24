@@ -14,6 +14,9 @@ import { Link, memberPath, racePath } from '../lib/router.js';
 
 const SHOWN = 4;
 
+// A candidate on the ballot who never registered with the FEC has no ID
+const candidateKey = c => c.candidateId || `${c.office}-${c.state}-${c.district}-${c.name}`;
+
 function candidatePerson(c) {
   const graded = Boolean(c.tier);
   const figures = gradedFigures({
@@ -31,12 +34,16 @@ function candidatePerson(c) {
     figures: graded ? figures : null,
     note: graded
       ? null
-      : 'Not graded yet. No campaign committee for this election has been found to grade.',
+      : c.registered === false
+        ? "Not registered with the FEC. Candidates don't have to register until they raise or spend $5,000, so there's nothing to grade."
+        : 'Not graded yet. No campaign committee for this election has been found to grade.',
     evidenceChecked: c.evidenceChecked,
     ppi: c.peoplePowerInfluence ?? null,
     href: c.bioguideId
       ? memberPath(c.bioguideId)
-      : `/candidate/${encodeURIComponent(c.candidateId)}`,
+      : c.candidateId
+        ? `/candidate/${encodeURIComponent(c.candidateId)}`
+        : null,
   };
 }
 
@@ -93,7 +100,7 @@ function CompareTable({ cands }) {
           <tr>
             <td />
             {cands.map(c => (
-              <th key={c.candidateId} scope="col">
+              <th key={candidateKey(c)} scope="col">
                 {displayName(c.name).split(' ').slice(-1)[0]}
               </th>
             ))}
@@ -107,7 +114,7 @@ function CompareTable({ cands }) {
                 <th scope="row">{r.label}</th>
                 {cands.map(c => (
                   <td
-                    key={c.candidateId}
+                    key={candidateKey(c)}
                     className={r.score && r.score(c) === best && best > -1 ? 'best' : undefined}
                   >
                     {r.value(c)}
@@ -162,7 +169,7 @@ function RaceView({ race, others }) {
         <div className="race-cards">
           {top.map((c, i) => (
             <Receipt
-              key={c.candidateId}
+              key={candidateKey(c)}
               person={candidatePerson(c)}
               delay={i * 0.12}
               headingLevel={2}
@@ -175,12 +182,18 @@ function RaceView({ race, others }) {
             <h2 style={{ fontSize: 18, marginBottom: 10 }}>Also running</h2>
             <ul className="ranked" style={{ fontFamily: 'var(--body)', fontSize: 16 }}>
               {rest.map(c => (
-                <li key={c.candidateId}>
-                  <Link to={candidatePerson(c).href}>{displayName(c.name)}</Link>
+                <li key={candidateKey(c)}>
+                  {c.candidateId ? (
+                    <Link to={candidatePerson(c).href}>{displayName(c.name)}</Link>
+                  ) : (
+                    displayName(c.name)
+                  )}
                   <span className="muted small"> · {partyName(c.party)}</span>
                   <span className="leader" aria-hidden="true" />
                   <span className="mono small">
-                    {usd(c.totalRaised)} · {c.tier || 'not graded'}
+                    {c.registered === false
+                      ? 'not registered with the FEC'
+                      : `${usd(c.totalRaised)} · ${c.tier || 'not graded'}`}
                   </span>
                 </li>
               ))}
@@ -248,7 +261,7 @@ function RaceView({ race, others }) {
                         <span className="mini-stamps" aria-hidden="true">
                           {r.candidates.slice(0, 2).map(c => (
                             <Stamp
-                              key={c.candidateId}
+                              key={candidateKey(c)}
                               tier={c.tier}
                               size={44}
                               word={false}

@@ -4,14 +4,18 @@
  * candidate in November's general election, not only sitting members, and
  * publish the races to KV `races:list` for the site's Races view.
  *
- *   node scripts/refresh/races.mjs [--cycle 2026] [--dry-run] [--field 12g|test]
+ *   node scripts/refresh/races.mjs [--cycle 2026] [--dry-run] [--field ballot|test]
  *     [--states ME,PA] [--batch 100] [--bulk-dir DIR] [--out races.json]
  *
- * Who's on the ballot comes from the FEC alone: only general-election
- * candidates file the pre-general report (12G, due 22 October). `--field
- * test` takes House and Senate candidates who raised $500,000 or more
- * instead, for building before the 22nd; that includes primary losers, so
- * it is always a dry run.
+ * Who's on the ballot (owner, 2026-10-23): the general-election candidates
+ * Wikipedia lists for each seat, each matched to their own FEC registration
+ * for that seat (lib/ballot.mjs). The FEC alone can't say: campaigns that
+ * lost a primary or are retiring still file the pre-general report (12G).
+ * Those filers are the check: a seat where one isn't listed is held back
+ * (and alerted) until scripts/refresh/data/ballot.json records why they're
+ * not on the ballot, with a source. `--field test` takes House and Senate
+ * candidates who raised $500,000 or more instead; that includes primary
+ * losers, so it is always a dry run.
  *
  * Sitting members keep the grade the refresh job gives them (members:list).
  * Everyone else is graded here exactly like a member: all their committees,
@@ -44,8 +48,12 @@ import { RESULTS_DB, createCloudflare } from './lib/cloudflare.mjs';
 import { discoverPeople, ensureZip, loadDiscoveryFiles } from './lib/discovery.mjs';
 import { createFecClient } from './lib/fec.mjs';
 import { buildRaces, displayName, parseWeball } from './lib/races.mjs';
+import { ballotField, parseCn, seatOf, WIKI_PAGES, wikiSeats } from './lib/ballot.mjs';
+import { stateByName } from '../../src/lib/states.js';
 
 export const RACES_KEY = 'races:list';
+// Matches checked by hand, and campaigns checked as not on the ballot
+const BALLOT_FILE = new URL('./data/ballot.json', import.meta.url).pathname;
 // A committee whose check has an outcome (as in the refresh job)
 const SETTLED = new Set(['reconciled', 'reconciled-with-note', 'mismatch']);
 const RECONCILED = new Set(['reconciled', 'reconciled-with-note']);
@@ -65,6 +73,19 @@ function fecKey() {
   }
   const local = new URL('../../API_KEYS.md', import.meta.url).pathname;
   return existsSync(local) ? readFileSync(local, 'utf8').match(/`([A-Za-z0-9]{40})`/)?.[1] : null;
+}
+
+/** A Wikipedia page's HTML at its current revision, through its API */
+async function wikiPage(title) {
+  const url = `https://en.wikipedia.org/w/api.php?${new URLSearchParams({ action: 'parse', page: title, prop: 'text|revid', format: 'json', formatversion: '2' })}`;
+  const res = await fetch(url, {
+    headers: { 'User-Agent': 'TaskForcePurple/1.0 (https://taskforcepurple.com)' },
+  });
+  const d = await res.json();
+  if (!d.parse?.text) {
+    throw new Error(`Wikipedia page ${title}: ${d.error?.info || res.status}`);
+  }
+  return { title: d.parse.title, revid: d.parse.revid, html: d.parse.text };
 }
 
 // Committees that filed the pre-general report: the general-election field.
@@ -116,7 +137,7 @@ async function preGeneralFilers(fec, cycle) {
 async function main() {
   const started = Date.now();
   const cycle = Number(arg('--cycle', gradingCycle()));
-  const field = arg('--field', '12g');
+  const field = arg('--field', 'ballot');
   const dryRun = process.argv.includes('--dry-run') || field === 'test';
   const states = arg('--states', '')
     .split(',')
@@ -140,40 +161,112 @@ async function main() {
     )
   );
 
-  // 1. The field
-  let fieldIds;
-  if (field === 'test') {
-    fieldIds = [...weball.values()].filter(c => c.receipts >= TEST_FLOOR).map(c => c.candidateId);
-  } else {
-    const filers = [...(await preGeneralFilers(fec, cycle))];
-    const links = filers.length
-      ? await db.read(
-          `SELECT DISTINCT candidate_id FROM ccl WHERE cycle = ? AND committee_id IN (${filers.map(() => '?').join(',')})`,
-          String(cycle),
-          ...filers
-        )
-      : [];
-    fieldIds = links.map(l => l.candidate_id).filter(id => weball.has(id));
-    log(
-      `pre-general reports: ${filers.length} committees, ${links.length} candidates linked, ${fieldIds.length} in the FEC's candidate summaries`
-    );
-  }
-  let field_ = fieldIds.map(id => weball.get(id));
-  if (states.length) {
-    field_ = field_.filter(c => states.includes(c.state));
-  }
-
-  // 2. Sitting members keep their published grade
   const memberOf = new Map();
   for (const [bioguideId, ids] of Object.entries(FEC_CROSSWALK)) {
     for (const id of ids) {
       memberOf.set(id, bioguideId);
     }
   }
+
+  // 1. The field: who Wikipedia lists for each seat, matched to the FEC
+  // (lib/ballot.mjs); a seat where someone whose campaign filed the
+  // pre-general report isn't listed is held back until that's checked
+  let field_;
+  let sources = null;
+  const held = [];
+  if (field === 'test') {
+    field_ = [...weball.values()]
+      .filter(c => c.receipts >= TEST_FLOOR)
+      .map(c => ({ ...c, ids: [c.candidateId] }));
+  } else {
+    const pages = {};
+    for (const office of ['H', 'S']) {
+      pages[office] = await wikiPage(WIKI_PAGES[office](cycle));
+    }
+    sources = Object.fromEntries(
+      Object.entries(pages).map(([o, p]) => [o, { title: p.title, revid: p.revid }])
+    );
+    const seats = Object.entries(pages).flatMap(([office, p]) =>
+      wikiSeats(p.html, office)
+        .map(s => ({ ...seatOf(office, s.label, stateByName), candidates: s.candidates }))
+        .filter(s => s.state)
+    );
+    const cn = parseCn(readFileSync(ensureZip('cn', 'cn.txt', cycle, bulkDir, log), 'latin1'));
+    const filers = await preGeneralFilers(fec, cycle);
+    const book = existsSync(BALLOT_FILE) ? JSON.parse(readFileSync(BALLOT_FILE, 'utf8')) : {};
+    const { resolved = {}, checked = {} } = book[cycle] || {};
+    const ballot = ballotField({ seats, cn, cycle, filers, resolved });
+    const count = fit => ballot.flatMap(s => s.candidates).filter(c => c.fit === fit).length;
+    log(
+      `ballot: ${ballot.length} seats from Wikipedia (House rev ${sources.H.revid}, Senate rev ${sources.S.revid}); ` +
+        `${ballot.reduce((n, s) => n + s.candidates.length, 0)} candidates: ${count('full')} matched by full name, ` +
+        `${count('family')} by family name only, ${count('full-other-district')} registered for another district, ` +
+        `${count('checked')} checked by hand, ${count('none')} not registered with the FEC, ${count('ambiguous')} unclear`
+    );
+    field_ = [];
+    for (const s of ballot) {
+      const unchecked = s.unlisted.filter(p => !checked[`${s.key}|${p.pcc}`]);
+      if (unchecked.length) {
+        held.push({
+          key: s.key,
+          unlisted: unchecked.map(p => ({ name: p.names[0], ids: p.candidateIds, pcc: p.pcc })),
+        });
+        continue;
+      }
+      for (const c of s.candidates) {
+        if (c.fit === 'ambiguous') {
+          log(
+            `  ${s.key}: ${c.name} fits more than one registration: ${c.options.map(o => o.names[0]).join('; ')}`
+          );
+        }
+        if (!c.person) {
+          field_.push({
+            candidateId: null,
+            ids: [],
+            listedName: c.name,
+            name: c.name,
+            party: c.party,
+            ici: null,
+            office: s.office,
+            state: s.state,
+            district: s.district,
+            unregistered: true,
+          });
+          continue;
+        }
+        const ids = c.person.candidateIds;
+        const id = ids.find(i => memberOf.has(i)) || ids[0];
+        const r = cn.find(x => x.candidateId === id);
+        field_.push({
+          candidateId: id,
+          ids,
+          listedName: c.name,
+          name: r.name,
+          party: r.party,
+          ici: r.ici,
+          office: s.office,
+          state: s.state,
+          district: s.district,
+        });
+      }
+    }
+    log(
+      `held back until checked: ${held.length} seats where a campaign that filed the pre-general report isn't listed` +
+        (held.length
+          ? ` (${held.map(h => `${h.key}: ${h.unlisted.map(u => u.name).join(', ')}`).join('; ')})`
+          : '')
+    );
+  }
+  if (states.length) {
+    field_ = field_.filter(c => states.includes(c.state));
+  }
+
+  // 2. Sitting members keep their published grade
   const list = JSON.parse((await cf.kvGet(LIST_KEY)) || '{"members":[]}').members;
   const listById = new Map(list.map(m => [m.bioguideId, m]));
-  const members = field_.filter(c => memberOf.has(c.candidateId));
-  const others = field_.filter(c => !memberOf.has(c.candidateId));
+  const registered = field_.filter(c => c.candidateId);
+  const members = registered.filter(c => memberOf.has(c.candidateId));
+  const others = registered.filter(c => !memberOf.has(c.candidateId));
   log(
     `field (${field}${states.length ? `, ${states.join(',')}` : ''}): ${field_.length} candidates, ${members.length} sitting members, ${others.length} to grade`
   );
@@ -182,7 +275,7 @@ async function main() {
   const discovered = await discoverPeople({
     fec,
     db,
-    people: others.map(c => ({ id: c.candidateId, ids: [c.candidateId] })),
+    people: others.map(c => ({ id: c.candidateId, ids: c.ids })),
     cycle,
     log,
   });
@@ -333,6 +426,11 @@ async function main() {
       state: c.state,
       district: c.district,
     };
+    if (c.unregistered) {
+      // On the ballot but not registered with the FEC (no need to until a
+      // campaign raises or spends $5,000): nothing to grade
+      return { ...base, name: c.listedName, registered: false, tier: null };
+    }
     if (bioguideId) {
       const m = listById.get(bioguideId) || {};
       const pf = m.gradeBasis === 'all-committees' && m.personFigures ? m.personFigures : m;
@@ -352,9 +450,10 @@ async function main() {
     const g = graded.get(c.candidateId) || {};
     return {
       ...base,
+      name: c.listedName || base.name,
       tier: g.grade?.tier || null,
       evidenceChecked: g.grade ? g.grade.evidenceChecked : null,
-      totalRaised: g.pf?.totalRaised ?? c.receipts,
+      totalRaised: g.pf?.totalRaised ?? c.receipts ?? null,
       smallDonors: g.pf?.grassrootsDonations ?? null,
       largeDonors: g.pf?.largeDonorDonations ?? null,
       pac: g.pf?.pacMoney ?? null,
@@ -378,7 +477,7 @@ async function main() {
 
   const out = arg('--out', null);
   if (out) {
-    writeFileSync(out, JSON.stringify({ cycle, field, races }, null, 1));
+    writeFileSync(out, JSON.stringify({ cycle, field, sources, held, races }, null, 1));
     log(`races written to ${out}`);
   }
   if (dryRun) {
@@ -431,7 +530,7 @@ async function main() {
       );
     }
     // The races list: one KV write, only if it changed
-    const body = { cycle, field, races };
+    const body = { cycle, field, sources, races };
     const current = JSON.parse((await cf.kvGet(RACES_KEY)) || 'null');
     if (current && sameValue({ ...current, updatedAt: undefined }, body)) {
       log('races list unchanged');
@@ -451,7 +550,10 @@ async function main() {
     `done in ${Math.round((Date.now() - started) / 60000)} min: ${fec.calls} FEC calls, ${cf.stats.d1RowsWritten} D1 rows written, ${cf.stats.kvWrites} KV writes; ${unchecked} candidate(s) not yet fully checked`
   );
   if (process.env.GITHUB_OUTPUT) {
-    appendFileSync(process.env.GITHUB_OUTPUT, `unchecked=${dryRun ? 0 : unchecked}\n`);
+    appendFileSync(
+      process.env.GITHUB_OUTPUT,
+      `unchecked=${dryRun ? 0 : unchecked}\nheld=${held.length}\nheld_seats=${held.map(h => `${h.key} (${h.unlisted.map(u => u.name).join(', ')})`).join('; ')}\n`
+    );
   }
 }
 

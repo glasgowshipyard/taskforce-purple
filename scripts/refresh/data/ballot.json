@@ -1,0 +1,377 @@
+{
+  "2026": {
+    "resolved": {
+      "H-KY-03|Maria Rodriquez": {
+        "candidateId": "H6KY03223",
+        "why": "Wikipedia spells it Rodriquez; the FEC has RODRIGUEZ, MARIA TERESA (Republican, Kentucky 3), the seat's only Rodriguez"
+      },
+      "S-FL-|Neil Gillespie": {
+        "candidateId": "S6FL00863",
+        "why": "The FEC has GILESPIE, NEIL JOSEPH (no party, Florida Senate), the race's only Neil"
+      },
+      "H-AS-00|Amata Coleman Radewagen": {
+        "candidateId": "H4AS00036",
+        "why": "The FEC registers her as AMATA, AUMUA (Republican, American Samoa delegate since 2014)"
+      }
+    },
+    "checked": {
+      "H-AL-01|C00720375": {
+        "name": "MOORE, FELIX BARRY",
+        "why": "Running for the U.S. Senate in Alabama instead (listed there)",
+        "source": "https://en.wikipedia.org/w/index.php?oldid=1381568365#Retirements"
+      },
+      "H-AL-04|C00960336": {
+        "name": "COBB, LEE JEH",
+        "why": "Registered with the FEC as a write-in candidate"
+      },
+      "H-AZ-02|C00906800": {
+        "name": "DESCHEENIE, ERIC",
+        "why": "Withdrew",
+        "source": "https://azmirror.com/2025/08/01/former-state-rep-eric-descheenie-enters-race-for-arizonas-largest-congressional-district/"
+      },
+      "H-CA-04|C00911503": {
+        "name": "MACKENZIE, LAURIE JOHN",
+        "why": "Not on California's certified list of candidates",
+        "source": "https://elections.cdn.sos.ca.gov/statewide-elections/2026-general/cert-list-candidates.pdf"
+      },
+      "H-CA-10|C00940072": {
+        "name": "GRIFFITHS, ANGELA",
+        "why": "Not on California's certified list of candidates",
+        "source": "https://elections.cdn.sos.ca.gov/statewide-elections/2026-general/cert-list-candidates.pdf"
+      },
+      "H-CA-26|C00922690": {
+        "name": "SCOTT, WILLIAM",
+        "why": "Not on California's certified list of candidates",
+        "source": "https://elections.cdn.sos.ca.gov/statewide-elections/2026-general/cert-list-candidates.pdf"
+      },
+      "H-CA-30|C00908863": {
+        "name": "FEITOSA, DENNIS F.",
+        "why": "Not on California's certified list of candidates",
+        "source": "https://elections.cdn.sos.ca.gov/statewide-elections/2026-general/cert-list-candidates.pdf"
+      },
+      "H-CA-36|C00943233": {
+        "name": "SHAMMA, MARIANNE",
+        "why": "Not on California's certified list of candidates",
+        "source": "https://elections.cdn.sos.ca.gov/statewide-elections/2026-general/cert-list-candidates.pdf"
+      },
+      "H-CA-45|C00650911": {
+        "name": "FORDE, BRIAN",
+        "why": "Not on California's certified list of candidates",
+        "source": "https://elections.cdn.sos.ca.gov/statewide-elections/2026-general/cert-list-candidates.pdf"
+      },
+      "H-CA-52|C00942722": {
+        "name": "MOTIWALLA, FRANCES YASMEEN",
+        "why": "Not on California's certified list of candidates",
+        "source": "https://elections.cdn.sos.ca.gov/statewide-elections/2026-general/cert-list-candidates.pdf"
+      },
+      "H-DE-00|C00855411": {
+        "name": "HALL, DONYALE LONDON",
+        "why": "Did not file for the ballot",
+        "source": "https://elections.delaware.gov/candidates/candidatelist/prim_fcddt_2026.html"
+      },
+      "H-FL-06|C00666396": {
+        "name": "WALTZ, MICHAEL",
+        "why": "Left Congress in January 2025 to become national security adviser",
+        "source": "https://en.wikipedia.org/wiki/Mike_Waltz"
+      },
+      "H-FL-16|C00412759": {
+        "name": "BUCHANAN, VERNON",
+        "why": "Retiring",
+        "source": "https://floridapolitics.com/archives/776257-vern-buchanan-to-retire-from-congress-after-20-years-of-service/"
+      },
+      "H-FL-19|C00898973": {
+        "name": "OBERWEIS, JAMES MR.",
+        "why": "Lost the primary",
+        "source": "https://wgntv.com/news/chicago-news/jim-oberweis-campaign-florida-19th-congressional/"
+      },
+      "H-FL-20|C00895896": {
+        "name": "MANLEY, ELIJAH",
+        "why": "Lost the primary",
+        "source": "https://www.miaminewtimes.com/news/browards-elijah-manley-to-challenge-rep-cherfilus-mccormick-in-2026-22228659"
+      },
+      "H-GA-10|C00544684": {
+        "name": "COLLINS, MICHAEL A JR",
+        "why": "Running for the U.S. Senate in Georgia instead (listed there)",
+        "source": "https://en.wikipedia.org/w/index.php?oldid=1381568365#Retirements"
+      },
+      "H-GA-14|C00921973": {
+        "name": "RUSZKOWSKI ( RUSH ), ROB",
+        "why": "Withdrew",
+        "source": "https://www.ncsl.org/elections-and-campaigns/2026-state-primary-election-dates"
+      },
+      "H-IA-02|C00706267": {
+        "name": "ARENHOLZ, ASHLEY HINSON",
+        "why": "Running for the U.S. Senate in Iowa instead (listed there)",
+        "source": "https://www.desmoinesregister.com/story/news/politics/2025/09/02/ashley-hinson-announces-2026-us-senate-campaign-joni-ernst/85939480007"
+      },
+      "H-IL-02|C00911743": {
+        "name": "JACKSON, JESSE L. JR",
+        "why": "Lost the primary",
+        "source": "https://rollcall.com/2025/10/08/jesse-jackson-comeback-house-illinois-election/"
+      },
+      "H-IL-04|C00661777": {
+        "name": "GARCIA, JESUS",
+        "why": "Retiring",
+        "source": "https://chicago.suntimes.com/elections/2025/11/03/jesus-chuy-garcia-reelection-dropping-out-chief-of-staff-running"
+      },
+      "H-IL-07|C00172619": {
+        "name": "DAVIS, DANNY K. MR.",
+        "why": "Retiring",
+        "source": "https://www.chicagotribune.com/2025/07/31/danny-davis-2026-election/"
+      },
+      "H-IL-08|C00906891": {
+        "name": "AHMED, JUNAID",
+        "why": "Lost the primary",
+        "source": "https://www.politico.com/newsletters/illinois-playbook/2025/06/03/farmers-tip-hats-to-rahm-emanuel-00381853"
+      },
+      "H-IL-09|C00327023": {
+        "name": "SCHAKOWSKY, JANICE D",
+        "why": "Retiring",
+        "source": "https://chicago.suntimes.com/2025/05/05/rep-jan-schakowsky-announces-she-wont-seek-re-election-to-congress"
+      },
+      "H-IL-09|C00900449": {
+        "name": "ABUGHAZALEH, KATHERINE M.",
+        "why": "Lost the primary",
+        "source": "https://www.politico.com/news/2025/03/24/illinois-progressive-congress-member-attracts-gen-z-challenger-027500"
+      },
+      "H-IL-10|C00905372": {
+        "name": "COGHILL, MORGAN",
+        "why": "Lost the primary",
+        "source": "https://www.politico.com/newsletters/illinois-playbook/2025/05/23/chicagos-progressive-mayor-on-antisemitism-00367032"
+      },
+      "H-IN-09|C00911735": {
+        "name": "TAYLOR, FLOYD",
+        "why": "A write-in candidate, not printed on the ballot",
+        "source": "https://www.in.gov/sos/elections/files/Candidate_List_Abbreviated_20260922_011251PM.xlsx"
+      },
+      "H-KY-06|C00467571": {
+        "name": "BARR, GARLAND ANDY",
+        "why": "Running for the U.S. Senate in Kentucky instead (listed there)",
+        "source": "https://en.wikipedia.org/w/index.php?oldid=1381568365#Retirements"
+      },
+      "H-LA-06|C00868513": {
+        "name": "FIELDS, CLEO",
+        "why": "Running for the Louisiana State Senate instead",
+        "source": "https://www.shreveportbossieradvocate.com/news/state_politics/cleo-fields-congress-legislature-reelection/article_2a58d48c-3e2b-54a7-8b04-cb28c91c6fe5.html"
+      },
+      "H-MA-03|C00962993": {
+        "name": "SOLOMON, AL",
+        "why": "Registered with the FEC as a write-in candidate"
+      },
+      "H-MA-05|C00929877": {
+        "name": "PAZ, JONATHAN",
+        "why": "Lost the primary",
+        "source": "https://www.wbur.org/news/2026/01/02/massachusetts-clark-congress-whip-challengers"
+      },
+      "H-MD-04|C00957712": {
+        "name": "HENNESSY, SAMUEL FRANK",
+        "why": "Lost the Green Party nomination to Sam Husseini",
+        "source": "https://marylandmatters.org/2026/07/23/maryland-green-party-announces-its-general-election-nominees/"
+      },
+      "H-ME-02|C00653816": {
+        "name": "GOLDEN, JARED",
+        "why": "Retiring",
+        "source": "https://www.politico.com/news/2025/11/05/jared-golden-retire-2026-election-00638182"
+      },
+      "H-MN-02|C00930644": {
+        "name": "WESTBY, JEREMY",
+        "why": "Withdrew",
+        "source": "https://www.minnpost.com/national/washington/2026/05/eric-pratt-shakes-off-gop-rivals-but-faces-tough-democratic-challengers-in-race-for-angie-craigs-seat/"
+      },
+      "H-MN-07|C00926576": {
+        "name": "KEELER, HEATHER",
+        "why": "Withdrew",
+        "source": "https://www.kvrr.com/2025/11/13/minnesota-house-representative-announces-run-for-congress/"
+      },
+      "H-MN-08|C00911305": {
+        "name": "MCKENNA, CHAD",
+        "why": "Withdrew",
+        "source": "https://www.wdio.com/front-page/top-stories/chad-mckenna-drops-out-of-congressional-district-8-race/"
+      },
+      "H-MO-02|C00925594": {
+        "name": "VONDRAS, JOAN",
+        "why": "Lost the primary",
+        "source": "https://www.stltoday.com/news/local/column/joe-holleman/article_f158b7c4-52dd-4fe7-80c5-7b6aecf09413.html"
+      },
+      "H-MO-08|C00934869": {
+        "name": "HESLOP, GORDON",
+        "why": "Lost the primary",
+        "source": "https://s1.sos.mo.gov/CandidatesOnWeb/DisplayCandidatesPlacement.aspx?OfficeCode=20%20CN%208&ElectionCode=750006905"
+      },
+      "H-NC-11|C00796433": {
+        "name": "EDWARDS, CHUCK",
+        "why": "Won the Republican primary on 3 March 2026, then withdrew on 5 August",
+        "source": "https://en.wikipedia.org/w/index.php?oldid=1381568365#Retirements"
+      },
+      "H-NE-01|C00950543": {
+        "name": "AHLMAN, AUSTIN LAWRENCE",
+        "why": "Withdrew",
+        "source": "https://nebraskapublicmedia.org/en/news/news-articles/austin-ahlman-independent-candidate-for-nebraskas-1st-district-suspending-campaign/"
+      },
+      "H-NH-01|C00660464": {
+        "name": "PAPPAS, CHRIS",
+        "why": "Running for the U.S. Senate in New Hampshire instead (listed there)",
+        "source": "https://en.wikipedia.org/w/index.php?oldid=1381568365#Retirements"
+      },
+      "H-NJ-07|C00952473": {
+        "name": "LEGUIA, LANA",
+        "why": "Removed from the ballot",
+        "source": "https://newjerseyglobe.com/congress/husband-and-wife-duo-from-tennessee-will-run-as-pro-life-independents-for-competitive-n-j-seats/"
+      },
+      "H-NM-02|C00923482": {
+        "name": "OROZCO, JOSE",
+        "why": "Withdrew",
+        "source": "https://sourcenm.com/briefs/republican-drops-out-of-congressional-district-2-primary/"
+      },
+      "H-NY-01|C00954578": {
+        "name": "WILSON, CELINA MRS.",
+        "why": "Not on the June primary ballot or November's (the FEC holds two registrations for her)",
+        "source": "https://en.wikipedia.org/wiki/2026_United_States_House_of_Representatives_elections_in_New_York"
+      },
+      "H-NY-07|C00271312": {
+        "name": "VELAZQUEZ, NYDIA M.",
+        "why": "Retiring",
+        "source": "https://www.nytimes.com/2025/11/20/nyregion/nydia-velazquez-retire.html"
+      },
+      "H-NY-08|C00917161": {
+        "name": "BOSTIC, VANCE",
+        "why": "Disqualified from the primary ballot",
+        "source": "https://www.thecity.nyc/2025/11/25/candidates-running-2026-congress-primary/"
+      },
+      "H-NY-13|C00925719": {
+        "name": "ROMERO, OSCAR",
+        "why": "Lost the primary",
+        "source": "https://www.thecity.nyc/2025/11/25/candidates-running-2026-congress-primary/"
+      },
+      "H-NY-17|C00897892": {
+        "name": "DAVIDSON, BETH",
+        "why": "Lost the primary",
+        "source": "https://www.nytimes.com/2025/02/18/nyregion/hudson-valley-beth-davidson-mike-lawler.html?unlocked_article_code=1.x04.pbMC.y5qiOCWgNuOv"
+      },
+      "H-OH-15|C00938001": {
+        "name": "RONAN, SAMUEL",
+        "why": "Lost the primary",
+        "source": "https://www.dispatch.com/story/news/politics/elections/2026/02/05/joyce-beatty-mike-carey-columbus-2026-election-congressional-candidates/88528350007/"
+      },
+      "H-PA-09|C00903419": {
+        "name": "BROTHERS, JENNIFER M",
+        "why": "Withdrew",
+        "source": "https://www.abc27.com/news/top-stories/second-democrat-files-to-run-in-pennsylvanias-9th-congressional-district/"
+      },
+      "H-SC-01|C00710103": {
+        "name": "MACE, NANCY",
+        "why": "Running for governor of South Carolina instead",
+        "source": "https://scdailygazette.com/2025/08/04/rep-nancy-mace-officially-enters-sc-governors-race/"
+      },
+      "H-SD-00|C00628917": {
+        "name": "JOHNSON, DUSTY",
+        "why": "Running for governor of South Dakota instead",
+        "source": "https://www.newscenter1.tv/news/south-dakota/congressman-dusty-johnson-announces-he-will-run-for-governor-job"
+      },
+      "H-TX-32|C00934869": {
+        "name": "HESLOP, GORDON",
+        "why": "Lost the primary",
+        "source": "https://goelect.txelections.civixapps.com/ivis-cbp-ui/candidate-information"
+      },
+      "H-UT-01|C00931931": {
+        "name": "MOHAMED, LIBAN",
+        "why": "Lost the primary",
+        "source": "https://www.sltrib.com/news/politics/2026/01/05/another-utah-dem-seeks-new-left/"
+      },
+      "H-UT-02|C00924498": {
+        "name": "MERRILL, STEVEN",
+        "why": "Eliminated at the party convention",
+        "source": "https://www.sltrib.com/news/politics/2026/04/25/utah-democratic-party-convention/"
+      },
+      "H-UT-03|C00924498": {
+        "name": "MERRILL, STEVEN",
+        "why": "Eliminated at the party convention",
+        "source": "https://www.sltrib.com/news/politics/2026/04/25/utah-democratic-party-convention/"
+      },
+      "H-VA-07|C00938670": {
+        "name": "COONEY, JOSEPH PATRICK",
+        "why": "Withdrew",
+        "source": "https://abcnews.com/Politics/4-virginia-democratic-house-candidates-drop-after-courts/story?id=133075823&cid=social_twitter_abcn"
+      },
+      "H-VA-11|C00904409": {
+        "name": "PEKARSKY, STELLA",
+        "why": "Lost the 2025 special primary to James Walkinshaw; not in the 2026 field",
+        "source": "https://www.ffxnow.com/2025/06/30/walkinshaws-primary-win-buoyed-by-legacy-of-late-gerry-connolly/"
+      },
+      "H-VI-00|C00528182": {
+        "name": "PLASKETT, STACEY",
+        "why": "Running for governor of the U.S. Virgin Islands instead",
+        "source": "https://www.virginislandsdailynews.com/news/plaskett-potter-launches-bid-for-government-house-in-historic-frederiksted/article_a9a5bd28-f738-4285-974f-422255ffc466.html"
+      },
+      "H-WI-07|C00718635": {
+        "name": "TIFFANY, TOM",
+        "why": "Running for governor of Wisconsin instead",
+        "source": "https://www.jsonline.com/story/news/politics/2025/09/23/u-s-rep-tom-tiffany-enters-the-2026-race-for-wisconsin-governor/85375533007/"
+      },
+      "H-WY-00|C00788943": {
+        "name": "HAGEMAN, HARRIET",
+        "why": "Running for the U.S. Senate in Wyoming instead (listed there)",
+        "source": "https://en.wikipedia.org/w/index.php?oldid=1381568365#Retirements"
+      },
+      "H-WY-00|C00943258": {
+        "name": "BITEMAN, DENNIS BO DEAN II",
+        "why": "Lost the primary",
+        "source": "https://cowboystatedaily.com/2026/03/12/bo-biteman-announces-candidacy-for-u-s-house/"
+      },
+      "S-FL-|C00918474": {
+        "name": "JENKINS, JENNIFER",
+        "why": "Withdrew",
+        "source": "https://floridaphoenix.com/2026/01/29/jennifer-jenkins-drops-out-of-the-democratic-senate-race-and-endorses-alexander-vindman/"
+      },
+      "S-KY-|C00898189": {
+        "name": "CAMERON, DANIEL",
+        "why": "Lost the primary",
+        "source": "https://www.kentucky.com/news/politics-government/article300667499.html"
+      },
+      "S-LA-|C00597013": {
+        "name": "FLEMING, JOHN C. JR.",
+        "why": "Lost the primary runoff",
+        "source": "https://www.wbrz.com/news/treasurer-john-fleming-announces-bid-for-bill-cassidy-s-senate-seat-in-2026"
+      },
+      "S-LA-|C00908459": {
+        "name": "MIGUEZ, BLAKE",
+        "why": "Withdrew",
+        "source": "https://lsureveille.com/274407/news/tigertvnews/state-senator-ends-senate-campaign-to-run-for-congress/"
+      },
+      "S-OH-|C00688465": {
+        "name": "FARIS, STEPHEN I MR",
+        "why": "Not on the certified general-election list (Brown, Husted, Redpath; Levy as an independent)",
+        "source": "https://votehamiltoncountyohio.gov/wp-content/uploads/2026/06/November-2026-Candidate-Profile-1-2.pdf"
+      },
+      "S-OH-|C00917146": {
+        "name": "ODE, FREDERICK J",
+        "why": "Withdrew",
+        "source": "https://www.cleveland.com/open/2025/11/lorain-county-entrepreneur-fred-ode-ends-2026-senate-campaign-against-sherrod-brown.html"
+      },
+      "S-TX-|C00369033": {
+        "name": "CORNYN, JOHN SEN",
+        "why": "Lost the Republican primary runoff to Ken Paxton",
+        "source": "https://en.wikipedia.org/wiki/2026_United_States_Senate_election_in_Texas"
+      },
+      "S-TX-|C00954123": {
+        "name": "HALL, BRADFORD WINSTON",
+        "why": "Registered with the FEC as a write-in candidate"
+      },
+      "S-TX-|C00959197": {
+        "name": "MOHAMED, ZUL MIRZA",
+        "why": "His party (AMP) has no ballot line in Texas, and he isn't among the Secretary of State's independent filings",
+        "source": "https://www.sos.state.tx.us/elections/laws/independent-declarations-2026.shtml"
+      },
+      "S-WV-|C00853242": {
+        "name": "SHREWSBURY, ZACHARY C",
+        "why": "Lost the primary",
+        "source": "https://morgancountyusa.org/?p=6196"
+      },
+      "S-WY-|C00890921": {
+        "name": "RASNER, REID",
+        "why": "Ran for the House instead and lost the 18 August primary (his FEC registration is from his 2024 Senate run)",
+        "source": "https://rivertonranger.com/news/rasner-announces-bid-for-u-s-house/article_eb5579a2-1e38-4ea3-841b-e77a44678688.html"
+      }
+    }
+  }
+}

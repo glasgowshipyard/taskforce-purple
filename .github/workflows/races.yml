@@ -3,9 +3,10 @@ name: Races
 # The 2026 races (ROADMAP Phase E): grade everyone on November's ballot for
 # Congress and publish the races for the site's Races tab.
 #
-# Who's on the ballot comes from the FEC's pre-general reports (due 22
-# October 2026), so this runs on the filing calendar: the morning after the
-# deadline (23 Oct) and again on 27 Oct for filings the FEC processed late.
+# Who's on the ballot comes from Wikipedia's lists matched to the FEC, checked
+# against the FEC's pre-general reports (due 22 October 2026; races.mjs), so
+# this runs on the filing calendar: the morning after the deadline (23 Oct)
+# and again on 27 Oct for filings the FEC processed late.
 # It switches itself off after the second run, so no clock is left running
 # (CLAUDE.md). Started by hand at any other time.
 on:
@@ -59,9 +60,30 @@ jobs:
           FEC_MIN_INTERVAL_MS: '2000'
         run: |
           args=(--bulk-dir "$RUNNER_TEMP/bulk")
-          if [ "$DRY_RUN" = "true" ]; then args+=(--dry-run); fi
+          if [ "$DRY_RUN" = "true" ]; then args+=(--dry-run --out "$RUNNER_TEMP/races-dry-run.json"); fi
           if [ -n "$STATES" ]; then args+=(--states "$STATES"); fi
           node scripts/refresh/races.mjs "${args[@]}"
+
+      - name: Keep the dry run's races
+        if: inputs.dry_run
+        uses: actions/upload-artifact@v4
+        with:
+          name: races-dry-run
+          path: ${{ runner.temp }}/races-dry-run.json
+
+      # A seat held back (a campaign that filed the pre-general report isn't
+      # on Wikipedia's list and hasn't been checked) is off the site until
+      # scripts/refresh/data/ballot.json says why: tell the owner
+      - name: Alert on seats held back
+        if: steps.races.outputs.held != '' && steps.races.outputs.held != '0' && !inputs.dry_run
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          HELD: ${{ steps.races.outputs.held_seats }}
+        run: |
+          gh issue create --label system-alert \
+            --title "Races: ${{ steps.races.outputs.held }} seat(s) held back from the ballot" \
+            --body "A campaign that filed the FEC's pre-general report isn't on Wikipedia's list for these seats: $HELD. Proposed fix: check each against the state's candidate list and record why they're off the ballot (with a source) in scripts/refresh/data/ballot.json, then re-run the races job. Run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
 
       # Candidates graded from the bulk files are still being double-checked:
       # start the record-by-record check for them (#55, races-check.yml)

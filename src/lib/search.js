@@ -9,7 +9,7 @@ import { displayName, partyName } from './people.js';
 
 // Official first name -> the short forms people use. Only well-known ones:
 // a name that isn't here still matches by its first letters ("Bern")
-const SHORT_FORMS = {
+export const SHORT_FORMS = {
   abigail: ['abby'],
   albert: ['al'],
   alexander: ['alex'],

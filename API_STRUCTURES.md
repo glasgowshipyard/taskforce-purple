@@ -88,12 +88,14 @@ stored record with `evidence: null`, and never an old letter grade.
 
 ### `GET /api/races` and `GET /api/candidate-detail?id=`
 
-`races:list` as stored: `{ cycle, field, races: [{ key, office, state,
-district, label, candidates: [{ candidateId, bioguideId, name, party, ici,
-tier, evidenceChecked, totalRaised, smallDonors, largeDonors, pac,
-uniqueDonors, nakamoto, peoplePowerInfluence }] }], updatedAt }`. HTTP 404
-until the races job publishes; the site shows the ballot only when `field`
-is `12g` (November's ballot). Sitting members keep their published grade.
+`races:list` as stored: `{ cycle, field, sources, races: [{ key, office,
+state, district, label, candidates: [{ candidateId, bioguideId, name, party,
+ici, tier, evidenceChecked, totalRaised, smallDonors, largeDonors, pac,
+uniqueDonors, nakamoto, peoplePowerInfluence, registered }] }], updatedAt }`.
+`sources` names the Wikipedia revisions the field came from; a candidate on
+the ballot who never registered with the FEC has `candidateId: null` and
+`registered: false`. HTTP 404 until the races job publishes; the site shows
+the ballot only when `field` is `ballot` (November's ballot). Sitting members keep their published grade.
 `candidate-detail` serves a non-member candidate from `race_candidates` in
 the same shape as `member-detail`.
 
@@ -132,10 +134,13 @@ $ADMIN_SECRET` works too. `POST /admin/login`, `/admin/logout`,
   themselves with `FEC_MIN_INTERVAL_MS`): `/totals/{house-senate|pac-party}/`
   (a campaign's transfers in are `transfers_from_other_authorized_committee`,
   a PAC's `transfers_from_affiliated_party`), `/committee/{id}/totals/`,
-  `/schedules/schedule_a/` (the record check), `/filings/` (who filed the
-  pre-general report), `/reporting-dates/` (the calendar check). Plus the
+  `/schedules/schedule_a/` (the record check), `/filings/` and
+  `/efile/filings/` (who filed the pre-general report: the races job's
+  check), `/reporting-dates/` (the calendar check). Plus the
   FEC's bulk files (`fec.gov/files/bulk-downloads/{cycle}/`: indiv, oth, cm,
-  ccl, weball, webk).
+  ccl, weball, webk, cn). Wikipedia's 2026 House and Senate election pages
+  (MediaWiki API, `action=parse`, pinned by revision): who's on November's
+  ballot.
 - **The roster**: `unitedstates.github.io/congress-legislators/legislators-current.json`
   (no key): who's in Congress and their FEC candidate IDs, for the identity
   crosswalk and the roster update.
