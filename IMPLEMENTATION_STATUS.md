@@ -65,8 +65,8 @@ clean-up, #71 outside spending, #72 TypeScript (after the election).
 The races job's first two runs (started by hand, 39983291535 and 39987805327) published the wrong field, and I wrote the rule that caused
 it: "only general-election candidates file the pre-general report". It's
 false. Campaigns that lost a primary or are retiring still file it (Cornyn
-after losing the runoff, Schakowsky retiring, Biss after losing in
-Illinois 9); joint funds linked to several candidates brought in people
+after losing the runoff, Schakowsky retiring, Abughazaleh after losing
+to Biss in Illinois 9); joint funds linked to several candidates brought in people
 not running (Tipton); and people with two FEC IDs showed twice. The second
 run also read only the FEC's processed filings list, which had 689 of
 1,181 pre-general filers the day after the deadline (the first run showed
@@ -89,7 +89,8 @@ The check: everyone whose campaign filed the pre-general report (processed
 and electronic lists) but isn't listed. A seat with one is held back, with
 a `system-alert` issue, until `scripts/refresh/data/ballot.json` records
 why they're off the ballot, with a source. On 23 October: 72 people in 66
-seats, all checked (retiring, running for other office, lost the primary,
+seats, all checked (and on the dry run, Tony Gonzales in Texas 23, who
+resigned in April but whose campaign still filed) (retiring, running for other office, lost the primary,
 withdrew, write-in; members' reasons from news reports, others from the
 state election pages' cited sources, California's from its certified list).
 California's certified list (52 districts) and Indiana's official list (9)
