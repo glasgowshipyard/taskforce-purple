@@ -103,8 +103,8 @@ export const GRADES = {
   'SELF-FUNDED': {
     name: 'Self-funded',
     mark: '$',
-    color: '#77738A',
-    light: '#B9B5C6',
+    color: '#A66A00',
+    light: '#F2C94C',
     rank: 1,
     meaning:
       "Half or more of this campaign's money is the candidate's own, so it can't be graded fairly on where the rest came from. The figures show the whole campaign.",
