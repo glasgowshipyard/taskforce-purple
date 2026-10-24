@@ -26,8 +26,9 @@ rules for everyone.
 - **All of Congress**, searchable by name, state or party and filterable by
   grade and chamber, and every grade as a spreadsheet
   ([grades.csv](https://taskforcepurple.com/grades.csv)).
-- **Your ballot** (from 23 October 2026): everyone running for Congress
-  where you live, graded the same way, side by side.
+- **Races** (from 23 October 2026): every race for Congress at once, a map
+  of where candidates get most of their money from people, and everyone
+  running where you live, graded the same way, side by side.
 - **Why it matters:** what research says about who pays for Congress, every
   claim linked to its source.
 - **Share cards** and link previews for any member, and a way to flag a

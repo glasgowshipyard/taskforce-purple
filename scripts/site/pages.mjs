@@ -182,6 +182,31 @@ export function howPage() {
   };
 }
 
+// The Races page: its words only (the races are drawn in the browser from
+// races:list, which changes after the site is built)
+export function racesPage() {
+  const description =
+    'Everyone running for the House and Senate in November, graded S to F on where their campaign money comes from, the same way as the members already there: a map of the country and every race side by side.';
+  return {
+    path: '/races',
+    title: `Every race for Congress${TITLE_SUFFIX}`,
+    description,
+    card: {
+      eyebrow: 'Every race for Congress',
+      headline: "Who's paying the candidates?",
+      sub: 'Everyone on the ballot in November, graded S to F.',
+    },
+    cardAlt: 'Task Force Purple: every race for Congress, graded',
+    jsonLd: { '@type': 'WebPage', name: 'Every race for Congress', url: `${SITE}/races` },
+    body: `<main class="wrap section" data-prerendered>
+<h1 class="display display-xl">Every race for Congress</h1>
+<p class="lede">${esc(description)}</p>
+<p><a href="/ballot">Find the races where you vote</a> · <a href="/how">How grades work</a></p>
+</main>`,
+    signature: 'races-1',
+  };
+}
+
 export function congressPage(members) {
   const rows = [...members]
     .sort((a, b) => displayName(a.name).localeCompare(displayName(b.name)))

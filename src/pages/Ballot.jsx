@@ -8,7 +8,14 @@ import { api } from '../lib/api.js';
 import { ELECTION_DAY_TEXT, RACES_ARRIVE_TEXT, daysUntilElection } from '../lib/election.js';
 import { GRADES, gradeInfo } from '../lib/grades.js';
 import { useAsync, useTitle } from '../lib/hooks.js';
-import { displayName, gradedFigures, partyName, raceSeat, stateName, usd } from '../lib/people.js';
+import {
+  ballotPartyName,
+  displayName,
+  gradedFigures,
+  raceSeat,
+  stateName,
+  usd,
+} from '../lib/people.js';
 import { racesFor, savePlace, savedPlace } from '../lib/place.js';
 import { Link, memberPath, racePath } from '../lib/router.js';
 
@@ -29,7 +36,7 @@ function candidatePerson(c) {
     id: c.candidateId,
     name: displayName(c.name),
     seat: c.ici === 'I' ? 'In office' : c.ici === 'O' ? 'Open seat' : 'Challenger',
-    party: partyName(c.party),
+    party: ballotPartyName(c),
     tier: c.tier,
     figures: graded ? figures : null,
     note: graded
@@ -188,7 +195,7 @@ function RaceView({ race, others }) {
                   ) : (
                     displayName(c.name)
                   )}
-                  <span className="muted small"> · {partyName(c.party)}</span>
+                  <span className="muted small"> · {ballotPartyName(c)}</span>
                   <span className="leader" aria-hidden="true" />
                   <span className="mono small">
                     {c.registered === false

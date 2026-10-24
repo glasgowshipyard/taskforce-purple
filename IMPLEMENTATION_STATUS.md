@@ -60,6 +60,21 @@ clean-up, #71 outside spending, #72 TypeScript (after the election).
 
 ## Change log
 
+## 2026-10-23 (evening): the Races page
+
+Owner's go: `/races` (src/pages/Races.jsx), in the menu as "Races" in place
+of "Your ballot" (/ballot and /race/:key stay, reached from it). Counters
+that count up (races, candidates, how many of the graded candidates get
+over half their money from people), a ZIP lookup into /ballot, a tile map
+of the states (lib/tilemap.js; one hue, shaded by the share of a state's
+graded candidates mostly funded by people; tap one to see its races), and
+the races as cards whose People, Power and Influence bars fill in as they
+scroll into view: biggest gaps first, or Senate, open seats, every race.
+Figures and orders in `src/lib/races.js` (tested). Motion stops for
+visitors who turn it down. Candidates show their party as the ballot prints
+it (`ballotParty`, from Wikipedia's list; the FEC says OTH for most small
+parties). A pre-built /races page for search engines (words only).
+
 ## 2026-10-23: who's on the ballot, from Wikipedia matched to the FEC
 
 The races job's first two runs (started by hand, 39983291535 and 39987805327) published the wrong field, and I wrote the rule that caused

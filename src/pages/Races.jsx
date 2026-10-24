@@ -1,0 +1,349 @@
+// Races (owner, 2026-10-23): every race for Congress at once. The country
+// as a map of who gets most of their money from people, then the races
+// themselves, each candidate's money filling in as it scrolls into view.
+// The figures and orders come from lib/races.js; the field from the races
+// job (Wikipedia's lists matched to the FEC).
+import React, { useMemo, useRef, useState } from 'react';
+import Lookup from '../components/Lookup.jsx';
+import { Skeleton, Stamp } from '../components/ui.jsx';
+import { api } from '../lib/api.js';
+import { ELECTION_DAY_TEXT, daysUntilElection } from '../lib/election.js';
+import { GRADE_SCOPE_SHORT, PARTS } from '../lib/grades.js';
+import { useAsync, useCountUp, useInView, useTitle } from '../lib/hooks.js';
+import { ballotPartyName, displayName, raceSeat, stateName } from '../lib/people.js';
+import { savePlace } from '../lib/place.js';
+import {
+  SHADES,
+  VIEWS,
+  gap,
+  nationalFigures,
+  peopleShare,
+  racesInView,
+  shadeOf,
+  stateFigures,
+} from '../lib/races.js';
+import { Link, navigate, racePath } from '../lib/router.js';
+import { TILES } from '../lib/tilemap.js';
+
+const PAGE = 24;
+const SHOWN = 3;
+const count = n => n.toLocaleString('en-US');
+const candidateKey = c => c.candidateId || `${c.state}-${c.district}-${c.name}`;
+
+function Counter({ value, run, label }) {
+  const n = useCountUp(value, run);
+  return (
+    <div className="races-stat">
+      <b>{count(n)}</b>
+      <span>{label}</span>
+    </div>
+  );
+}
+
+function Hero({ figures }) {
+  const ref = useRef(null);
+  const seen = useInView(ref, '0px');
+  const mostly = useCountUp(figures.mostlyPeople, seen);
+  const days = daysUntilElection();
+  return (
+    <section className="race-hero band on-dark races-hero" aria-labelledby="races-title">
+      <div className="wrap">
+        <div style={{ flex: '1 1 560px', minWidth: 0 }}>
+          <p className="eyebrow" style={{ marginBottom: 14 }}>
+            Election day is {ELECTION_DAY_TEXT}
+            {days >= 0 && ` · ${days} ${days === 1 ? 'day' : 'days'} to go`}
+          </p>
+          <h1
+            id="races-title"
+            className="display display-xl"
+            style={{ fontSize: 'clamp(48px, 7.4vw, 104px)' }}
+          >
+            Every race for Congress
+          </h1>
+          <p className="lede" style={{ marginTop: 18, maxWidth: '36em' }}>
+            Everyone running for the House and Senate in November is graded the same way as the
+            members already there, on where their campaign money comes from.
+          </p>
+          <div className="races-stats" ref={ref}>
+            <Counter value={figures.races} run={seen} label="races" />
+            <Counter value={figures.candidates} run={seen} label="candidates" />
+            <div className="races-stat">
+              <b>
+                {count(mostly)}
+                <small> of {count(figures.graded)}</small>
+              </b>
+              <span>graded candidates get most of their money from people</span>
+            </div>
+          </div>
+        </div>
+        <div className="races-find">
+          <Lookup
+            idPrefix="races"
+            submitLabel="Find my ballot"
+            onFound={p => {
+              savePlace(p);
+              navigate('/ballot');
+            }}
+          />
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function TileMap({ byState, selected, onPick }) {
+  const ref = useRef(null);
+  const seen = useInView(ref);
+  return (
+    <section className="section-tight" aria-labelledby="map-title">
+      <h2 id="map-title" className="display display-m">
+        Where candidates get most of their money from people
+      </h2>
+      <p style={{ margin: '10px 0 18px', maxWidth: '44em', color: 'var(--ink-2)' }}>
+        The darker a state, the more of its graded candidates get over half their money from people.
+        Tap a state to see its races.
+      </p>
+      <div className={`tilemap${seen ? ' is-in' : ''}`} ref={ref}>
+        {Object.entries(TILES).map(([code, [row, col]]) => {
+          const s = byState[code];
+          const shade = shadeOf(s);
+          const name = stateName(code);
+          const words = s?.graded
+            ? `${count(s.mostlyPeople)} of ${count(s.graded)} graded candidates get most of their money from people`
+            : 'no graded candidates';
+          return (
+            <button
+              key={code}
+              type="button"
+              className={`tile${shade === null ? ' is-empty' : ` shade-${shade}`}`}
+              style={{ gridRow: row + 1, gridColumn: col + 1, '--d': `${col * 40 + row * 25}ms` }}
+              aria-pressed={selected === code}
+              aria-label={`${name}: ${words}. Show its races.`}
+              title={`${name}: ${words}`}
+              disabled={!s}
+              onClick={() => onPick(selected === code ? null : code)}
+            >
+              {code}
+            </button>
+          );
+        })}
+      </div>
+      <ol
+        className="tile-key"
+        aria-label="Share of a state's graded candidates mostly funded by people"
+      >
+        {SHADES.map((x, i) => (
+          <li key={x.label}>
+            <span className={`tile-swatch shade-${i}`} aria-hidden="true" />
+            {x.label}
+          </li>
+        ))}
+      </ol>
+    </section>
+  );
+}
+
+/** People, Power and Influence as one bar, filling in when the card arrives */
+function MoneyBar({ c, i }) {
+  const ppi = c.peoplePowerInfluence;
+  const share = peopleShare(c);
+  if (share === null || !ppi) {
+    return (
+      <span className="race-bar is-none">
+        {c.registered === false ? 'Not registered with the FEC' : 'Not graded yet'}
+      </span>
+    );
+  }
+  return (
+    <span className="race-bar" style={{ '--i': i }} aria-label={`${share}% from people`}>
+      <span className="seg-people" style={{ '--w': `${ppi.people}%` }} />
+      <span className="seg-power" style={{ '--w': `${ppi.power}%` }} />
+      <span className="seg-influence" style={{ '--w': `${ppi.influence}%` }} />
+    </span>
+  );
+}
+
+function RaceCard({ race, showGap }) {
+  const ref = useRef(null);
+  const seen = useInView(ref);
+  const top = race.candidates.slice(0, SHOWN);
+  const more = race.candidates.length - top.length;
+  const apart = gap(race);
+  return (
+    <li ref={ref} className={`race-card${seen ? ' is-in' : ''}`}>
+      <Link to={racePath(race.key)} className="race-card-link">
+        <span className="race-card-head">
+          <span className="eyebrow">{raceSeat(race)}</span>
+          {showGap && apart !== null && <span className="race-gap">{apart} points apart</span>}
+        </span>
+        <span className="race-card-people">
+          {top.map((c, i) => {
+            const share = peopleShare(c);
+            return (
+              <span key={candidateKey(c)} className="race-row">
+                <Stamp tier={c.tier} size={40} word={false} rot={0} />
+                <span className="race-row-who">
+                  <span className="race-row-name">{displayName(c.name)}</span>
+                  <span className="race-row-meta">
+                    {ballotPartyName(c)}
+                    {c.ici === 'I' ? ' · in office' : ''}
+                    {share !== null ? ` · ${share}% from people` : ''}
+                  </span>
+                  <MoneyBar c={c} i={i} />
+                </span>
+              </span>
+            );
+          })}
+        </span>
+        <span className="race-card-foot">
+          {more > 0 ? `and ${more} more ${more === 1 ? 'candidate' : 'candidates'} · ` : ''}
+          Compare them
+          <span aria-hidden="true"> →</span>
+        </span>
+      </Link>
+    </li>
+  );
+}
+
+function RaceList({ races, byState, state, onClearState }) {
+  const [view, setView] = useState('gaps');
+  const [limit, setLimit] = useState(PAGE);
+  const list = racesInView(races, view, state);
+  const shown = list.slice(0, limit);
+  const s = state ? byState[state] : null;
+  return (
+    <section className="section-tight" id="race-list" aria-labelledby="list-title">
+      <h2 id="list-title" className="display display-m">
+        {state ? `The races in ${stateName(state)}` : 'The races'}
+      </h2>
+      {s && (
+        <p style={{ margin: '10px 0 0', color: 'var(--ink-2)' }}>
+          {count(s.races)} {s.races === 1 ? 'race' : 'races'}.{' '}
+          {s.graded
+            ? `${count(s.mostlyPeople)} of the ${count(s.graded)} graded candidates get most of their money from people.`
+            : 'No candidate here has been graded yet.'}{' '}
+          <button type="button" className="link-button" onClick={onClearState}>
+            Show every state
+          </button>
+        </p>
+      )}
+      <div className="filters" style={{ marginTop: 18 }}>
+        <div className="seg" role="group" aria-label="Which races">
+          {VIEWS.map(v => (
+            <button
+              key={v.id}
+              type="button"
+              aria-pressed={view === v.id}
+              onClick={() => {
+                setView(v.id);
+                setLimit(PAGE);
+              }}
+            >
+              {v.label}
+            </button>
+          ))}
+        </div>
+      </div>
+      <p className="fine" style={{ marginBottom: 16 }}>
+        {view === 'gaps' &&
+          'Races where the candidates get very different shares of their money from people come first. '}
+        Each bar is a candidate&apos;s money:{' '}
+        {PARTS.map((p, i) => (
+          <React.Fragment key={p.key}>
+            <span className={`key-dot seg-${p.key}`} aria-hidden="true" />
+            <b style={{ color: `var(--${p.key})` }}>{p.label}</b>
+            {i < PARTS.length - 1 ? ', ' : '. '}
+          </React.Fragment>
+        ))}
+        {GRADE_SCOPE_SHORT}
+      </p>
+      {list.length === 0 ? (
+        <p className="lede" style={{ color: 'var(--ink-2)' }}>
+          No races here fit that. Try another view.
+        </p>
+      ) : (
+        <ul className="race-grid">
+          {shown.map(r => (
+            <RaceCard key={r.key} race={r} showGap={view === 'gaps'} />
+          ))}
+        </ul>
+      )}
+      {list.length > shown.length && (
+        <div className="row" style={{ justifyContent: 'center', marginTop: 28 }}>
+          <button type="button" className="btn" onClick={() => setLimit(l => l + PAGE)}>
+            Show {Math.min(PAGE, list.length - shown.length)} more of {count(list.length)}
+          </button>
+        </div>
+      )}
+    </section>
+  );
+}
+
+function Sources({ sources }) {
+  const link = s => `https://en.wikipedia.org/w/index.php?oldid=${s.revid}`;
+  return (
+    <p className="fine" style={{ marginTop: 32 }}>
+      Who&apos;s running comes from Wikipedia&apos;s lists of candidates (
+      {sources?.H && <a href={link(sources.H)}>House</a>}
+      {sources?.H && sources?.S && ', '}
+      {sources?.S && <a href={link(sources.S)}>Senate</a>}, the versions used), each matched to the
+      candidate&apos;s own registration with the FEC and checked against the reports campaigns filed
+      before the election. Candidates who aren&apos;t in Congress are graded from the FEC&apos;s
+      bulk data files, and their donations are checked against the FEC&apos;s own records
+      afterwards. <Link to="/how">How grades work</Link>.
+    </p>
+  );
+}
+
+export default function Races() {
+  useTitle('Every race for Congress');
+  const races = useAsync(() => api.races(), []);
+  const [state, setState] = useState(null);
+  const all = useMemo(() => races.data?.races || [], [races.data]);
+  const figures = useMemo(() => nationalFigures(all), [all]);
+  const byState = useMemo(() => stateFigures(all), [all]);
+
+  if (races.loading) {
+    return (
+      <div className="wrap section">
+        <Skeleton height={80} width="70%" />
+        <Skeleton height={420} style={{ marginTop: 32 }} />
+      </div>
+    );
+  }
+  if (!races.data) {
+    return (
+      <div className="wrap section">
+        <h1 className="display display-l">The races aren&apos;t published yet</h1>
+        <p className="lede" style={{ marginTop: 16, color: 'var(--ink-2)' }}>
+          They&apos;ll be here once every candidate has been graded.{' '}
+          <Link to="/">See your current representatives</Link>.
+        </p>
+      </div>
+    );
+  }
+  const pick = code => {
+    setState(code);
+    if (code) {
+      requestAnimationFrame(() =>
+        document.getElementById('race-list')?.scrollIntoView({ behavior: 'smooth' })
+      );
+    }
+  };
+  return (
+    <>
+      <Hero figures={figures} />
+      <div className="wrap races-body">
+        <TileMap byState={byState} selected={state} onPick={pick} />
+        <RaceList
+          key={state || 'all'}
+          races={all}
+          byState={byState}
+          state={state}
+          onClearState={() => setState(null)}
+        />
+        <Sources sources={races.data.sources} />
+      </div>
+    </>
+  );
+}

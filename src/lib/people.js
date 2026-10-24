@@ -337,6 +337,9 @@ const PARTY_CODES = {
 /** A party as words, whether it arrives as words or as an FEC code */
 export const partyName = p => PARTY_CODES[p] || p || 'Party not given';
 
+/** A candidate's party as their ballot prints it, else the FEC's */
+export const ballotPartyName = c => c.ballotParty || partyName(c.party);
+
 /** "Senate · Maine", "House · Pennsylvania 2" for a race */
 export function raceSeat(race) {
   const state = stateName(race.state);

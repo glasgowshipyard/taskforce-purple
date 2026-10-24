@@ -5,6 +5,7 @@ import Congress from './pages/Congress.jsx';
 import Home from './pages/Home.jsx';
 import How from './pages/How.jsx';
 import Member from './pages/Member.jsx';
+import Races from './pages/Races.jsx';
 import { Link, matchRoute, useLocation } from './lib/router.js';
 import { useTitle } from './lib/hooks.js';
 
@@ -58,6 +59,9 @@ export default function App() {
       break;
     case 'congress':
       page = <Congress search={search} />;
+      break;
+    case 'races':
+      page = <Races />;
       break;
     case 'ballot':
       page = <Ballot key="ballot" />;

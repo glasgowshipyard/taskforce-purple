@@ -224,6 +224,7 @@ async function main() {
             candidateId: null,
             ids: [],
             listedName: c.name,
+            listedParty: c.party,
             name: c.name,
             party: c.party,
             ici: null,
@@ -241,6 +242,7 @@ async function main() {
           candidateId: id,
           ids,
           listedName: c.name,
+          listedParty: c.party,
           name: r.name,
           party: r.party,
           ici: r.ici,
@@ -425,6 +427,9 @@ async function main() {
       office: c.office,
       state: c.state,
       district: c.district,
+      // The party as the ballot prints it (Wikipedia's list): the FEC's
+      // codes say OTH for most small parties
+      ballotParty: c.listedParty || null,
     };
     if (c.unregistered) {
       // On the ballot but not registered with the FEC (no need to until a

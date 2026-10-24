@@ -7,11 +7,11 @@ import { MOTTO } from '../lib/research.js';
 const NAV = [
   { to: '/', label: 'Your reps', short: 'Your reps', icon: Receipt, pages: ['home', 'member'] },
   {
-    to: '/ballot',
-    label: 'Your ballot',
-    short: 'Ballot',
+    to: '/races',
+    label: 'Races',
+    short: 'Races',
     icon: Vote,
-    pages: ['ballot', 'race', 'candidate'],
+    pages: ['races', 'ballot', 'race', 'candidate'],
   },
   {
     to: '/congress',
