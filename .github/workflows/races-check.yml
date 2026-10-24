@@ -62,6 +62,7 @@ jobs:
       # The pass is finished and this run checked something: re-grade the
       # races with the checked records and republish them
       - name: Re-grade the races
+        id: regrade
         if: steps.check.outputs.stop_reason == 'done' && steps.check.outputs.checked != '0' && !inputs.dry_run
         env:
           FEC_API_KEY: ${{ secrets.FEC_API_KEY }}
@@ -69,6 +70,19 @@ jobs:
           CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
           FEC_MIN_INTERVAL_MS: '2000'
         run: node scripts/refresh/races.mjs --bulk-dir "$RUNNER_TEMP/bulk"
+
+      # The site reads the races from a file built with it: rebuild it
+      - name: Rebuild the site
+        if: steps.regrade.outputs.list_changed == 'true'
+        env:
+          HOOK: ${{ secrets.PAGES_DEPLOY_HOOK }}
+        run: |
+          if [ -z "$HOOK" ]; then
+            echo "::warning::PAGES_DEPLOY_HOOK is not set: the site keeps the old races until the next build"
+            exit 0
+          fi
+          curl -fsS -X POST "$HOOK" > /dev/null
+          echo "Site rebuild started"
 
       - name: Continue the pass
         if: steps.check.outputs.stop_reason == 'time' && steps.check.outputs.checked != '0' && !inputs.dry_run

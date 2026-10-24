@@ -67,6 +67,15 @@ const members = list.members || [];
 if (members.length < 500) {
   throw new Error(`members:list has ${members.length} members; refusing to build pages from it`);
 }
+// The lists the site reads, as plain files (owner, 2026-10-23): Pages serves
+// them from its cache with no daily limit, where every call to the API
+// worker counts against the free plan's 100,000 a day. The API stays the
+// fallback (src/lib/api.js); the jobs rebuild the site when they publish
+write(join(DIST, 'data', 'members.json'), JSON.stringify(list));
+const racesList = await getJson(`${API}/races`).catch(() => null);
+if (racesList) {
+  write(join(DIST, 'data', 'races.json'), JSON.stringify(racesList));
+}
 // The live site's record of when each page last changed (empty the first time)
 const before = await getJson(`${SITE}/prerender-state.json`).catch(() => ({ pages: {} }));
 const today = new Date().toISOString().slice(0, 10);

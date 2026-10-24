@@ -1,4 +1,7 @@
 // The site's data, from the API worker (workers/data-pipeline.js). Read only.
+// The two lists every visit needs come first from plain files built with the
+// site (scripts/site/prerender.mjs: no daily limit, unlike the worker's
+// 100,000 requests), and from the API when a file isn't there.
 
 export const API_BASE_URL = 'https://taskforce-purple-api.dev-a4b.workers.dev/api';
 
@@ -26,11 +29,24 @@ async function getJson(url) {
   return response.json();
 }
 
+/** A list built with the site, else the API's */
+async function built(file, url) {
+  try {
+    const data = await getJson(`/data/${file}`);
+    if (data) {
+      return data;
+    }
+  } catch {
+    // Not built (development, or a failed build): the API has it
+  }
+  return getJson(url);
+}
+
 export const api = {
   /** Every member with their published grade (KV members:list). */
   members: () =>
     once('members', async () => {
-      const data = await getJson(`${API_BASE_URL}/members`);
+      const data = await built('members.json', `${API_BASE_URL}/members`);
       if (!data?.members?.length) {
         throw new Error('No members published');
       }
@@ -57,7 +73,9 @@ export const api = {
    */
   races: () =>
     once('races', async () => {
-      const data = await getJson(import.meta.env.VITE_RACES_URL || `${API_BASE_URL}/races`);
+      const data = import.meta.env.VITE_RACES_URL
+        ? await getJson(import.meta.env.VITE_RACES_URL)
+        : await built('races.json', `${API_BASE_URL}/races`);
       const live = data?.field === 'ballot' || (import.meta.env.DEV && data?.field === 'test');
       return live && data.races?.length ? data : null;
     }),

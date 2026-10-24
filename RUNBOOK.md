@@ -301,6 +301,20 @@ gh run list --workflow races-check.yml --limit 3
 gh workflow run races-check.yml -f dry_run=true -f committees=C00540617
 ```
 
+Who's on the ballot comes from Wikipedia at the revisions pinned in
+`scripts/refresh/data/ballot.json` (`pinned`). A `system-alert` issue lists
+any seat whose names have changed since: check each against the state's
+candidate list, then move the pin to the new revision ID and run the races
+job. A pre-general filer missing from the list holds their seat back until
+`checked` in the same file says why.
+
+```bash
+# Take the ballot off the site at once (both steps: the site reads a copy
+# built with it, so it needs a rebuild after the KV write)
+npx wrangler kv key put --remote --namespace-id 8318226115e2423ab5d141adfa5419f9 "races:list" '{"cycle":2026,"field":"withdrawn","races":[]}'
+git commit --allow-empty -m "Rebuild: races withdrawn" && git push
+```
+
 ## 9. Known failure signatures
 
 | Symptom                                   | Likely cause                                         | First move                                                    |

@@ -71,6 +71,20 @@ jobs:
           name: races-dry-run
           path: ${{ runner.temp }}/races-dry-run.json
 
+      # The site reads the races from a file built with it (src/lib/api.js):
+      # rebuild it when this run published a change
+      - name: Rebuild the site
+        if: steps.races.outputs.list_changed == 'true' && !inputs.dry_run
+        env:
+          HOOK: ${{ secrets.PAGES_DEPLOY_HOOK }}
+        run: |
+          if [ -z "$HOOK" ]; then
+            echo "::warning::PAGES_DEPLOY_HOOK is not set: the site keeps the old races until the next build"
+            exit 0
+          fi
+          curl -fsS -X POST "$HOOK" > /dev/null
+          echo "Site rebuild started"
+
       # Wikipedia's lists changed since the pinned (checked) versions: the
       # site keeps the checked ones until each change is checked
       - name: Alert on changed Wikipedia lists

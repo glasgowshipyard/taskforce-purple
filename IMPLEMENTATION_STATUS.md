@@ -60,6 +60,21 @@ clean-up, #71 outside spending, #72 TypeScript (after the election).
 
 ## Change log
 
+## 2026-10-23 (night): the lists as plain files with the site
+
+Owner: "this shouldn't be expensive". Every visit fetched `members:list`
+(and `races:list`) from the API worker on workers.dev, where nothing caches
+in front of a worker: each new visitor was a worker request and a KV read,
+against the free plan's 100,000 of each a day. The build now writes
+`dist/data/members.json` and `dist/data/races.json` (scripts/site/
+prerender.mjs), which Pages serves from its cache with no daily limit; the
+site reads those first and the API only when a file isn't there
+(src/lib/api.js). The refresh job already rebuilds the site when grades
+change; races.yml and races-check.yml now do too when they publish
+(`list_changed`). Member and candidate pages still read their detail from
+the API, one request each. Taking the ballot down now needs a rebuild after
+the KV write (RUNBOOK §8).
+
 ## 2026-10-23 (night): the field pinned; "Something wrong with this race?"
 
 Owner's yes. The races job reads Wikipedia at the revisions pinned in

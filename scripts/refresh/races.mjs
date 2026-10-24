@@ -176,6 +176,7 @@ async function main() {
   let sources = null;
   const held = [];
   const wikiChanges = [];
+  let published = false;
   if (field === 'test') {
     field_ = [...weball.values()]
       .filter(c => c.receipts >= TEST_FLOOR)
@@ -559,6 +560,7 @@ async function main() {
     } else {
       await cf.kvPut(RACES_KEY, JSON.stringify({ ...body, updatedAt: now() }));
       log(`published ${races.length} races`);
+      published = true;
     }
     // Charge D1's own figures to the job's ledger
     await d1(
@@ -574,7 +576,7 @@ async function main() {
   if (process.env.GITHUB_OUTPUT) {
     appendFileSync(
       process.env.GITHUB_OUTPUT,
-      `unchecked=${dryRun ? 0 : unchecked}\nwiki_changes=${wikiChanges.length}\nwiki_changed=${wikiChanges.map(c => `${c.key} (${[...c.added.map(n => `added ${n}`), ...c.removed.map(n => `removed ${n}`)].join(', ')})`).join('; ')}\nheld=${held.length}\nheld_seats=${held.map(h => `${h.key} (${h.unlisted.map(u => u.name).join(', ')})`).join('; ')}\n`
+      `unchecked=${dryRun ? 0 : unchecked}\nlist_changed=${published}\nwiki_changes=${wikiChanges.length}\nwiki_changed=${wikiChanges.map(c => `${c.key} (${[...c.added.map(n => `added ${n}`), ...c.removed.map(n => `removed ${n}`)].join(', ')})`).join('; ')}\nheld=${held.length}\nheld_seats=${held.map(h => `${h.key} (${h.unlisted.map(u => u.name).join(', ')})`).join('; ')}\n`
     );
   }
 }
