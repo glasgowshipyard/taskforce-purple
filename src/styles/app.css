@@ -3033,6 +3033,18 @@ p {
   padding-bottom: clamp(48px, 7vw, 88px);
 }
 
+.races-howto {
+  margin-top: 14px;
+  max-width: 40em;
+  font-size: 15px;
+  line-height: 1.55;
+  color: var(--on-dark);
+}
+
+.races-howto a {
+  color: var(--white);
+}
+
 .races-stats {
   display: flex;
   flex-wrap: wrap;

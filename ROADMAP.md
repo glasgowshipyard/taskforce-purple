@@ -20,6 +20,15 @@ roadmap (the pre-rebuild phases) is in `docs/history/roadmap-2026-07.md`.
 
 ## Next, by hand
 
+0. **The Races page after 3 November** (owner, 2026-10-24: planned for
+   after the 3rd). (a) Once a race is decided, a plain "Won" tag on the
+   winner's card and "Won by …" under the race's name: no trophy (beside
+   a grade it reads as the site celebrating, or mocking, the winner). A
+   winner is marked only from the state's certified result, linked; until
+   then "Results not yet certified". Louisiana's December runoffs, and any
+   in Georgia, stay current until decided. (b) With no race current: "No
+   races right now", and the 2026 races below as they stood on election
+   day (the money voters saw), the first page of the Flux Capacitor (#73).
 1. **TypeScript conversion (#72)**, after the election: Workers first, then
    the refresh job (code the job's Node runs stays JavaScript until then).
 2. **PACs.csv download (#67)**: grades.csv is live; add each PAC's group,

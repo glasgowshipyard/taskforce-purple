@@ -71,6 +71,15 @@ function Hero({ figures }) {
             The candidates for the House and Senate in the 2026 election are graded the same way as
             the members already there, on where their campaign money comes from.
           </p>
+          {/* How grading works, in one line, for visitors who land here first
+              from a shared link (owner, 2026-10-24). A letter being explained
+              wears its colour */}
+          <p className="races-howto">
+            Each grade is the share of a candidate&apos;s money that comes from many different
+            people: <b style={{ color: GRADES.S.light }}>S</b> is 90% or more,{' '}
+            <b style={{ color: GRADES.F.light }}>F</b> is under 15%. It&apos;s only about where the
+            money comes from, not votes or character. <Link to="/how">How grades work</Link>
+          </p>
           <div className="races-stats" ref={ref}>
             <Counter value={figures.races} run={seen} label="races" />
             <Counter value={figures.candidates} run={seen} label="candidates" />
