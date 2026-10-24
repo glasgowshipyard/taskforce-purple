@@ -60,6 +60,22 @@ clean-up, #71 outside spending, #72 TypeScript (after the election).
 
 ## Change log
 
+## 2026-10-24 (launch): the repository tidied
+
+The site launched (owner). GitHub: the six old branches deleted (five
+merged; `fix-step4-penalty`, never merged, kept as the tag
+`archive/fix-step4-penalty`), the seven stale Dependabot pull requests
+closed (their bumps out of date; npm audit in CI keeps watch), and the
+repo's About filled in (description, taskforcepurple.com, topics). Removed
+from the code: the one-off D1 repack workflow, the switched-off hourly
+health-alert workflow, and files nothing used (trials, the penalty-model
+simulation, `recalculate-metrics.js`, `shared-constants.js`); all in the
+history. Every not-found and didn't-load page carries a vote.gov line
+(`VoteLink`): vote.gov is the federal site and links to each state's
+registration and polling places. There's no 503 page to make: the site is
+static files on Pages, and Cloudflare's own error pages can't be changed
+on the free plan.
+
 ## 2026-10-24 (night): addresses a person can read out
 
 Owner's go. Races: `/race/2026/house/california-50`, `/race/2026/senate/
