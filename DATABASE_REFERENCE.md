@@ -37,7 +37,7 @@ counts rows; read by the API worker (binding `RESULTS_DB`).
 | ----------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------- |
 | `results`               | Each member's current result per cycle: pool (committees and money trail), analysis (donors, concentration, conduits, FARA, PACs, donors by state), reconciliation, grade (with FINAL-3's working in `detail`), status | (`bioguide_id`, `cycle`)                       |
 | `snapshots`             | Every result that was ever current (history)                                                                                                                                                                           | `id`; index (`bioguide_id`, `cycle`)           |
-| `grade_history`         | One row per published grade change                                                                                                                                                                                     | `id`                                           |
+| `grade_history`         | One row per published grade change                                                                                                                                                                                     | `id`; index (`bioguide_id`, `cycle`)           |
 | `committees`            | Each committee's record check against the FEC: counts, money, status (`reconciled`, `reconciled-with-note`, `mismatch`), the round that checked it (`races-check` for candidates' committees)                          | (`committee_id`, `cycle`)                      |
 | `gap_packs`             | Records fetched from the FEC because the bulk file lacks them: in full, Brotli-packed per committee, up to 5,000 records a pack (`lib/gap-store.mjs`)                                                                  | (`committee_id`, `cycle`, `kind`, `pack`)      |
 | `race_candidates`       | General-election candidates who aren't sitting members, graded (pool, analysis, grade, status)                                                                                                                         | (`candidate_id`, `cycle`)                      |
@@ -59,7 +59,7 @@ d1 "SELECT computed_at, status, json_extract(grade, '$.tier') AS tier FROM resul
 # One committee's check
 d1 "SELECT name, status, bulk_count, fec_individual_count, gap_filled, note FROM committees WHERE committee_id = 'C00540617' AND cycle = 2026"
 # A member's grade history
-d1 "SELECT changed_at, old_tier, new_tier FROM grade_history WHERE bioguide_id = 'S001183' ORDER BY changed_at"
+d1 "SELECT changed_at, old_tier, new_tier FROM grade_history WHERE bioguide_id = 'S001183' AND cycle = 2026 ORDER BY changed_at"
 # Today's D1 use by the jobs, and the deadlines refreshed for
 d1 "SELECT * FROM d1_write_budget WHERE day = date('now')"
 d1 "SELECT * FROM calendar_marks ORDER BY deadline DESC LIMIT 5"
