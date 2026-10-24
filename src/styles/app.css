@@ -898,7 +898,8 @@ p {
 
 .zip-input {
   flex: 1 1 auto;
-  min-width: 0;
+  /* Never narrower than its placeholder, "ZIP code" */
+  min-width: 6em;
   padding: 0 4px 0 18px;
   font-family: var(--mono);
   font-size: 24px;
@@ -3057,9 +3058,11 @@ p {
   color: var(--on-dark);
 }
 
+/* Wide enough for the whole box: "ZIP code", the location button and "Find
+   my ballot" (at 380px the placeholder read "ZIP co") */
 .races-find {
-  flex: 0 1 380px;
-  min-width: 0;
+  flex: 0 1 470px;
+  min-width: min(100%, 440px);
 }
 
 .races-body {
