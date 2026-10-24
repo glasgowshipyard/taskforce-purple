@@ -98,6 +98,26 @@ export const GRADES = {
     meaning:
       "No campaign money has been reported for this election yet, so there's nothing to grade.",
   },
+  // Campaigns that can't be graded fairly (owner, 2026-10-23), shown as what
+  // they are: never a letter, and never a bad one
+  'SELF-FUNDED': {
+    name: 'Self-funded',
+    mark: '$',
+    color: '#77738A',
+    light: '#B9B5C6',
+    rank: 1,
+    meaning:
+      "Half or more of this campaign's money is the candidate's own, so it can't be graded fairly on where the rest came from. The figures show the whole campaign.",
+  },
+  'TOO-SMALL': {
+    name: 'Too small to grade',
+    mark: '–',
+    color: '#77738A',
+    light: '#B9B5C6',
+    rank: 1,
+    meaning:
+      'Less than $5,000 came from anyone other than the candidate, which is too little to grade fairly.',
+  },
   // Our figures don't add up against the FEC's own filing: a problem with our
   // data, not a finding about the member
   DISPUTED: {

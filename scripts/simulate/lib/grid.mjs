@@ -341,8 +341,16 @@ export function gradeOne(m, pacs, shares, cfg, opts = {}) {
   }
   const D = cfg.denominator === 'given' ? given : fromOthers;
   out.denominator = D;
+  // Not graded (2026-10-23): half or more the candidate's own money, or
+  // under cfg.minimumGiven from anyone else
+  if (cfg.selfFunded && own > 0 && T > 0 && own / T >= cfg.selfFunded) {
+    return { ...out, tier: 'SELF-FUNDED', reason: 'self-funded', withheld: true };
+  }
   if (!(D > 0)) {
     return { ...out, tier: 'N/A', reason: 'no-money', withheld: true };
+  }
+  if (cfg.minimumGiven && D < cfg.minimumGiven) {
+    return { ...out, tier: 'TOO-SMALL', reason: 'too-small', withheld: true };
   }
   const I = s + b;
   // G6: donations above the receipts, not verified at source (live rule)
