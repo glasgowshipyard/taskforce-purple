@@ -67,14 +67,19 @@ export function Footer() {
       <div className="wrap">
         <div style={{ maxWidth: '42em' }}>
           <p className="footer-motto">{MOTTO}</p>
-          {/* Who runs it and what's kept: the owner's words (2026-10-18) */}
+          {/* Who runs it and what's kept: the owner's words (2026-10-18, 2026-10-24) */}
           <p>
             Task Force Purple is one person and a cat. Friends and family test and provide feedback.
-            The site is ad free, takes no money, and is not connected to a party, campaign or PAC.
+            The site is ad free, takes <em>no money</em>, and is{' '}
+            <em>not connected to a party, campaign or PAC</em>.
           </p>
           <p className="footer-privacy">
             Grades are calculated from public FEC filings and updated after each FEC filing
-            deadline. Code and method are public.
+            deadline.{' '}
+            <a href="https://github.com/glasgowshipyard/taskforce-purple">
+              Code and method are public
+            </a>
+            .
           </p>
           <p className="footer-privacy">
             Privacy: ZIP code and location data stay on your device. No data other than feedback is

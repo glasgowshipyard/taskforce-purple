@@ -230,7 +230,9 @@ function RaceCard({ race, cycle }) {
                     {c.ici === 'I' ? ' · in office' : ''}
                     {c.totalRaised > 0 ? ` · raised ${usdShort(c.totalRaised)}` : ''}
                     {share !== null ? ` · ${share}% from people` : ''}
-                    {share !== null && c.evidenceChecked === false ? ' · still being checked' : ''}
+                    {share !== null && c.evidenceChecked === false && (
+                      <span className="is-checking"> · still being checked</span>
+                    )}
                   </span>
                   <MoneyBar c={c} i={i} />
                   <OwnLine c={c} i={i} />

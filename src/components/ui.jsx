@@ -72,7 +72,7 @@ export function Evidence({ checked, long = false }) {
   }
   if (checked === false) {
     return (
-      <span className="chip" style={{ '--c': 'var(--provisional)' }}>
+      <span className="chip is-checking" style={{ '--c': 'var(--provisional)' }}>
         <Clock3 size={16} aria-hidden="true" />
         {long ? 'Graded from FEC bulk data. Still being checked.' : 'Still being checked'}
       </span>

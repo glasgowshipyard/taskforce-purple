@@ -3397,3 +3397,22 @@ p {
   margin-top: 6px;
   color: var(--ink-2);
 }
+
+/* A grade still being checked against the FEC's records (owner, 2026-10-24:
+   "should pulse or something to be extra clear"): a slow, steady pulse,
+   still for visitors who turn motion down */
+.is-checking {
+  animation: checking 2.4s ease-in-out infinite;
+}
+
+@keyframes checking {
+  50% {
+    opacity: 0.45;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .is-checking {
+    animation: none;
+  }
+}

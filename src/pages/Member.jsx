@@ -737,10 +737,10 @@ export default function Member({ id, kind = 'member' }) {
                 <Section title="About these numbers">
                   {checked === false && (
                     <p className="fine">
-                      <strong>Still being checked.</strong> This grade is based on the FEC&apos;s
-                      bulk data files, which contain over 99% of the records. Each donation is now
-                      being checked against the FEC&apos;s own records. If anything turns out to be
-                      missing, the grade could change slightly.
+                      <strong className="is-checking">Still being checked.</strong> This grade is
+                      based on the FEC&apos;s bulk data files, which contain over 99% of the
+                      records. Each donation is now being checked against the FEC&apos;s own
+                      records. If anything turns out to be missing, the grade could change slightly.
                     </p>
                   )}
                   {checked === true && (
