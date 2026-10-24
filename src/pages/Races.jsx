@@ -167,6 +167,30 @@ function MoneyBar({ c, i }) {
   );
 }
 
+/**
+ * What the candidate put in of their own (owner, 2026-10-23: "make it clear,
+ * to the point of maybe even slightly animating it"), in gold, filling in
+ * with the card. Shown from a tenth of what they raised; never graded
+ */
+function OwnLine({ c, i }) {
+  const own = c.ownMoney;
+  const raised = c.totalRaised;
+  if (!(own > 0) || !(raised > 0) || own / raised < 0.1) {
+    return null;
+  }
+  const pct = Math.min(100, Math.round((own / raised) * 100));
+  return (
+    <span className="own-line">
+      <span className="own-bar" style={{ '--i': i }} aria-hidden="true">
+        <span style={{ '--w': `${pct}%` }} />
+      </span>
+      <span className="own-text">
+        Put in {usdShort(own)} of their own: {pct}% of what they raised
+      </span>
+    </span>
+  );
+}
+
 function RaceCard({ race }) {
   const ref = useRef(null);
   const seen = useInView(ref);
@@ -194,6 +218,7 @@ function RaceCard({ race }) {
                     {share !== null && c.evidenceChecked === false ? ' · still being checked' : ''}
                   </span>
                   <MoneyBar c={c} i={i} />
+                  <OwnLine c={c} i={i} />
                 </span>
               </span>
             );

@@ -17,6 +17,7 @@ import {
 } from '../../src/lib/grades.js';
 import { displayName, partyName, roleTitle, seatLabel, usd } from '../../src/lib/people.js';
 import { FINDINGS, LEAD, MOTTO, STUDIES, WISHES } from '../../src/lib/research.js';
+import { CORRECTIONS, REVIEW_DAYS } from '../../src/lib/corrections.js';
 
 export const SITE = 'https://taskforcepurple.com';
 export const SITE_NAME = 'Task Force Purple';
@@ -179,6 +180,33 @@ export function howPage() {
 <p>Every figure comes from campaign finance reports filed with the Federal Election Commission (FEC).</p>
 </main>`,
     signature: 'how-3',
+  };
+}
+
+// The corrections page, whole (lib/corrections.js)
+export function correctionsPage() {
+  const items = CORRECTIONS.map(
+    c => `<li><p><strong>${esc(c.date)}: ${esc(c.what)}</strong></p><p>${esc(c.detail)}</p></li>`
+  ).join('\n');
+  return {
+    path: '/corrections',
+    title: `Corrections${TITLE_SUFFIX}`,
+    description: `Every correction made to this site's grades and pages, dated. Reports of mistakes are read within ${REVIEW_DAYS} days.`,
+    card: {
+      eyebrow: 'Corrections',
+      headline: "What's been corrected",
+      sub: 'Every correction, dated, with what changed.',
+    },
+    cardAlt: 'Task Force Purple: corrections',
+    jsonLd: { '@type': 'WebPage', name: 'Corrections', url: `${SITE}/corrections` },
+    body: `<main class="wrap section" data-prerendered>
+<h1 class="display display-l">Corrections</h1>
+<p>Every member, candidate and race page has a "Something wrong?" link. Reports are read within ${REVIEW_DAYS} days.</p>
+<ol>
+${items}
+</ol>
+</main>`,
+    signature: JSON.stringify(['corrections-1', CORRECTIONS]),
   };
 }
 

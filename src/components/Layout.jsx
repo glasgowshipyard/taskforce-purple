@@ -82,7 +82,7 @@ export function Footer() {
           </p>
         </div>
         <p>
-          <Link to="/how">How grades work</Link> ·{' '}
+          <Link to="/how">How grades work</Link> · <Link to="/corrections">Corrections</Link> ·{' '}
           <a href="https://github.com/glasgowshipyard/taskforce-purple">Open source</a> ·{' '}
           <button type="button" className="link-button" onClick={() => setSuggesting(true)}>
             Suggest something

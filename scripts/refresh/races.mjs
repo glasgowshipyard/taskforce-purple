@@ -65,6 +65,8 @@ const arg = (name, dflt) => {
   return i > 0 ? process.argv[i + 1] : dflt;
 };
 const now = () => new Date().toISOString();
+// The candidate's own gifts and loans to their campaign (shown, never graded)
+const ownOf = o => (o ? Math.round((o.contributions || 0) + (o.loans || 0)) : null);
 const log = (...a) => console.log(`[${new Date().toISOString().slice(11, 19)}]`, ...a);
 
 function fecKey() {
@@ -467,6 +469,7 @@ async function main() {
         largeDonors: pf.largeDonorDonations ?? null,
         pac: pf.pacMoney ?? null,
         nakamoto: m.nakamotoCoefficient ?? null,
+        ownMoney: ownOf(m.personFigures?.ownMoney),
         peoplePowerInfluence: m.peoplePowerInfluence ?? null,
       };
     }
@@ -483,6 +486,7 @@ async function main() {
       uniqueDonors: g.analysis?.donorTest?.donors ?? g.analysis?.uniqueDonors ?? null,
       nakamoto: g.analysis?.donorTest?.nakamoto ?? g.analysis?.nakamotoCoefficient ?? null,
       peoplePowerInfluence: peoplePowerInfluence(g.grade?.detail),
+      ownMoney: ownOf(g.pf?.ownMoney),
     };
   };
   const races = buildRaces(field_.map(entry));

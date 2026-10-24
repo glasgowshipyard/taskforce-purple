@@ -1,4 +1,4 @@
-// A small router on the History API: the site has six pages, which doesn't
+// A small router on the History API: the site has seven pages, which doesn't
 // justify a dependency. Cloudflare Pages serves a pre-built page where there
 // is one (scripts/site/prerender.mjs) and index.html for every other path
 // (its single-page-app fallback: there is no 404.html), so deep links work.
@@ -53,6 +53,9 @@ export function matchRoute(path) {
   }
   if (first === 'congress' && !second) {
     return { page: 'congress' };
+  }
+  if (first === 'corrections' && !second) {
+    return { page: 'corrections' };
   }
   if (first === 'races' && !second) {
     return { page: 'races' };

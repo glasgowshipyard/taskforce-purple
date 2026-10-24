@@ -32,6 +32,7 @@ import {
   homePage,
   howPage,
   racesPage,
+  correctionsPage,
   gradesCsv,
   llmsTxt,
   memberPage,
@@ -87,6 +88,7 @@ const pages = [
   homePage(members),
   howPage(),
   racesPage(),
+  correctionsPage(),
   congressPage(members),
   ...members.map(m => memberPage(m, scores)),
 ];

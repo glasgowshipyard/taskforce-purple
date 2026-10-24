@@ -2,6 +2,7 @@ import React, { useEffect, useRef } from 'react';
 import { Footer, Header, TabBar } from './components/Layout.jsx';
 import Ballot from './pages/Ballot.jsx';
 import Congress from './pages/Congress.jsx';
+import Corrections from './pages/Corrections.jsx';
 import Home from './pages/Home.jsx';
 import How from './pages/How.jsx';
 import Member from './pages/Member.jsx';
@@ -59,6 +60,9 @@ export default function App() {
       break;
     case 'congress':
       page = <Congress search={search} />;
+      break;
+    case 'corrections':
+      page = <Corrections />;
       break;
     case 'races':
       page = <Races />;
