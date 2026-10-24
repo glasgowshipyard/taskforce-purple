@@ -60,6 +60,24 @@ clean-up, #71 outside spending, #72 TypeScript (after the election).
 
 ## Change log
 
+## 2026-10-24 (evening): before launch
+
+- Each member's and candidate's detail is built with the site too
+  (`dist/data/member/<id>.json`, `dist/data/candidate/<id>.json`, 1,374
+  files, 21 MB; eight requests at a time, about 25 seconds of the build's
+  54). Pages read them first and the API only when one is missing, so
+  ordinary visits no longer use the worker's 100,000 a day at all. If a
+  detail still fails, the page keeps its grade, receipt and graph and says
+  the rest couldn't load (it used to say the committees weren't matched).
+  A detail that changes without the grades changing waits for the next
+  build (any push or publish).
+- Race reports are their own suggestion kind (`race`) and count in the
+  3-day `flags-waiting` alert with grade flags (workers/health.js,
+  workers/admin/feedback.ts): live when the owner deploys the worker.
+  Until then they're saved as suggestions and need checking on /admin.
+- The Races hero's three figures stay on one line on desktop and shrink to
+  fit (owner).
+
 ## 2026-10-24 (later): preview cards for every candidate and race
 
 Links to candidates and races showed the home page's card (an outside

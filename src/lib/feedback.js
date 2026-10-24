@@ -18,8 +18,8 @@ export const FLAG_REASONS = [
 ];
 
 // "Something wrong with this race?" (owner, 2026-10-23): who's on a ballot.
-// Sent as a suggestion (a bug), the race named in the text, so it lands on
-// /admin with no new kind on the server
+// Sent as a suggestion of kind 'race', the race named in the text; on /admin
+// with grade flags, and alerted after the same 3 days (workers/health.js)
 export const RACE_REASONS = [
   { value: 'missing', label: 'Someone on the ballot is missing' },
   { value: 'not-running', label: "Someone listed isn't on the ballot" },

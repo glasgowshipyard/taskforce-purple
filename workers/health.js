@@ -22,7 +22,8 @@ export const D1_READ_ALARM_ROWS = 4000000;
 // D1 refuses writes to a database over 500 MB (2026-10-05: it happened)
 export const D1_SIZE_ALARM_BYTES = 400 * 1000 * 1000;
 export const MIN_MEMBERS = 530;
-// A grade flag nobody has dealt with after this many days is a problem
+// A grade flag or race report nobody has dealt with after this many days is
+// a problem (the corrections page promises reports are read within it)
 export const FLAG_WAIT_DAYS = 3;
 // The site's pre-built pages should be rebuilt within this long of the
 // published grades changing (refresh.yml starts the build)
@@ -52,7 +53,7 @@ export const FIXES = {
   'pages-stale':
     'The site still works (its pages load the live grades), but search engines and link previews see old ones. Start a build: Cloudflare dashboard → Workers & Pages → the site → Deployments → retry the latest. If the refresh job’s “Rebuild the site’s pages” step warned that PAGES_DEPLOY_HOOK is missing, add the deploy hook as that GitHub secret.',
   'flags-waiting':
-    'Open taskforcepurple.com/admin and deal with each flag: check the member’s figures, then mark it done, or bin it if it’s not a real problem.',
+    'Open taskforcepurple.com/admin and deal with each one: check a grade flag against the member’s figures, or a race report against the state’s list of candidates, then mark it done, or bin it if it’s not a real problem.',
   'd1-over-budget':
     'The job stops itself at 85,000. Find which of the account’s other projects wrote the rest before running it again today.',
 };
@@ -172,7 +173,7 @@ export function evaluateHealth(s, nowMs = Date.now()) {
   if (s.staleFlags?.count > 0) {
     problem(
       'flags-waiting',
-      `${s.staleFlags.count} grade flag(s) from visitors have waited more than ${FLAG_WAIT_DAYS} days on /admin; the oldest was sent ${String(s.staleFlags.oldest ?? '').slice(0, 10)}.`
+      `${s.staleFlags.count} grade flag(s) or race report(s) from visitors have waited more than ${FLAG_WAIT_DAYS} days on /admin; the oldest was sent ${String(s.staleFlags.oldest ?? '').slice(0, 10)}.`
     );
   }
 
@@ -235,7 +236,7 @@ export async function loadHealth(env, now = new Date()) {
     try {
       const before = new Date(now.getTime() - FLAG_WAIT_DAYS * 86400000).toISOString();
       const row = await env.RESULTS_DB.prepare(
-        "SELECT COUNT(*) AS count, MIN(at) AS oldest FROM feedback WHERE status = 'open' AND at < ? AND kind = 'flag'"
+        "SELECT COUNT(*) AS count, MIN(at) AS oldest FROM feedback WHERE status = 'open' AND at < ? AND (kind = 'flag' OR (kind = 'suggestion' AND reason = 'race'))"
       )
         .bind(before)
         .first();

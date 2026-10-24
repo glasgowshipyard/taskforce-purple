@@ -79,6 +79,37 @@ const racesList = await getJson(`${API}/races`).catch(() => null);
 if (racesList) {
   write(join(DIST, 'data', 'races.json'), JSON.stringify(racesList));
 }
+// Each member's and candidate's detail too (owner, 2026-10-24: a page that
+// goes viral mustn't run the worker out), eight requests at a time
+const details = [
+  ...members.map(m => [
+    join(DIST, 'data', 'member', `${m.bioguideId}.json`),
+    `${API}/member-detail?bioguideId=${encodeURIComponent(m.bioguideId)}`,
+  ]),
+  ...(racesList?.field === 'ballot'
+    ? racesList.races
+        .flatMap(r => r.candidates)
+        .filter(c => c.candidateId && !c.bioguideId)
+        .map(c => [
+          join(DIST, 'data', 'candidate', `${c.candidateId}.json`),
+          `${API}/candidate-detail?id=${encodeURIComponent(c.candidateId)}`,
+        ])
+    : []),
+];
+let missed = 0;
+for (let i = 0; i < details.length; i += 8) {
+  await Promise.all(
+    details.slice(i, i + 8).map(async ([file, url]) => {
+      try {
+        write(file, JSON.stringify(await getJson(url)));
+      } catch {
+        // No file: the page asks the API, as before
+        missed += 1;
+      }
+    })
+  );
+}
+console.log(`prerender: ${details.length - missed} of ${details.length} detail files`);
 // The live site's record of when each page last changed (empty the first time)
 const before = await getJson(`${SITE}/prerender-state.json`).catch(() => ({ pages: {} }));
 const today = new Date().toISOString().slice(0, 10);

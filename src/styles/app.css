@@ -3038,6 +3038,20 @@ p {
   margin-top: 28px;
 }
 
+/* On a wide screen the three figures stay on one line and shrink to fit
+   (owner, 2026-10-24); on a phone they wrap */
+@media (min-width: 900px) {
+  .races-stats {
+    flex-wrap: nowrap;
+    gap: clamp(20px, 2.6vw, 40px);
+  }
+
+  .races-stat {
+    flex: 0 1 auto;
+    min-width: 0;
+  }
+}
+
 .races-stat b {
   display: block;
   font-family: var(--display);
@@ -3045,6 +3059,13 @@ p {
   font-size: clamp(44px, 6vw, 72px);
   line-height: 1;
   font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+@media (min-width: 900px) {
+  .races-stat b {
+    font-size: clamp(38px, 4.2vw, 72px);
+  }
 }
 
 .races-stat b small {
@@ -3054,7 +3075,7 @@ p {
 
 .races-stat span {
   display: block;
-  max-width: 15em;
+  max-width: 13em;
   margin-top: 6px;
   font-family: var(--mono);
   font-size: 13px;

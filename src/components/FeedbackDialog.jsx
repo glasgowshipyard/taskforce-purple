@@ -68,7 +68,7 @@ export default function FeedbackDialog({ open, onClose, kind, member = null, rac
       const label = RACE_REASONS.find(r => r.value === reason)?.label;
       await sendFeedback(onRace ? 'suggestion' : kind, {
         memberId: member?.id,
-        reason: onRace ? 'bug' : reason,
+        reason: onRace ? 'race' : reason,
         text: onRace ? `Race ${race.key} (${race.label}). ${label}: ${text.trim()}` : text.trim(),
         page: window.location.pathname,
         token,

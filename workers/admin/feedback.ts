@@ -23,6 +23,9 @@ export type FlagReason = keyof typeof FLAG_REASONS;
 export const SUGGESTION_KINDS = {
   idea: { label: 'Idea', githubLabel: 'enhancement' },
   bug: { label: 'Bug', githubLabel: 'bug' },
+  // "Something wrong with this race?" (who's on a ballot): read within the
+  // same 3 days as a grade flag (workers/health.js)
+  race: { label: 'Race', githubLabel: 'bug' },
   other: { label: 'Something else', githubLabel: null },
 } as const;
 export type SuggestionKind = keyof typeof SUGGESTION_KINDS;

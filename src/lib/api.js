@@ -1,7 +1,8 @@
 // The site's data, from the API worker (workers/data-pipeline.js). Read only.
-// The two lists every visit needs come first from plain files built with the
-// site (scripts/site/prerender.mjs: no daily limit, unlike the worker's
-// 100,000 requests), and from the API when a file isn't there.
+// The lists every visit needs, and each member's and candidate's detail,
+// come first from plain files built with the site (scripts/site/
+// prerender.mjs: no daily limit, unlike the worker's 100,000 requests), and
+// from the API when a file isn't there.
 
 export const API_BASE_URL = 'https://taskforce-purple-api.dev-a4b.workers.dev/api';
 
@@ -56,13 +57,19 @@ export const api = {
   /** One member's money trail, donors and evidence (D1 results). */
   memberDetail: id =>
     once(`member:${id}`, () =>
-      getJson(`${API_BASE_URL}/member-detail?bioguideId=${encodeURIComponent(id)}`)
+      built(
+        `member/${encodeURIComponent(id)}.json`,
+        `${API_BASE_URL}/member-detail?bioguideId=${encodeURIComponent(id)}`
+      )
     ),
 
   /** A candidate who isn't a sitting member: the same detail as a member's. */
   candidateDetail: id =>
     once(`candidate:${id}`, () =>
-      getJson(`${API_BASE_URL}/candidate-detail?id=${encodeURIComponent(id)}`)
+      built(
+        `candidate/${encodeURIComponent(id)}.json`,
+        `${API_BASE_URL}/candidate-detail?id=${encodeURIComponent(id)}`
+      )
     ),
 
   /**

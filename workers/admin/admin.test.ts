@@ -100,6 +100,16 @@ describe('feedback', () => {
     });
   });
 
+  it('keeps a race report as its own kind', () => {
+    expect(
+      readItem('suggestion', {
+        text: 'Race H-TX-23 (House · Texas 23). Someone on the ballot is missing: Ben Mendoza',
+        reason: 'race',
+        page: '/race/2026/H-TX-23',
+      })
+    ).toMatchObject({ kind: 'suggestion', reason: 'race' });
+  });
+
   it('checks a suggestion, and keeps pages to our own paths', () => {
     expect(readItem('suggestion', { text: 'hi' })).toBe('Write a few words first.');
     expect(

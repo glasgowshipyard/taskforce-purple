@@ -702,6 +702,11 @@ export default function Member({ id, kind = 'member' }) {
                         })}
                       </ul>
                     </>
+                  ) : detail.error ? (
+                    <p className="notice">
+                      The rest of this page couldn&apos;t be loaded just now. The grade and figures
+                      above are complete; try again in a minute for the committees, PACs and donors.
+                    </p>
                   ) : (
                     <p className="notice">
                       Not all of {name}&apos;s committees have been matched in the FEC&apos;s
