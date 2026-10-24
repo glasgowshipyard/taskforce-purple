@@ -27,6 +27,7 @@ import {
 } from '../../src/lib/people.js';
 import { FINDINGS, LEAD, MOTTO, STUDIES, WISHES } from '../../src/lib/research.js';
 import { CORRECTIONS, REVIEW_DAYS } from '../../src/lib/corrections.js';
+import { candidatePath, memberPath, racePath } from '../../src/lib/paths.js';
 
 export const SITE = 'https://taskforcepurple.com';
 export const SITE_NAME = 'Task Force Purple';
@@ -39,10 +40,6 @@ export const esc = text =>
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&#39;');
-
-// A race's address, as src/lib/router.js racePath writes it (that module
-// needs React, which the build's Node script doesn't load)
-const racePath = (key, cycle) => `/race/${cycle}/${encodeURIComponent(key)}`;
 
 const SHORT_TITLE = { Senator: 'Sen.', Representative: 'Rep.', Delegate: 'Del.' };
 
@@ -73,7 +70,7 @@ export function memberPage(m, scores) {
   const seat = seatLabel(m);
   const party = partyName(m.party);
   const placement = f ? placementLine(m.individualFundingPercent, scores) : null;
-  const path = `/member/${encodeURIComponent(m.bioguideId)}`;
+  const path = memberPath(m.bioguideId, m.name);
   const title = f
     ? `Who funds ${name}? ${m.tier}: ${f.ppi.people}% from people${TITLE_SUFFIX}`
     : `Who funds ${name}?${TITLE_SUFFIX}`;
@@ -232,7 +229,7 @@ export function candidatePage(c, race, cycle) {
   const where = seat.split(' · ').slice(1).join(' · ') || seat;
   // "Mary Peltola · Senate candidate · Alaska", as a member's card names the seat
   const eyebrow = `${name} · ${race.office === 'S' ? 'Senate' : 'House'} candidate · ${where}`;
-  const path = `/candidate/${encodeURIComponent(c.candidateId)}`;
+  const path = candidatePath(c.candidateId, c.name);
   const title = ppi
     ? `Who funds ${name}? ${c.tier}: ${ppi.people}% from people${TITLE_SUFFIX}`
     : `Who funds ${name}?${TITLE_SUFFIX}`;
@@ -395,7 +392,7 @@ export function congressPage(members) {
     .map(m => {
       const f = figures(m);
       const g = gradeInfo(m.tier, m.withheldReason);
-      return `<li><a href="/member/${encodeURIComponent(m.bioguideId)}">${esc(displayName(m.name))}</a>, ${esc(partyName(m.party))}, ${esc(seatLabel(m))}: ${f ? `${esc(m.tier)} (${esc(g.name)}), ${f.ppi.people}% from people` : esc(g.name)}</li>`;
+      return `<li><a href="${memberPath(m.bioguideId, m.name)}">${esc(displayName(m.name))}</a>, ${esc(partyName(m.party))}, ${esc(seatLabel(m))}: ${f ? `${esc(m.tier)} (${esc(g.name)}), ${f.ppi.people}% from people` : esc(g.name)}</li>`;
     })
     .join('\n');
   const description = `Campaign funding grades for all ${members.length} members of Congress, S to F, from public FEC filings: how much of each member's money came from many people, a few wealthy donors, or PACs and politicians.`;
@@ -535,7 +532,7 @@ export function gradesCsv(members, lastUpdated) {
         m.evidenceChecked === true ? 'yes' : m.evidenceChecked === false ? 'not yet' : '',
         cycleLabel(m.gradeCycle ?? undefined),
         String(lastUpdated ?? '').slice(0, 10),
-        `${SITE}/member/${encodeURIComponent(m.bioguideId)}`,
+        `${SITE}${memberPath(m.bioguideId, m.name)}`,
       ]
         .map(cell)
         .join(',');
@@ -558,7 +555,7 @@ Every dollar given to a member (their campaigns, leadership PAC and own joint fu
 - [All of Congress](${SITE}/congress): every member's grade
 - [Every grade as text](${SITE}/llms-full.txt): one line per member, for AI tools
 - [Every grade as a spreadsheet](${SITE}/grades.csv): one row per member (CSV)
-- Each member has a page at ${SITE}/member/{Bioguide ID}, for example ${SITE}/member/S001150
+- Each member has a page at ${SITE}/member/{name}-{Bioguide ID}, for example ${SITE}/member/adam-b-schiff-S001150 (the Bioguide ID alone also works)
 `;
   const lines = [...members]
     .sort((a, b) => displayName(a.name).localeCompare(displayName(b.name)))
@@ -569,7 +566,7 @@ Every dollar given to a member (their campaigns, leadership PAC and own joint fu
         f
           ? `grade ${m.tier} (${g.name}); People ${f.ppi.people}%, Power ${f.ppi.power}%, Influence ${f.ppi.influence}%`
           : g.name
-      }. ${SITE}/member/${encodeURIComponent(m.bioguideId)}`;
+      }. ${SITE}${memberPath(m.bioguideId, m.name)}`;
     });
   const full = `${brief}
 ## Every member's grade (${cycleLabel(listCycle(members))} election cycle, data as of ${String(lastUpdated ?? '').slice(0, 10)})

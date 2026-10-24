@@ -18,7 +18,8 @@ const scores = Array.from({ length: 100 }, (_, i) => i);
 describe('pre-built pages', () => {
   it("a member's page says what the live page says", () => {
     const p = memberPage(member, scores);
-    expect(p.path).toBe('/member/S001150');
+    // The readable address (2026-10-24); /member/S001150 forwards to it
+    expect(p.path).toBe('/member/adam-b-schiff-S001150');
     expect(p.title).toBe('Who funds Adam Schiff? A: 85% from people · Task Force Purple');
     expect(p.description).toMatch(
       /^Adam Schiff \(Democratic, Senate, California\) gets an A, Supported\. 85% of the money came from people\./
@@ -44,7 +45,7 @@ describe('pre-built pages', () => {
       '<title>Who funds &lt;Jane&gt; Doe? A: 85% from people · Task Force Purple</title>'
     );
     expect(html).toContain(
-      '<link rel="canonical" href="https://taskforcepurple.com/member/S001150" />'
+      '<link rel="canonical" href="https://taskforcepurple.com/member/jane-doe-S001150" />'
     );
     expect(html).toContain(
       '<meta property="og:image" content="https://taskforcepurple.com/og/x.png" />'
@@ -61,7 +62,7 @@ describe('pre-built pages', () => {
     const { brief, full } = llmsTxt([member], '2026-10-17T02:00:00Z');
     expect(brief).toMatch(/^# Task Force Purple/);
     expect(full).toContain(
-      '- Adam Schiff (Democratic, Senate · California): grade A (Supported); People 85%, Power 9%, Influence 6%. https://taskforcepurple.com/member/S001150'
+      '- Adam Schiff (Democratic, Senate · California): grade A (Supported); People 85%, Power 9%, Influence 6%. https://taskforcepurple.com/member/adam-b-schiff-S001150'
     );
   });
 });
@@ -97,7 +98,7 @@ describe('grades.csv (#67)', () => {
     const [head, a, b] = csv.trim().split('\n');
     expect(head.split(',')).toContain('people_pct');
     expect(a).toMatch(/^X1,Jane Doe,House,Ohio,3,Democrat\w*,B,[^,]+,61,9,30,1235,yes,/);
-    expect(a).toMatch(/,2026-10-17,https:\/\/taskforcepurple\.com\/member\/X1$/);
+    expect(a).toMatch(/,2026-10-17,https:\/\/taskforcepurple\.com\/member\/jane-doe-X1$/);
     expect(b.startsWith('X2,')).toBe(true);
     expect(b).toMatch(/,,,,50,/);
   });

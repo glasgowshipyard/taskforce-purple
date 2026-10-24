@@ -25,6 +25,7 @@ import { createHash } from 'node:crypto';
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { cardPng } from './og-card.mjs';
+import { candidatePath, memberPath, racePath } from '../../src/lib/paths.js';
 import {
   SITE,
   congressPage,
@@ -164,6 +165,21 @@ write(
   sitemapXml(pages.map(p => ({ path: p.path, lastmod: state.pages[p.path].lastmod })))
 );
 write(join(DIST, 'prerender-state.json'), JSON.stringify(state));
+// The older addresses, sent on to the readable ones (2026-10-24), so links
+// and search results from before still land: Pages allows 2,000 of these
+const moved = [
+  ...members.map(m => [`/member/${m.bioguideId}`, memberPath(m.bioguideId, m.name)]),
+  ...(racesList?.field === 'ballot'
+    ? racesList.races.flatMap(r => [
+        [`/race/${racesList.cycle}/${r.key.replace(/-$/, '')}`, racePath(r.key, racesList.cycle)],
+        ...r.candidates
+          .filter(c => c.candidateId && !c.bioguideId)
+          .map(c => [`/candidate/${c.candidateId}`, candidatePath(c.candidateId, c.name)]),
+      ])
+    : []),
+].filter(([from, to]) => from !== to);
+write(join(DIST, '_redirects'), moved.map(([from, to]) => `${from} ${to} 301`).join('\n') + '\n');
+console.log(`prerender: ${moved.length} older addresses sent on`);
 const llms = llmsTxt(members, list.lastUpdated);
 write(join(DIST, 'llms.txt'), llms.brief);
 write(join(DIST, 'llms-full.txt'), llms.full);

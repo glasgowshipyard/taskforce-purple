@@ -1932,6 +1932,8 @@ p {
 }
 
 .icon-button {
+  /* Never squeezed by a long heading beside it: a circle, not an oval */
+  flex: 0 0 44px;
   width: 44px;
   height: 44px;
   border-radius: 50%;

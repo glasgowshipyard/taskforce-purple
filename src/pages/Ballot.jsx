@@ -1,6 +1,7 @@
 // Your ballot: everyone running for Congress where you live, side by side.
 // Live once November's field is published (the races job, October 23).
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
+import { Share2 } from 'lucide-react';
 import FeedbackDialog from '../components/FeedbackDialog.jsx';
 import Lookup from '../components/Lookup.jsx';
 import Receipt from '../components/Receipt.jsx';
@@ -18,7 +19,14 @@ import {
   usd,
 } from '../lib/people.js';
 import { racesFor, savePlace, savedPlace } from '../lib/place.js';
-import { Link, findRaceByKey, memberPath, racePath } from '../lib/router.js';
+import {
+  Link,
+  candidatePath,
+  findRaceByKey,
+  memberPath,
+  navigate,
+  racePath,
+} from '../lib/router.js';
 
 const SHOWN = 4;
 
@@ -54,9 +62,9 @@ function candidatePerson(c) {
     evidenceChecked: c.evidenceChecked,
     ppi: c.peoplePowerInfluence ?? null,
     href: c.bioguideId
-      ? memberPath(c.bioguideId)
+      ? memberPath(c.bioguideId, c.name)
       : c.candidateId
-        ? `/candidate/${encodeURIComponent(c.candidateId)}`
+        ? candidatePath(c.candidateId, c.name)
         : null,
   };
 }
@@ -143,6 +151,29 @@ function CompareTable({ cands }) {
   );
 }
 
+/** "Share this race": the phone's share sheet, or the link copied */
+function ShareRace({ race, cycle }) {
+  const [copied, setCopied] = useState(false);
+  const url = `${window.location.origin}${racePath(race.key, cycle)}`;
+  const share = async () => {
+    try {
+      if (navigator.share) {
+        await navigator.share({ title: `${raceSeat(race)}: who's paying the candidates?`, url });
+        return;
+      }
+      await navigator.clipboard.writeText(url);
+      setCopied(true);
+    } catch {
+      // Closed the share sheet, or no clipboard: nothing to do
+    }
+  };
+  return (
+    <button type="button" className="btn btn-light" onClick={share}>
+      <Share2 size={18} aria-hidden="true" /> {copied ? 'Link copied' : 'Share this race'}
+    </button>
+  );
+}
+
 function RaceView({ race, others, cycle }) {
   const [flagging, setFlagging] = useState(false);
   const days = daysUntilElection();
@@ -166,6 +197,9 @@ function RaceView({ race, others, cycle }) {
             >
               Who&apos;s paying the candidates?
             </h1>
+            <div className="row" style={{ marginTop: 22 }}>
+              <ShareRace race={race} cycle={cycle} />
+            </div>
           </div>
           {days > 0 && (
             <div className="countdown">
@@ -363,6 +397,18 @@ export default function Ballot({ raceKey, raceCycle = null }) {
   const mine = place ? racesFor(all, place) : [];
   const shown = raceKey ? race : mine[0] || null;
   useTitle(shown ? raceSeat(shown) : 'Your ballot');
+  // Every race at its own address, so what's in the address bar can be sent
+  // to anyone (owner, 2026-10-24: /ballot only worked on the device that
+  // looked up the ZIP code); older addresses move to the current one
+  const cycle = races.data?.cycle;
+  useEffect(() => {
+    if (shown && cycle) {
+      const here = racePath(shown.key, cycle);
+      if (window.location.pathname !== here) {
+        navigate(here, { replace: true, keepScroll: true });
+      }
+    }
+  }, [shown, cycle]);
 
   if (races.loading) {
     return (

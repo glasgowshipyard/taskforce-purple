@@ -60,7 +60,7 @@ function Row({ m }) {
       : null;
   return (
     <li>
-      <Link to={memberPath(m.bioguideId)} className="member-row">
+      <Link to={memberPath(m.bioguideId, m.name)} className="member-row">
         <Stamp tier={m.tier} size={58} word={false} rot={-6} />
         <span className="member-row-body">
           <span className="member-row-name">{displayName(m.name)}</span>

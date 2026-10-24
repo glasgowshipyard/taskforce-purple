@@ -1,6 +1,6 @@
 // Names, seats and money figures, in the words the site uses for them.
 import { peoplePowerInfluence } from '../../workers/tier-calculation.js';
-import { memberPath } from './router.js';
+import { memberPath } from './paths.js';
 import { DELEGATE_ONLY, stateByName, stateByCode } from './states.js';
 
 /**
@@ -367,6 +367,6 @@ export function memberPerson(m, detail) {
     evidenceChecked: m.evidenceChecked ?? null,
     ppi: m.peoplePowerInfluence ?? peoplePowerInfluence(detail?.grade?.detail),
     cycle: m.gradeCycle ?? null,
-    href: memberPath(m.bioguideId),
+    href: memberPath(m.bioguideId, m.name),
   };
 }

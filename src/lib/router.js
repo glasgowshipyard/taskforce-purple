@@ -3,6 +3,9 @@
 // is one (scripts/site/prerender.mjs) and index.html for every other path
 // (its single-page-app fallback: there is no 404.html), so deep links work.
 import { createElement, useEffect, useState } from 'react';
+import { idFromSlug, raceKeyFrom } from './paths.js';
+
+export { candidatePath, memberPath, racePath } from './paths.js';
 
 const listeners = new Set();
 
@@ -45,11 +48,12 @@ export function matchRoute(path) {
     return { page: 'home' };
   }
   const [first, second] = parts;
+  // /member/scott-h-peters-P000608, and the ID alone (/member/P000608)
   if (first === 'member' && second) {
-    return { page: 'member', id: second };
+    return { page: 'member', id: idFromSlug(second) };
   }
   if (first === 'candidate' && second) {
-    return { page: 'candidate', id: second };
+    return { page: 'candidate', id: idFromSlug(second) };
   }
   if (first === 'congress' && !second) {
     return { page: 'congress' };
@@ -63,7 +67,11 @@ export function matchRoute(path) {
   if (first === 'ballot' && !second) {
     return { page: 'ballot' };
   }
-  // /race/2026/S-AK; /race/S-AK (and /race/S-AK-) are the current cycle's
+  // /race/2026/house/california-50; the older /race/2026/H-CA-50, and
+  // /race/H-CA-50 (and /race/S-AK-) for the current cycle's
+  if (first === 'race' && /^\d{4}$/.test(second || '') && parts[3]) {
+    return { page: 'race', cycle: Number(second), key: raceKeyFrom(parts[2], parts[3]) ?? '' };
+  }
   if (first === 'race' && /^\d{4}$/.test(second || '') && parts[2]) {
     return { page: 'race', cycle: Number(second), key: parts[2] };
   }
@@ -99,12 +107,6 @@ export function Link({ to, onClick, ...props }) {
     ...props,
   });
 }
-
-export const memberPath = id => `/member/${encodeURIComponent(id)}`;
-// A race's address carries its cycle, so the same seat in another year gets
-// its own (/race/2026/S-AK). Older addresses still work (pages/Ballot.jsx)
-export const racePath = (key, cycle) =>
-  `/race/${cycle ? `${cycle}/` : ''}${encodeURIComponent(key.replace(/-$/, ''))}`;
 
 /** A race key from an address, as the races list writes it, old forms included */
 export const findRaceByKey = (races, key) => {

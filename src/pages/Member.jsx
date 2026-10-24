@@ -1,5 +1,5 @@
 // One person's full receipt: a sitting member, or a candidate on the ballot.
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { ChevronDown, ExternalLink, Share2 } from 'lucide-react';
 import FeedbackDialog from '../components/FeedbackDialog.jsx';
 import ForeignAgentPanel from '../components/ForeignAgentPanel.jsx';
@@ -51,7 +51,7 @@ import {
 } from '../lib/people.js';
 import { stateByCode } from '../lib/states.js';
 import { peoplePowerInfluence } from '../../workers/tier-calculation.js';
-import { Link, racePath } from '../lib/router.js';
+import { Link, candidatePath, memberPath, navigate, racePath } from '../lib/router.js';
 import { LAST_DIRECTORY } from '../lib/search.js';
 
 const PART_LABEL = { people: 'People', power: 'Power', influence: 'Influence' };
@@ -256,6 +256,19 @@ export default function Member({ id, kind = 'member' }) {
       : null
   );
 
+  // The address with the name in front (/member/scott-h-peters-P000608),
+  // whatever address was used to get here, so it can be sent as it is
+  const canonical = base?.name
+    ? isCandidate
+      ? candidatePath(id, base.name)
+      : memberPath(id, base.name)
+    : null;
+  useEffect(() => {
+    if (canonical && window.location.pathname !== canonical) {
+      navigate(`${canonical}${window.location.hash}`, { replace: true, keepScroll: true });
+    }
+  }, [canonical]);
+
   const loading = !m && (list.loading || detail.loading || (isCandidate && races.loading));
   if (loading) {
     return (
@@ -334,7 +347,7 @@ export default function Member({ id, kind = 'member' }) {
     .filter(c => c.role === 'joint' && c.ownFund)
     .reduce((s, c) => s + (c.passedElsewhere || 0), 0);
 
-  const shareUrl = `${window.location.origin}${isCandidate ? `/candidate/${encodeURIComponent(id)}` : `/member/${encodeURIComponent(id)}`}`;
+  const shareUrl = `${window.location.origin}${isCandidate ? candidatePath(id, m.name) : memberPath(id, m.name)}`;
   const shareText =
     `${name} gets ${withArticle(g.mark)} (${g.name}) for where their campaign money comes from. ${sentence || ''}`.trim();
   const card = {

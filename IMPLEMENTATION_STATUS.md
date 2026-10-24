@@ -60,6 +60,21 @@ clean-up, #71 outside spending, #72 TypeScript (after the election).
 
 ## Change log
 
+## 2026-10-24 (night): addresses a person can read out
+
+Owner's go. Races: `/race/2026/house/california-50`, `/race/2026/senate/
+alaska`, `/race/2026/senate/florida-special` (at-large House seats are the
+state alone). People: the name in front of the ID, `/member/scott-h-peters-
+P000608`, `/candidate/steve-cohen-H6CA50324` (the ID stays: names collide;
+any name with the right ID opens the page). One module, `src/lib/paths.js`
+(tested), for the site and the pre-built pages. Older addresses still work:
+the build writes 1,849 permanent redirects to Pages' `_redirects` (members,
+candidates and `/race/2026/<key>`; the limit is 2,000), and the site moves
+any other older address to the current one. `/ballot` moves to the race's
+own address once it's found, so it can be sent to anyone (it only worked on
+the device that looked up the ZIP code), and race pages have "Share this
+race". The dialog's close button no longer squeezes into an oval.
+
 ## 2026-10-24 (evening): before launch
 
 - Each member's and candidate's detail is built with the site too

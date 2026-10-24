@@ -112,7 +112,7 @@ function YourReps({ members, place, onChange, arrived }) {
                 .sort((a, b) => Number(a.district) - Number(b.district))
                 .map(m => (
                   <li key={m.bioguideId}>
-                    <Link to={memberPath(m.bioguideId)}>{displayName(m.name)}</Link>
+                    <Link to={memberPath(m.bioguideId, m.name)}>{displayName(m.name)}</Link>
                     <span className="leader" aria-hidden="true" />
                     <span className="mono small">
                       {seatLabel(m).split(' · ')[1]} · {m.tier}
