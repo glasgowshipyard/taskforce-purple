@@ -32,6 +32,9 @@ function candidatePerson(c) {
     grassrootsDonations: c.smallDonors,
     largeDonorDonations: c.largeDonors,
     pacMoney: c.pac,
+    // The candidate's own gifts and loans (races:list ownMoney): on the
+    // receipt as their own money, not as "Other"
+    ownMoney: { contributions: c.ownMoney || 0, loans: 0 },
   });
   return {
     id: c.candidateId,
