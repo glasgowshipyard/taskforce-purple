@@ -590,27 +590,32 @@ p {
 .stamp-letter {
   font-family: var(--display);
   font-weight: 900;
-  font-size: calc(var(--size) * 0.54);
-  line-height: 0.9;
+  font-size: calc(var(--size) * 0.5);
+  line-height: 0.88;
 }
 
+/* The word sits clear of the ring (owner, 2026-10-24: "a little cramped") */
 .stamp-word {
+  margin-top: calc(var(--size) * 0.03);
   font-family: var(--mono);
   font-weight: 600;
-  font-size: max(9px, calc(var(--size) * 0.085));
-  letter-spacing: 0.1em;
+  font-size: max(9px, calc(var(--size) * 0.076));
+  letter-spacing: 0.06em;
   text-transform: uppercase;
   text-align: center;
   line-height: 1.1;
-  max-width: 86%;
+  max-width: 80%;
+  /* A one-word name stays on one line ("Self-funded" broke at its hyphen) */
+  white-space: nowrap;
 }
 
-/* A long name ("Heavily influenced") on two tight lines, inside the ring */
+/* A long name ("Heavily influenced") on two lines, well inside the ring */
 .stamp-word.is-long {
-  font-size: max(8px, calc(var(--size) * 0.072));
-  letter-spacing: 0.04em;
-  max-width: 76%;
-  line-height: 1.05;
+  font-size: max(8px, calc(var(--size) * 0.064));
+  letter-spacing: 0.03em;
+  max-width: 68%;
+  line-height: 1.15;
+  white-space: normal;
 }
 
 .stamp.is-dark {

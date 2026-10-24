@@ -107,9 +107,9 @@ function TileMap({ byState, selected, onPick }) {
         Where the candidates&apos; money comes from, state by state
       </h2>
       <p style={{ margin: '10px 0 18px', maxWidth: '44em', color: 'var(--ink-2)' }}>
-        Each state takes the colour of its typical candidate: the one in the middle when the
-        state&apos;s graded candidates are ranked by how much of their money came from people. Tap a
-        state to see its races.
+        Each state is coloured by the grade of its typical candidate. Green means most of their
+        money comes from people. Red means it comes from a few wealthy donors, or from PACs,
+        politicians and parties. Tap a state to see its races.
       </p>
       <div className={`tilemap${seen ? ' is-in' : ''}`} ref={ref}>
         {Object.entries(TILES).map(([code, [row, col]]) => {
