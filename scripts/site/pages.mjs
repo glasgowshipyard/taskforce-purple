@@ -202,11 +202,9 @@ export function correctionsPage() {
     body: `<main class="wrap section" data-prerendered>
 <h1 class="display display-l">Corrections</h1>
 <p>Every member, candidate and race page has a "Something wrong?" link. Reports are read within ${REVIEW_DAYS} days.</p>
-<ol>
-${items}
-</ol>
+${items ? `<ol>\n${items}\n</ol>` : '<p>None so far.</p>'}
 </main>`,
-    signature: JSON.stringify(['corrections-1', CORRECTIONS]),
+    signature: JSON.stringify(['corrections-2', CORRECTIONS]),
   };
 }
 

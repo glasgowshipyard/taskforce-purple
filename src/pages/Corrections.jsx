@@ -43,6 +43,7 @@ export default function Corrections() {
         <h2 id="log-title" className="display display-m">
           What&apos;s been corrected
         </h2>
+        {CORRECTIONS.length === 0 && <p style={{ marginTop: 10 }}>None so far.</p>}
         <ol className="corrections">
           {CORRECTIONS.map(c => (
             <li key={`${c.date}-${c.what}`}>
@@ -55,9 +56,8 @@ export default function Corrections() {
           ))}
         </ol>
         <p className="fine" style={{ marginTop: 20 }}>
-          This list starts on October 17, 2026. Grades also change after each FEC filing deadline,
-          as new money is reported; those changes aren&apos;t corrections, so they aren&apos;t
-          listed here.
+          Grades also change after each FEC filing deadline, as new money is reported. Those changes
+          aren&apos;t corrections, so they aren&apos;t listed here.
         </p>
       </section>
       <FeedbackDialog open={suggesting} onClose={() => setSuggesting(false)} kind="suggestion" />

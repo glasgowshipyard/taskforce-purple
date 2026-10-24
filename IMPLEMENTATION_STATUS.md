@@ -65,9 +65,9 @@ clean-up, #71 outside spending, #72 TypeScript (after the election).
 - `/corrections` (src/pages/Corrections.jsx, list in src/lib/corrections.js,
   kept by hand, newest first; pre-built for previews): how to report a
   mistake, "read within 3 days" (`REVIEW_DAYS`, the admin panel's alert
-  for grade flags), and every real correction since 17 October, dated.
-  Routine changes after a filing deadline aren't corrections and aren't
-  listed. In the footer. Race reports go in as suggestions, which don't
+  for grade flags), and real corrections made after launch, dated (none
+  before launch: owner). Routine changes after a filing deadline aren't
+  corrections and aren't listed. In the footer. Race reports go in as suggestions, which don't
   raise the 3-day alert yet (a health.js change, the owner's deploy).
 - Race cards show what a candidate put in of their own, in gold with a bar
   that fills in with the card, from a tenth of what they raised (owner:
