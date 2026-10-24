@@ -186,7 +186,7 @@ export function howPage() {
 // races:list, which changes after the site is built)
 export function racesPage() {
   const description =
-    'Everyone running for the House and Senate in November, graded S to F on where their campaign money comes from, the same way as the members already there: a map of the country and every race side by side.';
+    'The candidates for the House and Senate in November, graded S to F on where their campaign money comes from, the same way as the members already there: a map of the country and every race side by side.';
   return {
     path: '/races',
     title: `Every race for Congress${TITLE_SUFFIX}`,
@@ -203,7 +203,7 @@ export function racesPage() {
 <p class="lede">${esc(description)}</p>
 <p><a href="/ballot">Find the races where you vote</a> · <a href="/how">How grades work</a></p>
 </main>`,
-    signature: 'races-1',
+    signature: 'races-2',
   };
 }
 

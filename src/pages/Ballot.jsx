@@ -43,7 +43,9 @@ function candidatePerson(c) {
       ? null
       : c.registered === false
         ? "Not registered with the FEC. Candidates don't have to register until they raise or spend $5,000, so there's nothing to grade."
-        : 'Not graded yet. No campaign committee for this election has been found to grade.',
+        : c.totalRaised > 0
+          ? 'Not graded yet. No campaign committee for this election has been found to grade.'
+          : 'Not graded. No campaign money for this election has been reported to the FEC yet.',
     evidenceChecked: c.evidenceChecked,
     ppi: c.peoplePowerInfluence ?? null,
     href: c.bioguideId

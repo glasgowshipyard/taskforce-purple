@@ -60,6 +60,22 @@ clean-up, #71 outside spending, #72 TypeScript (after the election).
 
 ## Change log
 
+## 2026-10-23 (night): the Races page, after review
+
+From the site appraisal (owner: "an active race and possibly could
+influence elections"). The "Biggest gaps" view is gone, and was the page's
+opening view: it ranked races by their figures, so a data problem or a
+$2,000 campaign beside a $5 million one led the page (owner). The page
+opens on every race, by state; no view ranks by the figures. A search box
+finds races by a candidate's name or the state. Race cards show what each
+candidate raised and "still being checked" on grades not yet checked
+(grade first, confirm after applies here too), and a withheld grade's own
+name (Under review, No money yet). Candidate pages show the name as the
+ballot gives it, not the FEC's capitals, and the ballot's party. "Everyone
+running ... is graded" became "The candidates ... are graded" (69 aren't
+registered, 216 have reported no money). The map's fourth shade had white
+text at 3.1:1; it's dark ink now.
+
 ## 2026-10-23 (evening): the Races page
 
 Owner's go: `/races` (src/pages/Races.jsx), in the menu as "Races" in place

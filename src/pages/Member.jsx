@@ -29,12 +29,12 @@ import { GRADE_SCOPE, gradeInfo, isLetter, isRingfenced, withArticle } from '../
 import { useAsync, useTitle } from '../lib/hooks.js';
 import { lightHandlers, useLight } from '../lib/light.js';
 import {
-  MONEY_KINDS,
+  ballotPartyName,
   displayName,
   gradedFigures,
+  MONEY_KINDS,
   moneyLines,
   receiptLines,
-  partyName,
   roleTitle,
   seatLabel,
   stateCode,
@@ -140,6 +140,7 @@ function candidateRecord(c) {
     bioguideId: c.candidateId,
     name: c.name,
     party: c.party,
+    ballotParty: c.ballotParty,
     state: stateName(c.state),
     district: c.office === 'H' ? Number(c.district) : null,
     chamber: c.office === 'S' ? 'Senate' : 'House',
@@ -223,8 +224,15 @@ export default function Member({ id, kind = 'member' }) {
   const d = detail.data;
   const m = base || d?.member ? { ...(base || {}), ...(d?.member || {}) } : null;
   if (m && isCandidate) {
-    // The detail's record carries FEC codes; the page reads words
+    // The detail's record carries FEC codes and the FEC's capitals; the page
+    // reads words, and the name as the ballot gives it (races:list)
     m.state = m.state?.length === 2 ? stateName(m.state) : m.state;
+    if (base?.name) {
+      m.name = base.name;
+    }
+    if (base?.ballotParty) {
+      m.ballotParty = base.ballotParty;
+    }
     m.chamber = m.chamber || (inRace?.race.office === 'S' ? 'Senate' : 'House');
   }
 
@@ -355,7 +363,7 @@ export default function Member({ id, kind = 'member' }) {
               {name}
             </h1>
             <p className="member-meta">
-              {partyName(m.party)} · {seat}
+              {ballotPartyName(m)} · {seat}
             </p>
           </div>
           <div className="row">

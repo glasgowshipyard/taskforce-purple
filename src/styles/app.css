@@ -3103,7 +3103,6 @@ p {
 }
 .shade-3 {
   background: color-mix(in oklab, var(--people) 72%, var(--receipt));
-  color: var(--white);
 }
 .shade-4 {
   background: var(--people);
@@ -3183,14 +3182,6 @@ p {
   justify-content: space-between;
   gap: 10px;
   align-items: baseline;
-}
-
-.race-gap {
-  flex: 0 0 auto;
-  font-family: var(--mono);
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--purple);
 }
 
 .race-card-people {

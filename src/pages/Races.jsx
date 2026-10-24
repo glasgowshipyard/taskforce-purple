@@ -8,17 +8,17 @@ import Lookup from '../components/Lookup.jsx';
 import { Skeleton, Stamp } from '../components/ui.jsx';
 import { api } from '../lib/api.js';
 import { ELECTION_DAY_TEXT, daysUntilElection } from '../lib/election.js';
-import { GRADE_SCOPE_SHORT, PARTS } from '../lib/grades.js';
+import { GRADE_SCOPE_SHORT, PARTS, gradeInfo, isLetter } from '../lib/grades.js';
 import { useAsync, useCountUp, useInView, useTitle } from '../lib/hooks.js';
-import { ballotPartyName, displayName, raceSeat, stateName } from '../lib/people.js';
+import { ballotPartyName, displayName, raceSeat, stateName, usdShort } from '../lib/people.js';
 import { savePlace } from '../lib/place.js';
 import {
   SHADES,
   VIEWS,
-  gap,
   nationalFigures,
   peopleShare,
   racesInView,
+  searchRaces,
   shadeOf,
   stateFigures,
 } from '../lib/races.js';
@@ -61,7 +61,7 @@ function Hero({ figures }) {
             Every race for Congress
           </h1>
           <p className="lede" style={{ marginTop: 18, maxWidth: '36em' }}>
-            Everyone running for the House and Senate in November is graded the same way as the
+            The candidates for the House and Senate in November are graded the same way as the
             members already there, on where their campaign money comes from.
           </p>
           <div className="races-stats" ref={ref}>
@@ -150,7 +150,11 @@ function MoneyBar({ c, i }) {
   if (share === null || !ppi) {
     return (
       <span className="race-bar is-none">
-        {c.registered === false ? 'Not registered with the FEC' : 'Not graded yet'}
+        {c.registered === false
+          ? 'Not registered with the FEC'
+          : c.tier && !isLetter(c.tier)
+            ? gradeInfo(c.tier).name
+            : 'Not graded yet'}
       </span>
     );
   }
@@ -163,18 +167,16 @@ function MoneyBar({ c, i }) {
   );
 }
 
-function RaceCard({ race, showGap }) {
+function RaceCard({ race }) {
   const ref = useRef(null);
   const seen = useInView(ref);
   const top = race.candidates.slice(0, SHOWN);
   const more = race.candidates.length - top.length;
-  const apart = gap(race);
   return (
     <li ref={ref} className={`race-card${seen ? ' is-in' : ''}`}>
       <Link to={racePath(race.key)} className="race-card-link">
         <span className="race-card-head">
           <span className="eyebrow">{raceSeat(race)}</span>
-          {showGap && apart !== null && <span className="race-gap">{apart} points apart</span>}
         </span>
         <span className="race-card-people">
           {top.map((c, i) => {
@@ -187,7 +189,9 @@ function RaceCard({ race, showGap }) {
                   <span className="race-row-meta">
                     {ballotPartyName(c)}
                     {c.ici === 'I' ? ' · in office' : ''}
+                    {c.totalRaised > 0 ? ` · raised ${usdShort(c.totalRaised)}` : ''}
                     {share !== null ? ` · ${share}% from people` : ''}
+                    {share !== null && c.evidenceChecked === false ? ' · still being checked' : ''}
                   </span>
                   <MoneyBar c={c} i={i} />
                 </span>
@@ -206,9 +210,10 @@ function RaceCard({ race, showGap }) {
 }
 
 function RaceList({ races, byState, state, onClearState }) {
-  const [view, setView] = useState('gaps');
+  const [view, setView] = useState('all');
+  const [query, setQuery] = useState('');
   const [limit, setLimit] = useState(PAGE);
-  const list = racesInView(races, view, state);
+  const list = searchRaces(racesInView(races, view, state), query, stateName);
   const shown = list.slice(0, limit);
   const s = state ? byState[state] : null;
   return (
@@ -228,6 +233,17 @@ function RaceList({ races, byState, state, onClearState }) {
         </p>
       )}
       <div className="filters" style={{ marginTop: 18 }}>
+        <input
+          type="search"
+          className="input"
+          placeholder="Search by name or state"
+          aria-label="Search the races by a candidate's name or the state"
+          value={query}
+          onChange={e => {
+            setQuery(e.target.value);
+            setLimit(PAGE);
+          }}
+        />
         <div className="seg" role="group" aria-label="Which races">
           {VIEWS.map(v => (
             <button
@@ -245,8 +261,6 @@ function RaceList({ races, byState, state, onClearState }) {
         </div>
       </div>
       <p className="fine" style={{ marginBottom: 16 }}>
-        {view === 'gaps' &&
-          'Races where the candidates get very different shares of their money from people come first. '}
         Each bar is a candidate&apos;s money:{' '}
         {PARTS.map((p, i) => (
           <React.Fragment key={p.key}>
@@ -259,12 +273,14 @@ function RaceList({ races, byState, state, onClearState }) {
       </p>
       {list.length === 0 ? (
         <p className="lede" style={{ color: 'var(--ink-2)' }}>
-          No races here fit that. Try another view.
+          {query
+            ? `No candidate or state matches “${query}”. Check the spelling, or try just a last name.`
+            : 'No races here fit that. Try another view.'}
         </p>
       ) : (
         <ul className="race-grid">
           {shown.map(r => (
-            <RaceCard key={r.key} race={r} showGap={view === 'gaps'} />
+            <RaceCard key={r.key} race={r} />
           ))}
         </ul>
       )}

@@ -341,7 +341,7 @@ export default function Home() {
             </h2>
             <p className="lede" style={{ marginTop: 18 }}>
               {races.data
-                ? 'Everyone running for Congress is graded the same way as current members. See who is paying each candidate in your district and state.'
+                ? 'The candidates for Congress are graded the same way as current members. See who is paying each candidate in your district and state.'
                 : `Candidates for Congress file their last campaign finance reports before the election on October 22. Every candidate will be graded by ${RACES_ARRIVE_TEXT}, the same way as current members.`}
             </p>
           </div>

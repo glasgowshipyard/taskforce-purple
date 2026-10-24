@@ -1,5 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import { gap, isOpen, nationalFigures, racesInView, shadeOf, stateFigures } from './races.js';
+import {
+  isOpen,
+  nationalFigures,
+  racesInView,
+  searchRaces,
+  shadeOf,
+  stateFigures,
+} from './races.js';
 
 const cand = (tier, people, ici = 'C') => ({
   tier,
@@ -30,7 +37,6 @@ describe('the Races page (2026-10-23)', () => {
 
   it('leaves withheld grades out of every count', () => {
     expect(stateFigures(races).TX).toEqual({ races: 1, graded: 1, mostlyPeople: 1 });
-    expect(gap(races[2])).toBeNull();
   });
 
   it('shades each state by its share of mostly people-funded candidates', () => {
@@ -40,11 +46,37 @@ describe('the Races page (2026-10-23)', () => {
     expect(shadeOf(undefined)).toBeNull();
   });
 
-  it('orders the biggest gaps first, and filters by view and state', () => {
-    expect(racesInView(races, 'gaps').map(r => r.key)).toEqual(['H-AK-00', 'S-AK-']);
+  it('filters by view and state, never ranking by the figures', () => {
+    expect(racesInView(races, 'all').map(r => r.key)).toEqual(['S-AK-', 'H-AK-00', 'H-TX-23']);
     expect(racesInView(races, 'senate').map(r => r.key)).toEqual(['S-AK-']);
     expect(racesInView(races, 'open').map(r => r.key)).toEqual(['H-AK-00', 'H-TX-23']);
     expect(racesInView(races, 'all', 'TX').map(r => r.key)).toEqual(['H-TX-23']);
     expect(isOpen(races[0])).toBe(false);
+  });
+
+  it("finds races by a candidate's name or the state", () => {
+    const named = races.map((r, i) => ({
+      ...r,
+      candidates: r.candidates.map((c, j) => ({
+        ...c,
+        name: [
+          'Dan Sullivan',
+          'Mary Peltola',
+          'Nick Begich',
+          'Bill Hill',
+          'Eric Hafner',
+          'Ana Ruiz',
+          'Bo Lee',
+        ][i * 2 + j],
+      })),
+    }));
+    const name = { AK: 'Alaska', TX: 'Texas' };
+    const keys = q => searchRaces(named, q, s => name[s]).map(r => r.key);
+    expect(keys('sullivan')).toEqual(['S-AK-']);
+    expect(keys('dan sul')).toEqual(['S-AK-']);
+    expect(keys('texas')).toEqual(['H-TX-23']);
+    expect(keys('peltola alaska')).toEqual(['S-AK-']);
+    expect(keys('nobody')).toEqual([]);
+    expect(keys('  ')).toHaveLength(3);
   });
 });

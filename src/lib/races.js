@@ -3,6 +3,7 @@
 // (races.test.js). "From people" is People, the grade's own share, as on
 // every other page.
 import { isLetter } from './grades.js';
+import { fold } from './search.js';
 
 /** People's share of a candidate's money (null when not graded) */
 export const peopleShare = c =>
@@ -57,23 +58,16 @@ export function shadeOf(s) {
   return SHADES.findIndex(x => pct < x.upTo);
 }
 
-/**
- * How far apart a race's candidates are: the most people-funded graded
- * candidate's share minus the least's (null with fewer than two graded)
- */
-export function gap(race) {
-  const shares = graded(race.candidates).map(peopleShare);
-  return shares.length < 2 ? null : Math.max(...shares) - Math.min(...shares);
-}
-
 /** No one in the race holds the seat now */
 export const isOpen = race => !race.candidates.some(c => c.ici === 'I');
 
+// No view ranks races by their figures (owner, 2026-10-23: a "biggest gaps"
+// list put whatever was most extreme first, a data problem or a $2,000
+// campaign beside a $5 million one, at the top of the page)
 export const VIEWS = [
-  { id: 'gaps', label: 'Biggest gaps' },
+  { id: 'all', label: 'Every race' },
   { id: 'senate', label: 'Senate' },
   { id: 'open', label: 'Open seats' },
-  { id: 'all', label: 'Every race' },
 ];
 
 /** The races a view shows, in its order (state: a postal code, or null) */
@@ -83,10 +77,24 @@ export function racesInView(races, view, state = null) {
     list = list.filter(r => r.office === 'S');
   } else if (view === 'open') {
     list = list.filter(isOpen);
-  } else if (view === 'gaps') {
-    list = list
-      .filter(r => gap(r) !== null)
-      .sort((a, b) => gap(b) - gap(a) || a.key.localeCompare(b.key));
   }
   return list;
+}
+
+/**
+ * The races a search finds: every word in it must start a word of a
+ * candidate's name, or name the state ("dan sullivan", "texas", "ny")
+ */
+export function searchRaces(races, query, stateName) {
+  const words = fold(query).split(' ').filter(Boolean);
+  if (!words.length) {
+    return races;
+  }
+  return races.filter(r => {
+    const place = fold(`${stateName(r.state)} ${r.state}`).split(' ');
+    return r.candidates.some(c => {
+      const name = [...fold(c.name).split(' '), ...place];
+      return words.every(w => name.some(n => n.startsWith(w)));
+    });
+  });
 }
