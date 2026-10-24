@@ -48,7 +48,7 @@ import { RESULTS_DB, createCloudflare } from './lib/cloudflare.mjs';
 import { discoverPeople, ensureZip, loadDiscoveryFiles } from './lib/discovery.mjs';
 import { createFecClient } from './lib/fec.mjs';
 import { buildRaces, displayName, parseWeball } from './lib/races.mjs';
-import { ballotField, parseCn, seatOf, WIKI_PAGES, wikiSeats } from './lib/ballot.mjs';
+import { ballotField, parseCn, seatChanges, seatOf, WIKI_PAGES, wikiSeats } from './lib/ballot.mjs';
 import { stateByName } from '../../src/lib/states.js';
 
 export const RACES_KEY = 'races:list';
@@ -75,9 +75,10 @@ function fecKey() {
   return existsSync(local) ? readFileSync(local, 'utf8').match(/`([A-Za-z0-9]{40})`/)?.[1] : null;
 }
 
-/** A Wikipedia page's HTML at its current revision, through its API */
-async function wikiPage(title) {
-  const url = `https://en.wikipedia.org/w/api.php?${new URLSearchParams({ action: 'parse', page: title, prop: 'text|revid', format: 'json', formatversion: '2' })}`;
+/** A Wikipedia page's HTML, at its current revision or `oldid`, through its API */
+async function wikiPage(title, oldid = null) {
+  const which = oldid ? { oldid: String(oldid) } : { page: title };
+  const url = `https://en.wikipedia.org/w/api.php?${new URLSearchParams({ action: 'parse', ...which, prop: 'text|revid', format: 'json', formatversion: '2' })}`;
   const res = await fetch(url, {
     headers: { 'User-Agent': 'TaskForcePurple/1.0 (https://taskforcepurple.com)' },
   });
@@ -174,27 +175,43 @@ async function main() {
   let field_;
   let sources = null;
   const held = [];
+  const wikiChanges = [];
   if (field === 'test') {
     field_ = [...weball.values()]
       .filter(c => c.receipts >= TEST_FLOOR)
       .map(c => ({ ...c, ids: [c.candidateId] }));
   } else {
+    const book = existsSync(BALLOT_FILE) ? JSON.parse(readFileSync(BALLOT_FILE, 'utf8')) : {};
+    const { resolved = {}, checked = {}, pinned = {} } = book[cycle] || {};
+    // The versions that were checked (owner, 2026-10-23): anyone can edit
+    // Wikipedia, so the field comes from the pinned revisions, and what's
+    // changed since is listed for checking, never published unchecked
     const pages = {};
+    const seatsOn = (office, p) =>
+      wikiSeats(p.html, office)
+        .map(s => ({ ...seatOf(office, s.label, stateByName), candidates: s.candidates }))
+        .filter(s => s.state);
     for (const office of ['H', 'S']) {
-      pages[office] = await wikiPage(WIKI_PAGES[office](cycle));
+      const latest = await wikiPage(WIKI_PAGES[office](cycle));
+      const pin = pinned[office];
+      pages[office] = pin && pin !== latest.revid ? await wikiPage(latest.title, pin) : latest;
+      if (pages[office] !== latest) {
+        const changes = seatChanges(seatsOn(office, pages[office]), seatsOn(office, latest));
+        wikiChanges.push(...changes.map(c => ({ ...c, revid: latest.revid })));
+      }
     }
+    log(
+      `Wikipedia: ${wikiChanges.length} seat(s) changed since the checked versions` +
+        (wikiChanges.length
+          ? ` (${wikiChanges.map(c => `${c.key}: ${[...c.added.map(n => `+${n}`), ...c.removed.map(n => `-${n}`)].join(', ')}`).join('; ')})`
+          : '')
+    );
     sources = Object.fromEntries(
       Object.entries(pages).map(([o, p]) => [o, { title: p.title, revid: p.revid }])
     );
-    const seats = Object.entries(pages).flatMap(([office, p]) =>
-      wikiSeats(p.html, office)
-        .map(s => ({ ...seatOf(office, s.label, stateByName), candidates: s.candidates }))
-        .filter(s => s.state)
-    );
+    const seats = Object.entries(pages).flatMap(([office, p]) => seatsOn(office, p));
     const cn = parseCn(readFileSync(ensureZip('cn', 'cn.txt', cycle, bulkDir, log), 'latin1'));
     const filers = await preGeneralFilers(fec, cycle);
-    const book = existsSync(BALLOT_FILE) ? JSON.parse(readFileSync(BALLOT_FILE, 'utf8')) : {};
-    const { resolved = {}, checked = {} } = book[cycle] || {};
     const ballot = ballotField({ seats, cn, cycle, filers, resolved });
     const count = fit => ballot.flatMap(s => s.candidates).filter(c => c.fit === fit).length;
     log(
@@ -557,7 +574,7 @@ async function main() {
   if (process.env.GITHUB_OUTPUT) {
     appendFileSync(
       process.env.GITHUB_OUTPUT,
-      `unchecked=${dryRun ? 0 : unchecked}\nheld=${held.length}\nheld_seats=${held.map(h => `${h.key} (${h.unlisted.map(u => u.name).join(', ')})`).join('; ')}\n`
+      `unchecked=${dryRun ? 0 : unchecked}\nwiki_changes=${wikiChanges.length}\nwiki_changed=${wikiChanges.map(c => `${c.key} (${[...c.added.map(n => `added ${n}`), ...c.removed.map(n => `removed ${n}`)].join(', ')})`).join('; ')}\nheld=${held.length}\nheld_seats=${held.map(h => `${h.key} (${h.unlisted.map(u => u.name).join(', ')})`).join('; ')}\n`
     );
   }
 }

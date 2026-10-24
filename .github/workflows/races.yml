@@ -71,6 +71,19 @@ jobs:
           name: races-dry-run
           path: ${{ runner.temp }}/races-dry-run.json
 
+      # Wikipedia's lists changed since the pinned (checked) versions: the
+      # site keeps the checked ones until each change is checked
+      - name: Alert on changed Wikipedia lists
+        if: steps.races.outputs.wiki_changes != '' && steps.races.outputs.wiki_changes != '0' && !inputs.dry_run
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          CHANGED: ${{ steps.races.outputs.wiki_changed }}
+        run: |
+          gh issue create --label system-alert \
+            --title "Races: Wikipedia's candidate lists changed for ${{ steps.races.outputs.wiki_changes }} seat(s)" \
+            --body "Since the checked versions pinned in scripts/refresh/data/ballot.json: $CHANGED. The site still shows the checked lists. Proposed fix: check each change against the state's candidate list (it may be a real withdrawal, or vandalism), then move the pin to the new revision and re-run the races job. Run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+
       # A seat held back (a campaign that filed the pre-general report isn't
       # on Wikipedia's list and hasn't been checked) is off the site until
       # scripts/refresh/data/ballot.json says why: tell the owner

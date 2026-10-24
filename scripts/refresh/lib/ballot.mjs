@@ -220,6 +220,28 @@ export function wikiSeats(html, office) {
   return out;
 }
 
+/**
+ * What changed between two versions of the lists: each seat with names
+ * added or removed ({ key, added, removed })
+ */
+export function seatChanges(before, after) {
+  const names = seats =>
+    new Map(seats.map(s => [seatKey(s), new Set(s.candidates.map(c => c.name))]));
+  const a = names(before);
+  const b = names(after);
+  const out = [];
+  for (const key of new Set([...a.keys(), ...b.keys()])) {
+    const was = a.get(key) || new Set();
+    const now = b.get(key) || new Set();
+    const added = [...now].filter(n => !was.has(n));
+    const removed = [...was].filter(n => !now.has(n));
+    if (added.length || removed.length) {
+      out.push({ key, added, removed });
+    }
+  }
+  return out.sort((x, y) => x.key.localeCompare(y.key));
+}
+
 const STATE_NAMES = { 'U.S. Virgin Islands': 'Virgin Islands' };
 
 /** A Wikipedia seat label as { office, state, district } (null if not a seat) */

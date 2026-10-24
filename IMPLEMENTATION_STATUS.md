@@ -60,6 +60,20 @@ clean-up, #71 outside spending, #72 TypeScript (after the election).
 
 ## Change log
 
+## 2026-10-23 (night): the field pinned; "Something wrong with this race?"
+
+Owner's yes. The races job reads Wikipedia at the revisions pinned in
+`scripts/refresh/data/ballot.json` (`pinned`: House 1381568365, Senate
+1381667211, the versions checked on the 23rd), not the latest: anyone can
+edit Wikipedia, and an added name would otherwise reach the ballot as "not
+registered with the FEC". Each run also reads the latest versions and lists
+every seat whose names changed (`seatChanges`); on a real run that's a
+`system-alert` issue, and the site keeps the checked lists until each
+change is checked against the state's list and the pin is moved. Race pages
+carry "Something wrong with this race?" (FeedbackDialog `kind="race"`): it
+goes through the suggestion route as a bug, the race named in the text, so
+it lands on /admin with no worker change.
+
 ## 2026-10-23 (night): the Races page, after review
 
 From the site appraisal (owner: "an active race and possibly could

@@ -1,6 +1,7 @@
 // Your ballot: everyone running for Congress where you live, side by side.
 // Live once November's field is published (the races job, October 23).
 import React, { useState } from 'react';
+import FeedbackDialog from '../components/FeedbackDialog.jsx';
 import Lookup from '../components/Lookup.jsx';
 import Receipt from '../components/Receipt.jsx';
 import { Skeleton, Stamp } from '../components/ui.jsx';
@@ -139,6 +140,7 @@ function CompareTable({ cands }) {
 }
 
 function RaceView({ race, others }) {
+  const [flagging, setFlagging] = useState(false);
   const days = daysUntilElection();
   const cands = race.candidates;
   const top = cands.slice(0, SHOWN);
@@ -236,6 +238,20 @@ function RaceView({ race, others }) {
             </div>
           </section>
         )}
+
+        <p className="fine" style={{ marginTop: 20 }}>
+          Who&apos;s running comes from Wikipedia&apos;s lists of candidates, each matched to the
+          candidate&apos;s own registration with the FEC.{' '}
+          <button type="button" className="link-button" onClick={() => setFlagging(true)}>
+            Something wrong with this race?
+          </button>
+        </p>
+        <FeedbackDialog
+          open={flagging}
+          onClose={() => setFlagging(false)}
+          kind="race"
+          race={{ key: race.key, label: raceSeat(race) }}
+        />
 
         <section className="section-tight" style={{ paddingBottom: 'clamp(48px, 7vw, 80px)' }}>
           <div className="panels">

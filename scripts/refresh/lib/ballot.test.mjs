@@ -1,6 +1,14 @@
 import { describe, expect, it } from 'vitest';
 import { stateByName } from '../../../src/lib/states.js';
-import { ballotField, matchSeat, nameFit, people, seatOf, wikiSeats } from './ballot.mjs';
+import {
+  ballotField,
+  matchSeat,
+  nameFit,
+  people,
+  seatChanges,
+  seatOf,
+  wikiSeats,
+} from './ballot.mjs';
 
 const row = (candidateId, name, state, office, district, pcc, party = 'REP') => ({
   candidateId,
@@ -108,5 +116,20 @@ describe("who's on November's ballot (2026-10-23)", () => {
       fit: 'checked',
       person: { candidateIds: ['S6FL00863'] },
     });
+  });
+
+  it('lists what changed on Wikipedia since the checked version', () => {
+    const seat = (district, names) => ({
+      office: 'H',
+      state: 'TX',
+      district,
+      candidates: names.map(name => ({ name })),
+    });
+    const before = [seat('23', ['A One', 'B Two']), seat('24', ['C Three'])];
+    const after = [seat('23', ['A One', 'Fake Person']), seat('24', ['C Three'])];
+    expect(seatChanges(before, after)).toEqual([
+      { key: 'H-TX-23', added: ['Fake Person'], removed: ['B Two'] },
+    ]);
+    expect(seatChanges(before, before)).toEqual([]);
   });
 });

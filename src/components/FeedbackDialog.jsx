@@ -4,12 +4,15 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { X } from 'lucide-react';
 import HumanCheck from './HumanCheck.jsx';
-import { FLAG_REASONS, SUGGESTION_KINDS, sendFeedback } from '../lib/feedback.js';
+import { FLAG_REASONS, RACE_REASONS, SUGGESTION_KINDS, sendFeedback } from '../lib/feedback.js';
 
 const MAX_TEXT = 1000;
 
-/** kind: 'flag' (needs member: { id, name }) or 'suggestion' */
-export default function FeedbackDialog({ open, onClose, kind, member = null }) {
+/**
+ * kind: 'flag' (needs member: { id, name }), 'race' (needs race: { key,
+ * label }) or 'suggestion'
+ */
+export default function FeedbackDialog({ open, onClose, kind, member = null, race = null }) {
   const ref = useRef(null);
   const [reason, setReason] = useState('');
   const [text, setText] = useState('');
@@ -18,7 +21,8 @@ export default function FeedbackDialog({ open, onClose, kind, member = null }) {
   const [round, setRound] = useState(0);
   const [state, setState] = useState({ sending: false, sent: false, error: '' });
   const flag = kind === 'flag';
-  const choices = flag ? FLAG_REASONS : SUGGESTION_KINDS;
+  const onRace = kind === 'race';
+  const choices = flag ? FLAG_REASONS : onRace ? RACE_REASONS : SUGGESTION_KINDS;
 
   useEffect(() => {
     const d = ref.current;
@@ -28,17 +32,21 @@ export default function FeedbackDialog({ open, onClose, kind, member = null }) {
     if (open && !d.open) {
       d.showModal();
       setState({ sending: false, sent: false, error: '' });
-      setReason(flag ? '' : 'idea');
+      setReason(flag || onRace ? '' : 'idea');
       setText('');
     } else if (!open && d.open) {
       d.close();
     }
-  }, [open, flag]);
+  }, [open, flag, onRace]);
 
   const submit = async e => {
     e.preventDefault();
-    if (flag && !reason) {
+    if ((flag || onRace) && !reason) {
       setState(s => ({ ...s, error: 'Pick what looks wrong.' }));
+      return;
+    }
+    if (onRace && text.trim().length < 3) {
+      setState(s => ({ ...s, error: 'Say who, and where you saw it.' }));
       return;
     }
     if ((!flag || reason === 'other') && text.trim().length < 3) {
@@ -57,10 +65,11 @@ export default function FeedbackDialog({ open, onClose, kind, member = null }) {
     }
     setState({ sending: true, sent: false, error: '' });
     try {
-      await sendFeedback(kind, {
+      const label = RACE_REASONS.find(r => r.value === reason)?.label;
+      await sendFeedback(onRace ? 'suggestion' : kind, {
         memberId: member?.id,
-        reason,
-        text: text.trim(),
+        reason: onRace ? 'bug' : reason,
+        text: onRace ? `Race ${race.key} (${race.label}). ${label}: ${text.trim()}` : text.trim(),
         page: window.location.pathname,
         token,
         website: decoy,
@@ -75,7 +84,11 @@ export default function FeedbackDialog({ open, onClose, kind, member = null }) {
     }
   };
 
-  const title = flag ? 'Something wrong with this grade?' : 'Suggest something';
+  const title = flag
+    ? 'Something wrong with this grade?'
+    : onRace
+      ? 'Something wrong with this race?'
+      : 'Suggest something';
   return (
     <dialog
       ref={ref}
@@ -99,7 +112,9 @@ export default function FeedbackDialog({ open, onClose, kind, member = null }) {
               <strong>Thanks, got it.</strong>{' '}
               {flag
                 ? `${member?.name ?? 'This member'}’s figures will be checked against the FEC’s records.`
-                : 'Every one gets read.'}
+                : onRace
+                  ? 'The race will be checked against the state’s list of candidates.'
+                  : 'Every one gets read.'}
             </p>
             <button type="button" className="btn btn-dark" onClick={onClose}>
               Close
@@ -112,6 +127,12 @@ export default function FeedbackDialog({ open, onClose, kind, member = null }) {
                 <p className="small muted">
                   About {member?.name}’s grade. Say what looks wrong and it will be checked against
                   the FEC’s records.
+                </p>
+              )}
+              {onRace && (
+                <p className="small muted">
+                  About {race?.label}. Say who and what, and where you saw it if you can (a state
+                  election site is best). It will be checked against the state’s list of candidates.
                 </p>
               )}
               <fieldset>
@@ -136,7 +157,9 @@ export default function FeedbackDialog({ open, onClose, kind, member = null }) {
                   ? reason === 'other'
                     ? 'What looks wrong?'
                     : 'Anything to add? (optional)'
-                  : 'Your suggestion'}
+                  : onRace
+                    ? 'Who, and where did you see it?'
+                    : 'Your suggestion'}
               </label>
               <textarea
                 id="feedback-text"
