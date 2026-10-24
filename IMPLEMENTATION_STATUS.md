@@ -60,6 +60,22 @@ clean-up, #71 outside spending, #72 TypeScript (after the election).
 
 ## Change log
 
+## 2026-10-23 (night): fixes from an outside review
+
+- A campaign with money but none from anyone else read "raised $523" beside
+  "No money yet": it's "Nothing from others" now (`withheldReasonOf`, the
+  stamp included).
+- The PAC panel's "own reports" figure was the one before other
+  politicians' joint funds come out ($959,447 for Peltola, the receipt
+  $957,059): it quotes the receipt's PAC line now, to the dollar.
+- "Country-focused" has an (i) that says what Form 990 is, that one test
+  covers every country, and that it can only check PACs set up by a group
+  that files one (in practice only Israel-related groups carry the label:
+  most diaspora PACs have no such sponsor). The label changes no grade.
+- Race addresses drop the Senate's trailing hyphen (/race/S-AK); the old
+  ones still work. The Races footer reads as a sentence.
+- Small campaigns keep their grades (owner: "Why change the grade?").
+
 ## 2026-10-23 (night): the lists as plain files with the site
 
 Owner: "this shouldn't be expensive". Every visit fetched `members:list`

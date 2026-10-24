@@ -1,12 +1,14 @@
 // The pieces every page is built from: the grade stamp, a receipt's lines,
 // the evidence label, a section with a plain heading and a country's flag.
-import React from 'react';
-import { CheckCircle2, Clock3 } from 'lucide-react';
+import React, { useState } from 'react';
+import { CheckCircle2, Clock3, Info } from 'lucide-react';
 import { flagSrc } from '../lib/flags.js';
 import { gradeInfo } from '../lib/grades.js';
+import { COUNTRY_FOCUS_NOTE } from '../lib/pacs.js';
 
 export function Stamp({
   tier,
+  reason = null,
   size = 92,
   rot = -9,
   dark = false,
@@ -14,7 +16,7 @@ export function Stamp({
   delay = 0,
   word = true,
 }) {
-  const g = gradeInfo(tier);
+  const g = gradeInfo(tier, reason);
   return (
     <div
       className={`stamp${animate ? ' stamp-in' : ''}${dark ? ' is-dark' : ''}`}
@@ -114,4 +116,33 @@ export function Flag({ country }) {
   return src ? (
     <img className="flag" src={src} alt="" width={22} height={16} loading="lazy" decoding="async" />
   ) : null;
+}
+
+/** "Country-focused: Israel", with an (i) that says what the label means */
+export function CountryChip({ country }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <>
+      <span className="pac-chip has-flag">
+        <Flag country={country} /> Country-focused: {country}
+        <button
+          type="button"
+          className="chip-info"
+          aria-expanded={open}
+          aria-label="What Country-focused means"
+          onClick={e => {
+            e.preventDefault();
+            setOpen(o => !o);
+          }}
+        >
+          <Info size={14} aria-hidden="true" />
+        </button>
+      </span>
+      {open && (
+        <span className="chip-note" role="note">
+          {COUNTRY_FOCUS_NOTE}
+        </span>
+      )}
+    </>
+  );
 }

@@ -44,7 +44,12 @@ export default function Receipt({ person, delay = 0, animate = true, headingLeve
             {person.badge ? ` · ${person.badge}` : ''}
           </p>
         </div>
-        <Stamp tier={person.tier} animate={animate} delay={delay + 0.35} />
+        <Stamp
+          tier={person.tier}
+          reason={person.withheldReason}
+          animate={animate}
+          delay={delay + 0.35}
+        />
       </div>
 
       {ppi ? (

@@ -94,4 +94,6 @@ export function Link({ to, onClick, ...props }) {
 }
 
 export const memberPath = id => `/member/${encodeURIComponent(id)}`;
-export const racePath = key => `/race/${encodeURIComponent(key)}`;
+// A Senate race's key ends in its empty district ("S-AK-"): the address
+// leaves it off, and the old addresses still work (pages/Ballot.jsx)
+export const racePath = key => `/race/${encodeURIComponent(key.replace(/-$/, ''))}`;

@@ -135,6 +135,13 @@ const WITHHELD = {
     meaning:
       "The FEC has no campaign committee on file for this member for this election, so there are no campaign records to check and grade. It's a gap in the records, not something found about this member.",
   },
+  // Money raised, none of it from anyone else (2026-10-23: "raised $523"
+  // beside "No money yet" read as a contradiction)
+  'nothing-from-others': {
+    name: 'Nothing from others',
+    meaning:
+      "This campaign has reported no money from anyone other than the candidate, so there's nothing to grade.",
+  },
   'not-graded': {
     name: 'Checking records',
     meaning:
@@ -148,9 +155,13 @@ const WITHHELD = {
  */
 export function gradeInfo(tier, withheldReason = null) {
   const g = GRADES[tier] || UNKNOWN;
-  const why = RINGFENCED.includes(tier) ? WITHHELD[withheldReason] : null;
+  const why = RINGFENCED.includes(tier) || tier === 'N/A' ? WITHHELD[withheldReason] || null : null;
   return { tier, mark: g.mark || tier || '–', ...g, ...why };
 }
+
+/** A withheld grade's reason, from what the campaign raised */
+export const withheldReasonOf = c =>
+  c.tier === 'N/A' && c.totalRaised > 0 ? 'nothing-from-others' : (c.withheldReason ?? null);
 
 /** "an S", "a B": for headings like "Why an E" */
 export function withArticle(tier) {

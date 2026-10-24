@@ -2154,6 +2154,36 @@ p {
   flex: none;
 }
 
+.chip-info {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 24px;
+  min-height: 24px;
+  margin: -4px -6px -4px 2px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  cursor: pointer;
+}
+
+.chip-note {
+  display: block;
+  max-width: 40em;
+  margin: 8px 0 4px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: var(--paper);
+  font-family: var(--body);
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 1.5;
+  text-transform: none;
+  letter-spacing: normal;
+  color: var(--ink-2);
+}
+
 .pac-chip.is-heavier {
   background: #fbe3dd;
   color: #8f2a1a;

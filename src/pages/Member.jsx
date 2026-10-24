@@ -8,8 +8,8 @@ import ShareDialog from '../components/ShareDialog.jsx';
 import MoneyGraph from '../components/MoneyGraph.jsx';
 import {
   Barcode,
+  CountryChip,
   Evidence,
-  Flag,
   Section,
   MoneyLines,
   Skeleton,
@@ -25,7 +25,14 @@ import {
   peopleSentence,
   placementLine,
 } from '../lib/explain.js';
-import { GRADE_SCOPE, gradeInfo, isLetter, isRingfenced, withArticle } from '../lib/grades.js';
+import {
+  GRADE_SCOPE,
+  gradeInfo,
+  isLetter,
+  isRingfenced,
+  withArticle,
+  withheldReasonOf,
+} from '../lib/grades.js';
 import { useAsync, useTitle } from '../lib/hooks.js';
 import { lightHandlers, useLight } from '../lib/light.js';
 import {
@@ -271,8 +278,9 @@ export default function Member({ id, kind = 'member' }) {
     );
   }
 
-  const g = gradeInfo(m.tier, m.withheldReason);
   const f = gradedFigures(m);
+  const reason = withheldReasonOf({ ...m, totalRaised: f.totalRaised });
+  const g = gradeInfo(m.tier, reason);
   const withheld = isRingfenced(m.tier);
   const hasMoney = f.totalRaised > 0 && !withheld;
   // FINAL-3's working, in dollars (workers/grading.js gradeMemberFinal3)
@@ -392,7 +400,7 @@ export default function Member({ id, kind = 'member' }) {
                 maxWidth: 820,
               }}
             >
-              <Stamp tier={m.tier} size={110} />
+              <Stamp tier={m.tier} reason={reason} size={110} />
               <div style={{ flex: '1 1 300px' }}>
                 <h2 style={{ fontSize: 22, marginBottom: 8 }}>{g.name}</h2>
                 <p>{g.meaning}</p>
@@ -454,7 +462,7 @@ export default function Member({ id, kind = 'member' }) {
                 <Barcode id={id} />
               </div>
               <div className="slip-stamp">
-                <Stamp tier={m.tier} size={124} rot={-11} animate delay={0.45} />
+                <Stamp tier={m.tier} reason={reason} size={124} rot={-11} animate delay={0.45} />
               </div>
             </div>
 
@@ -590,7 +598,12 @@ export default function Member({ id, kind = 'member' }) {
                   </Section>
                 )}
 
-                <PacPanel member={m} name={name} pacMoney={f.pacMoney} />
+                {/* The receipt's PAC line, to the dollar: one source of truth */}
+                <PacPanel
+                  member={m}
+                  name={name}
+                  pacMoney={receipt?.counted.find(l => l.key === 'pac')?.amount ?? f.pacMoney}
+                />
 
                 {m.topConduits?.length > 0 && (
                   <Section title="Bundled donations">
@@ -609,9 +622,7 @@ export default function Member({ id, kind = 'member' }) {
                           <span className="name">
                             {c.name}{' '}
                             {c.country ? (
-                              <span className="pac-chip has-flag">
-                                <Flag country={c.country} /> Country-focused: {c.country}
-                              </span>
+                              <CountryChip country={c.country} />
                             ) : (
                               <span
                                 className="muted"
@@ -629,7 +640,8 @@ export default function Member({ id, kind = 'member' }) {
                     <p className="fine" style={{ marginTop: 12 }}>
                       &ldquo;Country-focused&rdquo; means the group behind it tells the IRS, on its
                       own Form 990, that it exists to advance a particular country&apos;s interests
-                      or its relationship with the United States.
+                      or its relationship with the United States. Only groups that file a Form 990
+                      can be checked.
                     </p>
                   </Section>
                 )}

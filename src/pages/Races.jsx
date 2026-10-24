@@ -8,7 +8,7 @@ import Lookup from '../components/Lookup.jsx';
 import { Skeleton, Stamp } from '../components/ui.jsx';
 import { api } from '../lib/api.js';
 import { ELECTION_LABEL, daysUntilElection } from '../lib/election.js';
-import { GRADE_SCOPE_SHORT, PARTS, gradeInfo, isLetter } from '../lib/grades.js';
+import { GRADE_SCOPE_SHORT, PARTS, gradeInfo, isLetter, withheldReasonOf } from '../lib/grades.js';
 import { useAsync, useCountUp, useInView, useTitle } from '../lib/hooks.js';
 import { ballotPartyName, displayName, raceSeat, stateName, usdShort } from '../lib/people.js';
 import { savePlace } from '../lib/place.js';
@@ -153,7 +153,7 @@ function MoneyBar({ c, i }) {
         {c.registered === false
           ? 'Not registered with the FEC'
           : c.tier && !isLetter(c.tier)
-            ? gradeInfo(c.tier).name
+            ? gradeInfo(c.tier, withheldReasonOf(c)).name
             : 'Not graded yet'}
       </span>
     );
@@ -299,14 +299,13 @@ function Sources({ sources }) {
   const link = s => `https://en.wikipedia.org/w/index.php?oldid=${s.revid}`;
   return (
     <p className="fine" style={{ marginTop: 32 }}>
-      Who&apos;s running comes from Wikipedia&apos;s lists of candidates (
-      {sources?.H && <a href={link(sources.H)}>House</a>}
-      {sources?.H && sources?.S && ', '}
-      {sources?.S && <a href={link(sources.S)}>Senate</a>}, the versions used), each matched to the
-      candidate&apos;s own registration with the FEC and checked against the reports campaigns filed
-      before the election. Candidates who aren&apos;t in Congress are graded from the FEC&apos;s
-      bulk data files, and their donations are checked against the FEC&apos;s own records
-      afterwards. <Link to="/how">How grades work</Link>.
+      Who&apos;s running comes from Wikipedia&apos;s lists of candidates for the{' '}
+      {sources?.H ? <a href={link(sources.H)}>House</a> : 'House'} and the{' '}
+      {sources?.S ? <a href={link(sources.S)}>Senate</a> : 'Senate'}, in the versions that were
+      checked. Each candidate is matched to their own registration with the FEC, and checked against
+      the reports campaigns filed before the election. Candidates who aren&apos;t in Congress are
+      graded from the FEC&apos;s bulk data files, and their donations are checked against the
+      FEC&apos;s own records afterwards. <Link to="/how">How grades work</Link>.
     </p>
   );
 }

@@ -7,7 +7,7 @@ import Receipt from '../components/Receipt.jsx';
 import { Skeleton, Stamp } from '../components/ui.jsx';
 import { api } from '../lib/api.js';
 import { ELECTION_DAY_TEXT, ELECTION_LABEL, daysUntilElection } from '../lib/election.js';
-import { GRADES, gradeInfo } from '../lib/grades.js';
+import { GRADES, gradeInfo, withheldReasonOf } from '../lib/grades.js';
 import { useAsync, useTitle } from '../lib/hooks.js';
 import {
   ballotPartyName,
@@ -39,6 +39,7 @@ function candidatePerson(c) {
     seat: c.ici === 'I' ? 'In office' : c.ici === 'O' ? 'Open seat' : 'Challenger',
     party: ballotPartyName(c),
     tier: c.tier,
+    withheldReason: withheldReasonOf(c),
     figures: graded ? figures : null,
     note: graded
       ? null
@@ -353,7 +354,7 @@ export default function Ballot({ raceKey }) {
   const races = useAsync(() => api.races(), []);
   const [place, setPlace] = useState(savedPlace);
   const all = races.data?.races || [];
-  const race = raceKey ? all.find(r => r.key === raceKey) : null;
+  const race = raceKey ? all.find(r => r.key === raceKey || r.key === `${raceKey}-`) : null;
   const mine = place ? racesFor(all, place) : [];
   const shown = race || mine[0] || null;
   useTitle(shown ? raceSeat(shown) : 'Your ballot');

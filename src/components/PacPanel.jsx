@@ -7,7 +7,7 @@ import React from 'react';
 import { Link } from '../lib/router.js';
 import { pacRows } from '../lib/pacs.js';
 import { usd } from '../lib/people.js';
-import { Flag, Section } from './ui.jsx';
+import { CountryChip, Section } from './ui.jsx';
 
 // `people`: the group whose gifts can be People money
 const PAC_GROUPS = [
@@ -66,9 +66,7 @@ function Row({ p, i }) {
           {p.country && (
             <>
               {' '}
-              <span className="pac-chip has-flag">
-                <Flag country={p.country} /> Country-focused: {p.country}
-              </span>
+              <CountryChip country={p.country} />
             </>
           )}
           {p.to === 'own joint fund' && (
@@ -144,8 +142,8 @@ export default function PacPanel({ member, name, pacMoney }) {
     return null;
   }
   const groups = PAC_GROUPS.filter(g => s.byGroup?.[g.group] > 0);
-  // The receipt's PAC figure (and the grade's) is from the member's own
-  // reports; the list is from the PACs' reports, and the two don't always match
+  // pacMoney is the receipt's PAC line (the grade's own figure); the list is
+  // from the PACs' reports, and the two don't always match
   const differs = Math.abs((s.total || 0) - (pacMoney || 0)) >= 1;
   return (
     <Section title="PAC donations">
@@ -153,9 +151,10 @@ export default function PacPanel({ member, name, pacMoney }) {
       {s.count > 0 && (
         <>
           <p style={{ marginBottom: 12 }}>
-            {name}&apos;s own reports show <strong>{usd(pacMoney)}</strong> from PACs.
+            The receipt counts <strong>{usd(pacMoney)}</strong> from PACs, from {name}&apos;s own
+            reports.
             {differs
-              ? ` The PACs' own reports, listed below, add up to ${usd(s.total)} from ${s.count === 1 ? 'one PAC' : `${s.count.toLocaleString('en-US')} PACs`}. The two sides' reports don't always match. The grade uses ${name}'s.`
+              ? ` The PACs' own reports, listed below, add up to ${usd(s.total)} from ${s.count === 1 ? 'one PAC' : `${s.count.toLocaleString('en-US')} PACs`}. The two sides' reports don't always match, and the grade uses the receipt's figure.`
               : ''}
           </p>
           <div
@@ -205,7 +204,7 @@ export default function PacPanel({ member, name, pacMoney }) {
         IRS&apos;s list of tax-exempt groups and the group&apos;s own Form 990.
         &ldquo;Country-focused&rdquo; means the group behind it tells the IRS, on its own Form 990,
         that it exists to advance a particular country&apos;s interests or its relationship with the
-        United States.
+        United States. Only PACs set up by a group that files a Form 990 can be checked.
       </p>
     </Section>
   );
