@@ -100,6 +100,9 @@ differs from the FEC's are in the same file.
 First pass on the 23rd: 475 seats, 1,296 candidates; 1,166 matched by full
 name, 58 by family name (people who go by a short name: Ro Khanna is
 ROHIT), 3 by hand, 69 not registered with the FEC, none unclear.
+Published at 7 pm PDT (run 40050893071, owner's go): 475 races, 1,296
+candidates, 0 seats held; races.yml and races-check.yml back on, the
+record check running behind it.
 
 ## 2026-10-20: the grades' licence
 
