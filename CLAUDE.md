@@ -232,7 +232,7 @@ redesigned them wasted days and, twice, proposed breaking them. Build on them.
   `scripts/health-alert.sh` turns it into a `system-alert` GitHub issue for
   the owner, each problem with a proposed fix; it runs at the end of every
   refresh job and every daily calendar check (the hourly `health-alert.yml`
-  stays off).
+  workflow was removed on 2026-10-24: no clock of its own).
   When you add a way for the system to fail quietly, add a check there — a
   failure nobody is told about is how AOC sat stuck for three months.
 - `.claude/settings.local.json` is local-only and gitignored — never commit.

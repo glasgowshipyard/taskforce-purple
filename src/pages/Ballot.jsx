@@ -5,7 +5,7 @@ import { Share2 } from 'lucide-react';
 import FeedbackDialog from '../components/FeedbackDialog.jsx';
 import Lookup from '../components/Lookup.jsx';
 import Receipt from '../components/Receipt.jsx';
-import { Skeleton, Stamp } from '../components/ui.jsx';
+import { Skeleton, Stamp, VoteLink } from '../components/ui.jsx';
 import { api } from '../lib/api.js';
 import { ELECTION_DAY_TEXT, ELECTION_LABEL, daysUntilElection } from '../lib/election.js';
 import { GRADES, gradeInfo, withheldReasonOf } from '../lib/grades.js';
@@ -426,8 +426,10 @@ export default function Ballot({ raceKey, raceCycle = null }) {
       <div className="wrap section">
         <h1 className="display display-l">That race isn&apos;t here</h1>
         <p className="lede" style={{ marginTop: 16 }}>
-          The link may be out of date. <Link to="/ballot">See the races where you live</Link>.
+          The link may be out of date. <Link to="/ballot">See the races where you live</Link>, or{' '}
+          <Link to="/races">every race for Congress</Link>.
         </p>
+        <VoteLink />
       </div>
     );
   }

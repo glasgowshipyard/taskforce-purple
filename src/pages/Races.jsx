@@ -5,7 +5,7 @@
 // job (Wikipedia's lists matched to the FEC).
 import React, { useMemo, useRef, useState } from 'react';
 import Lookup from '../components/Lookup.jsx';
-import { Skeleton, Stamp } from '../components/ui.jsx';
+import { Skeleton, Stamp, VoteLink } from '../components/ui.jsx';
 import { api } from '../lib/api.js';
 import { ELECTION_LABEL, daysUntilElection } from '../lib/election.js';
 import {
@@ -385,6 +385,7 @@ export default function Races() {
           The candidates are graded from the reports their campaigns file with the FEC.{' '}
           <Link to="/">See your current representatives</Link>.
         </p>
+        <VoteLink />
       </div>
     );
   }

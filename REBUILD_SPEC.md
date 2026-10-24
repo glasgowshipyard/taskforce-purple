@@ -467,7 +467,7 @@ remainder).
 
 - Grade history and the trajectory shown on member cards.
 - Retire `members:all` and, with the owner's OK, the legacy D1 database.
-- Delete `workers/recalculate-metrics.js` if it's unused.
+- ~~Delete `workers/recalculate-metrics.js` if it's unused.~~ Deleted 2026-10-24.
 - Rewrite `DATABASE_REFERENCE.md`.
 - The full sweep of any remaining code for:
   - whole-dataset writes;

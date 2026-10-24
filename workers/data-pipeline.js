@@ -477,8 +477,8 @@ async function handleMembers(env, corsHeaders) {
 
 // Status endpoint for monitoring Worker progress
 // System health (REBUILD_SPEC §8): the site's data in KV, and the refresh
-// job's record in D1 tfp-results. Read-only; checked hourly by
-// .github/workflows/health-alert.yml, which opens an issue on a problem.
+// job's record in D1 tfp-results. Read-only; scripts/health-alert.sh reads
+// it at the end of every job and daily check and opens an issue on a problem.
 async function handleHealth(env, corsHeaders) {
   const snapshot = await loadHealth(env);
   const verdict = evaluateHealth(snapshot);

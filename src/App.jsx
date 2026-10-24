@@ -9,6 +9,7 @@ import Member from './pages/Member.jsx';
 import Races from './pages/Races.jsx';
 import { Link, matchRoute, useLocation } from './lib/router.js';
 import { useTitle } from './lib/hooks.js';
+import { VoteLink } from './components/ui.jsx';
 
 function Missing() {
   useTitle('Page not found');
@@ -17,8 +18,10 @@ function Missing() {
       <h1 className="display display-l">Page not found</h1>
       <p className="lede" style={{ marginTop: 16 }}>
         There&apos;s nothing at this address. You can{' '}
-        <Link to="/">look up your representatives</Link> from the home page.
+        <Link to="/">look up your representatives</Link> from the home page, or see{' '}
+        <Link to="/races">every race for Congress</Link>.
       </p>
+      <VoteLink />
     </div>
   );
 }

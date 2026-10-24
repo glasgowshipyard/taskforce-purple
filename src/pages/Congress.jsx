@@ -2,7 +2,7 @@
 // filters live in the address, so a filtered view can be shared.
 import React, { useEffect, useMemo, useState } from 'react';
 import { Search } from 'lucide-react';
-import { Skeleton, Stamp } from '../components/ui.jsx';
+import { Skeleton, Stamp, VoteLink } from '../components/ui.jsx';
 import { api } from '../lib/api.js';
 import { GRADES, LETTERS, gradeInfo, isLetter } from '../lib/grades.js';
 import { useAsync, useTitle } from '../lib/hooks.js';
@@ -232,6 +232,7 @@ export default function Congress({ search }) {
           <strong>The list didn&apos;t load just now.</strong> Check your connection and reload.
         </p>
       )}
+      {members.error && <VoteLink />}
       {members.data && (
         <>
           <p className="count-line" role="status" style={{ marginBottom: 12 }}>

@@ -3428,3 +3428,12 @@ p {
     animation: none;
   }
 }
+
+.vote-link {
+  margin-top: 24px;
+  max-width: 40em;
+  padding: 14px 16px;
+  border-left: 3px solid var(--purple);
+  background: var(--receipt);
+  color: var(--ink-2);
+}

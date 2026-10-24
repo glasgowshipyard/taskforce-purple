@@ -7,8 +7,9 @@
 #   healthy, alert open       -> comment "recovered" and close it
 #
 # Run at the end of every refresh job (.github/workflows/refresh.yml), which
-# sets JOB_FAILED_URL when the job itself failed. The hourly workflow
-# (health-alert.yml) stays off (REBUILD_SPEC §8). Locally:
+# sets JOB_FAILED_URL when the job itself failed, and of every daily
+# calendar check; no clock of its own (the hourly health-alert.yml was
+# removed on 2026-10-24, owner). Locally:
 #   DRY_RUN=1 bash scripts/health-alert.sh     # shows what it would do
 set -euo pipefail
 

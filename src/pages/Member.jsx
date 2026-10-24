@@ -14,6 +14,7 @@ import {
   MoneyLines,
   Skeleton,
   Stamp,
+  VoteLink,
 } from '../components/ui.jsx';
 import { api } from '../lib/api.js';
 import { classifyOrganization, sectorInfo } from '../lib/donor-taxonomy.js';
@@ -284,9 +285,10 @@ export default function Member({ id, kind = 'member' }) {
       <div className="wrap section">
         <h1 className="display display-l">That page isn&apos;t here</h1>
         <p className="lede" style={{ marginTop: 16 }}>
-          The link may be out of date. You can <Link to="/congress">search all of Congress</Link>{' '}
-          instead.
+          The link may be out of date. You can <Link to="/congress">search all of Congress</Link> or
+          see <Link to="/races">every race</Link> instead.
         </p>
+        <VoteLink />
       </div>
     );
   }

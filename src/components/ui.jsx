@@ -146,3 +146,18 @@ export function CountryChip({ country }) {
     </>
   );
 }
+
+/**
+ * Where to vote, on every page that couldn't show what was asked for (owner,
+ * 2026-10-24): whatever went wrong here, a visitor can still get to their
+ * state's election site
+ */
+export function VoteLink() {
+  return (
+    <p className="vote-link">
+      Looking for where to vote? <a href="https://vote.gov">vote.gov</a> is run by the federal
+      government and links to your state&apos;s election site, where you can check your registration
+      and find your polling place.
+    </p>
+  );
+}

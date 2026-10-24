@@ -3,7 +3,7 @@ import { ArrowRight } from 'lucide-react';
 import Lookup from '../components/Lookup.jsx';
 import Receipt from '../components/Receipt.jsx';
 import WhyItMatters from '../components/WhyItMatters.jsx';
-import { Stamp } from '../components/ui.jsx';
+import { Stamp, VoteLink } from '../components/ui.jsx';
 import { api } from '../lib/api.js';
 import { ELECTION_LABEL } from '../lib/election.js';
 import { GRADES, LETTERS } from '../lib/grades.js';
@@ -304,6 +304,7 @@ export default function Home() {
             <strong>The grades didn&apos;t load just now.</strong> Check your connection and reload
             the page.
           </p>
+          <VoteLink />
         </div>
       )}
 
