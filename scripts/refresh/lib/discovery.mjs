@@ -330,9 +330,23 @@ export async function discoverPeople({
         ...candidateIds
       )
     : [];
+  // Two IDs with one campaign committee (a second statement of candidacy)
+  // each carry that committee's figures in the summary file: count them
+  // once (2026-10-23: Nevada 3's nominee showed $6M of his own money for $3M)
+  const principal = new Map(
+    links.filter(l => l.designation === 'P').map(l => [l.candidate_id, l.committee_id])
+  );
   const ownMoney = new Map(
     people.map(p => {
-      const mine = ownRows.filter(r => p.ids.includes(r.candidate_id));
+      const byCommittee = new Map();
+      for (const r of ownRows.filter(row => p.ids.includes(row.candidate_id))) {
+        const key = principal.get(r.candidate_id) || r.candidate_id;
+        const size = x => num(x.own_contributions) + num(x.own_loans);
+        if (!byCommittee.has(key) || size(r) > size(byCommittee.get(key))) {
+          byCommittee.set(key, r);
+        }
+      }
+      const mine = [...byCommittee.values()];
       const sum = key => Math.round(mine.reduce((t, r) => t + num(r[key]), 0) * 100) / 100;
       return [
         p.id,
