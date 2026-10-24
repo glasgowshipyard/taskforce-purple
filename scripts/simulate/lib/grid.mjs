@@ -341,6 +341,10 @@ export function gradeOne(m, pacs, shares, cfg, opts = {}) {
   }
   const D = cfg.denominator === 'given' ? given : fromOthers;
   out.denominator = D;
+  // Not graded (2026-10-23): half or more the candidate's own money
+  if (cfg.selfFunded && own > 0 && T > 0 && own / T >= cfg.selfFunded) {
+    return { ...out, tier: 'SELF-FUNDED', reason: 'self-funded', withheld: true };
+  }
   if (!(D > 0)) {
     return { ...out, tier: 'N/A', reason: 'no-money', withheld: true };
   }

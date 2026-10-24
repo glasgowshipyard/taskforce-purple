@@ -55,6 +55,7 @@ const CFG = {
     peopleTest: true,
   },
   nonOwnAsPolitician: true,
+  selfFunded: 0.5, // FINAL3.selfFunded
   directedAsGifts: true,
 };
 const sim = runGrid({ ...inputs, pacs }, CFG).results;

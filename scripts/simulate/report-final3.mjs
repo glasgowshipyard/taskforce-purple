@@ -133,6 +133,7 @@ const CFG = {
     peopleTest: true,
   },
   nonOwnAsPolitician: true,
+  selfFunded: 0.5, // FINAL3.selfFunded
   directedAsGifts: true,
 };
 const runs = STEPS.map(([label, o]) => {

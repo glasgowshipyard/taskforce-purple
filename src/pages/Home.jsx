@@ -132,7 +132,10 @@ function CongressDots({ members }) {
   const counts = Object.fromEntries(LETTERS.map(l => [l, graded.filter(m => m.tier === l).length]));
   const low = counts.D + counts.E + counts.F;
   const words = fractionWords(low / graded.length);
-  const unchecked = members.length - graded.length;
+  // Not graded by rule (mostly their own money), as opposed to records still
+  // being checked
+  const selfFunded = members.filter(m => m.tier === 'SELF-FUNDED').length;
+  const unchecked = members.length - graded.length - selfFunded;
   return (
     <section
       id="congress"
@@ -157,7 +160,9 @@ function CongressDots({ members }) {
               {low} of the {graded.length} graded members get less than 45% of their money from
               people. Only {counts.S} get 90% or more.
               {unchecked > 0 &&
-                ` ${unchecked} more aren't graded yet while their records are checked.`}{' '}
+                ` ${unchecked} more aren't graded yet while their records are checked.`}
+              {selfFunded > 0 &&
+                ` ${selfFunded} ${selfFunded === 1 ? "isn't" : "aren't"} graded because half or more of their campaign money is their own.`}{' '}
               Click a grade to see who&apos;s in it. <Link to="/how#pacs">What&apos;s a PAC?</Link>
             </p>
           </div>

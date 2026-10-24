@@ -98,6 +98,17 @@ export const GRADES = {
     meaning:
       "No campaign money has been reported for this election yet, so there's nothing to grade.",
   },
+  // A campaign mostly funded by the candidate (owner, 2026-10-23), shown as
+  // what it is: never a letter, and never a bad one
+  'SELF-FUNDED': {
+    name: 'Self-funded',
+    mark: '$',
+    color: '#77738A',
+    light: '#B9B5C6',
+    rank: 1,
+    meaning:
+      "Half or more of this campaign's money is the candidate's own, so it can't be graded fairly on where the rest came from. The figures show the whole campaign.",
+  },
   // Our figures don't add up against the FEC's own filing: a problem with our
   // data, not a finding about the member
   DISPUTED: {
