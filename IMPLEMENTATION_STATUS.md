@@ -60,6 +60,19 @@ clean-up, #71 outside spending, #72 TypeScript (after the election).
 
 ## Change log
 
+## 2026-10-24 (later): preview cards for every candidate and race
+
+Links to candidates and races showed the home page's card (an outside
+review; owner's go). The build now pre-makes a page and preview picture
+for every race (`/race/2026/S-AK`, `racePage`) and every candidate who
+isn't a sitting member (`/candidate/<FEC ID>`, `candidatePage`), from the
+published races: 1,854 pages, about 30 seconds, 3,920 files (the free
+plan allows 20,000), $0. A Self-funded campaign's card, a member's or a
+candidate's, says "Self-funded" with what they put in and its share. Also:
+Self-funded is live (5 members, 111 candidates); race-page receipts show a
+candidate's own money as theirs, not as "Other"; stamp words sit clear of
+the ring; the Races map explained in plain words; the ZIP box fits.
+
 ## 2026-10-24: races by cycle; specials apart; the map in grade colours
 
 - Race addresses carry the cycle (`/race/2026/S-AK`), so the same seat in

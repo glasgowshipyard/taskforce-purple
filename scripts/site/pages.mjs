@@ -14,8 +14,17 @@ import {
   gradeInfo,
   isLetter,
   withArticle,
+  withheldReasonOf,
 } from '../../src/lib/grades.js';
-import { displayName, partyName, roleTitle, seatLabel, usd } from '../../src/lib/people.js';
+import {
+  ballotPartyName,
+  displayName,
+  partyName,
+  raceSeat,
+  roleTitle,
+  seatLabel,
+  usd,
+} from '../../src/lib/people.js';
 import { FINDINGS, LEAD, MOTTO, STUDIES, WISHES } from '../../src/lib/research.js';
 import { CORRECTIONS, REVIEW_DAYS } from '../../src/lib/corrections.js';
 
@@ -30,6 +39,10 @@ export const esc = text =>
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&#39;');
+
+// A race's address, as src/lib/router.js racePath writes it (that module
+// needs React, which the build's Node script doesn't load)
+const racePath = (key, cycle) => `/race/${cycle}/${encodeURIComponent(key)}`;
 
 const SHORT_TITLE = { Senator: 'Sen.', Representative: 'Rep.', Delegate: 'Del.' };
 
@@ -46,6 +59,10 @@ function figures(m) {
 // The cycle the list's grades are on: the newest any member is graded on
 const listCycle = members =>
   members.reduce((c, m) => Math.max(c, Number(m.gradeCycle) || 0), 0) || DEFAULT_CYCLE;
+
+// A member's own gifts and loans to their campaign (shown, never graded)
+const ownOf = m =>
+  (m.personFigures?.ownMoney?.contributions || 0) + (m.personFigures?.ownMoney?.loans || 0);
 
 /** One member's page: the live page's facts, for crawlers and previews */
 export function memberPage(m, scores) {
@@ -92,11 +109,17 @@ ${raised > 0 ? `<p>Raised ${esc(usd(raised))} in the ${cycleLabel(m.gradeCycle ?
           note: GRADE_SCOPE_SHORT,
           cycle: m.gradeCycle ?? null,
         }
-      : {
-          eyebrow: `${SHORT_TITLE[role] || role} ${name}`,
-          headline: `Who funds ${name}?`,
-          sub: g.meaning,
-        },
+      : m.tier === 'SELF-FUNDED' && ownOf(m) > 0 && raised > 0
+        ? {
+            eyebrow: `${SHORT_TITLE[role] || role} ${name}`,
+            headline: 'Self-funded',
+            sub: `${name} put in ${usd(ownOf(m))} of their own: ${Math.round((ownOf(m) / raised) * 100)}% of everything the campaign raised. A campaign that's mostly the candidate's own money isn't graded.`,
+          }
+        : {
+            eyebrow: `${SHORT_TITLE[role] || role} ${name}`,
+            headline: `Who funds ${name}?`,
+            sub: g.meaning,
+          },
     cardAlt: f ? `${name}: grade ${m.tier}, ${g.name}. ${f.sentence}` : `Who funds ${name}?`,
     jsonLd: {
       '@type': 'WebPage',
@@ -113,7 +136,18 @@ ${raised > 0 ? `<p>Raised ${esc(usd(raised))} in the ${cycleLabel(m.gradeCycle ?
     },
     body,
     // What the page shows: when this changes, the page has changed
-    signature: JSON.stringify([m.tier, f?.ppi, placement, raised, m.evidenceChecked, name, seat]),
+    // Own money only where the card shows it, so no other member's page
+    // counts as changed
+    signature: JSON.stringify([
+      m.tier,
+      f?.ppi,
+      placement,
+      raised,
+      m.evidenceChecked,
+      name,
+      seat,
+      ...(m.tier === 'SELF-FUNDED' ? [ownOf(m)] : []),
+    ]),
   };
 }
 
@@ -180,6 +214,128 @@ export function howPage() {
 <p>Every figure comes from campaign finance reports filed with the Federal Election Commission (FEC).</p>
 </main>`,
     signature: 'how-3',
+  };
+}
+
+/**
+ * A candidate who isn't a sitting member (races:list): their own page and
+ * preview card, as a member's (owner, 2026-10-23: links shared during the
+ * race showed the home page's card)
+ */
+export function candidatePage(c, race, cycle) {
+  const name = displayName(c.name);
+  const g = gradeInfo(c.tier, withheldReasonOf(c));
+  const ppi = isLetter(c.tier) ? c.peoplePowerInfluence : null;
+  const sentence = ppi ? peopleSentence(ppi.people) : null;
+  const party = ballotPartyName(c);
+  const seat = raceSeat(race);
+  const where = seat.split(' · ').slice(1).join(' · ') || seat;
+  // "Mary Peltola · Senate candidate · Alaska", as a member's card names the seat
+  const eyebrow = `${name} · ${race.office === 'S' ? 'Senate' : 'House'} candidate · ${where}`;
+  const path = `/candidate/${encodeURIComponent(c.candidateId)}`;
+  const title = ppi
+    ? `Who funds ${name}? ${c.tier}: ${ppi.people}% from people${TITLE_SUFFIX}`
+    : `Who funds ${name}?${TITLE_SUFFIX}`;
+  const own =
+    c.ownMoney > 0 && c.totalRaised > 0 ? ` They put in ${usd(c.ownMoney)} of their own.` : '';
+  const description = ppi
+    ? `${name} (${party}, candidate for ${seat.replace(' · ', ', ')}) gets ${withArticle(c.tier)}, ${g.name}. ${sentence} ${ppi.power}% was big money from a few wealthy donors and ${ppi.influence}% came from PACs, politicians and parties.${own} From public FEC filings.`
+    : `${name} (${party}, candidate for ${seat.replace(' · ', ', ')}): ${g.meaning}`;
+  return {
+    path,
+    title,
+    description,
+    card: ppi
+      ? {
+          eyebrow,
+          headline: sentence,
+          sub: `Grade ${c.tier}: ${g.name}.`,
+          tier: c.tier,
+          ppi,
+          note: GRADE_SCOPE_SHORT,
+          cycle,
+        }
+      : c.tier === 'SELF-FUNDED' && c.ownMoney > 0 && c.totalRaised > 0
+        ? {
+            eyebrow,
+            headline: 'Self-funded',
+            sub: `${name} put in ${usd(c.ownMoney)} of their own: ${Math.round((c.ownMoney / c.totalRaised) * 100)}% of everything the campaign raised. A campaign that's mostly the candidate's own money isn't graded.`,
+          }
+        : { eyebrow, headline: `Who funds ${name}?`, sub: g.meaning },
+    cardAlt: ppi ? `${name}: grade ${c.tier}, ${g.name}. ${sentence}` : `Who funds ${name}?`,
+    jsonLd: {
+      '@type': 'WebPage',
+      name: title.replace(TITLE_SUFFIX, ''),
+      description,
+      url: `${SITE}${path}`,
+      isPartOf: { '@type': 'WebSite', name: SITE_NAME, url: `${SITE}/` },
+      about: { '@type': 'Person', name },
+    },
+    body: `<main class="wrap section" data-prerendered>
+<p class="eyebrow"><a href="${racePath(race.key, cycle)}">${esc(seat)}</a></p>
+<h1 class="display display-xl">${esc(name)}</h1>
+<p class="lede">${esc(party)} · Candidate · ${esc(seat)}</p>
+<h2>${ppi ? `Grade ${esc(c.tier)}: ${esc(g.name)}` : esc(g.name)}</h2>
+<p>${esc(ppi ? `${sentence}${own}` : g.meaning)}</p>
+${c.totalRaised > 0 ? `<p>Raised ${esc(usd(c.totalRaised))} in the ${cycleLabel(cycle)} election cycle, from public FEC filings.</p>` : ''}
+<p><a href="/how">How grades work</a></p>
+</main>`,
+    signature: JSON.stringify([
+      'candidate-1',
+      c.tier,
+      ppi,
+      c.totalRaised,
+      c.ownMoney,
+      name,
+      party,
+      seat,
+    ]),
+  };
+}
+
+/** A race: its own page and preview card, the candidates by name */
+export function racePage(race, cycle) {
+  const seat = raceSeat(race);
+  const path = racePath(race.key, cycle);
+  const named = race.candidates.map(c => {
+    const g = gradeInfo(c.tier, withheldReasonOf(c));
+    const ppi = isLetter(c.tier) ? c.peoplePowerInfluence : null;
+    return {
+      name: displayName(c.name),
+      party: ballotPartyName(c),
+      words: ppi ? `${c.tier}, ${ppi.people}% from people` : g.name,
+    };
+  });
+  const top = named.slice(0, 3);
+  const description = `Who's paying the candidates for ${seat.replace(' · ', ', ')}: ${named
+    .map(n => `${n.name} (${n.party}): ${n.words}`)
+    .join('; ')}. From public FEC filings.`;
+  return {
+    path,
+    title: `${seat}: who's paying the candidates?${TITLE_SUFFIX}`,
+    description,
+    card: {
+      eyebrow: `${seat} · ${cycleLabel(cycle)}`,
+      headline: "Who's paying the candidates?",
+      sub: top.map(n => `${n.name}: ${n.words}`).join(' · '),
+      note: GRADE_SCOPE_SHORT,
+    },
+    cardAlt: `${seat}: ${top.map(n => `${n.name}, ${n.words}`).join('; ')}`,
+    jsonLd: {
+      '@type': 'WebPage',
+      name: `${seat}: who's paying the candidates?`,
+      url: `${SITE}${path}`,
+    },
+    body: `<main class="wrap section" data-prerendered>
+<p class="eyebrow"><a href="/races">Every race for Congress</a></p>
+<h1 class="display display-xl">${esc(seat)}</h1>
+<p class="lede">Who's paying the candidates? ${cycleLabel(cycle)} election cycle, from public FEC filings.</p>
+<ul>
+${named.map(n => `<li>${esc(n.name)}, ${esc(n.party)}: ${esc(n.words)}</li>`).join('\n')}
+</ul>
+<p><a href="/how">How grades work</a></p>
+</main>`,
+    signature: JSON.stringify(['race-1', seat, named]),
   };
 }
 

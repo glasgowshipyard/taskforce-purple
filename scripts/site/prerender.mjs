@@ -33,6 +33,8 @@ import {
   howPage,
   racesPage,
   correctionsPage,
+  candidatePage,
+  racePage,
   gradesCsv,
   llmsTxt,
   memberPage,
@@ -92,6 +94,19 @@ const pages = [
   congressPage(members),
   ...members.map(m => memberPage(m, scores)),
 ];
+// Every race and every candidate who isn't a sitting member, from the
+// published races (2026-10-24: their links showed the home page's card)
+if (racesList?.field === 'ballot') {
+  const cycle = racesList.cycle;
+  for (const race of racesList.races) {
+    pages.push(racePage(race, cycle));
+    for (const c of race.candidates) {
+      if (c.candidateId && !c.bioguideId) {
+        pages.push(candidatePage(c, race, cycle));
+      }
+    }
+  }
+}
 
 const template = readFileSync(join(DIST, 'index.html'), 'utf8');
 const state = { builtAt: new Date().toISOString(), pages: {} };
