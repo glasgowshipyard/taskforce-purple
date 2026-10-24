@@ -134,7 +134,6 @@ const CFG = {
   },
   nonOwnAsPolitician: true,
   selfFunded: 0.5, // FINAL3.selfFunded
-  minimumGiven: 5000, // FINAL3.minimumGiven
   directedAsGifts: true,
 };
 const runs = STEPS.map(([label, o]) => {

@@ -1,5 +1,5 @@
 // Campaigns that can't be graded fairly (owner, 2026-10-23): half or more
-// the candidate's own money, or under $5,000 from anyone else
+// the candidate's own money. Small campaigns keep their grades
 import { describe, expect, it } from 'vitest';
 import { gradeFinal3 } from './tier-calculation.js';
 
@@ -34,11 +34,7 @@ describe('campaigns not graded', () => {
     expect(g.tier).toBe('S');
   });
 
-  it('under $5,000 from anyone else is Too small to grade', () => {
-    expect(gradeFinal3(person({ raised: 4999, small: 4999 }), {}, new Map()).tier).toBe(
-      'TOO-SMALL'
-    );
-    expect(gradeFinal3(person({ raised: 5000, small: 5000 }), {}, new Map()).tier).toBe('S');
-    expect(gradeFinal3(person({ raised: 0 }), {}, new Map()).tier).toBe('N/A');
+  it('a small campaign keeps its grade', () => {
+    expect(gradeFinal3(person({ raised: 4999, small: 4999 }), {}, new Map()).tier).toBe('S');
   });
 });

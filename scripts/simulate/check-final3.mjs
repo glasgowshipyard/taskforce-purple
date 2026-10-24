@@ -56,7 +56,6 @@ const CFG = {
   },
   nonOwnAsPolitician: true,
   selfFunded: 0.5, // FINAL3.selfFunded
-  minimumGiven: 5000, // FINAL3.minimumGiven
   directedAsGifts: true,
 };
 const sim = runGrid({ ...inputs, pacs }, CFG).results;

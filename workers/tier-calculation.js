@@ -560,12 +560,11 @@ export const FINAL3 = {
   fallback: 0.4, // the allowance when the donor records aren't reliable
   coverage: 0.5, // records must hold half the FEC's big-donor total
   credit: { people: 1 }, // every other group counts 0
-  // Campaigns that can't be graded fairly (owner, 2026-10-23: "I'm not sure
-  // they can be graded"): half or more of the money is the candidate's own,
-  // or less than $5,000 (the FEC's own line for registering) came from
-  // anyone else. They're shown as what they are, never as a letter
+  // A campaign that's half or more the candidate's own money can't be graded
+  // fairly (owner, 2026-10-23: "I'm not sure they can be graded"): it's
+  // shown as Self-funded, never as a letter. Small campaigns keep their
+  // grades (owner: "Why change the grade?")
   selfFunded: 0.5,
-  minimumGiven: 5000,
 };
 const n0 = x => (Number.isFinite(Number(x)) ? Number(x) : 0);
 const clamp01 = (x, lo, hi) => Math.max(lo, Math.min(hi, x));
@@ -747,9 +746,6 @@ export function gradeFinal3(m, pacs, shares) {
   }
   if (!(D > 0)) {
     return { ...out, tier: 'N/A', reason: 'no-money', withheld: true };
-  }
-  if (D < FINAL3.minimumGiven) {
-    return { ...out, tier: 'TOO-SMALL', reason: 'too-small', withheld: true };
   }
   const I = s + b;
   const sourceVerified =
