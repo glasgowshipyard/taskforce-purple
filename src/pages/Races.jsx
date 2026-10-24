@@ -7,7 +7,7 @@ import React, { useMemo, useRef, useState } from 'react';
 import Lookup from '../components/Lookup.jsx';
 import { Skeleton, Stamp } from '../components/ui.jsx';
 import { api } from '../lib/api.js';
-import { ELECTION_DAY_TEXT, daysUntilElection } from '../lib/election.js';
+import { ELECTION_LABEL, daysUntilElection } from '../lib/election.js';
 import { GRADE_SCOPE_SHORT, PARTS, gradeInfo, isLetter } from '../lib/grades.js';
 import { useAsync, useCountUp, useInView, useTitle } from '../lib/hooks.js';
 import { ballotPartyName, displayName, raceSeat, stateName, usdShort } from '../lib/people.js';
@@ -50,8 +50,8 @@ function Hero({ figures }) {
       <div className="wrap">
         <div style={{ flex: '1 1 560px', minWidth: 0 }}>
           <p className="eyebrow" style={{ marginBottom: 14 }}>
-            Election day is {ELECTION_DAY_TEXT}
-            {days >= 0 && ` · ${days} ${days === 1 ? 'day' : 'days'} to go`}
+            {ELECTION_LABEL}
+            {days > 0 && ` · ${days} ${days === 1 ? 'day' : 'days'} to go`}
           </p>
           <h1
             id="races-title"
@@ -61,8 +61,8 @@ function Hero({ figures }) {
             Every race for Congress
           </h1>
           <p className="lede" style={{ marginTop: 18, maxWidth: '36em' }}>
-            The candidates for the House and Senate in November are graded the same way as the
-            members already there, on where their campaign money comes from.
+            The candidates for the House and Senate in the 2026 election are graded the same way as
+            the members already there, on where their campaign money comes from.
           </p>
           <div className="races-stats" ref={ref}>
             <Counter value={figures.races} run={seen} label="races" />
@@ -330,9 +330,9 @@ export default function Races() {
   if (!races.data) {
     return (
       <div className="wrap section">
-        <h1 className="display display-l">The races aren&apos;t published yet</h1>
+        <h1 className="display display-l">The races aren&apos;t published right now</h1>
         <p className="lede" style={{ marginTop: 16, color: 'var(--ink-2)' }}>
-          They&apos;ll be here once every candidate has been graded.{' '}
+          The candidates are graded from the reports their campaigns file with the FEC.{' '}
           <Link to="/">See your current representatives</Link>.
         </p>
       </div>

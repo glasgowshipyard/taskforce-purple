@@ -5,7 +5,7 @@ import Lookup from '../components/Lookup.jsx';
 import Receipt from '../components/Receipt.jsx';
 import { Skeleton, Stamp } from '../components/ui.jsx';
 import { api } from '../lib/api.js';
-import { ELECTION_DAY_TEXT, RACES_ARRIVE_TEXT, daysUntilElection } from '../lib/election.js';
+import { ELECTION_DAY_TEXT, ELECTION_LABEL, daysUntilElection } from '../lib/election.js';
 import { GRADES, gradeInfo } from '../lib/grades.js';
 import { useAsync, useTitle } from '../lib/hooks.js';
 import {
@@ -161,7 +161,7 @@ function RaceView({ race, others }) {
               Who&apos;s paying the candidates?
             </h1>
           </div>
-          {days >= 0 && (
+          {days > 0 && (
             <div className="countdown">
               <b>{days}</b>
               <span>
@@ -307,21 +307,19 @@ function RaceView({ race, others }) {
 
 function NotYet() {
   useTitle('Your ballot');
-  const days = daysUntilElection();
   return (
     <section className="race-hero band on-dark" style={{ paddingBottom: 'clamp(56px, 8vw, 96px)' }}>
       <div className="wrap">
         <div style={{ flex: '1 1 560px', minWidth: 0 }}>
           <p className="eyebrow" style={{ marginBottom: 14 }}>
-            Election day is {ELECTION_DAY_TEXT}
+            {ELECTION_LABEL}
           </p>
           <h1 className="display display-xl" style={{ fontSize: 'clamp(48px, 7.4vw, 104px)' }}>
-            Candidate grades arrive {RACES_ARRIVE_TEXT}
+            The candidates&apos; grades aren&apos;t published right now
           </h1>
           <p className="lede" style={{ marginTop: 22, color: 'var(--on-dark)' }}>
-            Candidates for Congress file their last campaign finance reports before the election on
-            October 22. Every candidate will be graded the next day, the same way as current
-            members, and you&apos;ll be able to compare the candidates in your district and state.
+            Candidates are graded the same way as current members, from the reports their campaigns
+            file with the FEC.
           </p>
           <div className="row" style={{ marginTop: 28 }}>
             <Link to="/" className="btn btn-big btn-light">
@@ -329,16 +327,6 @@ function NotYet() {
             </Link>
           </div>
         </div>
-        {days >= 0 && (
-          <div className="countdown">
-            <b>{days}</b>
-            <span>
-              DAYS TO ELECTION DAY
-              <br />
-              {ELECTION_DAY_TEXT.toUpperCase()}
-            </span>
-          </div>
-        )}
       </div>
     </section>
   );
@@ -381,7 +369,7 @@ export default function Ballot({ raceKey }) {
         <div className="wrap">
           <div className="hero-copy">
             <p className="eyebrow" style={{ marginBottom: 20 }}>
-              Election day is {ELECTION_DAY_TEXT}
+              {ELECTION_LABEL}
             </p>
             <h1 className="display display-xl" style={{ fontSize: 'clamp(48px, 7.4vw, 104px)' }}>
               {place

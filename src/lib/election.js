@@ -2,7 +2,9 @@
 // 22 October (FEC pre-general, 12G); the races job publishes from the 23rd.
 export const ELECTION_DAY = new Date(2026, 10, 3);
 export const ELECTION_DAY_TEXT = 'Tuesday, November 3';
-export const RACES_ARRIVE_TEXT = 'October 23';
+// A label that's true before the election and after it (owner, 2026-10-23:
+// nothing on the site about events still to come)
+export const ELECTION_LABEL = '2026 election · Tuesday, November 3';
 // An election cycle's names, from its even end year (2026 -> "2025–26",
 // "’26"). Each member's are from the cycle their grade is on (gradeCycle),
 // so the labels move with the New Year rollover (REBUILD_SPEC §9)

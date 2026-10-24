@@ -5,7 +5,7 @@ import Receipt from '../components/Receipt.jsx';
 import WhyItMatters from '../components/WhyItMatters.jsx';
 import { Stamp } from '../components/ui.jsx';
 import { api } from '../lib/api.js';
-import { ELECTION_DAY_TEXT, RACES_ARRIVE_TEXT } from '../lib/election.js';
+import { ELECTION_LABEL } from '../lib/election.js';
 import { GRADES, LETTERS } from '../lib/grades.js';
 import { useAsync, useTitle } from '../lib/hooks.js';
 import { displayName, fractionWords, memberPerson, seatLabel } from '../lib/people.js';
@@ -91,8 +91,8 @@ function YourReps({ members, place, onChange, arrived }) {
               <p className="eyebrow">House</p>
               <p className="receipt-name">This seat is vacant</p>
               <p className="small muted">
-                Nobody holds this House seat right now. The next member will be graded once
-                they&apos;re sworn in.
+                Nobody holds this House seat right now. A new member is graded once they&apos;re
+                sworn in.
               </p>
             </div>
           )}
@@ -330,7 +330,7 @@ export default function Home() {
         <div className="wrap">
           <div style={{ flex: '1 1 520px', minWidth: 0 }}>
             <p className="eyebrow" style={{ marginBottom: 12, fontSize: 14 }}>
-              Election day is {ELECTION_DAY_TEXT}
+              {ELECTION_LABEL}
             </p>
             <h2
               id="ballot-title"
@@ -342,7 +342,7 @@ export default function Home() {
             <p className="lede" style={{ marginTop: 18 }}>
               {races.data
                 ? 'The candidates for Congress are graded the same way as current members. See who is paying each candidate in your district and state.'
-                : `Candidates for Congress file their last campaign finance reports before the election on October 22. Every candidate will be graded by ${RACES_ARRIVE_TEXT}, the same way as current members.`}
+                : "The candidates' grades aren't published right now. They're graded the same way as current members, from the reports their campaigns file with the FEC."}
             </p>
           </div>
           {races.data ? (
@@ -350,9 +350,9 @@ export default function Home() {
               See my ballot <ArrowRight size={22} aria-hidden="true" />
             </Link>
           ) : (
-            <p className="btn btn-big btn-outline" style={{ cursor: 'default' }}>
-              Available {RACES_ARRIVE_TEXT}
-            </p>
+            <Link to="/congress" className="btn btn-big btn-light">
+              See all of Congress <ArrowRight size={22} aria-hidden="true" />
+            </Link>
           )}
         </div>
       </section>

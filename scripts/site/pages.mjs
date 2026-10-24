@@ -186,7 +186,7 @@ export function howPage() {
 // races:list, which changes after the site is built)
 export function racesPage() {
   const description =
-    'The candidates for the House and Senate in November, graded S to F on where their campaign money comes from, the same way as the members already there: a map of the country and every race side by side.';
+    'The candidates for the House and Senate in the 2026 election, graded S to F on where their campaign money comes from, the same way as the members already there: a map of the country and every race side by side.';
   return {
     path: '/races',
     title: `Every race for Congress${TITLE_SUFFIX}`,
@@ -194,7 +194,7 @@ export function racesPage() {
     card: {
       eyebrow: 'Every race for Congress',
       headline: "Who's paying the candidates?",
-      sub: 'Everyone on the ballot in November, graded S to F.',
+      sub: 'The candidates on the 2026 ballot, graded S to F.',
     },
     cardAlt: 'Task Force Purple: every race for Congress, graded',
     jsonLd: { '@type': 'WebPage', name: 'Every race for Congress', url: `${SITE}/races` },
@@ -203,7 +203,7 @@ export function racesPage() {
 <p class="lede">${esc(description)}</p>
 <p><a href="/ballot">Find the races where you vote</a> · <a href="/how">How grades work</a></p>
 </main>`,
-    signature: 'races-2',
+    signature: 'races-3',
   };
 }
 
