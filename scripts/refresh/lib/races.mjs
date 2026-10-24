@@ -47,13 +47,23 @@ export function displayName(name) {
     .trim();
 }
 
-export const raceKey = c => `${c.office}-${c.state}-${c.office === 'H' ? c.district : ''}`;
+/**
+ * A race's key, the same in every cycle for the same seat: "S-AK",
+ * "H-TX-23", and "-special" for a special election, which can share a cycle
+ * with the seat's regular one (2026: Florida's and Ohio's Senate races).
+ * The cycle is in the page's address, not the key (src/lib/router.js)
+ */
+export const raceKey = c =>
+  `${c.office}-${c.state}${c.office === 'H' ? `-${c.district}` : ''}${c.special ? '-special' : ''}`;
 
-export function raceLabel(office, district) {
-  if (office === 'S') {
-    return 'Senate';
-  }
-  return district === '00' ? 'House (at-large)' : `House district ${Number(district)}`;
+export function raceLabel(office, district, special = false) {
+  const seat =
+    office === 'S'
+      ? 'Senate'
+      : district === '00'
+        ? 'House (at-large)'
+        : `House district ${Number(district)}`;
+  return special ? `${seat}, special election` : seat;
 }
 
 /**
@@ -70,7 +80,8 @@ export function buildRaces(candidates) {
         office: c.office,
         state: c.state,
         district: c.office === 'H' ? c.district : '',
-        label: raceLabel(c.office, c.district),
+        special: Boolean(c.special),
+        label: raceLabel(c.office, c.district, c.special),
         candidates: [],
       });
     }

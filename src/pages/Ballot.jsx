@@ -18,7 +18,7 @@ import {
   usd,
 } from '../lib/people.js';
 import { racesFor, savePlace, savedPlace } from '../lib/place.js';
-import { Link, memberPath, racePath } from '../lib/router.js';
+import { Link, findRaceByKey, memberPath, racePath } from '../lib/router.js';
 
 const SHOWN = 4;
 
@@ -140,7 +140,7 @@ function CompareTable({ cands }) {
   );
 }
 
-function RaceView({ race, others }) {
+function RaceView({ race, others, cycle }) {
   const [flagging, setFlagging] = useState(false);
   const days = daysUntilElection();
   const cands = race.candidates;
@@ -264,7 +264,7 @@ function RaceView({ race, others }) {
                 <ul className="race-list">
                   {others.map(r => (
                     <li key={r.key}>
-                      <Link to={racePath(r.key)} className="race-link">
+                      <Link to={racePath(r.key, cycle)} className="race-link">
                         <span>
                           <span className="eyebrow" style={{ display: 'block', fontSize: 12 }}>
                             {raceSeat(r)}
@@ -350,13 +350,15 @@ function NotYet() {
 }
 
 /** /ballot (your races) and /race/:key (any race) */
-export default function Ballot({ raceKey }) {
+export default function Ballot({ raceKey, raceCycle = null }) {
   const races = useAsync(() => api.races(), []);
   const [place, setPlace] = useState(savedPlace);
   const all = races.data?.races || [];
-  const race = raceKey ? all.find(r => r.key === raceKey || r.key === `${raceKey}-`) : null;
+  // Another cycle's race isn't in this list (past cycles: #73)
+  const sameCycle = !raceCycle || raceCycle === races.data?.cycle;
+  const race = raceKey && sameCycle ? findRaceByKey(all, raceKey) : null;
   const mine = place ? racesFor(all, place) : [];
-  const shown = race || mine[0] || null;
+  const shown = raceKey ? race : mine[0] || null;
   useTitle(shown ? raceSeat(shown) : 'Your ballot');
 
   if (races.loading) {
@@ -409,5 +411,5 @@ export default function Ballot({ raceKey }) {
   const others = (place ? mine : all.filter(r => r.state === shown.state)).filter(
     r => r.key !== shown.key
   );
-  return <RaceView race={shown} others={others} />;
+  return <RaceView race={shown} others={others} cycle={races.data.cycle} />;
 }

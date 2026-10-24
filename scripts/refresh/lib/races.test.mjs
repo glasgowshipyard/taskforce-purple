@@ -31,6 +31,7 @@ describe('races helpers', () => {
     expect(raceLabel('S', '')).toBe('Senate');
     expect(raceLabel('H', '00')).toBe('House (at-large)');
     expect(raceLabel('H', '07')).toBe('House district 7');
+    expect(raceLabel('S', '', true)).toBe('Senate, special election');
   });
 
   it('groups by race: state, Senate first, districts in order, money first', () => {
@@ -41,7 +42,7 @@ describe('races helpers', () => {
       { office: 'H', state: 'ZZ', district: '01', candidateId: 'd', totalRaised: 9 },
       { office: 'H', state: 'AA', district: '01', candidateId: 'e', totalRaised: 1 },
     ]);
-    expect(races.map(r => r.key)).toEqual(['H-AA-01', 'S-ZZ-', 'H-ZZ-01', 'H-ZZ-02']);
+    expect(races.map(r => r.key)).toEqual(['H-AA-01', 'S-ZZ', 'H-ZZ-01', 'H-ZZ-02']);
     expect(races[2].candidates.map(c => c.candidateId)).toEqual(['d', 'c']);
   });
 });

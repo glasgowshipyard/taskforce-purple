@@ -381,7 +381,7 @@ export default function Member({ id, kind = 'member' }) {
               </button>
             )}
             {inRace && (
-              <Link to={racePath(inRace.race.key)} className="btn btn-outline">
+              <Link to={racePath(inRace.race.key, races.data?.cycle)} className="btn btn-outline">
                 Compare the candidates
               </Link>
             )}

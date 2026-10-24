@@ -60,6 +60,29 @@ clean-up, #71 outside spending, #72 TypeScript (after the election).
 
 ## Change log
 
+## 2026-10-24: races by cycle; specials apart; the map in grade colours
+
+- Race addresses carry the cycle (`/race/2026/S-AK`), so the same seat in
+  another year gets its own; `/race/S-AK` and `/race/S-AK-` still work
+  (`findRaceByKey`). A race's key no longer ends in a hyphen for the
+  Senate, and a special election has its own ("S-FL-special"): a state
+  can hold a Senate special and its regular race in one cycle, and a House
+  seat a special beside its regular election. Specials are told apart by
+  Senate class (`regularClass`: 2026 is Class 2, so Florida's and Ohio's
+  Class 3 races are specials) and labelled "(special election)". The
+  checks file's keys moved with it. Live from the next races run.
+- The Races map colours each state as its typical candidate (the middle
+  one by share from people) would be graded, in the grades' light shades
+  (owner: "coloured like the gradient").
+- The corrections page explains the process; no pre-launch entries
+  (owner). The two-ID fix is merged (no member's grade moves; four
+  candidates leave "Under review").
+- Primary losers, with Adam Kinzinger and Kat Abughazaleh as the first two
+  test cases, are #73's (the Flux Capacitor), which brings the stable
+  person ID.
+- `grade_history` gets an index on (bioguide_id, cycle): its documented
+  lookup scanned the table (migration 2026-10-24, applied by the owner).
+
 ## 2026-10-23 (late night): corrections page; own money on race cards
 
 - `/corrections` (src/pages/Corrections.jsx, list in src/lib/corrections.js,

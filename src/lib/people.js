@@ -343,11 +343,12 @@ export const ballotPartyName = c => c.ballotParty || partyName(c.party);
 /** "Senate · Maine", "House · Pennsylvania 2" for a race */
 export function raceSeat(race) {
   const state = stateName(race.state);
+  const special = race.special ? ' (special election)' : '';
   if (race.office === 'S') {
-    return `Senate · ${state}`;
+    return `Senate · ${state}${special}`;
   }
   const d = Number(race.district);
-  return d ? `House · ${state} ${d}` : `House · ${state} at large`;
+  return `${d ? `House · ${state} ${d}` : `House · ${state} at large`}${special}`;
 }
 
 /**

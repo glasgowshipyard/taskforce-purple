@@ -10,6 +10,7 @@
  * is one person, found by their principal campaign committee.
  */
 import { fold, SHORT_FORMS } from '../../../src/lib/search.js';
+import { raceKey } from './races.mjs';
 
 const TITLES = new Set(['jr', 'sr', 'ii', 'iii', 'iv', 'v', 'mr', 'mrs', 'ms', 'dr', 'hon', 'rev']);
 const words = text =>
@@ -245,10 +246,17 @@ export function seatChanges(before, after) {
 const STATE_NAMES = { 'U.S. Virgin Islands': 'Virgin Islands' };
 
 /** A Wikipedia seat label as { office, state, district } (null if not a seat) */
-export function seatOf(office, label, stateByName) {
+/** The Senate class up for its regular election in a cycle (2024: 1, 2026: 2, 2028: 3) */
+export const regularClass = cycle => (((((cycle - 2024) / 2) % 3) + 3) % 3) + 1;
+
+export function seatOf(office, label, stateByName, cycle = null) {
   if (office === 'S') {
+    // "Florida(Class 3)": a seat of another class than the cycle's is a
+    // special election for the rest of its term
+    const cls = label.match(/\(Class (\d)\)/)?.[1];
     const st = stateByName[label.replace(/\s*\(Class \d\)\s*$/, '').trim()];
-    return st ? { office, state: st.code, district: '' } : null;
+    const special = Boolean(cls && cycle && Number(cls) !== regularClass(cycle));
+    return st ? { office, state: st.code, district: '', special } : null;
   }
   const m = label.match(/^(.*) (\d+|at-large)$/);
   const st = m && stateByName[STATE_NAMES[m[1]] || m[1]];
@@ -257,7 +265,7 @@ export function seatOf(office, label, stateByName) {
     : null;
 }
 
-export const seatKey = s => `${s.office}-${s.state}-${s.office === 'H' ? s.district : ''}`;
+export const seatKey = raceKey;
 
 /** The FEC's candidate master file (cn.txt) as rows */
 export function parseCn(text) {

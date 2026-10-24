@@ -71,7 +71,9 @@ export default function App() {
       page = <Ballot key="ballot" />;
       break;
     case 'race':
-      page = <Ballot key={route.key} raceKey={route.key} />;
+      page = (
+        <Ballot key={`${route.cycle}-${route.key}`} raceKey={route.key} raceCycle={route.cycle} />
+      );
       break;
     case 'how':
       page = <How />;

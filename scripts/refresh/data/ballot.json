@@ -9,7 +9,7 @@
         "candidateId": "H6KY03223",
         "why": "Wikipedia spells it Rodriquez; the FEC has RODRIGUEZ, MARIA TERESA (Republican, Kentucky 3), the seat's only Rodriguez"
       },
-      "S-FL-|Neil Gillespie": {
+      "S-FL-special|Neil Gillespie": {
         "candidateId": "S6FL00863",
         "why": "The FEC has GILESPIE, NEIL JOSEPH (no party, Florida Senate), the race's only Neil"
       },
@@ -327,56 +327,56 @@
         "why": "Lost the primary",
         "source": "https://cowboystatedaily.com/2026/03/12/bo-biteman-announces-candidacy-for-u-s-house/"
       },
-      "S-FL-|C00918474": {
+      "S-FL-special|C00918474": {
         "name": "JENKINS, JENNIFER",
         "why": "Withdrew",
         "source": "https://floridaphoenix.com/2026/01/29/jennifer-jenkins-drops-out-of-the-democratic-senate-race-and-endorses-alexander-vindman/"
       },
-      "S-KY-|C00898189": {
+      "S-KY|C00898189": {
         "name": "CAMERON, DANIEL",
         "why": "Lost the primary",
         "source": "https://www.kentucky.com/news/politics-government/article300667499.html"
       },
-      "S-LA-|C00597013": {
+      "S-LA|C00597013": {
         "name": "FLEMING, JOHN C. JR.",
         "why": "Lost the primary runoff",
         "source": "https://www.wbrz.com/news/treasurer-john-fleming-announces-bid-for-bill-cassidy-s-senate-seat-in-2026"
       },
-      "S-LA-|C00908459": {
+      "S-LA|C00908459": {
         "name": "MIGUEZ, BLAKE",
         "why": "Withdrew",
         "source": "https://lsureveille.com/274407/news/tigertvnews/state-senator-ends-senate-campaign-to-run-for-congress/"
       },
-      "S-OH-|C00688465": {
+      "S-OH-special|C00688465": {
         "name": "FARIS, STEPHEN I MR",
         "why": "Not on the certified general-election list (Brown, Husted, Redpath; Levy as an independent)",
         "source": "https://votehamiltoncountyohio.gov/wp-content/uploads/2026/06/November-2026-Candidate-Profile-1-2.pdf"
       },
-      "S-OH-|C00917146": {
+      "S-OH-special|C00917146": {
         "name": "ODE, FREDERICK J",
         "why": "Withdrew",
         "source": "https://www.cleveland.com/open/2025/11/lorain-county-entrepreneur-fred-ode-ends-2026-senate-campaign-against-sherrod-brown.html"
       },
-      "S-TX-|C00369033": {
+      "S-TX|C00369033": {
         "name": "CORNYN, JOHN SEN",
         "why": "Lost the Republican primary runoff to Ken Paxton",
         "source": "https://en.wikipedia.org/wiki/2026_United_States_Senate_election_in_Texas"
       },
-      "S-TX-|C00954123": {
+      "S-TX|C00954123": {
         "name": "HALL, BRADFORD WINSTON",
         "why": "Registered with the FEC as a write-in candidate"
       },
-      "S-TX-|C00959197": {
+      "S-TX|C00959197": {
         "name": "MOHAMED, ZUL MIRZA",
         "why": "His party (AMP) has no ballot line in Texas, and he isn't among the Secretary of State's independent filings",
         "source": "https://www.sos.state.tx.us/elections/laws/independent-declarations-2026.shtml"
       },
-      "S-WV-|C00853242": {
+      "S-WV|C00853242": {
         "name": "SHREWSBURY, ZACHARY C",
         "why": "Lost the primary",
         "source": "https://morgancountyusa.org/?p=6196"
       },
-      "S-WY-|C00890921": {
+      "S-WY|C00890921": {
         "name": "RASNER, REID",
         "why": "Ran for the House instead and lost the 18 August primary (his FEC registration is from his 2024 Senate run)",
         "source": "https://rivertonranger.com/news/rasner-announces-bid-for-u-s-house/article_eb5579a2-1e38-4ea3-841b-e77a44678688.html"

@@ -75,11 +75,15 @@ describe("who's on November's ballot (2026-10-23)", () => {
       { name: 'Bill Hill', party: 'Independent' },
     ]);
     expect(seatOf('H', s.label, stateByName)).toEqual({ office: 'H', state: 'AK', district: '00' });
-    expect(seatOf('S', 'Florida(Class 3)', stateByName)).toEqual({
+    // Class 3 in 2026 (a Class 2 year) is a special election
+    expect(seatOf('S', 'Florida(Class 3)', stateByName, 2026)).toEqual({
       office: 'S',
       state: 'FL',
       district: '',
+      special: true,
     });
+    expect(seatOf('S', 'Alaska', stateByName, 2026)).toMatchObject({ state: 'AK', special: false });
+    expect(seatOf('S', 'Arizona(Class 3)', stateByName, 2028)).toMatchObject({ special: false });
     expect(seatOf('H', 'U.S. Virgin Islands at-large', stateByName)?.state).toBe('VI');
   });
 
@@ -108,7 +112,7 @@ describe("who's on November's ballot (2026-10-23)", () => {
       cn,
       cycle: 2026,
       filers: new Set(['C00369033', 'C00900001']),
-      resolved: { 'S-FL-|Neil Gillespie': { candidateId: 'S6FL00863', why: 'spelling' } },
+      resolved: { 'S-FL|Neil Gillespie': { candidateId: 'S6FL00863', why: 'spelling' } },
     });
     expect(tx.candidates[0].person.candidateIds).toEqual(['S6TX00388']);
     expect(tx.unlisted.map(p => p.pcc)).toEqual(['C00369033']);

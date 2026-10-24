@@ -206,14 +206,14 @@ function OwnLine({ c, i }) {
   );
 }
 
-function RaceCard({ race }) {
+function RaceCard({ race, cycle }) {
   const ref = useRef(null);
   const seen = useInView(ref);
   const top = race.candidates.slice(0, SHOWN);
   const more = race.candidates.length - top.length;
   return (
     <li ref={ref} className={`race-card${seen ? ' is-in' : ''}`}>
-      <Link to={racePath(race.key)} className="race-card-link">
+      <Link to={racePath(race.key, cycle)} className="race-card-link">
         <span className="race-card-head">
           <span className="eyebrow">{raceSeat(race)}</span>
         </span>
@@ -249,7 +249,7 @@ function RaceCard({ race }) {
   );
 }
 
-function RaceList({ races, byState, state, onClearState }) {
+function RaceList({ races, byState, state, onClearState, cycle }) {
   const [view, setView] = useState('all');
   const [query, setQuery] = useState('');
   const [limit, setLimit] = useState(PAGE);
@@ -320,7 +320,7 @@ function RaceList({ races, byState, state, onClearState }) {
       ) : (
         <ul className="race-grid">
           {shown.map(r => (
-            <RaceCard key={r.key} race={r} />
+            <RaceCard key={r.key} race={r} cycle={cycle} />
           ))}
         </ul>
       )}
@@ -395,6 +395,7 @@ export default function Races() {
           races={all}
           byState={byState}
           state={state}
+          cycle={races.data.cycle}
           onClearState={() => setState(null)}
         />
         <Sources sources={races.data.sources} />

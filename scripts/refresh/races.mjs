@@ -192,7 +192,7 @@ async function main() {
     const pages = {};
     const seatsOn = (office, p) =>
       wikiSeats(p.html, office)
-        .map(s => ({ ...seatOf(office, s.label, stateByName), candidates: s.candidates }))
+        .map(s => ({ ...seatOf(office, s.label, stateByName, cycle), candidates: s.candidates }))
         .filter(s => s.state);
     for (const office of ['H', 'S']) {
       const latest = await wikiPage(WIKI_PAGES[office](cycle));
@@ -251,6 +251,7 @@ async function main() {
             office: s.office,
             state: s.state,
             district: s.district,
+            special: s.special,
             unregistered: true,
           });
           continue;
@@ -269,6 +270,7 @@ async function main() {
           office: s.office,
           state: s.state,
           district: s.district,
+          special: s.special,
         });
       }
     }
@@ -447,6 +449,7 @@ async function main() {
       office: c.office,
       state: c.state,
       district: c.district,
+      special: Boolean(c.special),
       // The party as the ballot prints it (Wikipedia's list): the FEC's
       // codes say OTH for most small parties
       ballotParty: c.listedParty || null,

@@ -63,8 +63,12 @@ export function matchRoute(path) {
   if (first === 'ballot' && !second) {
     return { page: 'ballot' };
   }
+  // /race/2026/S-AK; /race/S-AK (and /race/S-AK-) are the current cycle's
+  if (first === 'race' && /^\d{4}$/.test(second || '') && parts[2]) {
+    return { page: 'race', cycle: Number(second), key: parts[2] };
+  }
   if (first === 'race' && second) {
-    return { page: 'race', key: second };
+    return { page: 'race', cycle: null, key: second };
   }
   if (first === 'how' && !second) {
     return { page: 'how' };
@@ -97,6 +101,18 @@ export function Link({ to, onClick, ...props }) {
 }
 
 export const memberPath = id => `/member/${encodeURIComponent(id)}`;
-// A Senate race's key ends in its empty district ("S-AK-"): the address
-// leaves it off, and the old addresses still work (pages/Ballot.jsx)
-export const racePath = key => `/race/${encodeURIComponent(key.replace(/-$/, ''))}`;
+// A race's address carries its cycle, so the same seat in another year gets
+// its own (/race/2026/S-AK). Older addresses still work (pages/Ballot.jsx)
+export const racePath = (key, cycle) =>
+  `/race/${cycle ? `${cycle}/` : ''}${encodeURIComponent(key.replace(/-$/, ''))}`;
+
+/** A race key from an address, as the races list writes it, old forms included */
+export const findRaceByKey = (races, key) => {
+  const k = String(key || '').replace(/-$/, '');
+  return (
+    races.find(r => r.key === k) ||
+    races.find(r => r.key === `${k}-`) ||
+    races.find(r => r.key === `${k}-special`) ||
+    null
+  );
+};

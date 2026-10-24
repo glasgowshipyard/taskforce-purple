@@ -116,6 +116,7 @@ CREATE TABLE IF NOT EXISTS grade_history (
   new_tier TEXT,
   snapshot_id INTEGER
 );
+CREATE INDEX IF NOT EXISTS idx_grade_history_member ON grade_history (bioguide_id, cycle);
 
 -- D1 rows written and read per UTC day, charged from D1's own figures.
 -- The D1 limits (100k written, 5M read a day) are per account and shared
