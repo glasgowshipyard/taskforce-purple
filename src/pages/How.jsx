@@ -4,6 +4,7 @@
 // exact math", as written. Must agree with workers/tier-calculation.js
 // (gradeFinal3).
 import React from 'react';
+import { BOOSTED_MEANING } from '../lib/outside.js';
 import MoneyGraph from '../components/MoneyGraph.jsx';
 import { api } from '../lib/api.js';
 import { LEFT_OUT, peopleSentence } from '../lib/explain.js';
@@ -148,6 +149,10 @@ export default function How() {
             run by its members, who elect most of its board (a union, for example), and only the
             part of the PAC&apos;s own money that came from many people. Who runs each group is
             checked on its own tax return to the IRS, the Form 990.
+          </p>
+          <p id="boosted" className="how-note">
+            <strong>What does BOOSTED mean?</strong>{' '}
+            {BOOSTED_MEANING.replace(/^BOOSTED means /, 'It means ')}
           </p>
 
           <h2 className="display display-m" style={{ marginTop: 48 }}>

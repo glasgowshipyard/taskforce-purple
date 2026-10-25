@@ -18,7 +18,7 @@ import {
   withheldReasonOf,
 } from '../lib/grades.js';
 import { useAsync, useCountUp, useInView, useTitle } from '../lib/hooks.js';
-import { isBoosted } from '../lib/outside.js';
+import { BOOSTED_SHORT, isBoosted } from '../lib/outside.js';
 import { ballotPartyName, displayName, raceSeat, stateName, usdShort } from '../lib/people.js';
 import { savePlace } from '../lib/place.js';
 import {
@@ -79,7 +79,8 @@ function Hero({ figures }) {
             Each grade is the share of a candidate&apos;s money that comes from many different
             people: <b style={{ color: GRADES.S.light }}>S</b> is 90% or more,{' '}
             <b style={{ color: GRADES.F.light }}>F</b> is under 15%. It&apos;s only about where the
-            money comes from, not votes or character. <Link to="/how">How grades work</Link>
+            money comes from, not votes or character. {BOOSTED_SHORT}{' '}
+            <Link to="/how">How grades work</Link>
           </p>
           <div className="races-stats" ref={ref}>
             <Counter value={figures.races} run={seen} label="races" />

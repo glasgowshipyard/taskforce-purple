@@ -77,6 +77,12 @@ never counts toward BOOSTED. The stamp moved to the receipt's dashed line
 under the money given, above GRADED ON, in a gap of its own so it covers no
 figure.
 
+Where BOOSTED is explained (owner): the line beside the grade starts with
+the word, linked to its meaning ("**Boosted**: groups spent $X to help
+them, more than N times what their campaign raised."); /how has "What does
+BOOSTED mean?" (`#boosted`); the Races page's reminder line says it in one
+sentence (`BOOSTED_MEANING`, `BOOSTED_SHORT` in `src/lib/outside.js`).
+
 ## 2026-10-25: outside spending and BOOSTED (#71)
 
 Owner's go. What super PACs and other groups reported spending to help or

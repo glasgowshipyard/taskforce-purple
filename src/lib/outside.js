@@ -40,23 +40,36 @@ export function timesOver(o, totalRaised) {
   return times >= 2 ? times : null;
 }
 
-/** The one sentence beside the grade, for a boosted candidate */
-export function boostedSentence(o, totalRaised, personId = null) {
+/**
+ * The line beside the grade for a boosted candidate, after the word
+ * "Boosted:" (owner, 2026-10-25: the word links to its meaning on /how)
+ */
+export function boostedDetail(o, totalRaised, personId = null) {
   if (!isBoosted(o, totalRaised, personId)) {
     return null;
   }
   if (!(totalRaised > 0)) {
-    return `Groups spent ${usd(o.for)} to help them. Their campaign has reported raising nothing.`;
+    return `groups spent ${usd(o.for)} to help them. Their campaign has reported raising nothing.`;
   }
   const times = timesOver(o, totalRaised);
   return times
-    ? `Groups spent ${usd(o.for)} to help them, more than ${times} times what their campaign raised.`
-    : `Groups spent ${usd(o.for)} to help them, more than their campaign raised (${usd(totalRaised)}).`;
+    ? `groups spent ${usd(o.for)} to help them, more than ${times} times what their campaign raised.`
+    : `groups spent ${usd(o.for)} to help them, more than their campaign raised (${usd(totalRaised)}).`;
 }
 
-/** What the stamp means, where the stamp is explained (the pre-built pages) */
+/** The same line as text: "Boosted: groups spent ..." */
+export function boostedSentence(o, totalRaised, personId = null) {
+  const detail = boostedDetail(o, totalRaised, personId);
+  return detail && `Boosted: ${detail}`;
+}
+
+/** What the stamp means: /how#boosted and the pre-built pages */
 export const BOOSTED_MEANING =
-  'BOOSTED means groups spent more to help them win than their own campaign raised. Money spent to beat them doesn\u2019t count, and none of it is in the grade.';
+  'BOOSTED means super PACs and other groups spent more to help a candidate than their own campaign raised. Money spent to beat them doesn\u2019t count. It isn\u2019t part of the grade.';
+
+/** The same, in one line: the Races page */
+export const BOOSTED_SHORT =
+  'BOOSTED means groups spent more to help a candidate than their campaign raised.';
 
 /** When a group spent: the FEC's election codes, as words */
 const STAGE = { P: 'primary', R: 'runoff', G: 'general' };

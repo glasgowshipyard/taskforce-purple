@@ -37,7 +37,7 @@ import {
   withheldReasonOf,
 } from '../lib/grades.js';
 import { useAsync, useTitle } from '../lib/hooks.js';
-import { boostedSentence, isBoosted } from '../lib/outside.js';
+import { boostedDetail, isBoosted } from '../lib/outside.js';
 import { lightHandlers, useLight } from '../lib/light.js';
 import {
   ballotPartyName,
@@ -313,7 +313,7 @@ export default function Member({ id, kind = 'member' }) {
   // bioguide ID for a member, candidate ID for anyone else, as the page's id
   const spent = outside.data?.people?.[id] ?? null;
   const boosted = isBoosted(spent, f.totalRaised, id);
-  const boostLine = boostedSentence(spent, f.totalRaised, id);
+  const boostLine = boostedDetail(spent, f.totalRaised, id);
   // FINAL-3's working, in dollars (workers/grading.js gradeMemberFinal3)
   const final3 = d?.grade?.detail?.method === 'final-3' ? d.grade.detail : null;
   // The receipt: from the grade's own working when there is one, so it
@@ -437,7 +437,11 @@ export default function Member({ id, kind = 'member' }) {
               <div style={{ flex: '1 1 300px' }}>
                 <h2 style={{ fontSize: 22, marginBottom: 8 }}>{g.name}</h2>
                 <p>{g.meaning}</p>
-                {boostLine && <p className="boosted-line">{boostLine}</p>}
+                {boostLine && (
+                  <p className="boosted-line">
+                    <Link to="/how#boosted">Boosted</Link>: {boostLine}
+                  </p>
+                )}
                 <p className="flag-line">
                   <button type="button" className="link-button" onClick={() => setFlagging(true)}>
                     Something wrong here?
@@ -521,7 +525,11 @@ export default function Member({ id, kind = 'member' }) {
               <section className="member-summary" aria-label={`Grade ${g.mark}, ${g.name}`}>
                 <div className="member-verdict">
                   {sentence && <p className="member-sentence">{sentence}</p>}
-                  {boostLine && <p className="boosted-line">{boostLine}</p>}
+                  {boostLine && (
+                    <p className="boosted-line">
+                      <Link to="/how#boosted">Boosted</Link>: {boostLine}
+                    </p>
+                  )}
                   {placement && <p className="placement">{placement}</p>}
                   {sentence && <p className="grade-scope">{GRADE_SCOPE}</p>}
                   <p className="flag-line">
