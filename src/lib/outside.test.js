@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { BOOST_FLOOR, boostedSentence, isBoosted, timesOver } from './outside.js';
+import { BOOST_FLOOR, BOOST_HELD, boostedSentence, isBoosted, timesOver } from './outside.js';
 
 describe('BOOSTED (2026-10-25)', () => {
   it('only when the help is bigger than their whole campaign', () => {
@@ -33,8 +33,13 @@ describe('BOOSTED (2026-10-25)', () => {
 
 describe('a held stamp', () => {
   it('is never shown for someone whose own figures are under review', () => {
-    expect(isBoosted({ for: 904_424 }, 60_556, 'J000310')).toBe(false);
-    expect(boostedSentence({ for: 904_424 }, 60_556, 'J000310')).toBeNull();
-    expect(isBoosted({ for: 904_424 }, 60_556, 'X000001')).toBe(true);
+    BOOST_HELD.X000002 = 'figures under review';
+    try {
+      expect(isBoosted({ for: 904_424 }, 60_556, 'X000002')).toBe(false);
+      expect(boostedSentence({ for: 904_424 }, 60_556, 'X000002')).toBeNull();
+      expect(isBoosted({ for: 904_424 }, 60_556, 'X000001')).toBe(true);
+    } finally {
+      delete BOOST_HELD.X000002;
+    }
   });
 });

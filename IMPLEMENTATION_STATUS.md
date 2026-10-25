@@ -86,10 +86,11 @@ reached the build keeps the live site's copy.
   61 people on 2026-10-25. On the receipt it sits over the barcode, never a
   figure; also on race cards, race pages, the share card and link previews
   (`src/lib/outside.js`, `--boosted`).
-- Held: Julie Johnson (J000310). She is graded on $60,555, but her
-  committee reported $2,334,127 for the cycle (it re-registered in September
-  and now files as a PAC), so the stamp's comparison would be false
-  (`BOOST_HELD`). Her grade needs fixing; see the open issues.
+- `BOOST_HELD` keeps the stamp off anyone whose own figures are known to
+  be wrong. Julie Johnson (J000310) was held on 2026-10-25: graded on
+  $60,555 because her campaign had become a PAC. Re-graded the same day on
+  $2,394,655 (PR #75), she came off; $904,424 of help is under it, so no
+  stamp. The list is empty.
 - Person pages, after the grade (owner): Outside groups, then PAC donations,
   then the rest. Every section folds (the browser's own `<details>`): open
   by default except Bundled donations, Where the money was raised and About
