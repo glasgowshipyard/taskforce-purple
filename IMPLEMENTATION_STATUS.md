@@ -96,8 +96,8 @@ I had the stamp compare outside help with two different totals: a person's
 page used their receipt's TOTAL (all their committees, joint funds
 included: the grade's own figure), but the race cards, race pages and the
 pre-built pages used the race list's `totalRaised`, which is smaller for 57
-of 835 candidates (Paxton: $22,904,093 against $34,951,454). So his preview
-said "more than 4 times" and his page "more than 2 times", and Ashley
+of 835 candidates (Paxton: $22,904,093 against $34,951,454). So Paxton's preview
+said "more than 4 times" and the page "more than 2 times", and Ashley
 Hinson ($15,626,053 of help against $21,147,469 raised) and Kurt Alme
 ($3,353,482 against $4,047,265) were stamped when they shouldn't have
 been. The build now decides each stamp once, against the total the
@@ -158,8 +158,8 @@ reached the build keeps the live site's copy.
   (`src/lib/outside.js`, `--boosted`).
 - `BOOST_HELD` keeps the stamp off anyone whose own figures are known to
   be wrong. Julie Johnson (J000310) was held on 2026-10-25: graded on
-  $60,555 because her campaign had become a PAC. Re-graded the same day on
-  $2,394,655 (PR #75), she came off; $904,424 of help is under it, so no
+  $60,555 because the campaign had become a PAC. Re-graded the same day on
+  $2,394,655 (PR #75), J000310 came off; $904,424 of help is under it, so no
   stamp. The list is empty.
 - Person pages, after the grade (owner): Outside groups, then PAC donations,
   then the rest. Every section folds (the browser's own `<details>`): open
@@ -181,11 +181,11 @@ reached the build keeps the live site's copy.
 
 ## 2026-10-25: a campaign that became a PAC still counts
 
-Rep. Julie Johnson (J000310) was published at E on $60,555: her leadership
-PAC alone. Her campaign (C00843003) raised $2,334,099 this cycle on its
+Rep. Julie Johnson (J000310) was published at E on $60,555: the leadership
+PAC alone. The campaign (C00843003) raised $2,334,099 this cycle on its
 campaign reports (Form 3, to 30 June), then re-registered on 21 September
 as a PAC ("Don't Mess With Texas PAC 2026", type V). The FEC's files now
-list it with designation U, still linked to her candidacy, so discovery
+list it with designation U, still linked to the candidacy, so discovery
 (`vehicleRole`) dropped it: I wrote it to keep only P, A, J and D. Rep.
 Everton Blair (B001328) was hit the same way (C00901157 ended its campaign
 on 14 September and became a PAC), and showed no grade at all.

@@ -16,8 +16,8 @@ export const BOOST_FLOOR = 10000;
  * would be too: no stamp until they're re-graded. Each with why and when
  */
 export const BOOST_HELD = {
-  // Empty since 2026-10-25: J000310, held that morning (graded on her
-  // leadership PAC alone after her campaign became a PAC), re-graded on
+  // Empty since 2026-10-25: J000310, held that morning (graded on a
+  // leadership PAC alone after the campaign became a PAC), re-graded on
   // $2,394,655 the same day
 };
 
