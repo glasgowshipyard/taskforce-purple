@@ -31,6 +31,16 @@ if [ -n "${JOB_FAILED_URL:-}" ]; then
   }] + .problems' <<<"$health")
 fi
 
+# The site's outside-spending figures stuck (the daily check's
+# outside-check.mjs: the build couldn't read the FEC's files for two days)
+if [ -n "${OUTSIDE_STALE:-}" ]; then
+  health=$(jq --arg msg "$OUTSIDE_STALE" '.ok = false | .problems += [{
+    id: "outside-spending-stale",
+    message: $msg,
+    fix: "Open the latest Cloudflare Pages build log and look for the outside spending line. If the FEC was down it clears itself on the next build; otherwise fix scripts/site/outside.mjs and push."
+  }]' <<<"$health")
+fi
+
 ok=$(jq -r '.ok' <<<"$health")
 sig=$(jq -r '[.problems[].id] | sort | join(",")' <<<"$health")
 open=$(gh issue list --label "$LABEL" --state open --json number -q '.[0].number // empty' 2>/dev/null || true)

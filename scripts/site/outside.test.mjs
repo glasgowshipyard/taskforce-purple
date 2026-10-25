@@ -1,8 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import { deflateRawSync } from 'node:zlib';
 import {
+  OUTSIDE_UNTIL,
   byPerson,
   fecDate,
+  outsideRebuild,
   outsideSpending,
   parseCsv,
   registeredIds,
@@ -134,5 +136,31 @@ describe('outside spending (2026-10-25)', () => {
       { id: 'C00000001', name: 'Real PAC', side: 'for', amount: 301 },
     ]);
     expect(people.H6CA00003.for).toBe(50);
+  });
+});
+
+describe("the daily check's rebuild (2026-10-25)", () => {
+  const live = { fileSize: 100, through: '2026-10-24' };
+  it('rebuilds when the file changed size, not when only its date did', () => {
+    expect(outsideRebuild({ live, size: 120, today: '2026-10-26' }).due).toBe(true);
+    expect(outsideRebuild({ live, size: 100, today: '2026-10-26' }).due).toBe(false);
+    expect(outsideRebuild({ live: null, size: 100, today: '2026-10-26' }).due).toBe(true);
+    expect(outsideRebuild({ live, size: null, today: '2026-10-26' }).due).toBe(false);
+  });
+
+  it('switches itself off after the post-election reports are in', () => {
+    expect(outsideRebuild({ live, size: 120, today: OUTSIDE_UNTIL }).due).toBe(true);
+    expect(outsideRebuild({ live, size: 120, today: '2026-12-04' }).due).toBe(false);
+  });
+
+  it('says so when the live copy has been kept for two days', () => {
+    expect(
+      outsideRebuild({ live: { ...live, keptSince: '2026-10-25' }, size: 100, today: '2026-10-26' })
+        .stale
+    ).toBeNull();
+    expect(
+      outsideRebuild({ live: { ...live, keptSince: '2026-10-25' }, size: 100, today: '2026-10-27' })
+        .stale
+    ).toMatch(/haven't updated since 2026-10-25/);
   });
 });

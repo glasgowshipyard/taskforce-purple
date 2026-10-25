@@ -286,6 +286,7 @@ export async function loadOutside(cycle, crosswalk, others) {
   };
   const csv = await get(ieUrl(cycle));
   const lastModified = csv.headers.get('last-modified');
+  const fileSize = Number(csv.headers.get('content-length')) || null;
   const rows = parseCsv(await csv.text());
   const register = unzipOne(Buffer.from(await (await get(registerUrl(cycle))).arrayBuffer()));
   const registered = registeredIds(register.toString('latin1'));
@@ -297,8 +298,37 @@ export async function loadOutside(cycle, crosswalk, others) {
     cycle,
     through,
     fileModified: lastModified,
+    fileSize,
     source: ieUrl(cycle),
     left,
     people: byPerson(candidates, crosswalk, others),
   };
+}
+
+/**
+ * The daily check's question (owner, 2026-10-25): has the FEC's file
+ * changed since the live site was built? The FEC rewrites the file every
+ * day whether or not anything was filed, so its size is compared, not its
+ * date. Until OUTSIDE_UNTIL (the post-election reports' deadline), then it
+ * switches itself off. Also says when the live copy has been kept for
+ * days because the build couldn't read the FEC's files.
+ */
+export const OUTSIDE_UNTIL = '2026-12-03';
+export function outsideRebuild({ live, size, today }) {
+  if (today > OUTSIDE_UNTIL) {
+    return { due: false, why: `switched off after ${OUTSIDE_UNTIL}` };
+  }
+  const stale =
+    live?.keptSince && (Date.parse(today) - Date.parse(live.keptSince)) / 86400000 >= 2
+      ? `The site's outside-spending figures haven't updated since ${live.keptSince}: the site build couldn't read the FEC's files.`
+      : null;
+  if (!live) {
+    return { due: true, why: 'the live site has no outside-spending file', stale };
+  }
+  if (!size) {
+    return { due: false, why: "the FEC's file didn't answer", stale };
+  }
+  return live.fileSize === size
+    ? { due: false, why: `unchanged (${size} bytes)`, stale }
+    : { due: true, why: `changed (${live.fileSize ?? 'unknown'} -> ${size} bytes)`, stale };
 }

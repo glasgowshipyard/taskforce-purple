@@ -101,7 +101,10 @@ const outside = await loadOutside(
   ballotIds.filter(c => c.candidateId && !c.bioguideId).map(c => c.candidateId)
 ).catch(async error => {
   console.warn(`outside spending: ${error.message}; keeping the live site's copy`);
-  return getJson(`${SITE}/data/outside.json`).catch(() => null);
+  // Marked with the day it was first kept, so the daily check can say when
+  // it's been days (scripts/site/outside-check.mjs)
+  const kept = await getJson(`${SITE}/data/outside.json`).catch(() => null);
+  return kept && { ...kept, keptSince: kept.keptSince || new Date().toISOString().slice(0, 10) };
 });
 if (outside) {
   write(join(DIST, 'data', 'outside.json'), JSON.stringify(outside));
