@@ -6,8 +6,10 @@ import ForeignAgentPanel from '../components/ForeignAgentPanel.jsx';
 import PacPanel from '../components/PacPanel.jsx';
 import ShareDialog from '../components/ShareDialog.jsx';
 import MoneyGraph from '../components/MoneyGraph.jsx';
+import OutsidePanel from '../components/OutsidePanel.jsx';
 import {
   Barcode,
+  BoostedStamp,
   CountryChip,
   Evidence,
   Section,
@@ -35,6 +37,7 @@ import {
   withheldReasonOf,
 } from '../lib/grades.js';
 import { useAsync, useTitle } from '../lib/hooks.js';
+import { boostedSentence, isBoosted } from '../lib/outside.js';
 import { lightHandlers, useLight } from '../lib/light.js';
 import {
   ballotPartyName,
@@ -206,6 +209,7 @@ export default function Member({ id, kind = 'member' }) {
   const isCandidate = kind === 'candidate';
   const list = useAsync(() => api.members(), []);
   const races = useAsync(() => api.races().catch(() => null), []);
+  const outside = useAsync(() => api.outside(), []);
   const detail = useAsync(
     () => (isCandidate ? api.candidateDetail(id) : api.memberDetail(id)).catch(() => null),
     [id, kind]
@@ -298,6 +302,11 @@ export default function Member({ id, kind = 'member' }) {
   const g = gradeInfo(m.tier, reason);
   const withheld = isRingfenced(m.tier);
   const hasMoney = f.totalRaised > 0 && !withheld;
+  // Outside groups' spending, beside the grade and never in it: keyed by
+  // bioguide ID for a member, candidate ID for anyone else, as the page's id
+  const spent = outside.data?.people?.[id] ?? null;
+  const boosted = isBoosted(spent, f.totalRaised, id);
+  const boostLine = boostedSentence(spent, f.totalRaised, id);
   // FINAL-3's working, in dollars (workers/grading.js gradeMemberFinal3)
   const final3 = d?.grade?.detail?.method === 'final-3' ? d.grade.detail : null;
   // The receipt: from the grade's own working when there is one, so it
@@ -368,6 +377,7 @@ export default function Member({ id, kind = 'member' }) {
     cycleLabel: cycleLabel(m.gradeCycle ?? undefined),
     cycle: m.gradeCycle ?? null,
     filedOn,
+    boosted,
   };
 
   return (
@@ -416,15 +426,25 @@ export default function Member({ id, kind = 'member' }) {
               }}
             >
               <Stamp tier={m.tier} reason={reason} size={110} />
+              {boosted && <BoostedStamp />}
               <div style={{ flex: '1 1 300px' }}>
                 <h2 style={{ fontSize: 22, marginBottom: 8 }}>{g.name}</h2>
                 <p>{g.meaning}</p>
+                {boostLine && <p className="boosted-line">{boostLine}</p>}
                 <p className="flag-line">
                   <button type="button" className="link-button" onClick={() => setFlagging(true)}>
                     Something wrong here?
                   </button>
                 </p>
               </div>
+            </div>
+            <div className="folds" style={{ maxWidth: 820 }}>
+              <OutsidePanel
+                outside={outside.data}
+                personId={id}
+                name={name}
+                totalRaised={f.totalRaised}
+              />
             </div>
           </div>
         ) : (
@@ -487,12 +507,18 @@ export default function Member({ id, kind = 'member' }) {
                   onPaper
                 />
               </div>
+              {boosted && (
+                <div className="slip-boosted">
+                  <BoostedStamp animate delay={0.9} />
+                </div>
+              )}
             </div>
 
             <div className="member-main">
               <section className="member-summary" aria-label={`Grade ${g.mark}, ${g.name}`}>
                 <div className="member-verdict">
                   {sentence && <p className="member-sentence">{sentence}</p>}
+                  {boostLine && <p className="boosted-line">{boostLine}</p>}
                   {placement && <p className="placement">{placement}</p>}
                   {sentence && <p className="grade-scope">{GRADE_SCOPE}</p>}
                   <p className="flag-line">
@@ -579,6 +605,22 @@ export default function Member({ id, kind = 'member' }) {
                   </Section>
                 )}
 
+                {/* After the grade: who else spent on them, then the PACs
+                    (owner, 2026-10-25) */}
+                <OutsidePanel
+                  outside={outside.data}
+                  personId={id}
+                  name={name}
+                  totalRaised={f.totalRaised}
+                />
+
+                {/* The receipt's PAC line, to the dollar: one source of truth */}
+                <PacPanel
+                  member={m}
+                  name={name}
+                  pacMoney={receipt?.counted.find(l => l.key === 'pac')?.amount ?? f.pacMoney}
+                />
+
                 {ownPct >= 5 && (
                   <Section title="Their own money">
                     <p>
@@ -621,15 +663,8 @@ export default function Member({ id, kind = 'member' }) {
                   </Section>
                 )}
 
-                {/* The receipt's PAC line, to the dollar: one source of truth */}
-                <PacPanel
-                  member={m}
-                  name={name}
-                  pacMoney={receipt?.counted.find(l => l.key === 'pac')?.amount ?? f.pacMoney}
-                />
-
                 {m.topConduits?.length > 0 && (
-                  <Section title="Bundled donations">
+                  <Section title="Bundled donations" open={false}>
                     {m.earmarkedIndividualTotal > 0 && (
                       <p style={{ marginBottom: 12, color: 'var(--ink-2)' }}>
                         <strong style={{ color: 'var(--ink)' }}>
@@ -669,7 +704,7 @@ export default function Member({ id, kind = 'member' }) {
                   </Section>
                 )}
 
-                <Section title="Where the money was raised">
+                <Section title="Where the money was raised" open={false}>
                   {trail ? (
                     <>
                       <p style={{ marginBottom: 16, color: 'var(--ink-2)' }}>
@@ -739,12 +774,21 @@ export default function Member({ id, kind = 'member' }) {
                 </Section>
 
                 {m.faraEmployerTotal > 0 && (
-                  <Section title="Foreign agents">
+                  // Open when registered agents gave themselves; folded when
+                  // it's only staff at firms with foreign clients
+                  <Section
+                    title={
+                      m.faraAgentTotal > 0
+                        ? 'Money from registered foreign agents'
+                        : 'Donors at firms with foreign clients'
+                    }
+                    open={m.faraAgentTotal > 0}
+                  >
                     <ForeignAgentPanel member={m} />
                   </Section>
                 )}
 
-                <Section title="About these numbers">
+                <Section title="About these numbers" open={false}>
                   {checked === false && (
                     <p className="fine">
                       <strong className="is-checking">Still being checked.</strong> This grade is

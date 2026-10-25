@@ -54,11 +54,51 @@ read and 100k written a day (shared with the owner's other projects);
 
 **Open issues** (GitHub): #18 member biography, #33 connected
 organisations, #64 the D1 error, #67 PACs.csv download, #68 to #70 PAC data
-clean-up, #71 outside spending, #72 TypeScript (after the election).
+clean-up, #71 outside spending (shown since 2026-10-25), #72 TypeScript (after the election).
 
 ---
 
 ## Change log
+
+## 2026-10-25: outside spending and BOOSTED (#71)
+
+Owner's go. What super PACs and other groups reported spending to help or
+hurt each person, beside the grade and never in it, from the FEC's own
+files, read when the site is built (`scripts/site/outside.mjs`): the
+independent-expenditure file (`independent_expenditure_2026.csv`, rebuilt
+daily by the FEC, with 24- and 48-hour reports, so current where the
+processed figures run days behind) and the register of committees
+(`cm26.zip`). No key, no KV or D1, no API calls; `dist/data/outside.json`
+(245 KB, 40 KB compressed; 542 people on 2026-10-25). If the FEC can't be
+reached the build keeps the live site's copy.
+
+- Counted once: the newest version of each spender's transaction
+  (amendments), and the same spend restated in a later filing under a new
+  transaction ID. Checked: the file's totals for Texas PAC and America PAC
+  on Paxton match the FEC's e-filed records to the dollar.
+- Left out: filers not on the FEC's register of committees. The FEC posts
+  what's filed and reviews it later; on 2026-10-25 four unregistered filers
+  claimed $17,003,000,000 between them (one wrote "$9,000,000,000",
+  "President of the United States"). An (i) on the page says so.
+- **BOOSTED** (owner: red, stamped across the receipt): outside groups spent
+  more to help them than their whole campaign raised, and at least $10,000
+  (the FEC's 48-hour reporting line). Money spent against them never counts.
+  61 people on 2026-10-25. On the receipt it sits over the barcode, never a
+  figure; also on race cards, race pages, the share card and link previews
+  (`src/lib/outside.js`, `--boosted`).
+- Held: Julie Johnson (J000310). She is graded on $60,555, but her
+  committee reported $2,334,127 for the cycle (it re-registered in September
+  and now files as a PAC), so the stamp's comparison would be false
+  (`BOOST_HELD`). Her grade needs fixing; see the open issues.
+- Person pages, after the grade (owner): Outside groups, then PAC donations,
+  then the rest. Every section folds (the browser's own `<details>`): open
+  by default except Bundled donations, Where the money was raised and About
+  these numbers. Foreign agents is titled by what it is ("Money from
+  registered foreign agents", open; "Donors at firms with foreign clients",
+  folded) and starts by saying what the register is and that it isn't
+  foreign money.
+- Freshness: the figures are as of the last site build. The site builds on
+  every push and whenever a job publishes.
 
 ## 2026-10-25: dark mode
 

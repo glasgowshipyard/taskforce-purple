@@ -86,6 +86,16 @@ export const api = {
       const live = data?.field === 'ballot' || (import.meta.env.DEV && data?.field === 'test');
       return live && data.races?.length ? data : null;
     }),
+
+  /**
+   * Outside spending by person (scripts/site/outside.mjs): built with the
+   * site only, from the FEC's files; null when there's no file (development,
+   * VITE_OUTSIDE_URL to check the pages with one)
+   */
+  outside: () =>
+    once('outside', () =>
+      getJson(import.meta.env.VITE_OUTSIDE_URL || '/data/outside.json').catch(() => null)
+    ),
 };
 
 // Static files built from the Census Bureau's (scripts/geo/build-geo.mjs)

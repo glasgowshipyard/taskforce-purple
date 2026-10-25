@@ -19,6 +19,7 @@ import {
 import {
   ballotPartyName,
   displayName,
+  gradedFigures,
   partyName,
   raceSeat,
   roleTitle,
@@ -28,6 +29,7 @@ import {
 import { FINDINGS, LEAD, MOTTO, STUDIES, WISHES } from '../../src/lib/research.js';
 import { CORRECTIONS, REVIEW_DAYS } from '../../src/lib/corrections.js';
 import { candidatePath, memberPath, racePath } from '../../src/lib/paths.js';
+import { BOOSTED_MEANING, boostedSentence } from '../../src/lib/outside.js';
 
 export const SITE = 'https://taskforcepurple.com';
 export const SITE_NAME = 'Task Force Purple';
@@ -61,8 +63,35 @@ const listCycle = members =>
 const ownOf = m =>
   (m.personFigures?.ownMoney?.contributions || 0) + (m.personFigures?.ownMoney?.loans || 0);
 
+const HOW_LINK = '<p><a href="/how">How grades work</a></p>';
+
+/**
+ * BOOSTED (src/lib/outside.js) on a person's pre-built page, as the live
+ * page shows it: the sentence in the text and the description, the stamp
+ * on the preview card. Unchanged when they aren't boosted
+ */
+function withBoost(page, outside, raised, personId) {
+  const sentence = boostedSentence(outside, raised, personId);
+  if (!sentence) {
+    return page;
+  }
+  return {
+    ...page,
+    description: `${page.description} ${sentence}`,
+    body: page.body.replace(
+      HOW_LINK,
+      `<p><strong>Boosted.</strong> ${esc(sentence)} ${esc(BOOSTED_MEANING)}</p>\n${HOW_LINK}`
+    ),
+    card: { ...page.card, boosted: true },
+    signature: JSON.stringify([page.signature, sentence]),
+  };
+}
+
 /** One member's page: the live page's facts, for crawlers and previews */
-export function memberPage(m, scores) {
+export const memberPage = (m, scores, outside = null) =>
+  withBoost(memberBase(m, scores), outside, gradedFigures(m).totalRaised, m.bioguideId);
+
+function memberBase(m, scores) {
   const name = displayName(m.name);
   const g = gradeInfo(m.tier, m.withheldReason);
   const f = figures(m);
@@ -219,7 +248,15 @@ export function howPage() {
  * preview card, as a member's (owner, 2026-10-23: links shared during the
  * race showed the home page's card)
  */
-export function candidatePage(c, race, cycle) {
+export const candidatePage = (c, race, cycle, outside = null) =>
+  withBoost(
+    candidateBase(c, race, cycle),
+    outside,
+    gradedFigures(c).totalRaised,
+    c.bioguideId || c.candidateId
+  );
+
+function candidateBase(c, race, cycle) {
   const name = displayName(c.name);
   const g = gradeInfo(c.tier, withheldReasonOf(c));
   const ppi = isLetter(c.tier) ? c.peoplePowerInfluence : null;

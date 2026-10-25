@@ -25,6 +25,8 @@ import { createHash } from 'node:crypto';
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { cardPng } from './og-card.mjs';
+import { loadOutside } from './outside.mjs';
+import { FEC_CROSSWALK } from '../../workers/fec-crosswalk.js';
 import { candidatePath, memberPath, racePath } from '../../src/lib/paths.js';
 import {
   SITE,
@@ -80,6 +82,35 @@ const racesList = await getJson(`${API}/races`).catch(() => null);
 if (racesList) {
   write(join(DIST, 'data', 'races.json'), JSON.stringify(racesList));
 }
+// Outside spending (owner, 2026-10-25): from the FEC's own files, read
+// here, so it needs no key, no storage and no job. If the FEC can't be
+// reached the live site's copy is kept, and the build goes on
+const cycle = racesList?.cycle || list.members?.[0]?.gradeCycle || new Date().getFullYear();
+const ballotIds = racesList?.field === 'ballot' ? racesList.races.flatMap(r => r.candidates) : [];
+const idsByMember = Object.fromEntries(
+  Object.entries(FEC_CROSSWALK).map(([id, ids]) => [id, [...ids]])
+);
+for (const c of ballotIds) {
+  if (c.bioguideId && c.candidateId && !idsByMember[c.bioguideId]?.includes(c.candidateId)) {
+    (idsByMember[c.bioguideId] ||= []).push(c.candidateId);
+  }
+}
+const outside = await loadOutside(
+  cycle,
+  idsByMember,
+  ballotIds.filter(c => c.candidateId && !c.bioguideId).map(c => c.candidateId)
+).catch(async error => {
+  console.warn(`outside spending: ${error.message}; keeping the live site's copy`);
+  return getJson(`${SITE}/data/outside.json`).catch(() => null);
+});
+if (outside) {
+  write(join(DIST, 'data', 'outside.json'), JSON.stringify(outside));
+  console.log(
+    `prerender: outside spending for ${Object.keys(outside.people).length} people, filed to ${outside.through}; ${outside.left.filers} unregistered filer(s) left out`
+  );
+}
+const outsideOf = id => outside?.people?.[id] ?? null;
+
 // Each member's and candidate's detail too (owner, 2026-10-24: a page that
 // goes viral mustn't run the worker out), eight requests at a time
 const details = [
@@ -124,7 +155,7 @@ const pages = [
   racesPage(),
   correctionsPage(),
   congressPage(members),
-  ...members.map(m => memberPage(m, scores)),
+  ...members.map(m => memberPage(m, scores, outsideOf(m.bioguideId))),
 ];
 // Every race and every candidate who isn't a sitting member, from the
 // published races (2026-10-24: their links showed the home page's card)
@@ -134,7 +165,7 @@ if (racesList?.field === 'ballot') {
     pages.push(racePage(race, cycle));
     for (const c of race.candidates) {
       if (c.candidateId && !c.bioguideId) {
-        pages.push(candidatePage(c, race, cycle));
+        pages.push(candidatePage(c, race, cycle, outsideOf(c.candidateId)));
       }
     }
   }

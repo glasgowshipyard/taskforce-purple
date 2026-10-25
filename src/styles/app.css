@@ -57,6 +57,9 @@
   --power: #8a6600;
   --influence: #b23a26;
 
+  /* BOOSTED (owner, 2026-10-25): stamp red, kept apart from the grade reds */
+  --boosted: #c8102e;
+
   --checked: #0b7a5c;
   --provisional: #8a5a00;
   --alert-bg: #fff4f1;
@@ -100,6 +103,7 @@
     --people: #34d3a6;
     --power: #e9b824;
     --influence: #f06a50;
+    --boosted: #ff5a6a;
     --checked: #34d3a6;
     --provisional: #f0b23a;
     --own-ink: #f2c94c;
@@ -138,6 +142,7 @@
   --people: #34d3a6;
   --power: #e9b824;
   --influence: #f06a50;
+  --boosted: #ff5a6a;
   --checked: #34d3a6;
   --provisional: #f0b23a;
   --own-ink: #f2c94c;
@@ -175,6 +180,7 @@
     --surface: #ffffff;
     --surface-warm: #fffefa;
     --stamp-bg: var(--receipt);
+    --boosted: #c8102e;
     --fill: #eceae4;
     --fill-2: #f6f5f1;
     --warn-bg: #fff8e8;
@@ -206,6 +212,7 @@
   --surface: #ffffff;
   --surface-warm: #fffefa;
   --stamp-bg: var(--receipt);
+  --boosted: #c8102e;
   --fill: #eceae4;
   --fill-2: #f6f5f1;
   --warn-bg: #fff8e8;
@@ -3656,4 +3663,148 @@ p {
    page's slip): paper-weight in both modes */
 .stamp.on-paper {
   --stamp-bg: var(--receipt);
+}
+
+/* ---------- BOOSTED (owner, 2026-10-25) ---------- */
+
+/* A red rubber stamp: outside groups spent more to help this person than
+   their campaign raised. Ink, not a sticker: it blends into the paper and
+   breaks up a little, as a real stamp does */
+.boosted {
+  --rot: -7deg;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 6px 18px 4px;
+  border: 5px solid var(--boosted);
+  border-radius: 6px;
+  outline: 2px solid var(--boosted);
+  outline-offset: -11px;
+  color: var(--boosted);
+  font-family: var(--display);
+  font-weight: 900;
+  font-stretch: 85%;
+  font-size: 36px;
+  line-height: 1;
+  letter-spacing: 0.08em;
+  text-indent: 0.08em;
+  transform: rotate(var(--rot));
+  /* a little see-through, as ink is (owner, 2026-10-25) */
+  opacity: 0.82;
+  -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' seed='4'/%3E%3CfeColorMatrix values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 -1.2 1.55'/%3E%3C/filter%3E%3Crect width='160' height='160' filter='url(%23n)'/%3E%3C/svg%3E");
+  mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' seed='4'/%3E%3CfeColorMatrix values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 -1.2 1.55'/%3E%3C/filter%3E%3Crect width='160' height='160' filter='url(%23n)'/%3E%3C/svg%3E");
+  pointer-events: none;
+  user-select: none;
+}
+
+/* On the receipt: across the barcode at its foot, hanging a little off
+   the edge as a real stamp would, never over a figure or a date */
+.slip-boosted {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 10px;
+  display: flex;
+  justify-content: center;
+  pointer-events: none;
+}
+
+.slip-boosted .boosted {
+  mix-blend-mode: multiply;
+}
+
+/* A race card's row and a ballot's candidate: the word, small */
+.boosted.is-small {
+  padding: 2px 7px 1px;
+  border-width: 2px;
+  border-radius: 4px;
+  outline: none;
+  font-size: 13px;
+  letter-spacing: 0.1em;
+  opacity: 1;
+  -webkit-mask-image: none;
+  mask-image: none;
+  vertical-align: 1px;
+}
+
+.boosted-line {
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.outside-totals {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px 32px;
+  margin: 4px 0 16px;
+}
+
+.outside-totals div {
+  display: flex;
+  flex-direction: column;
+}
+
+.outside-totals strong {
+  font-family: var(--mono);
+  font-size: 22px;
+}
+
+.outside-side {
+  margin: 18px 0 6px;
+  font-size: 15px;
+  font-weight: 700;
+}
+
+/* ---------- Folding sections (owner, 2026-10-25) ---------- */
+
+.fold-summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  cursor: pointer;
+  list-style: none;
+  margin-bottom: 12px;
+}
+
+.fold-summary::-webkit-details-marker {
+  display: none;
+}
+
+.fold-summary .fold-title {
+  margin-bottom: 0;
+}
+
+.fold-chevron {
+  flex: none;
+  color: var(--muted);
+  transition: transform 0.2s ease;
+}
+
+.fold:not([open]) .fold-chevron {
+  transform: rotate(-90deg);
+}
+
+.fold:not([open]) .fold-summary {
+  margin-bottom: 0;
+}
+
+.fold-summary:hover .fold-chevron,
+.fold-summary:focus-visible .fold-chevron {
+  color: var(--ink);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .fold-chevron {
+    transition: none;
+  }
+}
+
+.receipt-outside {
+  margin-top: -4px;
+  color: var(--ink-2);
+}
+
+.member-verdict .boosted-line {
+  margin-top: 12px;
 }

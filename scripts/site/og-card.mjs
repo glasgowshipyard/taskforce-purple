@@ -138,8 +138,39 @@ ${pts
   .join('')}`;
 }
 
+// The BOOSTED stamp (owner, 2026-10-25: red, across the receipt), as on the
+// person's page: outside groups spent more to help them than they raised.
+// On the receipt it's ink across the foot, under the percentages, never
+// over a figure; on a card without one it's on its own slip of paper, as
+// red on the purple wouldn't read
+export const BOOSTED_RED = '#C8102E';
+function boostedStamp(cx, cy, scale = 1, backed = false, rot = -14) {
+  const w = 300 * scale;
+  const h = 78 * scale;
+  // The word as big as fits inside the inner line, measured, not guessed
+  let size = Math.round(58 * scale);
+  while (
+    size > 12 &&
+    measure('BOOSTED', { family: 'Archivo', weight: 900, size }) > w - 48 * scale
+  ) {
+    size -= 1;
+  }
+  const x0 = cx - w / 2 - 12 * scale;
+  const y0 = cy - h / 2 - 12 * scale;
+  // Worn ink: noise knocks small holes in the stamp, as on the page
+  return `<defs><filter id="ink-noise" x="0" y="0" width="100%" height="100%"><feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="2" seed="4"/><feColorMatrix values="0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 -1.3 1.6"/></filter><mask id="ink" maskUnits="userSpaceOnUse" x="${x0}" y="${y0}" width="${w + 24 * scale}" height="${h + 24 * scale}"><rect x="${x0}" y="${y0}" width="${w + 24 * scale}" height="${h + 24 * scale}" filter="url(#ink-noise)"/></mask></defs>
+<g transform="rotate(${rot} ${cx} ${cy})">
+${backed ? `<rect x="${cx - w / 2 - 10 * scale}" y="${cy - h / 2 - 10 * scale}" width="${w + 20 * scale}" height="${h + 20 * scale}" rx="${6 * scale}" fill="#FFFEFA"/>` : ''}
+<g mask="url(#ink)" opacity="0.85">
+<rect x="${cx - w / 2}" y="${cy - h / 2}" width="${w}" height="${h}" rx="${6 * scale}" fill="none" stroke="${BOOSTED_RED}" stroke-width="${6 * scale}"/>
+<rect x="${cx - w / 2 + 9 * scale}" y="${cy - h / 2 + 9 * scale}" width="${w - 18 * scale}" height="${h - 18 * scale}" rx="${3 * scale}" fill="none" stroke="${BOOSTED_RED}" stroke-width="${2 * scale}"/>
+<text x="${cx}" y="${cy + size * 0.36}" font-family="Archivo" font-weight="900" font-size="${size}" fill="${BOOSTED_RED}" text-anchor="middle">BOOSTED</text>
+</g>
+</g>`;
+}
+
 /**
- * A member's card: { eyebrow, headline, sub, tier, ppi, note }. Without a
+ * A member's card: { eyebrow, headline, sub, tier, ppi, note, boosted }. Without a
  * tier and graph (a withheld grade, or the site's own pages) the text fills
  * the card. `note`: one small line above the brand (what a grade is and isn't).
  */
@@ -151,10 +182,12 @@ export function cardSvg({
   ppi = null,
   note = null,
   cycle = null,
+  boosted = false,
 }) {
   const withGraph = Boolean(tier && GRADES[tier] && ppi);
   const x = withGraph ? 512 : 64;
-  const width = WIDTH - x - 64;
+  // A card without a receipt keeps the right side for the stamp
+  const width = WIDTH - x - 64 - (boosted && !withGraph ? 330 : 0);
   const eye = fit(
     eyebrow.toUpperCase(),
     { family: 'IBM Plex Mono', weight: 600 },
@@ -183,6 +216,7 @@ export function cardSvg({
   return `<svg xmlns="http://www.w3.org/2000/svg" width="${WIDTH}" height="${HEIGHT}" viewBox="0 0 ${WIDTH} ${HEIGHT}">
 ${BACKGROUND}
 ${withGraph ? receipt(tier, ppi, cycle) : ''}
+${boosted ? (withGraph ? boostedStamp(256, 540, 0.7, false, -8) : boostedStamp(WIDTH - 210, 300, 0.85, true)) : ''}
 ${textLines(eye.lines, { x, y: 92, size: eye.size, leading: 1.2, family: 'IBM Plex Mono', weight: 600, fill: '#DDD3FE' })}
 ${textLines(head.lines, { x, y: headTop, size: head.size, leading, family: 'Archivo', weight: 900, fill: '#FFFFFF' })}
 ${textLines(subLines, { x, y: subTop, size: 28, leading: 1.3, family: 'Public Sans', weight: 400, fill: '#EDE9F6' })}
