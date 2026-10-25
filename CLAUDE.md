@@ -11,8 +11,9 @@ live in `API_KEYS.md` and `.claude-reference.md` (both gitignored).
 **The old Worker crons and the hourly health workflow stay off (owner's
 decision, 2026-10-03).** Work runs in GitHub Actions: the filing calendar
 check (`calendar.yml`, REBUILD_SPEC §8: daily at 9 am Pacific, the one
-clock, owner's yes 2026-10-18; starts a refresh after a filing deadline and
-keeps the roster in step), the refresh job (started by the calendar check,
+clock, owner's yes 2026-10-18; starts a refresh after a filing deadline,
+keeps the roster in step and, until 3 December 2026, rebuilds the site when
+the FEC's outside-spending file changes), the refresh job (started by the calendar check,
 by hand, or by its own previous run of a pass), the races job (23 and 27
 October 2026, then it switches itself off) and the candidates' record check
 it starts (`races-check.yml`). Don't add other clocks.

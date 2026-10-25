@@ -213,8 +213,56 @@ function drawReceipt(x, card) {
     x.fillRect(cx, y + 64, bar, 28);
     cx += bar + 3;
   }
+  if (card.boosted) {
+    drawBoosted(x, w * 0.36, y + 78);
+  }
   x.restore();
   return 60 + h;
+}
+
+// BOOSTED (owner, 2026-10-25): red ink across the receipt's foot, over the
+// barcode and clear of the grade stamp, never over a figure
+const BOOSTED_RED = '#C8102E';
+function drawBoosted(x, cx, cy) {
+  // Drawn on its own canvas and worn there, so the holes are in the ink and
+  // not in the receipt under it; then laid on like ink
+  const W0 = 210;
+  const H0 = 70;
+  const ink = document.createElement('canvas');
+  ink.width = W0;
+  ink.height = H0;
+  const k = ink.getContext('2d');
+  k.translate(W0 / 2, H0 / 2);
+  k.strokeStyle = BOOSTED_RED;
+  k.lineWidth = 4;
+  k.beginPath();
+  k.roundRect(-95, -25, 190, 50, 5);
+  k.stroke();
+  k.lineWidth = 1.5;
+  k.beginPath();
+  k.roundRect(-88, -18, 176, 36, 3);
+  k.stroke();
+  k.fillStyle = BOOSTED_RED;
+  k.textAlign = 'center';
+  stretch(k, 'condensed');
+  k.font = `900 32px ${DISPLAY}`;
+  k.fillText('BOOSTED', 0, 12);
+  // Worn ink: small specks taken out, the same every time (a fixed seed)
+  k.setTransform(1, 0, 0, 1, 0, 0);
+  k.globalCompositeOperation = 'destination-out';
+  let seed = 7;
+  const rand = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+  for (let i = 0; i < 900; i++) {
+    k.globalAlpha = 0.3 + rand() * 0.7;
+    k.fillRect(rand() * W0, rand() * H0, 1 + rand() * 1.6, 1 + rand() * 1.6);
+  }
+  x.save();
+  x.translate(cx, cy);
+  x.rotate((-9 * Math.PI) / 180);
+  x.globalAlpha = 0.85;
+  x.globalCompositeOperation = 'multiply';
+  x.drawImage(ink, -W0 / 2, -H0 / 2);
+  x.restore();
 }
 
 function drawStamp(x, g, cx, cy) {
@@ -249,7 +297,7 @@ function drawStamp(x, g, cx, cy) {
 
 /**
  * card: { id, name, title, tier, filedOn ('Sep 30, 2026'), lines: [{short, amount, canvas}], ppi (People,
- *         Power, Influence), total, headline, sub, host, cycleLabel }
+ *         Power, Influence), total, headline, sub, host, cycleLabel, boosted }
  */
 export async function drawShareCard(card) {
   await fontsReady();

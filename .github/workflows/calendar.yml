@@ -9,6 +9,9 @@ name: Filing calendar
 #   - The roster changed (a new member, a departure, a party or seat
 #     change): update the site's list and the identity crosswalk, and grade
 #     any new member (#53).
+#   - The FEC's outside-spending file changed since the site was built:
+#     rebuild the site, so the figures keep up while groups file daily
+#     (until 3 December 2026, then it stops itself: outside-check.mjs).
 #   - Then turn /api/health into an alert if anything is wrong.
 # The daily schedule is the one clock (owner's yes, 2026-10-18); it can also
 # be started by hand.
@@ -69,6 +72,15 @@ jobs:
           if [ "$DRY_RUN" = "true" ]; then args+=(--dry-run); fi
           node scripts/refresh/roster.mjs "${args[@]}"
 
+      - name: Check outside spending
+        id: outside
+        env:
+          DRY_RUN: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run || false }}
+        run: |
+          args=()
+          if [ "$DRY_RUN" = "true" ]; then args+=(--dry-run); fi
+          node scripts/site/outside-check.mjs "${args[@]}"
+
       - name: Save the crosswalk
         if: steps.roster.outputs.crosswalk == 'true'
         run: |
@@ -79,9 +91,9 @@ jobs:
           git push
 
       # Seats, parties and names are on the pre-built pages too (the refresh
-      # rebuilds them only when grades change)
+      # rebuilds them only when grades change), and so is outside spending
       - name: Rebuild the site's pages
-        if: steps.roster.outputs.changed != '' || steps.roster.outputs.removed != ''
+        if: steps.roster.outputs.changed != '' || steps.roster.outputs.removed != '' || steps.outside.outputs.due == 'true'
         env:
           HOOK: ${{ secrets.PAGES_DEPLOY_HOOK }}
         run: |
@@ -118,4 +130,5 @@ jobs:
           GH_REPO: ${{ github.repository }}
           JOB_FAILED_URL: ${{ job.status != 'success' && format('{0}/{1}/actions/runs/{2}', github.server_url, github.repository, github.run_id) || '' }}
           DRY_RUN: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run && '1' || '' }}
+          OUTSIDE_STALE: ${{ steps.outside.outputs.stale }}
         run: bash scripts/health-alert.sh

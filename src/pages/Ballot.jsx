@@ -10,6 +10,7 @@ import { api } from '../lib/api.js';
 import { ELECTION_DAY_TEXT, ELECTION_LABEL, daysUntilElection } from '../lib/election.js';
 import { GRADES, gradeInfo, withheldReasonOf } from '../lib/grades.js';
 import { useAsync, useTitle } from '../lib/hooks.js';
+import { isBoosted } from '../lib/outside.js';
 import {
   ballotPartyName,
   displayName,
@@ -33,7 +34,11 @@ const SHOWN = 4;
 // A candidate on the ballot who never registered with the FEC has no ID
 const candidateKey = c => c.candidateId || `${c.office}-${c.state}-${c.district}-${c.name}`;
 
-function candidatePerson(c) {
+// What outside groups spent on a candidate (src/lib/outside.js): a member by
+// bioguide ID, anyone else by candidate ID
+const spentOn = (outside, c) => outside?.people?.[c.bioguideId || c.candidateId] ?? null;
+
+function candidatePerson(c, spent = null) {
   const graded = Boolean(c.tier);
   const figures = gradedFigures({
     totalRaised: c.totalRaised,
@@ -61,6 +66,8 @@ function candidatePerson(c) {
           : 'Not graded. No campaign money for this election has been reported to the FEC yet.',
     evidenceChecked: c.evidenceChecked,
     ppi: c.peoplePowerInfluence ?? null,
+    outside: spent,
+    boosted: isBoosted(spent, c.totalRaised, c.bioguideId || c.candidateId),
     href: c.bioguideId
       ? memberPath(c.bioguideId, c.name)
       : c.candidateId
@@ -89,7 +96,11 @@ function shortVersion(cands) {
   return `${first} ${name(people)} gets the most from people: ${fromPeople(people)}% of their money, compared with ${fromPeople(most)}% for ${name(most)}.`;
 }
 
-function CompareTable({ cands }) {
+function CompareTable({ cands, outside }) {
+  // Outside spending under the money they raised, once any of them has it:
+  // no figure marked best, as it isn't theirs
+  const spent = c => spentOn(outside, c);
+  const anyOutside = cands.some(c => spent(c));
   const rows = [
     { label: 'Grade', value: c => gradeInfo(c.tier).mark, score: c => GRADES[c.tier]?.rank ?? -1 },
     { label: 'Total raised', value: c => usd(c.totalRaised) },
@@ -113,6 +124,12 @@ function CompareTable({ cands }) {
           : '—',
       score: c => (c.nakamoto > 0 && c.uniqueDonors > 0 ? c.nakamoto / c.uniqueDonors : -1),
     },
+    ...(anyOutside
+      ? [
+          { label: 'Outside groups spent to help', value: c => usd(spent(c)?.for || 0) },
+          { label: 'Outside groups spent against', value: c => usd(spent(c)?.against || 0) },
+        ]
+      : []),
   ];
   return (
     <div className="scroll-x">
@@ -174,7 +191,7 @@ function ShareRace({ race, cycle }) {
   );
 }
 
-function RaceView({ race, others, cycle }) {
+function RaceView({ race, others, cycle, outside }) {
   const [flagging, setFlagging] = useState(false);
   const days = daysUntilElection();
   const cands = race.candidates;
@@ -219,7 +236,7 @@ function RaceView({ race, others, cycle }) {
           {top.map((c, i) => (
             <Receipt
               key={candidateKey(c)}
-              person={candidatePerson(c)}
+              person={candidatePerson(c, spentOn(outside, c))}
               delay={i * 0.12}
               headingLevel={2}
             />
@@ -264,7 +281,7 @@ function RaceView({ race, others, cycle }) {
                   {summary}
                 </p>
               )}
-              <CompareTable cands={top} />
+              <CompareTable cands={top} outside={outside} />
               <p className="fine" style={{ marginTop: 18 }}>
                 In each row, the figure in bold is the most people-funded. Grades are based only on
                 where the money comes from.
@@ -389,6 +406,7 @@ function NotYet() {
 /** /ballot (your races) and /race/:key (any race) */
 export default function Ballot({ raceKey, raceCycle = null }) {
   const races = useAsync(() => api.races(), []);
+  const outside = useAsync(() => api.outside(), []);
   const [place, setPlace] = useState(savedPlace);
   const all = races.data?.races || [];
   // Another cycle's race isn't in this list (past cycles: #73)
@@ -462,5 +480,5 @@ export default function Ballot({ raceKey, raceCycle = null }) {
   const others = (place ? mine : all.filter(r => r.state === shown.state)).filter(
     r => r.key !== shown.key
   );
-  return <RaceView race={shown} others={others} cycle={races.data.cycle} />;
+  return <RaceView race={shown} others={others} cycle={races.data.cycle} outside={outside.data} />;
 }

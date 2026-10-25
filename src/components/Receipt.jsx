@@ -9,11 +9,12 @@ import { gradeInfo, isRingfenced } from '../lib/grades.js';
 import { peopleSentence } from '../lib/explain.js';
 import { moneyLines, usd } from '../lib/people.js';
 import MoneyGraph from './MoneyGraph.jsx';
-import { Evidence, MoneyLines, Stamp } from './ui.jsx';
+import { BoostedStamp, Evidence, MoneyLines, Stamp } from './ui.jsx';
 
 /**
  * person: { name, seat, party, tier, figures (gradedFigures), ppi (People,
- *           Power, Influence), evidenceChecked, href, badge, note }
+ *           Power, Influence), evidenceChecked, href, badge, note, outside
+ *           ({ for, against }: what outside groups spent), boosted }
  */
 export default function Receipt({ person, delay = 0, animate = true, headingLevel = 3 }) {
   const H = `h${headingLevel}`;
@@ -43,6 +44,11 @@ export default function Receipt({ person, delay = 0, animate = true, headingLeve
             {person.party}
             {person.badge ? ` · ${person.badge}` : ''}
           </p>
+          {person.boosted && (
+            <p style={{ marginTop: 8 }}>
+              <BoostedStamp small />
+            </p>
+          )}
         </div>
         <Stamp
           tier={person.tier}
@@ -77,6 +83,12 @@ export default function Receipt({ person, delay = 0, animate = true, headingLeve
         )}
         {!withheld && hasMoney && <Evidence checked={person.evidenceChecked} />}
       </div>
+      {(person.outside?.for > 0 || person.outside?.against > 0) && (
+        <p className="small receipt-outside">
+          Outside groups spent {usd(person.outside.for)} to help them and{' '}
+          {usd(person.outside.against)} against them. That&apos;s not in the grade.
+        </p>
+      )}
       {person.href && (
         <Link
           to={person.href}

@@ -5,7 +5,7 @@
 // job (Wikipedia's lists matched to the FEC).
 import React, { useMemo, useRef, useState } from 'react';
 import Lookup from '../components/Lookup.jsx';
-import { Skeleton, Stamp, VoteLink } from '../components/ui.jsx';
+import { BoostedStamp, Skeleton, Stamp, VoteLink } from '../components/ui.jsx';
 import { api } from '../lib/api.js';
 import { ELECTION_LABEL, daysUntilElection } from '../lib/election.js';
 import {
@@ -18,6 +18,7 @@ import {
   withheldReasonOf,
 } from '../lib/grades.js';
 import { useAsync, useCountUp, useInView, useTitle } from '../lib/hooks.js';
+import { isBoosted } from '../lib/outside.js';
 import { ballotPartyName, displayName, raceSeat, stateName, usdShort } from '../lib/people.js';
 import { savePlace } from '../lib/place.js';
 import {
@@ -215,7 +216,7 @@ function OwnLine({ c, i }) {
   );
 }
 
-function RaceCard({ race, cycle }) {
+function RaceCard({ race, cycle, outside }) {
   const ref = useRef(null);
   const seen = useInView(ref);
   const top = race.candidates.slice(0, SHOWN);
@@ -242,6 +243,16 @@ function RaceCard({ race, cycle }) {
                     {share !== null && c.evidenceChecked === false && (
                       <span className="is-checking"> · still being checked</span>
                     )}
+                    {isBoosted(
+                      outside?.people?.[c.bioguideId || c.candidateId],
+                      c.totalRaised,
+                      c.bioguideId || c.candidateId
+                    ) && (
+                      <>
+                        {' '}
+                        <BoostedStamp small />
+                      </>
+                    )}
                   </span>
                   <MoneyBar c={c} i={i} />
                   <OwnLine c={c} i={i} />
@@ -260,7 +271,7 @@ function RaceCard({ race, cycle }) {
   );
 }
 
-function RaceList({ races, byState, state, onClearState, cycle }) {
+function RaceList({ races, byState, state, onClearState, cycle, outside }) {
   const [view, setView] = useState('all');
   const [query, setQuery] = useState('');
   const [limit, setLimit] = useState(PAGE);
@@ -331,7 +342,7 @@ function RaceList({ races, byState, state, onClearState, cycle }) {
       ) : (
         <ul className="race-grid">
           {shown.map(r => (
-            <RaceCard key={r.key} race={r} cycle={cycle} />
+            <RaceCard key={r.key} race={r} cycle={cycle} outside={outside} />
           ))}
         </ul>
       )}
@@ -364,6 +375,7 @@ function Sources({ sources }) {
 export default function Races() {
   useTitle('Every race for Congress');
   const races = useAsync(() => api.races(), []);
+  const outside = useAsync(() => api.outside(), []);
   const [state, setState] = useState(null);
   const all = useMemo(() => races.data?.races || [], [races.data]);
   const figures = useMemo(() => nationalFigures(all), [all]);
@@ -404,6 +416,7 @@ export default function Races() {
         <TileMap byState={byState} selected={state} onPick={pick} />
         <RaceList
           key={state || 'all'}
+          outside={outside.data}
           races={all}
           byState={byState}
           state={state}

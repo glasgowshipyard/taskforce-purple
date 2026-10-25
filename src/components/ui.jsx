@@ -1,7 +1,7 @@
 // The pieces every page is built from: the grade stamp, a receipt's lines,
 // the evidence label, a section with a plain heading and a country's flag.
 import React, { useState } from 'react';
-import { CheckCircle2, Clock3, Info } from 'lucide-react';
+import { CheckCircle2, ChevronDown, Clock3, Info } from 'lucide-react';
 import { flagSrc } from '../lib/flags.js';
 import { gradeInfo } from '../lib/grades.js';
 import { COUNTRY_FOCUS_NOTE } from '../lib/pacs.js';
@@ -98,13 +98,61 @@ export function Barcode({ id = '', height = 34 }) {
   );
 }
 
-/** A section of a member's page: a plain heading, then the detail */
-export function Section({ title, children }) {
+/**
+ * A section of a person's page: a plain heading that folds the detail away
+ * (owner, 2026-10-25). The browser's own fold-out, so the pre-built pages
+ * and anyone without the script still read all of it. `open`: how it starts
+ */
+export function Section({ title, children, open = true }) {
   return (
-    <section className="fold">
-      <h2 className="fold-title">{title}</h2>
+    <details className="fold" open={open}>
+      <summary className="fold-summary">
+        <h2 className="fold-title">{title}</h2>
+        <ChevronDown className="fold-chevron" size={24} aria-hidden="true" />
+      </summary>
       <div className="fold-body">{children}</div>
-    </section>
+    </details>
+  );
+}
+
+/** An (i) that opens a plain note under the line it's on */
+export function InfoNote({ label, children }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <>
+      <button
+        type="button"
+        className="chip-info info-note"
+        aria-expanded={open}
+        aria-label={label}
+        onClick={() => setOpen(o => !o)}
+      >
+        <Info size={16} aria-hidden="true" />
+      </button>
+      {open && (
+        <span className="chip-note" role="note">
+          {children}
+        </span>
+      )}
+    </>
+  );
+}
+
+/**
+ * BOOSTED (owner, 2026-10-25): red, stamped across the receipt, when outside
+ * groups spent more to help someone than their campaign raised
+ * (src/lib/outside.js). `small` for a race card's row
+ */
+export function BoostedStamp({ small = false, animate = false, delay = 0 }) {
+  return (
+    <span
+      className={`boosted${small ? ' is-small' : ''}${animate ? ' stamp-in' : ''}`}
+      style={{ '--delay': `${delay}s`, '--rot': small ? '-4deg' : '-7deg' }}
+      role="img"
+      aria-label="Boosted: outside groups spent more to help them than their campaign raised"
+    >
+      <span aria-hidden="true">BOOSTED</span>
+    </span>
   );
 }
 

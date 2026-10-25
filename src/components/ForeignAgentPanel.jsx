@@ -7,6 +7,23 @@ import { usd } from '../lib/people.js';
 const faraUrl = reg =>
   `https://efile.fara.gov/ords/fara/f?p=1381:200:::NO:RP,200:P200_REG_NUMBER:${reg}`;
 
+// What the register is, ahead of any figure (owner, 2026-10-25: "needs to
+// be clarified"): a visitor mustn't read "foreign agents" as foreign money
+function Lead() {
+  return (
+    <p className="fold-lead" style={{ fontWeight: 400, fontSize: 17, marginBottom: 14 }}>
+      People who lobby or do public relations in the US for a foreign government, party or company
+      have to register with the Justice Department. That&apos;s legal, and the register is public.
+      This isn&apos;t foreign money: it&apos;s illegal for foreigners to give to American campaigns.
+      These are donors who work for foreign clients.{' '}
+      <a href="https://www.justice.gov/nsd-fara" target="_blank" rel="noopener noreferrer">
+        The Justice Department&apos;s register
+      </a>
+      .
+    </p>
+  );
+}
+
 const titleCase = s =>
   String(s || '')
     .toLowerCase()
@@ -40,7 +57,7 @@ export default function ForeignAgentPanel({ member }) {
   if (member.faraAgentTotal === null || member.faraAgentTotal === undefined) {
     return (
       <div className="panel">
-        <h3>Donors at foreign-agent firms</h3>
+        <Lead />
         <p style={{ color: 'var(--ink-2)' }}>
           <strong style={{ color: 'var(--ink)' }}>{usd(total)}</strong> came from people who work at
           firms registered with the Justice Department to represent foreign clients. Most of them
@@ -54,7 +71,7 @@ export default function ForeignAgentPanel({ member }) {
   const agentFirms = firms.filter(f => f.agentAmount > 0);
   return (
     <div className={`panel${agents > 0 ? ' panel-alert' : ''}`}>
-      <h3>Foreign agents</h3>
+      <Lead />
       {agents > 0 ? (
         <>
           <p style={{ color: 'var(--ink-2)' }}>

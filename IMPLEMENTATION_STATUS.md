@@ -16,15 +16,15 @@ FINAL-3 (live since 2026-10-13; `GRASSROOTS_CALCULATION_GUIDE.md`, `/how`).
 
 **How it runs.**
 
-| Piece                                         | What it does                                                                                                                                                                                                                                                                                                    | When                                                               |
-| --------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------ |
-| `refresh.yml` (`scripts/refresh/run.mjs`)     | Grades members from the FEC's bulk files (grade-only lane, minutes), and checks every committee's records against the FEC's (check lane, hours; chains its own runs); publishes `members:list` once per batch, only on change; rebuilds the pre-built pages when grades changed                                 | Started by the calendar check, by hand, or by its own previous run |
-| `calendar.yml` (`calendar.mjs`, `roster.mjs`) | One FEC request for the reporting dates: 3 days after a deadline members file for (Q1, Q2, Q3, year-end, pre- and post-general) it starts the refresh; keeps the member list in step with Congress (new members, departures, party and seat changes, the identity crosswalk); turns `/api/health` into an alert | Daily, 9 am Pacific: the one clock (owner's yes, 2026-10-18)       |
-| `races.yml` (`races.mjs`)                     | Grades everyone on November's ballot for Congress and publishes `races:list`                                                                                                                                                                                                                                    | 23 and 27 October 2026, then it switches itself off                |
-| `races-check.yml` (`check-candidates.mjs`)    | The record check for race candidates; re-grades the races when it finishes                                                                                                                                                                                                                                      | Started by the races job                                           |
-| `code-quality.yml`                            | Tests, lint, type check, audit on every push                                                                                                                                                                                                                                                                    | Every push                                                         |
-| Cloudflare Pages                              | The site (`src/`), plus pre-built pages, link-preview pictures, sitemap, llms.txt and grades.csv (`scripts/site/prerender.mjs`)                                                                                                                                                                                 | Every push to main, and the refresh's deploy hook                  |
-| API worker (`workers/data-pipeline.js`)       | Serves the list, member detail (from D1), races, `/api/health` and `/admin`                                                                                                                                                                                                                                     | Always; deployed by the owner (`npx wrangler deploy`)              |
+| Piece                                         | What it does                                                                                                                                                                                                                                                                                                                                                                                       | When                                                               |
+| --------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------ |
+| `refresh.yml` (`scripts/refresh/run.mjs`)     | Grades members from the FEC's bulk files (grade-only lane, minutes), and checks every committee's records against the FEC's (check lane, hours; chains its own runs); publishes `members:list` once per batch, only on change; rebuilds the pre-built pages when grades changed                                                                                                                    | Started by the calendar check, by hand, or by its own previous run |
+| `calendar.yml` (`calendar.mjs`, `roster.mjs`) | One FEC request for the reporting dates: 3 days after a deadline members file for (Q1, Q2, Q3, year-end, pre- and post-general) it starts the refresh; keeps the member list in step with Congress (new members, departures, party and seat changes, the identity crosswalk); rebuilds the site when the FEC's outside-spending file changed (until 3 Dec 2026); turns `/api/health` into an alert | Daily, 9 am Pacific: the one clock (owner's yes, 2026-10-18)       |
+| `races.yml` (`races.mjs`)                     | Grades everyone on November's ballot for Congress and publishes `races:list`                                                                                                                                                                                                                                                                                                                       | 23 and 27 October 2026, then it switches itself off                |
+| `races-check.yml` (`check-candidates.mjs`)    | The record check for race candidates; re-grades the races when it finishes                                                                                                                                                                                                                                                                                                                         | Started by the races job                                           |
+| `code-quality.yml`                            | Tests, lint, type check, audit on every push                                                                                                                                                                                                                                                                                                                                                       | Every push                                                         |
+| Cloudflare Pages                              | The site (`src/`), plus pre-built pages, link-preview pictures, sitemap, llms.txt and grades.csv (`scripts/site/prerender.mjs`)                                                                                                                                                                                                                                                                    | Every push to main, and the refresh's deploy hook                  |
+| API worker (`workers/data-pipeline.js`)       | Serves the list, member detail (from D1), races, `/api/health` and `/admin`                                                                                                                                                                                                                                                                                                                        | Always; deployed by the owner (`npx wrangler deploy`)              |
 
 Off: the old Worker crons, the hourly `health-alert.yml`, `d1-repack.yml`
 (a one-off). `simulate.yml` is by hand, for grading-change simulations.
@@ -54,11 +54,60 @@ read and 100k written a day (shared with the owner's other projects);
 
 **Open issues** (GitHub): #18 member biography, #33 connected
 organisations, #64 the D1 error, #67 PACs.csv download, #68 to #70 PAC data
-clean-up, #71 outside spending, #72 TypeScript (after the election).
+clean-up, #71 outside spending (shown since 2026-10-25), #72 TypeScript (after the election).
 
 ---
 
 ## Change log
+
+## 2026-10-25: outside spending and BOOSTED (#71)
+
+Owner's go. What super PACs and other groups reported spending to help or
+hurt each person, beside the grade and never in it, from the FEC's own
+files, read when the site is built (`scripts/site/outside.mjs`): the
+independent-expenditure file (`independent_expenditure_2026.csv`, rebuilt
+daily by the FEC, with 24- and 48-hour reports, so current where the
+processed figures run days behind) and the register of committees
+(`cm26.zip`). No key, no KV or D1, no API calls; `dist/data/outside.json`
+(245 KB, 40 KB compressed; 542 people on 2026-10-25). If the FEC can't be
+reached the build keeps the live site's copy.
+
+- Counted once: the newest version of each spender's transaction
+  (amendments), and the same spend restated in a later filing under a new
+  transaction ID. Checked: the file's totals for Texas PAC and America PAC
+  on Paxton match the FEC's e-filed records to the dollar.
+- Left out: filers not on the FEC's register of committees. The FEC posts
+  what's filed and reviews it later; on 2026-10-25 four unregistered filers
+  claimed $17,003,000,000 between them (one wrote "$9,000,000,000",
+  "President of the United States"). An (i) on the page says so.
+- **BOOSTED** (owner: red, stamped across the receipt): outside groups spent
+  more to help them than their whole campaign raised, and at least $10,000
+  (the FEC's 48-hour reporting line). Money spent against them never counts.
+  61 people on 2026-10-25. On the receipt it sits over the barcode, never a
+  figure; also on race cards, race pages, the share card and link previews
+  (`src/lib/outside.js`, `--boosted`).
+- `BOOST_HELD` keeps the stamp off anyone whose own figures are known to
+  be wrong. Julie Johnson (J000310) was held on 2026-10-25: graded on
+  $60,555 because her campaign had become a PAC. Re-graded the same day on
+  $2,394,655 (PR #75), she came off; $904,424 of help is under it, so no
+  stamp. The list is empty.
+- Person pages, after the grade (owner): Outside groups, then PAC donations,
+  then the rest. Every section folds (the browser's own `<details>`): open
+  by default except Bundled donations, Where the money was raised and About
+  these numbers. Foreign agents is titled by what it is ("Money from
+  registered foreign agents", open; "Donors at firms with foreign clients",
+  folded) and starts by saying what the register is and that it isn't
+  foreign money.
+- Freshness (owner's yes): the daily 9 am check (`calendar.yml`) also asks
+  the FEC whether its outside-spending file has changed since the live site
+  was built (one HEAD request, compared by size, as the FEC rewrites the
+  file daily either way) and rebuilds the site if so
+  (`scripts/site/outside-check.mjs`). No new clock. It stops itself after
+  3 December 2026, the post-election reports' deadline. If a build can't read
+  the FEC's files it keeps the live copy, marked `keptSince`; after two days
+  the daily check raises an alert. Each build records the FEC's
+  `fileModified`, so the check can move earlier once a week of posting times
+  shows it safely can (it's 10:13 UTC on 2026-10-25).
 
 ## 2026-10-25: a campaign that became a PAC still counts
 
