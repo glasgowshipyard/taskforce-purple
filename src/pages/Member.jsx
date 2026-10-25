@@ -37,7 +37,7 @@ import {
   withheldReasonOf,
 } from '../lib/grades.js';
 import { useAsync, useTitle } from '../lib/hooks.js';
-import { boostedSentence, isBoosted } from '../lib/outside.js';
+import { boostedDetail, isBoosted } from '../lib/outside.js';
 import { lightHandlers, useLight } from '../lib/light.js';
 import {
   ballotPartyName,
@@ -205,6 +205,13 @@ function cardLines(lines) {
   ];
 }
 
+/** The receipt's dashed line with the BOOSTED stamp across it */
+const BoostBand = () => (
+  <div className="slip-boost-band">
+    <BoostedStamp animate delay={0.9} />
+  </div>
+);
+
 export default function Member({ id, kind = 'member' }) {
   const isCandidate = kind === 'candidate';
   const list = useAsync(() => api.members(), []);
@@ -306,7 +313,7 @@ export default function Member({ id, kind = 'member' }) {
   // bioguide ID for a member, candidate ID for anyone else, as the page's id
   const spent = outside.data?.people?.[id] ?? null;
   const boosted = isBoosted(spent, f.totalRaised, id);
-  const boostLine = boostedSentence(spent, f.totalRaised, id);
+  const boostLine = boostedDetail(spent, f.totalRaised, id);
   // FINAL-3's working, in dollars (workers/grading.js gradeMemberFinal3)
   const final3 = d?.grade?.detail?.method === 'final-3' ? d.grade.detail : null;
   // The receipt: from the grade's own working when there is one, so it
@@ -430,7 +437,11 @@ export default function Member({ id, kind = 'member' }) {
               <div style={{ flex: '1 1 300px' }}>
                 <h2 style={{ fontSize: 22, marginBottom: 8 }}>{g.name}</h2>
                 <p>{g.meaning}</p>
-                {boostLine && <p className="boosted-line">{boostLine}</p>}
+                {boostLine && (
+                  <p className="boosted-line">
+                    <Link to="/how#boosted">Boosted</Link>: {boostLine}
+                  </p>
+                )}
                 <p className="flag-line">
                   <button type="button" className="link-button" onClick={() => setFlagging(true)}>
                     Something wrong here?
@@ -439,12 +450,7 @@ export default function Member({ id, kind = 'member' }) {
               </div>
             </div>
             <div className="folds" style={{ maxWidth: 820 }}>
-              <OutsidePanel
-                outside={outside.data}
-                personId={id}
-                name={name}
-                totalRaised={f.totalRaised}
-              />
+              <OutsidePanel outside={outside.data} personId={id} />
             </div>
           </div>
         ) : (
@@ -468,7 +474,9 @@ export default function Member({ id, kind = 'member' }) {
                 <MoneyLines lines={receipt?.counted ?? []} value={l => usd(l.amount)} />
                 {receipt?.left.length > 0 && (
                   <>
-                    <div className="tear" style={{ marginTop: 6 }} />
+                    {/* BOOSTED across the line under the money given (owner,
+                        2026-10-25), in a gap of its own: it covers no figure */}
+                    {boosted ? <BoostBand /> : <div className="tear" style={{ marginTop: 6 }} />}
                     <p className="slip-subtotal">
                       <span>GRADED ON</span>
                       <span>{usd(receipt.subtotal)}</span>
@@ -479,7 +487,11 @@ export default function Member({ id, kind = 'member' }) {
                     <MoneyLines lines={receipt.left} value={l => usd(l.amount)} />
                   </>
                 )}
-                <div className="tear" style={{ marginTop: 6 }} />
+                {boosted && !(receipt?.left.length > 0) ? (
+                  <BoostBand />
+                ) : (
+                  <div className="tear" style={{ marginTop: 6 }} />
+                )}
                 <p className="slip-total">
                   <span>TOTAL</span>
                   <span>{usd(receipt?.total ?? f.totalRaised)}</span>
@@ -507,18 +519,17 @@ export default function Member({ id, kind = 'member' }) {
                   onPaper
                 />
               </div>
-              {boosted && (
-                <div className="slip-boosted">
-                  <BoostedStamp animate delay={0.9} />
-                </div>
-              )}
             </div>
 
             <div className="member-main">
               <section className="member-summary" aria-label={`Grade ${g.mark}, ${g.name}`}>
                 <div className="member-verdict">
                   {sentence && <p className="member-sentence">{sentence}</p>}
-                  {boostLine && <p className="boosted-line">{boostLine}</p>}
+                  {boostLine && (
+                    <p className="boosted-line">
+                      <Link to="/how#boosted">Boosted</Link>: {boostLine}
+                    </p>
+                  )}
                   {placement && <p className="placement">{placement}</p>}
                   {sentence && <p className="grade-scope">{GRADE_SCOPE}</p>}
                   <p className="flag-line">
@@ -607,12 +618,7 @@ export default function Member({ id, kind = 'member' }) {
 
                 {/* After the grade: who else spent on them, then the PACs
                     (owner, 2026-10-25) */}
-                <OutsidePanel
-                  outside={outside.data}
-                  personId={id}
-                  name={name}
-                  totalRaised={f.totalRaised}
-                />
+                <OutsidePanel outside={outside.data} personId={id} />
 
                 {/* The receipt's PAC line, to the dollar: one source of truth */}
                 <PacPanel

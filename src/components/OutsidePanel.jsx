@@ -5,12 +5,11 @@ import React from 'react';
 import { ExternalLink } from 'lucide-react';
 import { InfoNote, Section } from './ui.jsx';
 import {
-  BOOSTED_MEANING,
   LEFT_OUT_NOTE,
   NO_OUTSIDE,
   OUTSIDE_SOURCE_URL,
   REGISTER_URL,
-  isBoosted,
+  stageText,
 } from '../lib/outside.js';
 import { count, usd } from '../lib/people.js';
 
@@ -49,6 +48,7 @@ function Spenders({ o, side, title }) {
                 />
               </a>
             </span>
+            {stageText(s.stages) && <span className="stage-tag">{stageText(s.stages)}</span>}
             <span className="leader" aria-hidden="true" />
             <strong>{usd(s.amount)}</strong>
           </li>
@@ -63,7 +63,7 @@ function Spenders({ o, side, title }) {
   );
 }
 
-export default function OutsidePanel({ outside, personId, name, totalRaised }) {
+export default function OutsidePanel({ outside, personId }) {
   if (!outside) {
     // No file (development, or a build that couldn't read the FEC's)
     return null;
@@ -72,39 +72,32 @@ export default function OutsidePanel({ outside, personId, name, totalRaised }) {
   const through = dayText(outside.through);
   if (!o || (o.for <= 0 && o.against <= 0)) {
     return (
-      <Section title="Outside groups">
+      <Section title="Super PAC spending">
         <p>{NO_OUTSIDE}</p>
         {through && <p className="fine">From reports filed with the FEC up to {through}.</p>}
       </Section>
     );
   }
-  const boosted = isBoosted(o, totalRaised, personId);
+  // The owner's words (2026-10-25). The campaign's own total isn't here: it
+  // read as the groups' money, and the receipt beside it has it
   return (
-    <Section title="Outside groups">
+    <Section title="Super PAC spending">
       <p style={{ marginBottom: 14 }}>
-        Super PACs and other groups can spend as much as they like to help or hurt a candidate, as
-        long as they don&apos;t work with the candidate&apos;s campaign. This money doesn&apos;t go
-        to {name}, and it isn&apos;t in the grade.
+        Super PACs and other groups spend their own money to elect or beat a candidate. They
+        can&apos;t work with the campaign. <em>None of this is in the grade.</em>
       </p>
       <div className="outside-totals">
         <div>
-          <span className="small muted">Spent to help {name}</span>
+          <span className="small muted">Spent to help them</span>
           <strong>{usd(o.for)}</strong>
         </div>
         <div>
-          <span className="small muted">Spent against them</span>
+          <span className="small muted">Spent to beat them</span>
           <strong>{usd(o.against)}</strong>
         </div>
-        {totalRaised > 0 && (
-          <div>
-            <span className="small muted">Their own campaign raised</span>
-            <strong>{usd(totalRaised)}</strong>
-          </div>
-        )}
       </div>
-      {boosted && <p className="boosted-line">{BOOSTED_MEANING}</p>}
-      <Spenders o={o} side="for" title="The biggest spenders helping them" />
-      <Spenders o={o} side="against" title="The biggest spenders against them" />
+      <Spenders o={o} side="for" title="Who spent most to help them" />
+      <Spenders o={o} side="against" title="Who spent most to beat them" />
       <p className="fine" style={{ marginTop: 14 }}>
         As reported to the FEC by the groups themselves
         {through ? `, in reports filed up to ${through}` : ''}. Only groups on the FEC&apos;s

@@ -80,7 +80,7 @@ function withBoost(page, outside, raised, personId) {
     description: `${page.description} ${sentence}`,
     body: page.body.replace(
       HOW_LINK,
-      `<p><strong>Boosted.</strong> ${esc(sentence)} ${esc(BOOSTED_MEANING)}</p>\n${HOW_LINK}`
+      `<p>${esc(sentence)} ${esc(BOOSTED_MEANING)}</p>\n${HOW_LINK}`
     ),
     card: { ...page.card, boosted: true },
     signature: JSON.stringify([page.signature, sentence]),
@@ -235,11 +235,12 @@ export function howPage() {
 <p class="lede">Every dollar given to a member of Congress comes from one of three sources: People, Power and Influence. The grade is the share that comes from People.</p>
 <ul>${parts}</ul>
 <p><strong>What's left out?</strong> ${esc(LEFT_OUT)}</p>
+<p id="boosted"><strong>What does BOOSTED mean?</strong> ${esc(BOOSTED_MEANING.replace(/^BOOSTED means /, 'It means '))}</p>
 <h2>The grade</h2>
 <ul>${scale}</ul>
 <p>Every figure comes from campaign finance reports filed with the Federal Election Commission (FEC).</p>
 </main>`,
-    signature: 'how-3',
+    signature: 'how-4',
   };
 }
 

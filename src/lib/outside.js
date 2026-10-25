@@ -40,23 +40,43 @@ export function timesOver(o, totalRaised) {
   return times >= 2 ? times : null;
 }
 
-/** The one sentence beside the grade, for a boosted candidate */
-export function boostedSentence(o, totalRaised, personId = null) {
+/**
+ * The line beside the grade for a boosted candidate, after the word
+ * "Boosted:" (owner, 2026-10-25: the word links to its meaning on /how)
+ */
+export function boostedDetail(o, totalRaised, personId = null) {
   if (!isBoosted(o, totalRaised, personId)) {
     return null;
   }
   if (!(totalRaised > 0)) {
-    return `Outside groups spent ${usd(o.for)} to help them. Their own campaign has reported raising nothing.`;
+    return `groups spent ${usd(o.for)} to help them. Their campaign has reported raising nothing.`;
   }
   const times = timesOver(o, totalRaised);
   return times
-    ? `Outside groups spent ${usd(o.for)} to help them: more than ${times} times what their own campaign raised.`
-    : `Outside groups spent ${usd(o.for)} to help them: more than their own campaign raised (${usd(totalRaised)}).`;
+    ? `groups spent ${usd(o.for)} to help them, more than ${times} times what their campaign raised.`
+    : `groups spent ${usd(o.for)} to help them, more than their campaign raised (${usd(totalRaised)}).`;
 }
 
-/** Why the stamp is there, and what it doesn't say */
+/** The same line as text: "Boosted: groups spent ..." */
+export function boostedSentence(o, totalRaised, personId = null) {
+  const detail = boostedDetail(o, totalRaised, personId);
+  return detail && `Boosted: ${detail}`;
+}
+
+/** What the stamp means: /how#boosted and the pre-built pages */
 export const BOOSTED_MEANING =
-  'BOOSTED means outside groups, like super PACs, spent more to help this candidate than their own campaign raised. The candidate isn’t allowed to work with these groups, and can’t stop them spending. This money isn’t in the grade: the grade is only about the money their campaign raised.';
+  'BOOSTED means super PACs and other groups spent more to help a candidate than their own campaign raised. Money spent to beat them doesn\u2019t count. It isn\u2019t part of the grade.';
+
+/** The same, in one line: the Races page */
+export const BOOSTED_SHORT =
+  'BOOSTED means groups spent more to help a candidate than their campaign raised.';
+
+/** When a group spent: the FEC's election codes, as words */
+const STAGE = { P: 'primary', R: 'runoff', G: 'general' };
+export function stageText(stages = []) {
+  const words = ['P', 'R', 'G'].filter(s => stages.includes(s)).map(s => STAGE[s]);
+  return words.length < 2 ? words[0] || '' : `${words.slice(0, -1).join(', ')} and ${words.at(-1)}`;
+}
 
 /** The (i) under the figures: the filers left out */
 export const LEFT_OUT_NOTE =
@@ -66,4 +86,5 @@ export const REGISTER_URL = 'https://www.fec.gov/data/committees/';
 export const OUTSIDE_SOURCE_URL = 'https://www.fec.gov/data/independent-expenditures/';
 
 /** The section's empty line */
-export const NO_OUTSIDE = 'No outside groups have reported spending to help or hurt them.';
+export const NO_OUTSIDE =
+  'No super PACs or other groups have reported spending to help or beat them.';

@@ -85,8 +85,8 @@ export default function Receipt({ person, delay = 0, animate = true, headingLeve
       </div>
       {(person.outside?.for > 0 || person.outside?.against > 0) && (
         <p className="small receipt-outside">
-          Outside groups spent {usd(person.outside.for)} to help them and{' '}
-          {usd(person.outside.against)} against them. That&apos;s not in the grade.
+          Groups spent {usd(person.outside.for)} to help them and {usd(person.outside.against)} to
+          beat them.
         </p>
       )}
       {person.href && (

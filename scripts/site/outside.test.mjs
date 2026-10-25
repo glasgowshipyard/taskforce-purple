@@ -123,8 +123,8 @@ describe('outside spending (2026-10-25)', () => {
   it("adds up a member's candidate IDs as one person, in whole dollars", () => {
     const o = outsideSpending(
       [
-        row({ exp_amo: '100.4' }),
-        row({ tran_id: 'SE.2', cand_id: 'H6TX00002', exp_amo: '200.4' }),
+        row({ exp_amo: '100.4', ele_type: 'G' }),
+        row({ tran_id: 'SE.2', cand_id: 'H6TX00002', exp_amo: '200.4', ele_type: 'P' }),
         row({ tran_id: 'SE.3', cand_id: 'H6CA00003', exp_amo: '50' }),
       ],
       REGISTERED,
@@ -133,7 +133,7 @@ describe('outside spending (2026-10-25)', () => {
     const people = byPerson(o.candidates, { X000001: ['S6TX00001', 'H6TX00002'] }, ['H6CA00003']);
     expect(people.X000001.for).toBe(301);
     expect(people.X000001.spenders).toEqual([
-      { id: 'C00000001', name: 'Real PAC', side: 'for', amount: 301 },
+      { id: 'C00000001', name: 'Real PAC', side: 'for', amount: 301, stages: ['P', 'G'] },
     ]);
     expect(people.H6CA00003.for).toBe(50);
   });
