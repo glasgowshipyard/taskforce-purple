@@ -108,7 +108,7 @@ export function Footer() {
         </div>
         <p>
           <Link to="/how">How grades work</Link> ·{' '}
-          <Link to="/corrections">Corrections and updates</Link> ·{' '}
+          <Link to="/updates">Updates and corrections</Link> ·{' '}
           <a href="https://github.com/glasgowshipyard/taskforce-purple">Open source</a> ·{' '}
           <button type="button" className="link-button" onClick={() => setSuggesting(true)}>
             Suggest something

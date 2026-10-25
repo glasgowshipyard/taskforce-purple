@@ -60,17 +60,18 @@ clean-up, #71 outside spending (shown since 2026-10-25), #72 TypeScript (after t
 
 ## Change log
 
-## 2026-10-25 (night): Corrections and updates, with RSS
+## 2026-10-25 (night): Updates and corrections, with RSS
 
-Owner: the corrections page is now **Corrections and updates** (same
-address, `/corrections`): one dated list, newest first, each entry
-labelled Correction or New, only real corrections and major features
-(`src/lib/corrections.js`, each entry with a fixed `id`). Also an RSS feed,
-`/corrections.xml`, built with the site from the same list
+Owner: the corrections page is now **Updates and corrections**, at
+`/updates` (`/corrections` forwards to it, `_redirects`): one dated list,
+newest day first, new features above corrections within a day (`inOrder`),
+each labelled New or Correction; only major features and real corrections
+(`src/lib/corrections.js`, each entry with a fixed `id`), in few words.
+Also an RSS feed, `/updates.xml`, built with the site from the same list
 (`correctionsRss` in `scripts/site/pages.mjs`); every page advertises it.
-First entries: today's corrections (Julie Johnson, Everton Blair, the two
-stamps measured against too small a total, the race pages' totals) and
-the new Super PAC spending section with BOOSTED.
+First entries: Super PAC spending with BOOSTED, and today's corrections
+(Julie Johnson, Everton Blair, the two stamps measured against too small a
+total, the race pages' totals).
 
 ## 2026-10-25 (night): "external groups"; the race list's totals from the grade
 

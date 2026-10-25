@@ -7,7 +7,7 @@ import {
   memberPage,
   sitemapXml,
 } from './pages.mjs';
-import { CORRECTIONS } from '../../src/lib/corrections.js';
+import { CORRECTIONS, inOrder } from '../../src/lib/corrections.js';
 
 const member = {
   bioguideId: 'S001150',
@@ -112,16 +112,25 @@ describe('grades.csv (#67)', () => {
   });
 });
 
-describe('corrections and updates (2026-10-25)', () => {
+describe('updates and corrections (2026-10-25)', () => {
   it('publishes the list as an RSS feed, each item linking to its place on the page', () => {
     const xml = correctionsRss([
       { id: 'x-1', date: '2026-10-25', kind: 'correction', what: 'A & B', detail: 'Fixed <it>.' },
     ]);
     expect(xml).toMatch(/^<\?xml version="1.0" encoding="UTF-8"\?>\n<rss version="2.0">/);
     expect(xml).toContain('<title>Correction: A &amp; B</title>');
-    expect(xml).toContain('<link>https://taskforcepurple.com/corrections#x-1</link>');
+    expect(xml).toContain('<link>https://taskforcepurple.com/updates#x-1</link>');
     expect(xml).toContain('<pubDate>Sun, 25 Oct 2026 12:00:00 GMT</pubDate>');
     expect(xml).toContain('<description>Fixed &lt;it&gt;.</description>');
+  });
+
+  it('puts the newest day first, and new features above corrections on a day', () => {
+    const order = inOrder([
+      { id: 'a', date: '2026-10-24', kind: 'new' },
+      { id: 'b', date: '2026-10-25', kind: 'correction' },
+      { id: 'c', date: '2026-10-25', kind: 'new' },
+    ]).map(c => c.id);
+    expect(order).toEqual(['c', 'b', 'a']);
   });
 
   it('every entry has a unique id, a known kind and a date', () => {

@@ -234,6 +234,8 @@ const moved = [
           .map(c => [`/candidate/${c.candidateId}`, candidatePath(c.candidateId, c.name)]),
       ])
     : []),
+  // The corrections page became Updates and corrections (2026-10-25)
+  ['/corrections', '/updates'],
 ].filter(([from, to]) => from !== to);
 write(join(DIST, '_redirects'), moved.map(([from, to]) => `${from} ${to} 301`).join('\n') + '\n');
 console.log(`prerender: ${moved.length} older addresses sent on`);
@@ -241,7 +243,7 @@ const llms = llmsTxt(members, list.lastUpdated);
 write(join(DIST, 'llms.txt'), llms.brief);
 write(join(DIST, 'llms-full.txt'), llms.full);
 write(join(DIST, 'grades.csv'), gradesCsv(members, list.lastUpdated));
-write(join(DIST, 'corrections.xml'), correctionsRss());
+write(join(DIST, 'updates.xml'), correctionsRss());
 write(join(DIST, `${INDEXNOW_KEY}.txt`), INDEXNOW_KEY);
 
 console.log(
