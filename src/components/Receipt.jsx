@@ -40,15 +40,18 @@ export default function Receipt({ person, delay = 0, animate = true, headingLeve
           <H className="receipt-name">
             {person.href ? <Link to={person.href}>{person.name}</Link> : person.name}
           </H>
+          {/* The tag on the party line, so the cards in a row stay level
+              (owner, 2026-10-25) */}
           <p className="small muted">
             {person.party}
             {person.badge ? ` · ${person.badge}` : ''}
+            {person.boosted && (
+              <>
+                {' '}
+                <BoostedStamp small />
+              </>
+            )}
           </p>
-          {person.boosted && (
-            <p style={{ marginTop: 8 }}>
-              <BoostedStamp small />
-            </p>
-          )}
         </div>
         <Stamp
           tier={person.tier}
