@@ -60,6 +60,23 @@ clean-up, #71 outside spending (shown since 2026-10-25), #72 TypeScript (after t
 
 ## Change log
 
+## 2026-10-25 (evening): BOOSTED measured against the receipt's total, once
+
+I had the stamp compare outside help with two different totals: a person's
+page used their receipt's TOTAL (all their committees, joint funds
+included: the grade's own figure), but the race cards, race pages and the
+pre-built pages used the race list's `totalRaised`, which is smaller for 57
+of 835 candidates (Paxton: $22,904,093 against $34,951,454). So his preview
+said "more than 4 times" and his page "more than 2 times", and Ashley
+Hinson ($15,626,053 of help against $21,147,469 raised) and Kurt Alme
+($3,353,482 against $4,047,265) were stamped when they shouldn't have
+been. The build now decides each stamp once, against the total the
+person's own page works out (`prerender.mjs`: the list's record with the
+detail's over it, through `gradedFigures`), and writes `raised` and
+`boosted` into `outside.json`; every page reads that answer (`boostedOf`).
+59 stamped. The race list's own totals still differ from the receipts for
+those 57 candidates: an open issue.
+
 ## 2026-10-25 (later): Super PAC spending, in plainer words
 
 Owner: the outside-groups wording was opaque. The section is now **Super

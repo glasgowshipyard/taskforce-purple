@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   BOOST_FLOOR,
   BOOST_HELD,
+  boostedOf,
   boostedSentence,
   isBoosted,
   stageText,
@@ -59,5 +60,13 @@ describe('when a group spent', () => {
     expect(stageText(['G'])).toBe('general');
     expect(stageText([])).toBe('');
     expect(stageText(undefined)).toBe('');
+  });
+});
+
+describe("the build's answer", () => {
+  it('is used when there is one, so every page agrees', () => {
+    expect(boostedOf({ for: 95, boosted: false }, 23)).toBe(false);
+    expect(boostedOf({ for: 20_000, boosted: true }, 30_000)).toBe(true);
+    expect(boostedOf({ for: 95_000 }, 23_000)).toBe(true);
   });
 });

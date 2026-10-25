@@ -31,6 +31,13 @@ export const isBoosted = (o, totalRaised, personId = null) =>
   o.for >= BOOST_FLOOR &&
   o.for > (totalRaised || 0);
 
+/**
+ * The build's answer when it has one (worked out against the person's
+ * receipt total: scripts/site/prerender.mjs), else worked out here
+ */
+export const boostedOf = (o, totalRaised, personId = null) =>
+  typeof o?.boosted === 'boolean' ? o.boosted : isBoosted(o, totalRaised, personId);
+
 /** How many times over, when it's at least twice (else null) */
 export function timesOver(o, totalRaised) {
   if (!(o?.for > totalRaised) || !(totalRaised > 0)) {

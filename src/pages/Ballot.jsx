@@ -10,7 +10,7 @@ import { api } from '../lib/api.js';
 import { ELECTION_DAY_TEXT, ELECTION_LABEL, daysUntilElection } from '../lib/election.js';
 import { GRADES, gradeInfo, withheldReasonOf } from '../lib/grades.js';
 import { useAsync, useTitle } from '../lib/hooks.js';
-import { isBoosted } from '../lib/outside.js';
+import { boostedOf } from '../lib/outside.js';
 import {
   ballotPartyName,
   displayName,
@@ -67,7 +67,7 @@ function candidatePerson(c, spent = null) {
     evidenceChecked: c.evidenceChecked,
     ppi: c.peoplePowerInfluence ?? null,
     outside: spent,
-    boosted: isBoosted(spent, c.totalRaised, c.bioguideId || c.candidateId),
+    boosted: boostedOf(spent, c.totalRaised, c.bioguideId || c.candidateId),
     href: c.bioguideId
       ? memberPath(c.bioguideId, c.name)
       : c.candidateId
