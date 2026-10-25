@@ -16,9 +16,8 @@ export const BOOST_FLOOR = 10000;
  * would be too: no stamp until they're re-graded. Each with why and when
  */
 export const BOOST_HELD = {
-  // 2026-10-25: graded on $60,555, but her committee reported $2,334,127
-  // for the cycle; it re-registered in September and now files as a PAC
-  J000310: 'figures under review',
+  // Empty. J000310 was held on 2026-10-25 until her campaign-turned-PAC
+  // was counted (IMPLEMENTATION_STATUS.md, that day)
 };
 
 /**

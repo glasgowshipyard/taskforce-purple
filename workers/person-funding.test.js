@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  campaignReportTotals,
   selectVehicles,
   classifyTransfers,
   combineVehicleTotals,
@@ -34,6 +35,46 @@ describe('selectVehicles', () => {
       ['C2', 'joint'],
       ['C4', 'leadership'],
     ]);
+  });
+});
+
+describe('campaignReportTotals', () => {
+  const report = (end, receipts, item, unitem, pac, extra = {}) => ({
+    committee_id: 'C9',
+    most_recent: true,
+    coverage_start_date: `${end.slice(0, 4)}-01-01T00:00:00`,
+    coverage_end_date: `${end}T00:00:00`,
+    total_receipts_period: receipts,
+    total_individual_contributions_period: item + unitem,
+    individual_itemized_contributions_period: item,
+    individual_unitemized_contributions_period: unitem,
+    other_political_committee_contributions_period: pac,
+    political_party_committee_contributions_period: 0,
+    ...extra,
+  });
+
+  it('adds up the latest version of each campaign report, as totals', () => {
+    const t = campaignReportTotals([
+      report('2025-03-31', 101499.56, 39119, 13880.56, 48500),
+      report('2026-06-30', 82095.35, 31367.01, 15083.57, 35000),
+      // an amended report's older version: left out
+      report('2026-06-30', 99999, 99999, 0, 0, { most_recent: false }),
+    ]);
+    expect(t).toMatchObject({
+      committee_id: 'C9',
+      receipts: 183594.91,
+      individual_itemized_contributions: 70486.01,
+      individual_unitemized_contributions: 28964.13,
+      other_political_committee_contributions: 83500,
+      coverage_end_date: '2026-06-30T00:00:00',
+    });
+  });
+
+  it('is null for a committee that filed no campaign report', () => {
+    expect(campaignReportTotals([])).toBeNull();
+    expect(
+      campaignReportTotals([report('2026-06-30', 1, 1, 0, 0, { most_recent: false })])
+    ).toBeNull();
   });
 });
 

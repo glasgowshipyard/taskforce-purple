@@ -1,6 +1,6 @@
 # Task Force Purple: implementation status
 
-**Last updated**: 2026-10-23. Current state first, then a dated change log
+**Last updated**: 2026-10-25. Current state first, then a dated change log
 (newest first, from the rebuild on 2026-10-03). The log before the rebuild
 is in `docs/history/log-2025-26.md`.
 
@@ -86,10 +86,12 @@ reached the build keeps the live site's copy.
   61 people on 2026-10-25. On the receipt it sits over the barcode, never a
   figure; also on race cards, race pages, the share card and link previews
   (`src/lib/outside.js`, `--boosted`).
-- Held: Julie Johnson (J000310). She is graded on $60,555, but her
-  committee reported $2,334,127 for the cycle (it re-registered in September
-  and now files as a PAC), so the stamp's comparison would be false
-  (`BOOST_HELD`). Her grade needs fixing; see the open issues.
+- Held, then released the same day: Julie Johnson (J000310) was graded on
+  $60,555 while her campaign had raised $2,334,127 (below), so the stamp's
+  comparison would have been false. `BOOST_HELD` in `src/lib/outside.js`
+  holds anyone whose own figures are known to be wrong; it's empty again
+  now she's re-graded (B, on $2,394,655: more than the $904,424 outside
+  groups spent for her, so no stamp).
 - Person pages, after the grade (owner): Outside groups, then PAC donations,
   then the rest. Every section folds (the browser's own `<details>`): open
   by default except Bundled donations, Where the money was raised and About
@@ -107,6 +109,35 @@ reached the build keeps the live site's copy.
   the daily check raises an alert. Each build records the FEC's
   `fileModified`, so the check can move earlier once a week of posting times
   shows it safely can (it's 10:13 UTC on 2026-10-25).
+
+## 2026-10-25: a campaign that became a PAC still counts
+
+Rep. Julie Johnson (J000310) was published at E on $60,555: her leadership
+PAC alone. Her campaign (C00843003) raised $2,334,099 this cycle on its
+campaign reports (Form 3, to 30 June), then re-registered on 21 September
+as a PAC ("Don't Mess With Texas PAC 2026", type V). The FEC's files now
+list it with designation U, still linked to her candidacy, so discovery
+(`vehicleRole`) dropped it: I wrote it to keep only P, A, J and D. Rep.
+Everton Blair (B001328) was hit the same way (C00901157 ended its campaign
+on 14 September and became a PAC), and showed no grade at all.
+
+Discovery now asks the FEC once (`/reports/house-senate/`, all such
+committees in one call) whether any committee linked to a member's
+candidacy outside P/A/J/D filed campaign reports this cycle; one that did
+counts as their campaign for the money on those reports
+(`campaignReportTotals`, the latest version of each), not what it raised
+afterwards as a PAC (Johnson $28, Blair $6,935, none of it itemized). The
+figures run to its last campaign report. Members who turned their
+campaign into their leadership PAC (Zinke, Watson Coleman) were already
+counted in full as leadership PACs; unchanged.
+
+Simulated (dry grade-only runs with the report, main and this branch, the
+same day): 535 of 537 members unchanged; Johnson E (15) to B (70) on
+$2,394,655 (876 donors, 105 hold half the big money); Blair ungraded to
+S (98) on $942,075 (735 donors, 100 hold half). Both show as not yet
+checked until the record check reaches their campaigns. The donor test
+still reads a converted committee's whole cycle of itemized records:
+nothing after either conversion today; a later one would count there.
 
 ## 2026-10-25: dark mode
 
