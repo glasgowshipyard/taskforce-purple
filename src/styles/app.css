@@ -4,6 +4,23 @@
 
 :root {
   color-scheme: light;
+  /* The dark surfaces (header, footer, bands) stay dark in both modes; the
+     page, cards and receipts have a light and a dark version (dark block
+     below, owner 2026-10-24) */
+  --deep: #15131c;
+  --surface: #ffffff;
+  --surface-warm: #fffefa;
+  --link: var(--purple);
+  --link-hover: var(--purple-deep);
+  --stamp-bg: rgba(255, 254, 250, 0.86);
+  --fill: #eceae4;
+  --fill-2: #f6f5f1;
+  --warn-bg: #fff8e8;
+  --warn-line: #ecd9a6;
+  --bad-bg: #fbe3dd;
+  --bad-ink: #8f2a1a;
+  --tint: #ede7fb;
+  --tint-2: #cfc3f8;
   --ink: #15131c;
   --ink-2: #3d3a46;
   --muted: #55525e;
@@ -56,6 +73,150 @@
   --shadow-receipt: 0 1px 0 var(--line), 0 18px 36px -24px rgba(21, 19, 28, 0.35);
 }
 
+/* ---------- Dark mode (owner, 2026-10-24) ----------
+   Follows the device unless the visitor picked (data-theme, lib/theme.js).
+   The receipt stays paper, a little dimmed, like a receipt on a dark desk;
+   everything around it flips. The header, footer and bands are dark either
+   way. */
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) {
+    color-scheme: dark;
+    --ink: #ece9f4;
+    --ink-2: #cbc6d8;
+    --muted: #a8a3b8;
+    --paper: #121019;
+    --surface: #1c1926;
+    --surface-warm: #1c1926;
+    --receipt: #e9e5d9;
+    --white: #ffffff;
+    --line: #2d2a3a;
+    --line-2: #3d3a4d;
+    --leader: #6d687d;
+    --link: #b9a6fb;
+    --link-hover: #d4c8fd;
+    --stamp-bg: rgba(28, 25, 38, 0.88);
+    --other: #34313f;
+    --people: #34d3a6;
+    --power: #e9b824;
+    --influence: #f06a50;
+    --checked: #34d3a6;
+    --provisional: #f0b23a;
+    --own-ink: #f2c94c;
+    --alert-bg: #2a1a1a;
+    --alert-line: #5a2f2a;
+    --shadow-receipt: 0 1px 0 var(--line), 0 18px 36px -24px rgba(0, 0, 0, 0.7);
+    --btn-dark-edge: var(--line-2);
+    --fill: #2a2736;
+    --fill-2: #34313f;
+    --warn-bg: #2b2412;
+    --warn-line: #5c4b1c;
+    --bad-bg: #3a1f1a;
+    --bad-ink: #f4a392;
+    --tint: #2c2547;
+    --tint-2: #4a3f7a;
+  }
+}
+
+:root[data-theme='dark'] {
+  color-scheme: dark;
+  --ink: #ece9f4;
+  --ink-2: #cbc6d8;
+  --muted: #a8a3b8;
+  --paper: #121019;
+  --surface: #1c1926;
+  --surface-warm: #1c1926;
+  --receipt: #e9e5d9;
+  --white: #ffffff;
+  --line: #2d2a3a;
+  --line-2: #3d3a4d;
+  --leader: #6d687d;
+  --link: #b9a6fb;
+  --link-hover: #d4c8fd;
+  --stamp-bg: rgba(28, 25, 38, 0.88);
+  --other: #34313f;
+  --people: #34d3a6;
+  --power: #e9b824;
+  --influence: #f06a50;
+  --checked: #34d3a6;
+  --provisional: #f0b23a;
+  --own-ink: #f2c94c;
+  --alert-bg: #2a1a1a;
+  --alert-line: #5a2f2a;
+  --shadow-receipt: 0 1px 0 var(--line), 0 18px 36px -24px rgba(0, 0, 0, 0.7);
+  --btn-dark-edge: var(--line-2);
+  --fill: #2a2736;
+  --fill-2: #34313f;
+  --warn-bg: #2b2412;
+  --warn-line: #5c4b1c;
+  --bad-bg: #3a1f1a;
+  --bad-ink: #f4a392;
+  --tint: #2c2547;
+  --tint-2: #4a3f7a;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) :is(.receipt, .slip) {
+    --ink: #15131c;
+    --ink-2: #3d3a46;
+    --muted: #55525e;
+    --line: #dddad2;
+    --line-2: #cfcbc1;
+    --leader: #a9a5b0;
+    --other: #e2dfd8;
+    --people: #0a7a5c;
+    --power: #8a6600;
+    --influence: #b23a26;
+    --checked: #0b7a5c;
+    --provisional: #8a5a00;
+    --own-ink: #8a5a00;
+    --link: #5b21b6;
+    --link-hover: #2e1065;
+    --surface: #ffffff;
+    --surface-warm: #fffefa;
+    --stamp-bg: rgba(255, 254, 250, 0.86);
+    --fill: #eceae4;
+    --fill-2: #f6f5f1;
+    --warn-bg: #fff8e8;
+    --warn-line: #ecd9a6;
+    --bad-bg: #fbe3dd;
+    --bad-ink: #8f2a1a;
+    --tint: #ede7fb;
+    --tint-2: #cfc3f8;
+    color: var(--ink);
+  }
+}
+
+:root[data-theme='dark'] :is(.receipt, .slip) {
+  --ink: #15131c;
+  --ink-2: #3d3a46;
+  --muted: #55525e;
+  --line: #dddad2;
+  --line-2: #cfcbc1;
+  --leader: #a9a5b0;
+  --other: #e2dfd8;
+  --people: #0a7a5c;
+  --power: #8a6600;
+  --influence: #b23a26;
+  --checked: #0b7a5c;
+  --provisional: #8a5a00;
+  --own-ink: #8a5a00;
+  --link: #5b21b6;
+  --link-hover: #2e1065;
+  --surface: #ffffff;
+  --surface-warm: #fffefa;
+  --stamp-bg: rgba(255, 254, 250, 0.86);
+  --fill: #eceae4;
+  --fill-2: #f6f5f1;
+  --warn-bg: #fff8e8;
+  --warn-line: #ecd9a6;
+  --bad-bg: #fbe3dd;
+  --bad-ink: #8f2a1a;
+  --tint: #ede7fb;
+  --tint-2: #cfc3f8;
+  color: var(--ink);
+}
+
 *,
 *::before,
 *::after {
@@ -90,11 +251,11 @@ svg {
 }
 
 a {
-  color: var(--purple);
+  color: var(--link);
 }
 
 a:hover {
-  color: var(--purple-deep);
+  color: var(--link-hover);
 }
 
 button,
@@ -142,7 +303,7 @@ p {
   left: 16px;
   top: -60px;
   z-index: 100;
-  background: var(--white);
+  background: var(--surface);
   color: var(--ink);
   padding: 12px 16px;
   border-radius: 8px;
@@ -247,7 +408,7 @@ p {
 }
 
 .dark {
-  background: var(--ink);
+  background: var(--deep);
   color: var(--white);
 }
 
@@ -287,7 +448,7 @@ p {
 /* ---------- Header, nav, footer ---------- */
 
 .site-header {
-  background: var(--ink);
+  background: var(--deep);
   color: var(--white);
   position: relative;
 }
@@ -394,7 +555,7 @@ p {
     right: 0;
     bottom: 0;
     z-index: 50;
-    background: var(--white);
+    background: var(--surface);
     border-top: 1px solid var(--line);
     padding: 6px 4px calc(6px + env(safe-area-inset-bottom));
   }
@@ -414,13 +575,13 @@ p {
   }
 
   .tabbar a[aria-current='page'] {
-    color: var(--purple);
+    color: var(--link);
     font-weight: 700;
   }
 }
 
 .site-footer {
-  background: var(--ink);
+  background: var(--deep);
   color: var(--on-dark-2);
   padding: 40px 0;
   font-family: var(--mono);
@@ -499,8 +660,9 @@ p {
 }
 
 .btn-dark {
-  background: var(--ink);
+  background: var(--deep);
   color: var(--white);
+  border-color: var(--btn-dark-edge, transparent);
 }
 
 .btn-dark:hover {
@@ -510,12 +672,12 @@ p {
 
 .btn-light {
   background: var(--white);
-  color: var(--ink);
+  color: var(--deep);
 }
 
 .btn-light:hover {
   background: #ece9f5;
-  color: var(--ink);
+  color: var(--deep);
 }
 
 .btn-outline {
@@ -549,7 +711,7 @@ p {
   background: none;
   border: 0;
   padding: 10px 0;
-  color: var(--purple);
+  color: var(--link);
   font-weight: 700;
   text-decoration: underline;
   text-underline-offset: 3px;
@@ -560,7 +722,7 @@ p {
   padding: 0 16px;
   border: 2px solid var(--ink);
   border-radius: var(--radius);
-  background: var(--white);
+  background: var(--surface);
   width: 100%;
 }
 
@@ -569,14 +731,14 @@ p {
 .stamp {
   --size: 92px;
   --rot: -9deg;
-  --g: var(--ink);
+  --g: var(--gb, var(--ink));
   flex: 0 0 auto;
   width: var(--size);
   height: var(--size);
   border-radius: 50%;
   border: calc(var(--size) * 0.055) solid var(--g);
   color: var(--g);
-  background: rgba(255, 254, 250, 0.86);
+  background: var(--stamp-bg);
   transform: rotate(var(--rot));
   display: flex;
   flex-direction: column;
@@ -619,7 +781,7 @@ p {
 }
 
 .stamp.is-dark {
-  background: var(--ink);
+  background: var(--deep);
 }
 
 .stamp-in {
@@ -760,7 +922,7 @@ p {
 .notice {
   border-radius: var(--radius);
   padding: 16px 18px;
-  background: var(--white);
+  background: var(--surface);
   border: 1px solid var(--line);
   color: var(--ink-2);
   font-size: 15px;
@@ -771,8 +933,8 @@ p {
 }
 
 .notice-warn {
-  background: #fff8e8;
-  border-color: #ecd9a6;
+  background: var(--warn-bg);
+  border-color: var(--warn-line);
 }
 
 /* ---------- Home ---------- */
@@ -785,7 +947,7 @@ p {
 .hero.dark {
   background:
     radial-gradient(55% 70% at 0% 0%, rgba(180, 35, 60, 0.22), transparent 70%),
-    radial-gradient(55% 80% at 100% 100%, rgba(30, 79, 208, 0.24), transparent 70%), var(--ink);
+    radial-gradient(55% 80% at 100% 100%, rgba(30, 79, 208, 0.24), transparent 70%), var(--deep);
 }
 
 .hero .wrap {
@@ -892,7 +1054,7 @@ p {
   height: 60px;
   border: 2px solid var(--white);
   border-radius: var(--radius);
-  background: var(--ink);
+  background: var(--deep);
   overflow: hidden;
 }
 
@@ -1036,7 +1198,7 @@ p {
   min-height: 44px;
   border-radius: 8px;
   border: 2px solid var(--white);
-  background: var(--ink);
+  background: var(--deep);
   color: var(--white);
   padding: 0 12px;
 }
@@ -1049,7 +1211,7 @@ p {
 }
 
 .dots-card {
-  background: var(--white);
+  background: var(--surface);
   border-radius: 14px;
   padding: 40px clamp(20px, 4vw, 48px);
   border: 1px solid var(--line);
@@ -1136,7 +1298,7 @@ p {
   font-weight: 900;
   font-size: 56px;
   line-height: 1;
-  color: var(--purple);
+  color: var(--link);
 }
 
 .step h3 {
@@ -1202,7 +1364,7 @@ p {
   font-size: clamp(24px, 3vw, 34px);
   line-height: 1.15;
   max-width: 24em;
-  color: var(--purple);
+  color: var(--link);
 }
 
 .matters-lead {
@@ -1214,7 +1376,7 @@ p {
   flex: 1 1 440px;
   min-width: 0;
   margin: 0;
-  background: var(--white);
+  background: var(--surface);
   border: 1px solid var(--line);
   border-radius: 14px;
   padding: 32px clamp(20px, 4vw, 40px);
@@ -1491,7 +1653,7 @@ p {
 }
 
 .panel {
-  background: var(--white);
+  background: var(--surface);
   border: 1px solid var(--line);
   border-radius: var(--radius);
   padding: 22px;
@@ -1530,7 +1692,7 @@ p {
 
 .trail a {
   display: block;
-  background: var(--white);
+  background: var(--surface);
   border: 1px solid var(--line);
   border-radius: var(--radius);
   padding: 16px 18px;
@@ -1555,7 +1717,7 @@ p {
   display: block;
   margin-top: 10px;
   height: 10px;
-  background: #eceae4;
+  background: var(--fill);
   border-radius: 3px;
 }
 
@@ -1645,7 +1807,7 @@ p {
 
 .seg button[aria-pressed='true'] {
   background: var(--ink);
-  color: var(--white);
+  color: var(--paper);
 }
 
 .grade-chips {
@@ -1694,7 +1856,7 @@ p {
   display: flex;
   gap: 16px;
   align-items: center;
-  background: var(--receipt);
+  background: var(--surface-warm);
   border: 1px solid var(--line);
   border-radius: 8px;
   padding: 14px 16px;
@@ -1837,7 +1999,7 @@ p {
   gap: 16px;
   align-items: center;
   justify-content: space-between;
-  background: var(--white);
+  background: var(--surface);
   border: 1px solid var(--line);
   border-radius: var(--radius);
   padding: 18px 20px;
@@ -1875,7 +2037,7 @@ p {
 }
 
 .skeleton {
-  background: linear-gradient(90deg, #eceae4 0%, #f6f5f1 50%, #eceae4 100%);
+  background: linear-gradient(90deg, var(--fill) 0%, var(--fill-2) 50%, var(--fill) 100%);
   background-size: 200% 100%;
   animation: shimmer 1.2s linear infinite;
   border-radius: 6px;
@@ -1962,7 +2124,7 @@ p {
 /* An accordion (owner, 2026-10-17): every headline in view, one step open
    at a time, so the list stays beside the graph */
 .why-step {
-  background: var(--white);
+  background: var(--surface);
   border: 1px solid var(--line);
   border-left: 6px solid var(--tone);
   border-radius: var(--radius);
@@ -2138,7 +2300,7 @@ p {
   line-height: 1.4;
   padding: 1px 7px;
   border-radius: 999px;
-  background: #eceae4;
+  background: var(--fill);
   color: var(--ink-2);
   white-space: nowrap;
   vertical-align: 1px;
@@ -2194,8 +2356,8 @@ p {
 }
 
 .pac-chip.is-heavier {
-  background: #fbe3dd;
-  color: #8f2a1a;
+  background: var(--bad-bg);
+  color: var(--bad-ink);
 }
 
 .pac-key {
@@ -2277,7 +2439,7 @@ p {
 .flow {
   margin: 0;
   padding: 20px;
-  background: var(--receipt);
+  background: var(--surface-warm);
   border: 1px solid var(--line);
   border-radius: var(--radius);
   display: flex;
@@ -2306,7 +2468,7 @@ p {
   gap: 4px;
   padding: 10px 6px;
   border-radius: 8px;
-  background: #eceae4;
+  background: var(--fill);
   font-size: 13px;
   line-height: 1.3;
   color: var(--ink-2);
@@ -2324,7 +2486,7 @@ p {
 }
 
 .flow-node.is-people {
-  background: #ede7fb;
+  background: var(--tint);
 }
 
 .flow-node.is-people svg {
@@ -2378,8 +2540,8 @@ p {
     -45deg,
     var(--big),
     var(--big) 5px,
-    #cfc3f8 5px,
-    #cfc3f8 10px
+    var(--tint-2) 5px,
+    var(--tint-2) 10px
   );
 }
 
@@ -2492,7 +2654,7 @@ p {
 .ppi-shape button[aria-pressed='true'] {
   background: var(--ink);
   border-color: var(--ink);
-  color: var(--white);
+  color: var(--paper);
 }
 
 /* Bars carry more colour than a curve's wash */
@@ -2623,7 +2785,7 @@ p {
 .ppi-tip {
   position: absolute;
   transform: translate(-50%, calc(-100% - 12px));
-  background: var(--ink);
+  background: var(--deep);
   color: var(--white);
   border-radius: 6px;
   padding: 7px 10px;
@@ -2727,7 +2889,7 @@ p {
   flex-wrap: wrap;
   gap: 28px 48px;
   align-items: center;
-  background: var(--receipt);
+  background: var(--surface-warm);
   border: 1px solid var(--line);
   border-radius: 14px;
   padding: clamp(20px, 3vw, 36px);
@@ -2810,7 +2972,7 @@ p {
 
 .share-bar {
   height: 10px;
-  background: #eceae4;
+  background: var(--fill);
   border-radius: 3px;
   overflow: hidden;
 }
@@ -2845,7 +3007,7 @@ p {
 }
 
 .pile {
-  background: var(--white);
+  background: var(--surface);
   border: 1px solid var(--line);
   border-radius: var(--radius);
   padding: 16px 20px;
@@ -2911,7 +3073,7 @@ p {
 
 .how-example {
   margin: 0;
-  background: var(--receipt);
+  background: var(--surface-warm);
   border: 1px solid var(--line);
   border-radius: 8px;
   padding: 18px 18px 20px;
@@ -2958,7 +3120,7 @@ p {
   padding: 8px 12px;
   border: 1px solid var(--line-2);
   border-radius: 999px;
-  background: var(--white);
+  background: var(--surface);
   cursor: pointer;
   font-size: 15px;
 }
@@ -2984,7 +3146,7 @@ p {
   padding: 10px 12px;
   border: 1px solid var(--line-2);
   border-radius: var(--radius);
-  background: var(--white);
+  background: var(--surface);
   color: var(--ink);
   font: inherit;
   resize: vertical;
@@ -3216,7 +3378,7 @@ p {
   gap: 14px;
   height: 100%;
   padding: 18px 18px 16px;
-  background: var(--receipt);
+  background: var(--surface-warm);
   border-radius: var(--radius);
   box-shadow: var(--shadow-receipt);
   color: inherit;
@@ -3325,7 +3487,7 @@ p {
   margin-top: auto;
   font-size: 14px;
   font-weight: 600;
-  color: var(--purple);
+  color: var(--link);
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -3434,6 +3596,57 @@ p {
   max-width: 40em;
   padding: 14px 16px;
   border-left: 3px solid var(--purple);
-  background: var(--receipt);
+  background: var(--surface-warm);
   color: var(--ink-2);
+}
+
+/* ---------- Colour scheme toggle (footer) ---------- */
+
+.theme-toggle {
+  display: inline-flex;
+  margin-top: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.theme-toggle button {
+  min-height: 36px;
+  padding: 0 14px;
+  border: 0;
+  background: transparent;
+  color: var(--on-dark);
+  font-family: var(--mono);
+  font-size: 12px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.theme-toggle button + button {
+  border-left: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.theme-toggle button[aria-pressed='true'] {
+  background: var(--lilac);
+  color: var(--deep);
+}
+
+/* Dark mode: a stamp off the receipt takes its grade's light shade; on the
+   receipt it keeps the paper-weight one */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) .stamp:not(.is-dark) {
+    --g: var(--gl, var(--gb));
+  }
+  :root:not([data-theme='light']) :is(.receipt, .slip) .stamp {
+    --g: var(--gb, var(--ink));
+  }
+}
+
+:root[data-theme='dark'] .stamp:not(.is-dark) {
+  --g: var(--gl, var(--gb));
+}
+
+:root[data-theme='dark'] :is(.receipt, .slip) .stamp {
+  --g: var(--gb, var(--ink));
 }

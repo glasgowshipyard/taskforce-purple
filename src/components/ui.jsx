@@ -24,7 +24,8 @@ export function Stamp({
         // A number of pixels, or any CSS length (the home page scales its stamps)
         '--size': typeof size === 'number' ? `${size}px` : size,
         '--rot': `${rot}deg`,
-        '--g': dark ? g.light : g.color,
+        '--gb': dark ? g.light : g.color,
+        '--gl': g.light,
         '--delay': `${delay}s`,
       }}
       role="img"

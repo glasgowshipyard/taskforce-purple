@@ -3,6 +3,7 @@ import { Info, LayoutGrid, Receipt, Vote } from 'lucide-react';
 import FeedbackDialog from './FeedbackDialog.jsx';
 import { Link } from '../lib/router.js';
 import { MOTTO } from '../lib/research.js';
+import { THEMES, useTheme } from '../lib/theme.js';
 
 const NAV = [
   { to: '/', label: 'Your reps', short: 'Your reps', icon: Receipt, pages: ['home', 'member'] },
@@ -60,6 +61,25 @@ export function TabBar({ page }) {
   );
 }
 
+/** Device / Light / Dark, remembered on this device */
+function ThemeToggle() {
+  const [theme, setTheme] = useTheme();
+  return (
+    <div className="theme-toggle" role="group" aria-label="Colour scheme">
+      {THEMES.map(t => (
+        <button
+          key={t.value}
+          type="button"
+          aria-pressed={theme === t.value}
+          onClick={() => setTheme(t.value)}
+        >
+          {t.label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
 export function Footer() {
   const [suggesting, setSuggesting] = useState(false);
   return (
@@ -93,6 +113,7 @@ export function Footer() {
             Suggest something
           </button>
         </p>
+        <ThemeToggle />
         <FeedbackDialog open={suggesting} onClose={() => setSuggesting(false)} kind="suggestion" />
       </div>
     </footer>

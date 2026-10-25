@@ -4,6 +4,13 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <script>
+      // A saved light or dark choice, before first paint (src/lib/theme.js)
+      try {
+        var t = localStorage.getItem('tfp:theme');
+        if (t === 'light' || t === 'dark') document.documentElement.setAttribute('data-theme', t);
+      } catch (e) {}
+    </script>
     <!--page-meta-->
     <title>Task Force Purple: who's paying your representatives?</title>
     <meta

@@ -60,6 +60,21 @@ clean-up, #71 outside spending, #72 TypeScript (after the election).
 
 ## Change log
 
+## 2026-10-25: dark mode
+
+Owner's go (as Let's Find Out): a Device / Light / Dark switch in the
+footer (`src/lib/theme.js`; the choice is kept on that device only; a small
+script in index.html applies it before first paint). With no choice the
+device's own setting applies (`prefers-color-scheme`). The colours are
+roles now: `--paper`, `--surface`, `--ink` and the rest flip in the dark
+blocks of `app.css`; `--deep` is the always-dark surface (header, footer,
+bands, hero). The receipt stays paper, a little dimmed (`#e9e5d9`), like a
+receipt on a dark desk, with its own light-mode tokens reset inside
+`.receipt`/`.slip` (and `color: var(--ink)` set there, because text
+inherited from the page would have stayed light). Stamps off the receipt
+take their grade's light shade on a dark disc. Link previews and preview
+pictures are images made at build time, so they stay as they are.
+
 ## 2026-10-24 (launch): the repository tidied
 
 The site launched (owner). GitHub: the six old branches deleted (five
