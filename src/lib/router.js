@@ -58,7 +58,8 @@ export function matchRoute(path) {
   if (first === 'congress' && !second) {
     return { page: 'congress' };
   }
-  if (first === 'corrections' && !second) {
+  // /updates since 2026-10-25; /corrections forwards to it (_redirects)
+  if ((first === 'updates' || first === 'corrections') && !second) {
     return { page: 'corrections' };
   }
   if (first === 'races' && !second) {
