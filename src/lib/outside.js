@@ -46,17 +46,24 @@ export function boostedSentence(o, totalRaised, personId = null) {
     return null;
   }
   if (!(totalRaised > 0)) {
-    return `Outside groups spent ${usd(o.for)} to help them. Their own campaign has reported raising nothing.`;
+    return `Groups spent ${usd(o.for)} to help them. Their campaign has reported raising nothing.`;
   }
   const times = timesOver(o, totalRaised);
   return times
-    ? `Outside groups spent ${usd(o.for)} to help them: more than ${times} times what their own campaign raised.`
-    : `Outside groups spent ${usd(o.for)} to help them: more than their own campaign raised (${usd(totalRaised)}).`;
+    ? `Groups spent ${usd(o.for)} to help them, more than ${times} times what their campaign raised.`
+    : `Groups spent ${usd(o.for)} to help them, more than their campaign raised (${usd(totalRaised)}).`;
 }
 
-/** Why the stamp is there, and what it doesn't say */
+/** What the stamp means, where the stamp is explained (the pre-built pages) */
 export const BOOSTED_MEANING =
-  'BOOSTED means outside groups, like super PACs, spent more to help this candidate than their own campaign raised. The candidate isn’t allowed to work with these groups, and can’t stop them spending. This money isn’t in the grade: the grade is only about the money their campaign raised.';
+  'BOOSTED means groups spent more to help them win than their own campaign raised. Money spent to beat them doesn\u2019t count, and none of it is in the grade.';
+
+/** When a group spent: the FEC's election codes, as words */
+const STAGE = { P: 'primary', R: 'runoff', G: 'general' };
+export function stageText(stages = []) {
+  const words = ['P', 'R', 'G'].filter(s => stages.includes(s)).map(s => STAGE[s]);
+  return words.length < 2 ? words[0] || '' : `${words.slice(0, -1).join(', ')} and ${words.at(-1)}`;
+}
 
 /** The (i) under the figures: the filers left out */
 export const LEFT_OUT_NOTE =
@@ -66,4 +73,5 @@ export const REGISTER_URL = 'https://www.fec.gov/data/committees/';
 export const OUTSIDE_SOURCE_URL = 'https://www.fec.gov/data/independent-expenditures/';
 
 /** The section's empty line */
-export const NO_OUTSIDE = 'No outside groups have reported spending to help or hurt them.';
+export const NO_OUTSIDE =
+  'No super PACs or other groups have reported spending to help or beat them.';

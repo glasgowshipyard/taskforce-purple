@@ -3697,19 +3697,29 @@ p {
   user-select: none;
 }
 
-/* On the receipt: across the barcode at its foot, hanging a little off
-   the edge as a real stamp would, never over a figure or a date */
-.slip-boosted {
+/* On the receipt: across the dashed line under the money given, above
+   GRADED ON (owner, 2026-10-25), in a gap of its own so it covers no
+   figure */
+.slip-boost-band {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 84px;
+  margin-top: 6px;
+}
+
+.slip-boost-band::before {
+  content: '';
   position: absolute;
   left: 0;
   right: 0;
-  bottom: 10px;
-  display: flex;
-  justify-content: center;
-  pointer-events: none;
+  top: 50%;
+  border-top: 2px dashed var(--line-2);
 }
 
-.slip-boosted .boosted {
+.slip-boost-band .boosted {
+  position: relative;
   mix-blend-mode: multiply;
 }
 
@@ -3807,4 +3817,13 @@ p {
 
 .member-verdict .boosted-line {
   margin-top: 12px;
+}
+
+/* When a group spent: primary, runoff, general */
+.stage-tag {
+  margin-left: 8px;
+  font-family: var(--body);
+  font-size: 12px;
+  color: var(--muted);
+  white-space: nowrap;
 }

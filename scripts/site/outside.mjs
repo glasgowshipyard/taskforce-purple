@@ -193,8 +193,19 @@ export function outsideSpending(rows, registered, cycle) {
     const side = r.sup_opp === 'S' ? 'for' : 'against';
     c[side] += amount;
     const k = `${side}|${r.spe_id}`;
-    const s = c.bySpender.get(k) || { id: r.spe_id, name: r.spe_nam.trim(), side, amount: 0 };
+    const s = c.bySpender.get(k) || {
+      id: r.spe_id,
+      name: r.spe_nam.trim(),
+      side,
+      amount: 0,
+      stages: [],
+    };
     s.amount += amount;
+    // Which election it was for (primary, runoff, general), so a page can
+    // say a group spent against them in the primary (owner, 2026-10-25)
+    if (['P', 'R', 'G'].includes(r.ele_type) && !s.stages.includes(r.ele_type)) {
+      s.stages.push(r.ele_type);
+    }
     c.bySpender.set(k, s);
   }
   for (const c of Object.values(candidates)) {
@@ -223,7 +234,11 @@ const whole = c => ({
   ...c,
   for: Math.round(c.for),
   against: Math.round(c.against),
-  spenders: c.spenders.map(s => ({ ...s, amount: Math.round(s.amount) })),
+  spenders: c.spenders.map(s => ({
+    ...s,
+    amount: Math.round(s.amount),
+    stages: [...(s.stages || [])].sort((a, b) => 'PRG'.indexOf(a) - 'PRG'.indexOf(b)),
+  })),
 });
 
 /**
@@ -245,8 +260,9 @@ export function byPerson(candidates, crosswalk, others) {
     for (const p of parts) {
       for (const s of p.spenders) {
         const k = `${s.side}|${s.id}`;
-        const t = spenders.get(k) || { ...s, amount: 0 };
+        const t = spenders.get(k) || { ...s, amount: 0, stages: [] };
         t.amount += s.amount;
+        t.stages = [...new Set([...t.stages, ...(s.stages || [])])];
         spenders.set(k, t);
       }
     }

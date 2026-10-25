@@ -126,8 +126,8 @@ function CompareTable({ cands, outside }) {
     },
     ...(anyOutside
       ? [
-          { label: 'Outside groups spent to help', value: c => usd(spent(c)?.for || 0) },
-          { label: 'Outside groups spent against', value: c => usd(spent(c)?.against || 0) },
+          { label: 'Groups spent to help them', value: c => usd(spent(c)?.for || 0) },
+          { label: 'Groups spent to beat them', value: c => usd(spent(c)?.against || 0) },
         ]
       : []),
   ];

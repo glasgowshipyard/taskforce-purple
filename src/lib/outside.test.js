@@ -1,5 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import { BOOST_FLOOR, BOOST_HELD, boostedSentence, isBoosted, timesOver } from './outside.js';
+import {
+  BOOST_FLOOR,
+  BOOST_HELD,
+  boostedSentence,
+  isBoosted,
+  stageText,
+  timesOver,
+} from './outside.js';
 
 describe('BOOSTED (2026-10-25)', () => {
   it('only when the help is bigger than their whole campaign', () => {
@@ -21,10 +28,10 @@ describe('BOOSTED (2026-10-25)', () => {
     expect(timesOver({ for: 12_100_000 }, 1_900_000)).toBe(6);
     expect(timesOver({ for: 3_000_000 }, 2_000_000)).toBeNull();
     expect(boostedSentence({ for: 12_100_000 }, 1_900_000)).toBe(
-      'Outside groups spent $12,100,000 to help them: more than 6 times what their own campaign raised.'
+      'Groups spent $12,100,000 to help them, more than 6 times what their campaign raised.'
     );
     expect(boostedSentence({ for: 3_000_000 }, 2_000_000)).toBe(
-      'Outside groups spent $3,000,000 to help them: more than their own campaign raised ($2,000,000).'
+      'Groups spent $3,000,000 to help them, more than their campaign raised ($2,000,000).'
     );
     expect(boostedSentence({ for: 50_000 }, 0)).toMatch(/has reported raising nothing\.$/);
     expect(boostedSentence({ for: 100 }, 1_000)).toBeNull();
@@ -41,5 +48,16 @@ describe('a held stamp', () => {
     } finally {
       delete BOOST_HELD.X000002;
     }
+  });
+});
+
+describe('when a group spent', () => {
+  it('says the elections in order, in words', () => {
+    expect(stageText(['P', 'R'])).toBe('primary and runoff');
+    expect(stageText(['G', 'P'])).toBe('primary and general');
+    expect(stageText(['G', 'R', 'P'])).toBe('primary, runoff and general');
+    expect(stageText(['G'])).toBe('general');
+    expect(stageText([])).toBe('');
+    expect(stageText(undefined)).toBe('');
   });
 });

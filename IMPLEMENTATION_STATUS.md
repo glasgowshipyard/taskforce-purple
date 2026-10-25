@@ -60,6 +60,23 @@ clean-up, #71 outside spending (shown since 2026-10-25), #72 TypeScript (after t
 
 ## Change log
 
+## 2026-10-25 (later): Super PAC spending, in plainer words
+
+Owner: the outside-groups wording was opaque. The section is now **Super
+PAC spending**: "Super PACs and other groups spend their own money to elect
+or beat a candidate. They can't work with the campaign. _None of this is in
+the grade._" Two totals, "Spent to help them" and "Spent to beat them"
+(the campaign's own total is gone from here: it read as the groups' money,
+and the receipt beside it has it); "Who spent most to help them" and "Who
+spent most to beat them", each group tagged with the elections it spent in
+(primary, runoff, general: the FEC file's `ele_type`, kept per spender in
+`outside.json`), so Texans for a Conservative Majority reads "primary and
+runoff" against Paxton. Beside the grade: "Groups spent $X to help them,
+more than N times what their campaign raised." Money spent to beat someone
+never counts toward BOOSTED. The stamp moved to the receipt's dashed line
+under the money given, above GRADED ON, in a gap of its own so it covers no
+figure.
+
 ## 2026-10-25: outside spending and BOOSTED (#71)
 
 Owner's go. What super PACs and other groups reported spending to help or

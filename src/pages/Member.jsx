@@ -205,6 +205,13 @@ function cardLines(lines) {
   ];
 }
 
+/** The receipt's dashed line with the BOOSTED stamp across it */
+const BoostBand = () => (
+  <div className="slip-boost-band">
+    <BoostedStamp animate delay={0.9} />
+  </div>
+);
+
 export default function Member({ id, kind = 'member' }) {
   const isCandidate = kind === 'candidate';
   const list = useAsync(() => api.members(), []);
@@ -439,12 +446,7 @@ export default function Member({ id, kind = 'member' }) {
               </div>
             </div>
             <div className="folds" style={{ maxWidth: 820 }}>
-              <OutsidePanel
-                outside={outside.data}
-                personId={id}
-                name={name}
-                totalRaised={f.totalRaised}
-              />
+              <OutsidePanel outside={outside.data} personId={id} />
             </div>
           </div>
         ) : (
@@ -468,7 +470,9 @@ export default function Member({ id, kind = 'member' }) {
                 <MoneyLines lines={receipt?.counted ?? []} value={l => usd(l.amount)} />
                 {receipt?.left.length > 0 && (
                   <>
-                    <div className="tear" style={{ marginTop: 6 }} />
+                    {/* BOOSTED across the line under the money given (owner,
+                        2026-10-25), in a gap of its own: it covers no figure */}
+                    {boosted ? <BoostBand /> : <div className="tear" style={{ marginTop: 6 }} />}
                     <p className="slip-subtotal">
                       <span>GRADED ON</span>
                       <span>{usd(receipt.subtotal)}</span>
@@ -479,7 +483,11 @@ export default function Member({ id, kind = 'member' }) {
                     <MoneyLines lines={receipt.left} value={l => usd(l.amount)} />
                   </>
                 )}
-                <div className="tear" style={{ marginTop: 6 }} />
+                {boosted && !(receipt?.left.length > 0) ? (
+                  <BoostBand />
+                ) : (
+                  <div className="tear" style={{ marginTop: 6 }} />
+                )}
                 <p className="slip-total">
                   <span>TOTAL</span>
                   <span>{usd(receipt?.total ?? f.totalRaised)}</span>
@@ -507,11 +515,6 @@ export default function Member({ id, kind = 'member' }) {
                   onPaper
                 />
               </div>
-              {boosted && (
-                <div className="slip-boosted">
-                  <BoostedStamp animate delay={0.9} />
-                </div>
-              )}
             </div>
 
             <div className="member-main">
@@ -607,12 +610,7 @@ export default function Member({ id, kind = 'member' }) {
 
                 {/* After the grade: who else spent on them, then the PACs
                     (owner, 2026-10-25) */}
-                <OutsidePanel
-                  outside={outside.data}
-                  personId={id}
-                  name={name}
-                  totalRaised={f.totalRaised}
-                />
+                <OutsidePanel outside={outside.data} personId={id} />
 
                 {/* The receipt's PAC line, to the dollar: one source of truth */}
                 <PacPanel

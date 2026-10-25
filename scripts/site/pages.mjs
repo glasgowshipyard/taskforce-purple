@@ -80,7 +80,7 @@ function withBoost(page, outside, raised, personId) {
     description: `${page.description} ${sentence}`,
     body: page.body.replace(
       HOW_LINK,
-      `<p><strong>Boosted.</strong> ${esc(sentence)} ${esc(BOOSTED_MEANING)}</p>\n${HOW_LINK}`
+      `<p>${esc(sentence)} ${esc(BOOSTED_MEANING)}</p>\n${HOW_LINK}`
     ),
     card: { ...page.card, boosted: true },
     signature: JSON.stringify([page.signature, sentence]),
