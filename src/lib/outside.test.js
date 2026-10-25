@@ -33,13 +33,13 @@ describe('BOOSTED (2026-10-25)', () => {
 
 describe('a held stamp', () => {
   it('is never shown for someone whose own figures are under review', () => {
-    BOOST_HELD.T000001 = 'test';
+    BOOST_HELD.X000002 = 'figures under review';
     try {
-      expect(isBoosted({ for: 904_424 }, 60_556, 'T000001')).toBe(false);
-      expect(boostedSentence({ for: 904_424 }, 60_556, 'T000001')).toBeNull();
+      expect(isBoosted({ for: 904_424 }, 60_556, 'X000002')).toBe(false);
+      expect(boostedSentence({ for: 904_424 }, 60_556, 'X000002')).toBeNull();
       expect(isBoosted({ for: 904_424 }, 60_556, 'X000001')).toBe(true);
     } finally {
-      delete BOOST_HELD.T000001;
+      delete BOOST_HELD.X000002;
     }
   });
 });

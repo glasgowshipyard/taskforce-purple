@@ -16,8 +16,9 @@ export const BOOST_FLOOR = 10000;
  * would be too: no stamp until they're re-graded. Each with why and when
  */
 export const BOOST_HELD = {
-  // Empty. J000310 was held on 2026-10-25 until her campaign-turned-PAC
-  // was counted (IMPLEMENTATION_STATUS.md, that day)
+  // Empty since 2026-10-25: J000310, held that morning (graded on her
+  // leadership PAC alone after her campaign became a PAC), re-graded on
+  // $2,394,655 the same day
 };
 
 /**
