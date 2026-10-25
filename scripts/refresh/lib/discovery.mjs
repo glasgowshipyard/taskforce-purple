@@ -35,11 +35,13 @@ import { existsSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import { DuckDBInstance } from '@duckdb/node-api';
 import {
+  campaignReportTotals,
   classifyTransfers,
   combineVehicleTotals,
   donorCommitteeIds,
   fundOwner,
   selectVehicles,
+  vehicleRole,
 } from '../../../workers/person-funding.js';
 
 const num = x => (Number.isFinite(Number(x)) ? Number(x) : 0);
@@ -195,6 +197,38 @@ async function leadershipPacs(fec, cycle) {
   return bySponsor;
 }
 
+// Committees linked to a member's candidacy as something other than their
+// campaign, joint fund or leadership PAC that filed campaign reports (Form 3)
+// this cycle: campaigns that became PACs. id -> their Form 3 figures, in the
+// shape of the FEC's totals (campaignReportTotals). One call for Congress.
+async function convertedCampaigns(fec, ids, cycle) {
+  const out = new Map();
+  for (let i = 0; i < ids.length; i += 100) {
+    const reports = [];
+    let page = 1;
+    for (;;) {
+      const d = await fec('/reports/house-senate/', {
+        committee_id: ids.slice(i, i + 100),
+        cycle,
+        per_page: 100,
+        page,
+      });
+      reports.push(...(d.results || []));
+      if (page >= (d.pagination?.pages || 1)) {
+        break;
+      }
+      page++;
+    }
+    for (const id of ids.slice(i, i + 100)) {
+      const totals = campaignReportTotals(reports.filter(r => r.committee_id === id));
+      if (totals) {
+        out.set(id, totals);
+      }
+    }
+  }
+  return out;
+}
+
 // Same rule as fetchPersonFunding: a big-cheque figure above the committee's
 // receipts doesn't reconcile and isn't published
 const reconciledBigCheques = (big, totals) =>
@@ -230,6 +264,13 @@ export async function discoverPeople({
     String(cycle),
     ...candidateIds
   );
+  // A campaign that became a PAC during the cycle still counts as the
+  // member's campaign for the money it raised as one (2026-10-25)
+  const converted = await convertedCampaigns(
+    fec,
+    [...new Set(links.filter(l => !vehicleRole(l)).map(l => l.committee_id))],
+    cycle
+  );
   const plans = people.map(p => {
     const found = [
       ...links
@@ -255,6 +296,21 @@ export async function discoverPeople({
       }
     }
     const vehicles = selectVehicles(found, cycle);
+    for (const l of links) {
+      if (
+        p.ids.includes(l.candidate_id) &&
+        converted.has(l.committee_id) &&
+        !vehicles.some(v => v.committeeId === l.committee_id)
+      ) {
+        vehicles.push({
+          committeeId: l.committee_id,
+          name: cm.get(l.committee_id)?.name || '',
+          role: 'campaign',
+          converted: true,
+        });
+      }
+    }
+    vehicles.sort((a, b) => a.committeeId.localeCompare(b.committeeId));
     return {
       ...p,
       vehicles,
@@ -265,8 +321,19 @@ export async function discoverPeople({
 
   // 2. Totals for every money vehicle, in batches
   const vehicleIds = [...new Set(plans.flatMap(p => p.moneyVehicles.map(v => v.committeeId)))];
-  const totals = await totalsFor(fec, vehicleIds, types, cycle);
-  log(`discovery: ${people.length} members, ${vehicleIds.length} campaigns and PACs`);
+  const totals = await totalsFor(
+    fec,
+    vehicleIds.filter(id => !converted.has(id)),
+    types,
+    cycle
+  );
+  for (const id of vehicleIds.filter(id => converted.has(id))) {
+    totals.set(id, converted.get(id));
+  }
+  log(
+    `discovery: ${people.length} members, ${vehicleIds.length} campaigns and PACs` +
+      (converted.size ? ` (${[...converted.keys()].join(', ')}: campaigns that became PACs)` : '')
+  );
 
   // 3. Transfers in, from the zip (only vehicles with totals, as the API path)
   const withTotals = [...new Set(vehicleIds.filter(id => totals.has(id)))];

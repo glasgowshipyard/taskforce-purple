@@ -1,6 +1,6 @@
 # Task Force Purple: implementation status
 
-**Last updated**: 2026-10-23. Current state first, then a dated change log
+**Last updated**: 2026-10-25. Current state first, then a dated change log
 (newest first, from the rebuild on 2026-10-03). The log before the rebuild
 is in `docs/history/log-2025-26.md`.
 
@@ -59,6 +59,35 @@ clean-up, #71 outside spending, #72 TypeScript (after the election).
 ---
 
 ## Change log
+
+## 2026-10-25: a campaign that became a PAC still counts
+
+Rep. Julie Johnson (J000310) was published at E on $60,555: her leadership
+PAC alone. Her campaign (C00843003) raised $2,334,099 this cycle on its
+campaign reports (Form 3, to 30 June), then re-registered on 21 September
+as a PAC ("Don't Mess With Texas PAC 2026", type V). The FEC's files now
+list it with designation U, still linked to her candidacy, so discovery
+(`vehicleRole`) dropped it: I wrote it to keep only P, A, J and D. Rep.
+Everton Blair (B001328) was hit the same way (C00901157 ended its campaign
+on 14 September and became a PAC), and showed no grade at all.
+
+Discovery now asks the FEC once (`/reports/house-senate/`, all such
+committees in one call) whether any committee linked to a member's
+candidacy outside P/A/J/D filed campaign reports this cycle; one that did
+counts as their campaign for the money on those reports
+(`campaignReportTotals`, the latest version of each), not what it raised
+afterwards as a PAC (Johnson $28, Blair $6,935, none of it itemized). The
+figures run to its last campaign report. Members who turned their
+campaign into their leadership PAC (Zinke, Watson Coleman) were already
+counted in full as leadership PACs; unchanged.
+
+Simulated (dry grade-only runs with the report, main and this branch, the
+same day): 535 of 537 members unchanged; Johnson E (15) to B (70) on
+$2,394,655 (876 donors, 105 hold half the big money); Blair ungraded to
+S (98) on $942,075 (735 donors, 100 hold half). Both show as not yet
+checked until the record check reaches their campaigns. The donor test
+still reads a converted committee's whole cycle of itemized records:
+nothing after either conversion today; a later one would count there.
 
 ## 2026-10-25: dark mode
 

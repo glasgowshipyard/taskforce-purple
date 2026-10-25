@@ -62,6 +62,47 @@ export function selectVehicles(committees, cycle) {
   return [...byId.values()].sort((a, b) => a.committeeId.localeCompare(b.committeeId));
 }
 
+// A Form 3 report's figure -> the name the FEC's totals give it
+const CAMPAIGN_REPORT_FIELDS = {
+  receipts: 'total_receipts_period',
+  individual_contributions: 'total_individual_contributions_period',
+  individual_itemized_contributions: 'individual_itemized_contributions_period',
+  individual_unitemized_contributions: 'individual_unitemized_contributions_period',
+  other_political_committee_contributions: 'other_political_committee_contributions_period',
+  political_party_committee_contributions: 'political_party_committee_contributions_period',
+  transfers_from_other_authorized_committee: 'transfers_from_other_authorized_committee_period',
+  candidate_contribution: 'candidate_contribution_period',
+  loans_made_by_candidate: 'loans_made_by_candidate_period',
+};
+
+/**
+ * A campaign committee that became another kind of committee during the
+ * cycle (2026-10-25: a member who lost her primary turned her campaign into
+ * a PAC; the FEC now lists it as a PAC, designation U, still linked to her
+ * candidacy, and its totals sit under PACs). The money it raised as her
+ * campaign is on its Form 3 reports (/reports/house-senate/): this adds up
+ * the latest version of each, in the shape of the FEC's totals, so nothing
+ * it raised afterwards as a PAC is counted. Null if it filed no Form 3.
+ */
+export function campaignReportTotals(reports) {
+  const latest = (reports || []).filter(r => r.most_recent === true);
+  if (!latest.length) {
+    return null;
+  }
+  const totals = { committee_id: latest[0].committee_id };
+  for (const [field, period] of Object.entries(CAMPAIGN_REPORT_FIELDS)) {
+    totals[field] = Math.round(latest.reduce((s, r) => s + num(Number(r[period])), 0) * 100) / 100;
+  }
+  const dates = key =>
+    latest
+      .map(r => String(r[key] || ''))
+      .filter(Boolean)
+      .sort();
+  totals.coverage_start_date = dates('coverage_start_date')[0] || null;
+  totals.coverage_end_date = dates('coverage_end_date').pop() || null;
+  return totals;
+}
+
 /**
  * Classify transfers received by the member's money vehicles (campaigns and
  * leadership PACs), from FEC Schedule A line 12 with committee senders. Each
