@@ -18,7 +18,7 @@ import {
   withheldReasonOf,
 } from '../lib/grades.js';
 import { useAsync, useCountUp, useInView, useTitle } from '../lib/hooks.js';
-import { BOOSTED_SHORT, isBoosted } from '../lib/outside.js';
+import { BOOSTED_SHORT, boostedOf } from '../lib/outside.js';
 import { ballotPartyName, displayName, raceSeat, stateName, usdShort } from '../lib/people.js';
 import { savePlace } from '../lib/place.js';
 import {
@@ -244,7 +244,7 @@ function RaceCard({ race, cycle, outside }) {
                     {share !== null && c.evidenceChecked === false && (
                       <span className="is-checking"> · still being checked</span>
                     )}
-                    {isBoosted(
+                    {boostedOf(
                       outside?.people?.[c.bioguideId || c.candidateId],
                       c.totalRaised,
                       c.bioguideId || c.candidateId

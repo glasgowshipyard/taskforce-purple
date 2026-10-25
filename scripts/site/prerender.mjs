@@ -26,6 +26,8 @@ import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { cardPng } from './og-card.mjs';
 import { loadOutside } from './outside.mjs';
+import { isBoosted } from '../../src/lib/outside.js';
+import { gradedFigures } from '../../src/lib/people.js';
 import { FEC_CROSSWALK } from '../../workers/fec-crosswalk.js';
 import { candidatePath, memberPath, racePath } from '../../src/lib/paths.js';
 import {
@@ -106,18 +108,16 @@ const outside = await loadOutside(
   const kept = await getJson(`${SITE}/data/outside.json`).catch(() => null);
   return kept && { ...kept, keptSince: kept.keptSince || new Date().toISOString().slice(0, 10) };
 });
-if (outside) {
-  write(join(DIST, 'data', 'outside.json'), JSON.stringify(outside));
-  console.log(
-    `prerender: outside spending for ${Object.keys(outside.people).length} people, filed to ${outside.through}; ${outside.left.filers} unregistered filer(s) left out`
-  );
-}
-const outsideOf = id => outside?.people?.[id] ?? null;
-
 // Each member's and candidate's detail too (owner, 2026-10-24: a page that
-// goes viral mustn't run the worker out), eight requests at a time
+// goes viral mustn't run the worker out), eight requests at a time. Each
+// person's total raised is kept as their page works it out (the list's
+// record with the detail's over it, through gradedFigures): the receipt's
+// TOTAL, which BOOSTED is measured against everywhere (2026-10-25: the
+// race list's own totals differ for some candidates)
 const details = [
   ...members.map(m => [
+    m.bioguideId,
+    m,
     join(DIST, 'data', 'member', `${m.bioguideId}.json`),
     `${API}/member-detail?bioguideId=${encodeURIComponent(m.bioguideId)}`,
   ]),
@@ -126,25 +126,47 @@ const details = [
         .flatMap(r => r.candidates)
         .filter(c => c.candidateId && !c.bioguideId)
         .map(c => [
+          c.candidateId,
+          c,
           join(DIST, 'data', 'candidate', `${c.candidateId}.json`),
           `${API}/candidate-detail?id=${encodeURIComponent(c.candidateId)}`,
         ])
     : []),
 ];
+const raisedBy = new Map();
 let missed = 0;
 for (let i = 0; i < details.length; i += 8) {
   await Promise.all(
-    details.slice(i, i + 8).map(async ([file, url]) => {
+    details.slice(i, i + 8).map(async ([id, base, file, url]) => {
       try {
-        write(file, JSON.stringify(await getJson(url)));
+        const detail = await getJson(url);
+        write(file, JSON.stringify(detail));
+        raisedBy.set(id, gradedFigures({ ...base, ...(detail?.member || {}) }).totalRaised);
       } catch {
         // No file: the page asks the API, as before
         missed += 1;
+        raisedBy.set(id, gradedFigures(base).totalRaised);
       }
     })
   );
 }
 console.log(`prerender: ${details.length - missed} of ${details.length} detail files`);
+
+// Whether each person is BOOSTED, decided once here against their
+// receipt's total, so every page that shows the stamp agrees
+if (outside) {
+  for (const [id, o] of Object.entries(outside.people)) {
+    if (raisedBy.has(id)) {
+      o.raised = Math.round(raisedBy.get(id));
+      o.boosted = isBoosted(o, raisedBy.get(id), id);
+    }
+  }
+  write(join(DIST, 'data', 'outside.json'), JSON.stringify(outside));
+  console.log(
+    `prerender: outside spending for ${Object.keys(outside.people).length} people, filed to ${outside.through}; ${Object.values(outside.people).filter(o => o.boosted).length} boosted; ${outside.left.filers} unregistered filer(s) left out`
+  );
+}
+const outsideOf = id => outside?.people?.[id] ?? null;
 // The live site's record of when each page last changed (empty the first time)
 const before = await getJson(`${SITE}/prerender-state.json`).catch(() => ({ pages: {} }));
 const today = new Date().toISOString().slice(0, 10);

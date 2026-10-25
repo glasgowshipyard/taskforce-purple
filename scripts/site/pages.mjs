@@ -89,7 +89,12 @@ function withBoost(page, outside, raised, personId) {
 
 /** One member's page: the live page's facts, for crawlers and previews */
 export const memberPage = (m, scores, outside = null) =>
-  withBoost(memberBase(m, scores), outside, gradedFigures(m).totalRaised, m.bioguideId);
+  withBoost(
+    memberBase(m, scores),
+    outside,
+    outside?.raised ?? gradedFigures(m).totalRaised,
+    m.bioguideId
+  );
 
 function memberBase(m, scores) {
   const name = displayName(m.name);
@@ -253,7 +258,7 @@ export const candidatePage = (c, race, cycle, outside = null) =>
   withBoost(
     candidateBase(c, race, cycle),
     outside,
-    gradedFigures(c).totalRaised,
+    outside?.raised ?? gradedFigures(c).totalRaised,
     c.bioguideId || c.candidateId
   );
 
