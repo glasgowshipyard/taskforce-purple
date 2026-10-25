@@ -564,10 +564,14 @@ async function main() {
         ]
       );
     }
-    // The races list: one KV write, only if it changed
+    // The races list: one KV write, only if it changed. Never from a run
+    // for some states only: the list would hold just those states' races
+    // (2026-10-25)
     const body = { cycle, field, sources, races };
     const current = JSON.parse((await cf.kvGet(RACES_KEY)) || 'null');
-    if (current && sameValue({ ...current, updatedAt: undefined }, body)) {
+    if (states.length) {
+      log(`races list not published: this run covered ${states.join(', ')} only`);
+    } else if (current && sameValue({ ...current, updatedAt: undefined }, body)) {
       log('races list unchanged');
     } else {
       await cf.kvPut(RACES_KEY, JSON.stringify({ ...body, updatedAt: now() }));
