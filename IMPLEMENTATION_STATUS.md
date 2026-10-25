@@ -60,6 +60,23 @@ clean-up, #71 outside spending (shown since 2026-10-25), #72 TypeScript (after t
 
 ## Change log
 
+## 2026-10-25 (night): "external groups"; the race list's totals from the grade
+
+Owner: "external groups" where the short form stands alone (beside the
+grade, /how#boosted, the Races line, the race table's rows, race receipts);
+the section's opening still names them ("Super PACs and other groups").
+No UNDER ATTACK stamp (owner asked; it would stamp 81, 20 of them twice,
+and money spent to beat someone says nothing about who funds them).
+
+The race list gave 57 candidates who aren't in Congress a smaller total
+than their own receipt (Paxton $22,904,093 against $34,951,454). I had
+`races.mjs` take "raised", small and big donations and PACs from the
+discovery figures (what reached their own committees), not from the
+grade's own figures, which count their own joint funds in full (the
+joint-fund owner rule) and are what the receipt shows. It now takes the
+grade's `personFigures`. No grade changes; the races job republishes the
+list.
+
 ## 2026-10-25 (evening): BOOSTED measured against the receipt's total, once
 
 I had the stamp compare outside help with two different totals: a person's
