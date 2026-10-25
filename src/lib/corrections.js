@@ -38,7 +38,7 @@ export const CORRECTIONS = [
     kind: 'correction',
     what: 'Julie Johnson: E to B',
     detail:
-      "Julie Johnson's campaign became a PAC in September, and this site's data left it out. It's now counted, and graded B on $2,394,655.",
+      "Julie Johnson's campaign became a PAC in September, and this site's data left it out. It's now counted and graded B on $2,394,655.",
   },
   {
     id: '2026-10-25-everton-blair',
@@ -46,7 +46,7 @@ export const CORRECTIONS = [
     kind: 'correction',
     what: 'Everton Blair: no grade to S',
     detail:
-      "Everton Blair's campaign became a PAC in September, and this site's data left it out. It's now counted, and graded S on $942,075.",
+      "Everton Blair's campaign became a PAC in September, and this site's data left it out. It's now counted and graded S on $942,075.",
   },
   {
     id: '2026-10-25-boosted-hinson-alme',
