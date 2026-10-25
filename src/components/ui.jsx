@@ -149,7 +149,7 @@ export function BoostedStamp({ small = false, animate = false, delay = 0 }) {
       className={`boosted${small ? ' is-small' : ''}${animate ? ' stamp-in' : ''}`}
       style={{ '--delay': `${delay}s`, '--rot': small ? '-4deg' : '-7deg' }}
       role="img"
-      aria-label="Boosted: groups spent more to help them than their campaign raised"
+      aria-label="Boosted: external groups spent more to help them than their campaign raised"
     >
       <span aria-hidden="true">BOOSTED</span>
     </span>

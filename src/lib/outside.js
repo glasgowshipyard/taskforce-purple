@@ -56,15 +56,15 @@ export function boostedDetail(o, totalRaised, personId = null) {
     return null;
   }
   if (!(totalRaised > 0)) {
-    return `groups spent ${usd(o.for)} to help them. Their campaign has reported raising nothing.`;
+    return `external groups spent ${usd(o.for)} to help them. Their campaign has reported raising nothing.`;
   }
   const times = timesOver(o, totalRaised);
   return times
-    ? `groups spent ${usd(o.for)} to help them, more than ${times} times what their campaign raised.`
-    : `groups spent ${usd(o.for)} to help them, more than their campaign raised (${usd(totalRaised)}).`;
+    ? `external groups spent ${usd(o.for)} to help them, more than ${times} times what their campaign raised.`
+    : `external groups spent ${usd(o.for)} to help them, more than their campaign raised (${usd(totalRaised)}).`;
 }
 
-/** The same line as text: "Boosted: groups spent ..." */
+/** The same line as text: "Boosted: external groups spent ..." */
 export function boostedSentence(o, totalRaised, personId = null) {
   const detail = boostedDetail(o, totalRaised, personId);
   return detail && `Boosted: ${detail}`;
@@ -72,11 +72,11 @@ export function boostedSentence(o, totalRaised, personId = null) {
 
 /** What the stamp means: /how#boosted and the pre-built pages */
 export const BOOSTED_MEANING =
-  'BOOSTED means super PACs and other groups spent more to help a candidate than their own campaign raised. Money spent to beat them doesn\u2019t count. It isn\u2019t part of the grade.';
+  'BOOSTED means external groups spent more to help a candidate than their own campaign raised. Money spent to beat them doesn\u2019t count. It isn\u2019t part of the grade.';
 
 /** The same, in one line: the Races page */
 export const BOOSTED_SHORT =
-  'BOOSTED means groups spent more to help a candidate than their campaign raised.';
+  'BOOSTED means external groups spent more to help a candidate than their campaign raised.';
 
 /** When a group spent: the FEC's election codes, as words */
 const STAGE = { P: 'primary', R: 'runoff', G: 'general' };

@@ -477,15 +477,20 @@ async function main() {
       };
     }
     const g = graded.get(c.candidateId) || {};
+    // The grade's own figures, which count a person's own joint funds in
+    // full (the joint-fund owner rule): what their receipt shows. The
+    // discovery figures under them leave that out, and the race list gave
+    // 57 candidates a smaller total than their own receipt until 2026-10-25
+    const fig = g.grade?.personFigures ?? (g.pf ? { ...g.pf, ...(g.pf.whole || {}) } : null);
     return {
       ...base,
       name: c.listedName || base.name,
       tier: g.grade?.tier || null,
       evidenceChecked: g.grade ? g.grade.evidenceChecked : null,
-      totalRaised: g.pf?.totalRaised ?? c.receipts ?? null,
-      smallDonors: g.pf?.grassrootsDonations ?? null,
-      largeDonors: g.pf?.largeDonorDonations ?? null,
-      pac: g.pf?.pacMoney ?? null,
+      totalRaised: fig?.totalRaised ?? c.receipts ?? null,
+      smallDonors: fig?.grassrootsDonations ?? null,
+      largeDonors: fig?.largeDonorDonations ?? null,
+      pac: fig?.pacMoney ?? null,
       uniqueDonors: g.analysis?.donorTest?.donors ?? g.analysis?.uniqueDonors ?? null,
       nakamoto: g.analysis?.donorTest?.nakamoto ?? g.analysis?.nakamotoCoefficient ?? null,
       peoplePowerInfluence: peoplePowerInfluence(g.grade?.detail),

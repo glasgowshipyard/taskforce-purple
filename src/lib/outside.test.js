@@ -29,10 +29,10 @@ describe('BOOSTED (2026-10-25)', () => {
     expect(timesOver({ for: 12_100_000 }, 1_900_000)).toBe(6);
     expect(timesOver({ for: 3_000_000 }, 2_000_000)).toBeNull();
     expect(boostedSentence({ for: 12_100_000 }, 1_900_000)).toBe(
-      'Boosted: groups spent $12,100,000 to help them, more than 6 times what their campaign raised.'
+      'Boosted: external groups spent $12,100,000 to help them, more than 6 times what their campaign raised.'
     );
     expect(boostedSentence({ for: 3_000_000 }, 2_000_000)).toBe(
-      'Boosted: groups spent $3,000,000 to help them, more than their campaign raised ($2,000,000).'
+      'Boosted: external groups spent $3,000,000 to help them, more than their campaign raised ($2,000,000).'
     );
     expect(boostedSentence({ for: 50_000 }, 0)).toMatch(/has reported raising nothing\.$/);
     expect(boostedSentence({ for: 100 }, 1_000)).toBeNull();
