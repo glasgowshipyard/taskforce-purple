@@ -477,7 +477,15 @@ export default function Member({ id, kind = 'member' }) {
                 <Barcode id={id} />
               </div>
               <div className="slip-stamp">
-                <Stamp tier={m.tier} reason={reason} size={124} rot={-11} animate delay={0.45} />
+                <Stamp
+                  tier={m.tier}
+                  reason={reason}
+                  size={124}
+                  rot={-11}
+                  animate
+                  delay={0.45}
+                  onPaper
+                />
               </div>
             </div>
 

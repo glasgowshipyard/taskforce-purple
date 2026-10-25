@@ -12,6 +12,7 @@ export function Stamp({
   size = 92,
   rot = -9,
   dark = false,
+  onPaper = false,
   animate = false,
   delay = 0,
   word = true,
@@ -19,7 +20,7 @@ export function Stamp({
   const g = gradeInfo(tier, reason);
   return (
     <div
-      className={`stamp${animate ? ' stamp-in' : ''}${dark ? ' is-dark' : ''}`}
+      className={`stamp${animate ? ' stamp-in' : ''}${dark ? ' is-dark' : ''}${onPaper ? ' on-paper' : ''}`}
       style={{
         // A number of pixels, or any CSS length (the home page scales its stamps)
         '--size': typeof size === 'number' ? `${size}px` : size,

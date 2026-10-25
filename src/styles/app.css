@@ -3635,7 +3635,7 @@ p {
 /* Dark mode: a stamp off the receipt takes its grade's light shade; on the
    receipt it keeps the paper-weight one */
 @media (prefers-color-scheme: dark) {
-  :root:not([data-theme='light']) .stamp:not(.is-dark) {
+  :root:not([data-theme='light']) .stamp:not(.is-dark):not(.on-paper) {
     --g: var(--gl, var(--gb));
   }
   :root:not([data-theme='light']) :is(.receipt, .slip) .stamp {
@@ -3643,10 +3643,16 @@ p {
   }
 }
 
-:root[data-theme='dark'] .stamp:not(.is-dark) {
+:root[data-theme='dark'] .stamp:not(.is-dark):not(.on-paper) {
   --g: var(--gl, var(--gb));
 }
 
 :root[data-theme='dark'] :is(.receipt, .slip) .stamp {
   --g: var(--gb, var(--ink));
+}
+
+/* A stamp that sits over a receipt without being inside it (the member
+   page's slip): paper-weight in both modes */
+.stamp.on-paper {
+  --stamp-bg: rgba(255, 254, 250, 0.86);
 }
