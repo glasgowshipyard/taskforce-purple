@@ -27,7 +27,7 @@ import {
   usd,
 } from '../../src/lib/people.js';
 import { FINDINGS, LEAD, MOTTO, STUDIES, WISHES } from '../../src/lib/research.js';
-import { CORRECTIONS, REVIEW_DAYS } from '../../src/lib/corrections.js';
+import { CORRECTIONS, KINDS, REVIEW_DAYS } from '../../src/lib/corrections.js';
 import { candidatePath, memberPath, racePath } from '../../src/lib/paths.js';
 import { BOOSTED_MEANING, boostedSentence } from '../../src/lib/outside.js';
 
@@ -382,26 +382,59 @@ ${named.map(n => `<li>${esc(n.name)}, ${esc(n.party)}: ${esc(n.words)}</li>`).jo
 // The corrections page, whole (lib/corrections.js)
 export function correctionsPage() {
   const items = CORRECTIONS.map(
-    c => `<li><p><strong>${esc(c.date)}: ${esc(c.what)}</strong></p><p>${esc(c.detail)}</p></li>`
+    c =>
+      `<li id="${esc(c.id)}"><p><strong>${esc(KINDS[c.kind])}, ${esc(c.date)}: ${esc(c.what)}</strong></p><p>${esc(c.detail)}</p></li>`
   ).join('\n');
   return {
     path: '/corrections',
-    title: `Corrections${TITLE_SUFFIX}`,
-    description: `Every correction made to this site's grades and pages, dated. Reports of mistakes are read within ${REVIEW_DAYS} days.`,
+    title: `Corrections and updates${TITLE_SUFFIX}`,
+    description: `Every correction to this site's grades and pages, and every major update, dated. Reports of mistakes are read within ${REVIEW_DAYS} days.`,
     card: {
-      eyebrow: 'Corrections',
-      headline: "What's been corrected",
-      sub: 'Every correction, dated, with what changed.',
+      eyebrow: 'Corrections and updates',
+      headline: "What's changed",
+      sub: 'Every correction and major update, dated, with what changed.',
     },
-    cardAlt: 'Task Force Purple: corrections',
-    jsonLd: { '@type': 'WebPage', name: 'Corrections', url: `${SITE}/corrections` },
+    cardAlt: 'Task Force Purple: corrections and updates',
+    jsonLd: { '@type': 'WebPage', name: 'Corrections and updates', url: `${SITE}/corrections` },
     body: `<main class="wrap section" data-prerendered>
-<h1 class="display display-l">Corrections</h1>
-<p>Every member, candidate and race page has a "Something wrong?" link. Reports are read within ${REVIEW_DAYS} days.</p>
+<h1 class="display display-l">Corrections and updates</h1>
+<p>Every member, candidate and race page has a "Something wrong?" link. Reports are read within ${REVIEW_DAYS} days. <a href="/corrections.xml">Follow by RSS</a>.</p>
 ${items ? `<ol>\n${items}\n</ol>` : '<p>None so far.</p>'}
 </main>`,
-    signature: JSON.stringify(['corrections-2', CORRECTIONS]),
+    signature: JSON.stringify(['corrections-3', CORRECTIONS]),
   };
+}
+
+/**
+ * The corrections and updates as an RSS feed (owner, 2026-10-25), built
+ * with the site from the same list: newest first, each item linking to its
+ * place on the page
+ */
+export function correctionsRss(entries = CORRECTIONS) {
+  const rfc822 = iso => new Date(`${iso}T12:00:00Z`).toUTCString();
+  const items = entries
+    .map(
+      c => `    <item>
+      <title>${esc(`${KINDS[c.kind]}: ${c.what}`)}</title>
+      <link>${SITE}/corrections#${esc(c.id)}</link>
+      <guid isPermaLink="false">${esc(`taskforcepurple-${c.id}`)}</guid>
+      <pubDate>${rfc822(c.date)}</pubDate>
+      <category>${esc(KINDS[c.kind])}</category>
+      <description>${esc(c.detail)}</description>
+    </item>`
+    )
+    .join('\n');
+  return `<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0">
+  <channel>
+    <title>Task Force Purple: corrections and updates</title>
+    <link>${SITE}/corrections</link>
+    <description>Every correction to the grades and pages, and every major update, dated.</description>
+    <language>en-us</language>
+${entries.length ? `    <lastBuildDate>${rfc822(entries[0].date)}</lastBuildDate>\n` : ''}${items}
+  </channel>
+</rss>
+`;
 }
 
 // The Races page: its words only (the races are drawn in the browser from

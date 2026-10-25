@@ -38,6 +38,7 @@ import {
   howPage,
   racesPage,
   correctionsPage,
+  correctionsRss,
   candidatePage,
   racePage,
   gradesCsv,
@@ -240,6 +241,7 @@ const llms = llmsTxt(members, list.lastUpdated);
 write(join(DIST, 'llms.txt'), llms.brief);
 write(join(DIST, 'llms-full.txt'), llms.full);
 write(join(DIST, 'grades.csv'), gradesCsv(members, list.lastUpdated));
+write(join(DIST, 'corrections.xml'), correctionsRss());
 write(join(DIST, `${INDEXNOW_KEY}.txt`), INDEXNOW_KEY);
 
 console.log(

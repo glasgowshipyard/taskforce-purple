@@ -1,8 +1,9 @@
-// Corrections (owner, 2026-10-23): how to report a mistake, how soon it's
-// read, and every correction made, dated (lib/corrections.js)
+// Corrections and updates (owner, 2026-10-23; updates and RSS 2026-10-25):
+// how to report a mistake, how soon it's read, and every correction and
+// major update, dated and labelled (lib/corrections.js)
 import React, { useState } from 'react';
 import FeedbackDialog from '../components/FeedbackDialog.jsx';
-import { CORRECTIONS, REVIEW_DAYS } from '../lib/corrections.js';
+import { CORRECTIONS, KINDS, REVIEW_DAYS } from '../lib/corrections.js';
 import { useTitle } from '../lib/hooks.js';
 
 const day = iso =>
@@ -14,14 +15,15 @@ const day = iso =>
   });
 
 export default function Corrections() {
-  useTitle('Corrections');
+  useTitle('Corrections and updates');
   const [suggesting, setSuggesting] = useState(false);
   return (
     <div className="wrap section" style={{ maxWidth: 820 }}>
-      <h1 className="display display-l">Corrections</h1>
+      <h1 className="display display-l">Corrections and updates</h1>
       <p className="lede" style={{ marginTop: 16, color: 'var(--ink-2)' }}>
         Every grade comes from public FEC filings. When something here turns out to be wrong,
-        it&apos;s fixed, and it&apos;s listed below with the date and what changed.
+        it&apos;s fixed, and it&apos;s listed below with the date and what changed. Major new
+        features are listed here too. <a href="/corrections.xml">Follow by RSS</a>.
       </p>
 
       <section className="section-tight" aria-labelledby="report-title">
@@ -41,13 +43,14 @@ export default function Corrections() {
 
       <section className="section-tight" aria-labelledby="log-title">
         <h2 id="log-title" className="display display-m">
-          What&apos;s been corrected
+          What&apos;s changed
         </h2>
         {CORRECTIONS.length === 0 && <p style={{ marginTop: 10 }}>None so far.</p>}
         <ol className="corrections">
           {CORRECTIONS.map(c => (
-            <li key={`${c.date}-${c.what}`}>
+            <li key={c.id} id={c.id}>
               <p className="eyebrow">
+                <span className={`change-kind is-${c.kind}`}>{KINDS[c.kind]}</span>{' '}
                 <time dateTime={c.date}>{day(c.date)}</time>
               </p>
               <p className="corrections-what">{c.what}</p>

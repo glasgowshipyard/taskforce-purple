@@ -3575,6 +3575,26 @@ p {
   line-height: 1.4;
 }
 
+/* Each entry says what it is: a correction, or something new */
+.change-kind {
+  display: inline-block;
+  margin-right: 6px;
+  padding: 1px 8px;
+  border-radius: 999px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+
+.change-kind.is-correction {
+  background: var(--bad-bg);
+  color: var(--bad-ink);
+}
+
+.change-kind.is-new {
+  background: var(--tint);
+  color: var(--ink);
+}
+
 .corrections-detail {
   margin-top: 6px;
   color: var(--ink-2);

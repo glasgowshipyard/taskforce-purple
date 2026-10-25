@@ -1,5 +1,13 @@
 import { describe, expect, it } from 'vitest';
-import { fillTemplate, gradesCsv, llmsTxt, memberPage, sitemapXml } from './pages.mjs';
+import {
+  correctionsRss,
+  fillTemplate,
+  gradesCsv,
+  llmsTxt,
+  memberPage,
+  sitemapXml,
+} from './pages.mjs';
+import { CORRECTIONS } from '../../src/lib/corrections.js';
 
 const member = {
   bioguideId: 'S001150',
@@ -101,5 +109,28 @@ describe('grades.csv (#67)', () => {
     expect(a).toMatch(/,2026-10-17,https:\/\/taskforcepurple\.com\/member\/jane-doe-X1$/);
     expect(b.startsWith('X2,')).toBe(true);
     expect(b).toMatch(/,,,,50,/);
+  });
+});
+
+describe('corrections and updates (2026-10-25)', () => {
+  it('publishes the list as an RSS feed, each item linking to its place on the page', () => {
+    const xml = correctionsRss([
+      { id: 'x-1', date: '2026-10-25', kind: 'correction', what: 'A & B', detail: 'Fixed <it>.' },
+    ]);
+    expect(xml).toMatch(/^<\?xml version="1.0" encoding="UTF-8"\?>\n<rss version="2.0">/);
+    expect(xml).toContain('<title>Correction: A &amp; B</title>');
+    expect(xml).toContain('<link>https://taskforcepurple.com/corrections#x-1</link>');
+    expect(xml).toContain('<pubDate>Sun, 25 Oct 2026 12:00:00 GMT</pubDate>');
+    expect(xml).toContain('<description>Fixed &lt;it&gt;.</description>');
+  });
+
+  it('every entry has a unique id, a known kind and a date', () => {
+    const ids = CORRECTIONS.map(c => c.id);
+    expect(new Set(ids).size).toBe(ids.length);
+    for (const c of CORRECTIONS) {
+      expect(['correction', 'new']).toContain(c.kind);
+      expect(c.date).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+      expect(c.what && c.detail).toBeTruthy();
+    }
   });
 });
