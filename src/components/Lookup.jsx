@@ -17,14 +17,17 @@ import { REDRAWN_2026 } from '../lib/redistricting.js';
 import { STATES, stateByCode } from '../lib/states.js';
 
 const prepared = new Map();
-async function districtsIn(codes) {
+// `ballot`: a state whose lines changed for 2026 has its 2026 outlines
+async function districtsIn(codes, ballot = false) {
   const all = [];
   for (const code of codes) {
-    if (!prepared.has(code)) {
-      const file = await geoFiles.state(code);
-      prepared.set(code, file ? prepareState(file) : []);
+    const lines2026 = ballot && Boolean(REDRAWN_2026[code]);
+    const key = lines2026 ? `${code}@2026` : code;
+    if (!prepared.has(key)) {
+      const file = await (lines2026 ? geoFiles.state2026(code) : geoFiles.state(code));
+      prepared.set(key, file ? prepareState(file) : []);
     }
-    all.push(...prepared.get(code));
+    all.push(...prepared.get(key));
   }
   return all;
 }
@@ -75,10 +78,11 @@ export default function Lookup({
     setRedrawnState(null);
   };
 
-  // A place found: unless this is for the races and its state's lines
-  // changed for 2026, where the visitor picks their new district instead
-  const arrive = place => {
-    if (ballot && REDRAWN_2026[place.state]) {
+  // A place found: unless this is for the races, its state's lines changed
+  // for 2026 and it was found on the older lines (no 2026 match), where the
+  // visitor picks their new district instead
+  const arrive = (place, { lines2026 = false } = {}) => {
+    if (ballot && REDRAWN_2026[place.state] && !lines2026) {
       reset();
       setRedrawnState(place.state);
       return;
@@ -97,15 +101,25 @@ export default function Lookup({
     setBusy('zip');
     try {
       const zips = await geoFiles.zips();
-      const parts = parseZipEntry(zips?.[z]);
+      let parts = parseZipEntry(zips?.[z]);
+      // For the races, a ZIP code in a state whose lines changed: its 2026
+      // districts (scripts/geo/build-geo-2026.mjs)
+      let lines2026 = false;
+      if (ballot && (parts.length === 0 || REDRAWN_2026[parts[0].state])) {
+        const next = parseZipEntry((await geoFiles.zips2026())?.[z]);
+        if (next.length) {
+          parts = next;
+          lines2026 = true;
+        }
+      }
       if (parts.length === 0) {
         setStatus(
           `ZIP code ${z} wasn't found. Some ZIP codes only cover PO boxes or a single building. You can use your location instead, or choose your state.`
         );
         setPickState(true);
       } else if (parts.length === 1) {
-        arrive({ state: parts[0].state, district: parts[0].district });
-      } else if (ballot && REDRAWN_2026[parts[0].state]) {
+        arrive({ state: parts[0].state, district: parts[0].district }, { lines2026 });
+      } else if (ballot && REDRAWN_2026[parts[0].state] && !lines2026) {
         arrive({ state: parts[0].state, district: null });
       } else {
         setStatus(
@@ -128,21 +142,19 @@ export default function Lookup({
       const { longitude: lon, latitude: lat } = pos.coords;
       const index = await geoFiles.index();
       const codes = candidateStates(index, lon, lat);
-      const found = codes.length ? locate(await districtsIn(codes), lon, lat) : null;
+      const found = codes.length ? locate(await districtsIn(codes, ballot), lon, lat) : null;
       if (!found) {
         setStatus(
           "That location isn't in a U.S. congressional district. You can enter a ZIP code or choose your state instead."
         );
         setPickState(true);
-      } else if (ballot && REDRAWN_2026[parseDistrict(found.key).state]) {
-        arrive(parseDistrict(found.key));
       } else if (found.near.length) {
         setStatus(
           "You're close to a district boundary, so it isn't clear which district you're in. Which one is yours?"
         );
         setChoices([found.key, ...found.near].map(parseDistrict));
       } else {
-        arrive(parseDistrict(found.key));
+        arrive(parseDistrict(found.key), { lines2026: ballot });
       }
     } catch (err) {
       setStatus(
@@ -263,8 +275,8 @@ function RedrawnPick({ state, idPrefix, onPick }) {
   return (
     <>
       <p>
-        {name}&apos;s district lines changed for this election, and this site&apos;s district lookup
-        still has the old ones. Find your district with{' '}
+        {name}&apos;s district lines changed for this election, and this site couldn&apos;t find
+        your new district from that. Find it with{' '}
         <a href={lookup} target="_blank" rel="noopener noreferrer">
           {name}&apos;s official voter lookup
         </a>

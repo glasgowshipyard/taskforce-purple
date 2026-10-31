@@ -1,10 +1,12 @@
 // States whose House district lines changed for the 2026 election
 // (mid-decade redistricting: https://en.wikipedia.org/wiki/2025%E2%80%932026_United_States_redistricting,
 // "Redistricting plan in effect for 2026 elections", read 2026-10-31). The
-// district lookup files (public/geo) hold the lines Congress was elected on
-// in 2024 (Census Bureau, 119th Congress), so for the races they can't say
-// which 2026 district someone is in. Each state's official voter lookup,
-// and how many districts it has (unchanged by the redraw).
+// main district lookup files (public/geo) hold the lines Congress was
+// elected on in 2024 (Census Bureau, 119th Congress); for the races these
+// states use their 2026 lines (public/geo/2026, from the Census Bureau's
+// 120th Congress districts: scripts/geo/build-geo-2026.mjs). Each state's
+// official voter lookup, for an address that can't be placed, and how many
+// districts it has (unchanged by the redraw).
 export const REDRAWN_2026 = {
   AL: { districts: 7, lookup: 'https://myinfo.alabamavotes.gov/VoterView' },
   CA: { districts: 52, lookup: 'https://voterstatus.sos.ca.gov/' },
