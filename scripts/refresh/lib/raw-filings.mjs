@@ -338,7 +338,7 @@ async function download(fileNumber, fetchImpl) {
  * 2026-10-31: the PACs' own reports, which the list was built from before,
  * disagree with the campaigns'; Susan Collins's campaign reported $1.59M
  * from PACs and the PACs $2.56M). Reports the FEC has processed come from
- * its API (20 committees a call); the rest from the raw filings, each used
+ * its API (10 committees a call, the most it takes); the rest from the raw filings, each used
  * only when its PAC lines add up to its own line 11(c). `typeOf(id)`: the
  * committee's FEC type (H, S: campaign reports; else PAC reports).
  * Returns the gifts by receiving committee, and the committees whose
@@ -363,8 +363,8 @@ export async function campaignPacGifts({
     ['F3', ids.filter(campaign)],
     ['F3X', ids.filter(id => !campaign(id))],
   ]) {
-    for (let i = 0; i < list.length; i += 20) {
-      const chunk = list.slice(i, i + 20);
+    for (let i = 0; i < list.length; i += 10) {
+      const chunk = list.slice(i, i + 10);
       try {
         await scheduleAPages(
           fec,
