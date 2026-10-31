@@ -1,6 +1,7 @@
 // Where the visitor lives, as a state and (when known) a House district, and
 // who represents it. Only the district is remembered on this device, never
 // the ZIP code or the location it came from.
+import { redrawn } from './redistricting.js';
 import { stateByCode } from './states.js';
 
 const KEY = 'tfp:place';
@@ -33,6 +34,47 @@ export function savePlace(place) {
     }
   } catch {
     // Private browsing: nothing is remembered, and nothing breaks
+  }
+}
+
+// The district for the 2026 races, kept apart: in a state whose lines
+// changed for this election (lib/redistricting.js) it isn't the district
+// the visitor is represented in now
+const BALLOT_KEY = 'tfp:ballot';
+
+/**
+ * Where the visitor votes in 2026: the district they chose for the races,
+ * else their current one unless their state's lines changed (then they
+ * choose again). A choice for another state than their current place is
+ * dropped: they've looked up somewhere new since.
+ */
+export function savedBallotPlace() {
+  const now = savedPlace();
+  let chosen = null;
+  try {
+    chosen = parsePlace(window.localStorage.getItem(BALLOT_KEY));
+  } catch {
+    chosen = null;
+  }
+  if (chosen && (!now || now.state === chosen.state)) {
+    return chosen;
+  }
+  return now && !redrawn(now.state) ? now : null;
+}
+
+/** Remember the district for the races (and the current place, where the lines didn't change). */
+export function saveBallotPlace(place) {
+  try {
+    if (place) {
+      window.localStorage.setItem(BALLOT_KEY, placeKey(place));
+    } else {
+      window.localStorage.removeItem(BALLOT_KEY);
+    }
+  } catch {
+    // Private browsing: nothing is remembered, and nothing breaks
+  }
+  if (place && !redrawn(place.state)) {
+    savePlace(place);
   }
 }
 
