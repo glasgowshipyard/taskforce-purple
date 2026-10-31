@@ -8,6 +8,7 @@
 // (one download, no API call), and its donor lines are used only when they
 // add up, to the cent, to the itemized total on the report's own summary.
 
+import { COMMITTEE_SINCE } from '../../../workers/fec-crosswalk-additions.js';
 import { bulkDate } from './reconcile.mjs';
 
 export const rawFilingUrl = fileNumber => `https://docquery.fec.gov/dcdev/posted/${fileNumber}.fec`;
@@ -419,4 +420,19 @@ export function unmatchedGifts(raw, processed) {
     }
     return true;
   });
+}
+
+/**
+ * Leave out the records of a committee counted only from a date
+ * (fec-crosswalk-additions.js COMMITTEE_SINCE) dated before it, from both
+ * the bulk file's rows and the fetched ones.
+ */
+export async function dropBefore(bulk, committeeIds) {
+  for (const id of committeeIds.filter(c => COMMITTEE_SINCE[c] && /^C\d{8}$/.test(c))) {
+    for (const table of ['bulk', 'api']) {
+      await bulk.conn.run(
+        `DELETE FROM ${table} WHERE committee_id = '${id}' AND (date IS NULL OR date < '${COMMITTEE_SINCE[id].from}')`
+      );
+    }
+  }
 }

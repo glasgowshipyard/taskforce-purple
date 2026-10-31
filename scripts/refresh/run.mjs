@@ -51,6 +51,7 @@
 import { appendFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { COMMITTEE_SINCE } from '../../workers/fec-crosswalk-additions.js';
 import { FEC_CROSSWALK } from '../../workers/fec-crosswalk.js';
 import { crosswalkIdsFor } from '../../workers/fec-identity.js';
 import { committeesFinal3, gradeMember, gradeMemberFinal3 } from '../../workers/grading.js';
@@ -74,7 +75,7 @@ import { createFecClient, replayFec } from './lib/fec.mjs';
 import { memberDonorShape, pacExtras } from '../simulate/lib/inputs.mjs';
 import { ensureIrs, fecGroup, loadIrsIndex } from './lib/sponsors.mjs';
 import { loadStored, saveStored } from './lib/gap-store.mjs';
-import { addRawFilings, rawPacGifts } from './lib/raw-filings.mjs';
+import { addRawFilings, dropBefore, rawPacGifts } from './lib/raw-filings.mjs';
 import { publishGrades } from './lib/publish.mjs';
 
 // D1's free limits are per day for the whole account, shared with the
@@ -117,7 +118,11 @@ async function internalTransfers(db, pf) {
   const marks = vehicles.map(() => '?').join(',');
   const rows = await db.read(
     `SELECT committee_id, sum(amount) AS amount FROM oth WHERE tx_type IN ('18G', '18J')
-     AND committee_id IN (${marks}) AND other_id IN (${marks}) AND committee_id <> other_id GROUP BY 1`,
+     AND committee_id IN (${marks}) AND other_id IN (${marks}) AND committee_id <> other_id
+     ${Object.entries(COMMITTEE_SINCE)
+       .map(([id, c]) => `AND NOT (committee_id = '${id}' AND coalesce(date, '') < '${c.from}')`)
+       .join(' ')}
+     GROUP BY 1`,
     ...vehicles,
     ...vehicles
   );
@@ -566,6 +571,8 @@ async function main() {
       summary.rawReports = (summary.rawReports || 0) + raw.added.length;
       summary.rawRefused = (summary.rawRefused || 0) + raw.refused.length;
     }
+
+    await dropBefore(bulk, ids);
 
     // 4. Analyse and grade each member (Stage 2: recorded, not published)
     for (const p of people) {

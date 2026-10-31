@@ -13,6 +13,7 @@
 
 import { pacType } from '../../../src/lib/pacs.js';
 import { PAC_TRACING, pacPeopleCredit } from '../../../workers/tier-calculation.js';
+import { COMMITTEE_SINCE } from '../../../workers/fec-crosswalk-additions.js';
 import { unmatchedGifts } from './raw-filings.mjs';
 import { ITEMIZED_TYPES } from './reconcile.mjs';
 
@@ -43,6 +44,7 @@ export async function pacGifts(db, recipientIds, alsoNotFrom = []) {
         any_value(c.org_type) AS org_type, any_value(c.connected_org) AS connected_org
      FROM oth o LEFT JOIN cm c ON c.id = o.committee_id
      WHERE o.tx_type IN ('24K', '24Z') AND o.other_id IN (${marks}) AND o.committee_id NOT IN (${notMarks})
+       ${sinceClause('o.other_id', 'o.date')}
      GROUP BY o.committee_id`,
     ...ids,
     ...notFrom
@@ -72,7 +74,12 @@ export async function pacGifts(db, recipientIds, alsoNotFrom = []) {
 export async function withRawGifts(db, gifts, recipientIds, raw, alsoNotFrom = []) {
   const ids = recipientIds.filter(id => IDS.test(id));
   const notFrom = new Set([...ids, ...alsoNotFrom]);
-  const incoming = ids.flatMap(id => raw.get(id) || []).filter(g => !notFrom.has(g.giver));
+  const incoming = ids
+    .flatMap(id => raw.get(id) || [])
+    .filter(g => !notFrom.has(g.giver))
+    .filter(
+      g => !COMMITTEE_SINCE[g.recipient] || (g.date && g.date >= COMMITTEE_SINCE[g.recipient].from)
+    );
   if (!incoming.length) {
     return gifts;
   }
@@ -121,6 +128,18 @@ export async function withRawGifts(db, gifts, recipientIds, raw, alsoNotFrom = [
     out.set(g.giver, row);
   }
   return [...out.values()].filter(g => g.amount > 0).sort((a, b) => b.amount - a.amount);
+}
+
+// Gifts to a committee counted only from a date (fec-crosswalk-additions.js
+// COMMITTEE_SINCE) are left out before it
+function sinceClause(recipient, date) {
+  const ids = Object.keys(COMMITTEE_SINCE).filter(id => IDS.test(id));
+  return ids
+    .map(
+      id =>
+        `AND NOT (${recipient} = '${id}' AND (${date} IS NULL OR ${date} < '${COMMITTEE_SINCE[id].from}'))`
+    )
+    .join(' ');
 }
 
 /** Gifts in the shape the grade reads (tier-calculation.js). */

@@ -363,7 +363,13 @@ export async function discoverPeople({
     ? await read(
         `SELECT committee_id, other_id, amount, date FROM oth WHERE tx_type IN ('18G', '18J') AND committee_id IN (${withTotals.map(() => '?').join(',')})`,
         ...withTotals
-      ).then(rows => rows.filter(r => !COMMITTEE_SINCE[r.committee_id] || (r.date && r.date >= COMMITTEE_SINCE[r.committee_id].from)))
+      ).then(rows =>
+        rows.filter(
+          r =>
+            !COMMITTEE_SINCE[r.committee_id] ||
+            (r.date && r.date >= COMMITTEE_SINCE[r.committee_id].from)
+        )
+      )
     : [];
   for (const p of plans) {
     for (const v of p.moneyVehicles) {
