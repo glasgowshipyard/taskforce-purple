@@ -37,10 +37,10 @@ import {
 import { memberDonorShape } from '../simulate/lib/inputs.mjs';
 import { analyzePool, loadFara } from './lib/analysis.mjs';
 import { buildPacs, directingCommittees, platformIds } from './lib/final3.mjs';
-import { pacGifts, pacProfiles, upstreamGifts } from './lib/pacs.mjs';
+import { pacGifts, pacProfiles, upstreamGifts, withRawGifts } from './lib/pacs.mjs';
 import { ensureIrs, loadIrsIndex } from './lib/sponsors.mjs';
 import { apiRowToBulkShape, ensureBulkFile, insertApiRows, loadBulk } from './lib/bulk.mjs';
-import { addRawFilings } from './lib/raw-filings.mjs';
+import { addRawFilings, dropBefore, rawPacGifts } from './lib/raw-filings.mjs';
 import { loadStored } from './lib/gap-store.mjs';
 import {
   classifyScheduleARow,
@@ -314,13 +314,39 @@ async function main() {
   // reaches a candidate, who it answers to, and its share traced to people
   const giftsFor = new Map();
   const fundGiftsFor = new Map();
-  for (const [id, pf] of discovered) {
-    const vehicles = (pf.committees || [])
+  const vehiclesOf = pf =>
+    (pf.committees || [])
       .filter(c => c.role === 'campaign' || c.role === 'leadership')
       .map(c => c.committeeId);
-    giftsFor.set(id, await pacGifts(db, vehicles));
+  // PAC gifts on reports the FEC hasn't processed yet, from the raw filings
+  // (lib/raw-filings.mjs), as for members
+  const raw = await rawPacGifts({
+    fec,
+    itcontPath: file.path,
+    committeeIds: [...discovered.values()].flatMap(pf => [
+      ...vehiclesOf(pf),
+      ...(pf.whole?.ownFunds || []),
+    ]),
+    cycle,
+    log,
+  });
+  for (const [id, pf] of discovered) {
+    const vehicles = vehiclesOf(pf);
+    giftsFor.set(
+      id,
+      await withRawGifts(db, await pacGifts(db, vehicles), vehicles, raw.byRecipient)
+    );
     if (pf.whole?.ownFunds?.length) {
-      fundGiftsFor.set(id, await pacGifts(db, pf.whole.ownFunds, vehicles));
+      fundGiftsFor.set(
+        id,
+        await withRawGifts(
+          db,
+          await pacGifts(db, pf.whole.ownFunds, vehicles),
+          pf.whole.ownFunds,
+          raw.byRecipient,
+          vehicles
+        )
+      );
     }
   }
   const platforms = await platformIds(db);
@@ -381,6 +407,7 @@ async function main() {
     // Reports the FEC hasn't processed yet, from the raw filings, as for
     // members (lib/raw-filings.mjs)
     await addRawFilings({ fec, bulk, committeeIds: ids, cycle, insertRows: insertApiRows, log });
+    await dropBefore(bulk, ids);
     for (const c of batch) {
       const pf = discovered.get(c.candidateId);
       if (!pf?.donorCommitteeIds?.length) {

@@ -1,13 +1,14 @@
 import { describe, expect, it } from 'vitest';
 import {
   campaignReportTotals,
-  selectVehicles,
   classifyTransfers,
   combineVehicleTotals,
+  committeeSignature,
+  donorCommitteeIds,
   fundOwner,
   isMembersOwnFund,
-  donorCommitteeIds,
-  committeeSignature,
+  reportTotalsFrom,
+  selectVehicles,
 } from './person-funding.js';
 
 const t = (receipts, unitem, item, pac = 0, out = 0) => ({
@@ -399,5 +400,40 @@ describe('the final candidate: whole own funds and the transfer check (owner, 20
     const r = combineVehicleTotals([house, senate], t);
     expect(r.totalRaised).toBe(16000000);
     expect(r.invariantsHold).toBe(true);
+  });
+});
+
+describe('reportTotalsFrom', () => {
+  const report = (start, end, receipts, pacs, mostRecent = true) => ({
+    committee_id: 'C00000001',
+    coverage_start_date: `${start}T00:00:00`,
+    coverage_end_date: `${end}T00:00:00`,
+    most_recent: mostRecent,
+    total_receipts_period: receipts,
+    other_political_committee_contributions_period: pacs,
+  });
+
+  it('adds up only the reports from the date, latest versions only', () => {
+    const t = reportTotalsFrom(
+      [
+        report('2026-06-01', '2026-06-30', 50000, 40000),
+        report('2026-07-01', '2026-07-31', 11002, 11000),
+        report('2026-08-01', '2026-08-31', 20000, 5000),
+        report('2026-08-01', '2026-08-31', 99999, 0, false),
+      ],
+      '2026-07-01',
+      true
+    );
+    expect(t).toMatchObject({
+      receipts: 31002,
+      other_political_committee_contributions: 16000,
+      coverage_start_date: '2026-07-01T00:00:00',
+    });
+  });
+
+  it('is null when nothing was filed from then', () => {
+    expect(reportTotalsFrom([report('2026-06-01', '2026-06-30', 1, 0)], '2026-07-01', true)).toBe(
+      null
+    );
   });
 });

@@ -15,3 +15,15 @@ export const FEC_CROSSWALK_ADDITIONS = {
   // she showed UNVERIFIED with no grade
   G000608: ['S6SC04437'],
 };
+
+// Committees counted only from a date (owner, 2026-10-31): money a committee
+// raised before the member became its sponsor isn't theirs. Its reports
+// from then on, and its records, gifts and transfers dated from then.
+// committee id -> { from (the first day of the first report counted), member }
+export const COMMITTEE_SINCE = {
+  // Fund for America's Future was Lindsey Graham's leadership PAC. Its
+  // Form 1 amendment of 25 July 2026 (FEC filing 2002011) names Darline
+  // Graham, appointed after his death, as its sponsor. Counted from its July
+  // report (1 to 31 July, $11,002 raised), the first covering that day
+  C00388934: { from: '2026-07-01', member: 'G000608' },
+};

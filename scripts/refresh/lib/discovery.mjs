@@ -34,8 +34,10 @@ import { execFileSync } from 'node:child_process';
 import { existsSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import { DuckDBInstance } from '@duckdb/node-api';
+import { COMMITTEE_SINCE } from '../../../workers/fec-crosswalk-additions.js';
 import {
   campaignReportTotals,
+  reportTotalsFrom,
   classifyTransfers,
   combineVehicleTotals,
   donorCommitteeIds,
@@ -112,7 +114,10 @@ export async function loadDiscoveryFiles(cycle, dir, log = console.log) {
   // transfers out (24G, 24K) and in-kind gifts (24Z), between committees,
   // memos dropped
   await conn.run(`CREATE TABLE oth AS SELECT CMTE_ID AS committee_id, OTHER_ID AS other_id,
-      TRANSACTION_TP AS tx_type, TRY_CAST(TRANSACTION_AMT AS DOUBLE) AS amount
+      TRANSACTION_TP AS tx_type, TRY_CAST(TRANSACTION_AMT AS DOUBLE) AS amount,
+      CASE WHEN regexp_matches(TRANSACTION_DT, '^[0-9]{8}$')
+        THEN substr(TRANSACTION_DT,5,4)||'-'||substr(TRANSACTION_DT,1,2)||'-'||substr(TRANSACTION_DT,3,2)
+      END AS date
       FROM ${csv(oth, 'CMTE_ID,AMNDT_IND,RPT_TP,TRANSACTION_PGI,IMAGE_NUM,TRANSACTION_TP,ENTITY_TP,NAME,CITY,STATE,ZIP_CODE,EMPLOYER,OCCUPATION,TRANSACTION_DT,TRANSACTION_AMT,OTHER_ID,TRAN_ID,FILE_NUM,MEMO_CD,MEMO_TEXT,SUB_ID'.split(','))}
       WHERE TRANSACTION_TP IN ('18G', '18J', '24G', '24K', '24Z') AND coalesce(MEMO_CD, '') <> 'X'
         AND OTHER_ID LIKE 'C%'`);
@@ -330,6 +335,23 @@ export async function discoverPeople({
   for (const id of vehicleIds.filter(id => converted.has(id))) {
     totals.set(id, converted.get(id));
   }
+  // Committees counted only from the day the member became their sponsor:
+  // their reports from then (fec-crosswalk-additions.js COMMITTEE_SINCE)
+  for (const id of vehicleIds.filter(id => COMMITTEE_SINCE[id])) {
+    const pac = totalsType(types.get(id)) === 'pac-party';
+    const d = await fec(pac ? '/reports/pac-party/' : '/reports/house-senate/', {
+      committee_id: id,
+      cycle,
+      per_page: 100,
+    });
+    const since = reportTotalsFrom(d.results || [], COMMITTEE_SINCE[id].from, pac);
+    if (since) {
+      totals.set(id, since);
+    } else {
+      totals.delete(id);
+    }
+    log(`discovery: ${id} counted from ${COMMITTEE_SINCE[id].from}: $${num(since?.receipts)}`);
+  }
   log(
     `discovery: ${people.length} members, ${vehicleIds.length} campaigns and PACs` +
       (converted.size ? ` (${[...converted.keys()].join(', ')}: campaigns that became PACs)` : '')
@@ -339,8 +361,14 @@ export async function discoverPeople({
   const withTotals = [...new Set(vehicleIds.filter(id => totals.has(id)))];
   const transfersIn = withTotals.length
     ? await read(
-        `SELECT committee_id, other_id, amount FROM oth WHERE tx_type IN ('18G', '18J') AND committee_id IN (${withTotals.map(() => '?').join(',')})`,
+        `SELECT committee_id, other_id, amount, date FROM oth WHERE tx_type IN ('18G', '18J') AND committee_id IN (${withTotals.map(() => '?').join(',')})`,
         ...withTotals
+      ).then(rows =>
+        rows.filter(
+          r =>
+            !COMMITTEE_SINCE[r.committee_id] ||
+            (r.date && r.date >= COMMITTEE_SINCE[r.committee_id].from)
+        )
       )
     : [];
   for (const p of plans) {

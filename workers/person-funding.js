@@ -103,6 +103,45 @@ export function campaignReportTotals(reports) {
   return totals;
 }
 
+// The same totals from a PAC's reports (/reports/pac-party/)
+const PAC_REPORT_FIELDS = {
+  receipts: 'total_receipts_period',
+  individual_contributions: 'total_individual_contributions_period',
+  individual_itemized_contributions: 'individual_itemized_contributions_period',
+  individual_unitemized_contributions: 'individual_unitemized_contributions_period',
+  other_political_committee_contributions: 'other_political_committee_contributions_period',
+  political_party_committee_contributions: 'political_party_committee_contributions_period',
+  transfers_from_affiliated_party: 'transfers_from_affiliated_party_period',
+};
+
+/**
+ * A committee's totals from its reports starting on or after `from`, the
+ * latest version of each, in the shape of the FEC's totals: for a committee
+ * counted only from the day the member became its sponsor
+ * (fec-crosswalk-additions.js COMMITTEE_SINCE). `pac`: PAC reports, else
+ * campaign reports. Null if it filed none from then.
+ */
+export function reportTotalsFrom(reports, from, pac) {
+  const latest = (reports || []).filter(
+    r => r.most_recent === true && String(r.coverage_start_date || '').slice(0, 10) >= from
+  );
+  if (!latest.length) {
+    return null;
+  }
+  const totals = { committee_id: latest[0].committee_id, committee_type: latest[0].committee_type };
+  for (const [field, period] of Object.entries(pac ? PAC_REPORT_FIELDS : CAMPAIGN_REPORT_FIELDS)) {
+    totals[field] = Math.round(latest.reduce((s, r) => s + num(Number(r[period])), 0) * 100) / 100;
+  }
+  const dates = key =>
+    latest
+      .map(r => String(r[key] || ''))
+      .filter(Boolean)
+      .sort();
+  totals.coverage_start_date = dates('coverage_start_date')[0] || null;
+  totals.coverage_end_date = dates('coverage_end_date').pop() || null;
+  return totals;
+}
+
 /**
  * Classify transfers received by the member's money vehicles (campaigns and
  * leadership PACs), from FEC Schedule A line 12 with committee senders. Each
