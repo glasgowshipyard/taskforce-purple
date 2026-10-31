@@ -1,6 +1,6 @@
 # Task Force Purple: implementation status
 
-**Last updated**: 2026-10-27. Current state first, then a dated change log
+**Last updated**: 2026-10-31. Current state first, then a dated change log
 (newest first, from the rebuild on 2026-10-03). The log before the rebuild
 is in `docs/history/log-2025-26.md`.
 
@@ -59,6 +59,34 @@ clean-up, #71 outside spending (shown since 2026-10-25), #72 TypeScript (after t
 ---
 
 ## Change log
+
+## 2026-10-31: donor records from the FEC's raw filings
+
+I built the refresh to grade 3 days after a filing deadline, when the FEC's
+totals are in, but its donor-by-donor records take weeks to process, and
+nothing re-graded when they arrived. So after the October reports the totals
+ran to 14 October while the records stopped at June or September: 184 of
+1,043 grades fell back to the 0.40 allowance because the records held under
+half the big-donor money. Ken Paxton's covered 41%, and Paxton Victory's 34
+cheques of $100,000 or more since July weren't in them; the grade was C, and
+is E with the full records (240 of 16,786 donors gave half). The owner
+found it by asking about Paxton.
+
+Reports not yet processed are now read from the FEC's raw filings
+(`scripts/refresh/lib/raw-filings.mjs`, in both `run.mjs` and `races.mjs`):
+one FEC call lists the filings of 20 committees, then one download per
+report from docquery.fec.gov. A report's donor lines are used only when they
+add up to the cent to line 11(a)(i), the itemized total on its own summary;
+a period is never read raw once any of its filings is processed, or if it
+starts on or before the newest processed record, so nothing is counted
+twice. The newest filing of a period (an amendment) replaces the others.
+48-hour notices are left out: the totals stop at 14 October, and the
+records must cover the same reports. A frozen simulation grades on its
+snapshot only. The dry run used 2,923 raw reports in 42 minutes; the 41 it
+turned away came from two gaps of mine in reading the files (a lower-case
+line code, lines with empty fields left off the end), fixed the same
+morning. Published by grade-only runs at the owner's word ("it has to be
+pushed"), members first and then the races.
 
 ## 2026-10-30: the daily check reads the live outside-spending file again
 
