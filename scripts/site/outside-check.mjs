@@ -13,9 +13,31 @@ import { SITE } from './pages.mjs';
 import { ieUrl, outsideRebuild } from './outside.mjs';
 
 const dryRun = process.argv.includes('--dry-run');
-const live = await fetch(`${SITE}/data/outside.json`, { headers: { 'Cache-Control': 'no-cache' } })
-  .then(r => (r.ok ? r.json() : null))
-  .catch(() => null);
+
+// The live file, from the site and then from the Pages project's own
+// address. Each failure says why (2026-10-30: from GitHub every read failed
+// silently, so the check rebuilt the site every day and the stuck-figures
+// alert could never fire)
+const SOURCES = [SITE, 'https://taskforce-purple.pages.dev'];
+async function readLive() {
+  for (const base of SOURCES) {
+    const url = `${base}/data/outside.json`;
+    try {
+      const r = await fetch(url, {
+        headers: { 'Cache-Control': 'no-cache', 'User-Agent': 'taskforce-purple-daily-check' },
+      });
+      const type = r.headers.get('content-type') || '';
+      if (r.ok && type.includes('json')) {
+        return await r.json();
+      }
+      console.log(`::warning::${url}: HTTP ${r.status}, ${type || 'no content type'}`);
+    } catch (error) {
+      console.log(`::warning::${url}: ${error.cause?.code || error.message}`);
+    }
+  }
+  return null;
+}
+const live = await readLive();
 const cycle = live?.cycle || 2026;
 const size = await fetch(ieUrl(cycle), { method: 'HEAD' })
   .then(r => (r.ok ? Number(r.headers.get('content-length')) || null : null))

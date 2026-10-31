@@ -1,6 +1,6 @@
 # Task Force Purple: implementation status
 
-**Last updated**: 2026-10-25. Current state first, then a dated change log
+**Last updated**: 2026-10-27. Current state first, then a dated change log
 (newest first, from the rebuild on 2026-10-03). The log before the rebuild
 is in `docs/history/log-2025-26.md`.
 
@@ -59,6 +59,40 @@ clean-up, #71 outside spending (shown since 2026-10-25), #72 TypeScript (after t
 ---
 
 ## Change log
+
+## 2026-10-30: the daily check reads the live outside-spending file again
+
+I wrote the daily check's outside-spending step (`outside-check.mjs`) so a
+failed read of the live `outside.json` counted as "no file", silently. From
+GitHub every read failed, so since 26 October the check rebuilt the site
+every day whether or not the FEC's file had changed, and the
+stuck-figures alert could never fire. It now tries the site and then the
+Pages project's own address (`taskforce-purple.pages.dev`), and says why
+each failed read failed (status, content type or network error). Shipped
+with `[CF-Pages-Skip]`: it changes only the GitHub job, so no site build.
+
+## 2026-10-27: Last races run done; Texas 26 left off the races list
+
+Scheduled check (read-only). Sunday's 12G refresh (two runs) and Monday's
+last races run (40571744024, 12:43 pm Pacific) succeeded; the races job
+then disabled itself. Wikipedia: 0 seats changed. About 9 member grades
+changed on Sunday; 0 candidates or members still being checked; 110
+race candidates and 5 members Self-funded. Open problems, not fixed:
+
+- **H-TX-26 is off the races list.** LINEBERGER, ERNEST ROBINSON III filed
+  the pre-general report but isn't on Wikipedia's list, so the seat was
+  held back: 474 races published, not 475, and `/race/2026/house/texas-26`
+  now serves the home page. The races job is switched off, so it stays
+  missing until the seat is recorded in `ballot.json` `checked` (with a
+  source) and races.yml is enabled and run once by hand.
+- **The held-seat alert closed itself.** Issue #83 (and #81 on Sunday) was
+  closed by the next daily check's `health-alert.sh` ("Recovered"), which
+  closes any open `system-alert` issue when /api/health passes, though
+  health doesn't know about held seats.
+- **The daily check rebuilt the site on 26 and 27 October** because it
+  couldn't read the live `/data/outside.json` from GitHub's runner ("the
+  live site has no outside-spending file"), though the file is there from
+  here. If that keeps up, the site rebuilds every day until 3 December.
 
 ## 2026-10-25 (night): Updates and corrections, with RSS
 
