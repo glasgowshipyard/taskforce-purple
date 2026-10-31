@@ -100,7 +100,8 @@ export async function loadBulk(itcontPath, committeeIds) {
       OTHER_ID AS other_id,
       MEMO_TEXT AS memo_text,
       'bulk' AS source,
-      TRANSACTION_TP IN (${types}) AND coalesce(MEMO_CD, '') <> 'X' AS counts
+      TRANSACTION_TP IN (${types}) AND coalesce(MEMO_CD, '') <> 'X' AS counts,
+      FILE_NUM AS file_num
     FROM read_csv('${itcontPath}', delim='|', header=false, quote='', escape='',
                   columns=${spec}, ignore_errors=true)
     WHERE CMTE_ID IN (${ids.map(i => `'${i}'`).join(',')})
@@ -132,6 +133,9 @@ export function apiRowToBulkShape(r, counts) {
     memo_text: r.memo_text || null,
     source: 'api',
     counts,
+    // The filing it came from: a report already processed isn't read again
+    // from its raw file (raw-filings.mjs)
+    file_num: r.file_number === null || r.file_number === undefined ? null : String(r.file_number),
   };
 }
 

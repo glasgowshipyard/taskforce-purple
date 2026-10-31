@@ -74,6 +74,7 @@ import { createFecClient, replayFec } from './lib/fec.mjs';
 import { memberDonorShape, pacExtras } from '../simulate/lib/inputs.mjs';
 import { ensureIrs, fecGroup, loadIrsIndex } from './lib/sponsors.mjs';
 import { loadStored, saveStored } from './lib/gap-store.mjs';
+import { addRawFilings } from './lib/raw-filings.mjs';
 import { publishGrades } from './lib/publish.mjs';
 
 // D1's free limits are per day for the whole account, shared with the
@@ -519,6 +520,22 @@ async function main() {
         committees.set(id, { committeeId: id, status: 'failed', note: error.message });
         log(`  ${id}: reconciliation failed: ${error.message}`);
       }
+    }
+
+    // 3b. Reports the FEC hasn't processed yet: their records from the raw
+    // filings, so the donor test covers the same reports as the totals
+    // (lib/raw-filings.mjs). A frozen simulation grades on its snapshot only
+    if (!frozen && !cutShort) {
+      const raw = await addRawFilings({
+        fec,
+        bulk,
+        committeeIds: ids,
+        cycle,
+        insertRows: insertApiRows,
+        log,
+      });
+      summary.rawReports = (summary.rawReports || 0) + raw.added.length;
+      summary.rawRefused = (summary.rawRefused || 0) + raw.refused.length;
     }
 
     // 4. Analyse and grade each member (Stage 2: recorded, not published)
