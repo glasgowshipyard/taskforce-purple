@@ -34,8 +34,10 @@ import { execFileSync } from 'node:child_process';
 import { existsSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import { DuckDBInstance } from '@duckdb/node-api';
+import { COMMITTEE_SINCE } from '../../../workers/fec-crosswalk-additions.js';
 import {
   campaignReportTotals,
+  reportTotalsFrom,
   classifyTransfers,
   combineVehicleTotals,
   donorCommitteeIds,
@@ -330,6 +332,23 @@ export async function discoverPeople({
   for (const id of vehicleIds.filter(id => converted.has(id))) {
     totals.set(id, converted.get(id));
   }
+  // Committees counted only from the day the member became their sponsor:
+  // their reports from then (fec-crosswalk-additions.js COMMITTEE_SINCE)
+  for (const id of vehicleIds.filter(id => COMMITTEE_SINCE[id])) {
+    const pac = totalsType(types.get(id)) === 'pac-party';
+    const d = await fec(pac ? '/reports/pac-party/' : '/reports/house-senate/', {
+      committee_id: id,
+      cycle,
+      per_page: 100,
+    });
+    const since = reportTotalsFrom(d.results || [], COMMITTEE_SINCE[id].from, pac);
+    if (since) {
+      totals.set(id, since);
+    } else {
+      totals.delete(id);
+    }
+    log(`discovery: ${id} counted from ${COMMITTEE_SINCE[id].from}: $${num(since?.receipts)}`);
+  }
   log(
     `discovery: ${people.length} members, ${vehicleIds.length} campaigns and PACs` +
       (converted.size ? ` (${[...converted.keys()].join(', ')}: campaigns that became PACs)` : '')
@@ -339,9 +358,9 @@ export async function discoverPeople({
   const withTotals = [...new Set(vehicleIds.filter(id => totals.has(id)))];
   const transfersIn = withTotals.length
     ? await read(
-        `SELECT committee_id, other_id, amount FROM oth WHERE tx_type IN ('18G', '18J') AND committee_id IN (${withTotals.map(() => '?').join(',')})`,
+        `SELECT committee_id, other_id, amount, date FROM oth WHERE tx_type IN ('18G', '18J') AND committee_id IN (${withTotals.map(() => '?').join(',')})`,
         ...withTotals
-      )
+      ).then(rows => rows.filter(r => !COMMITTEE_SINCE[r.committee_id] || (r.date && r.date >= COMMITTEE_SINCE[r.committee_id].from)))
     : [];
   for (const p of plans) {
     for (const v of p.moneyVehicles) {
