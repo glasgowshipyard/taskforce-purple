@@ -103,4 +103,7 @@ export const geoFiles = {
   zips: () => once('geo:zip', () => getJson('/geo/zip.json')),
   index: () => once('geo:index', () => getJson('/geo/index.json')),
   state: code => once(`geo:${code}`, () => getJson(`/geo/cd/${code}.json`)),
+  // The 2026 lines, for the states that redrew (scripts/geo/build-geo-2026.mjs)
+  zips2026: () => once('geo:zip:2026', () => getJson('/geo/2026/zip.json')),
+  state2026: code => once(`geo:${code}:2026`, () => getJson(`/geo/2026/cd/${code}.json`)),
 };
