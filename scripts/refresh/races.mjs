@@ -39,6 +39,7 @@ import { buildPacs, directingCommittees, platformIds } from './lib/final3.mjs';
 import { pacGifts, pacProfiles, upstreamGifts } from './lib/pacs.mjs';
 import { ensureIrs, loadIrsIndex } from './lib/sponsors.mjs';
 import { apiRowToBulkShape, ensureBulkFile, insertApiRows, loadBulk } from './lib/bulk.mjs';
+import { addRawFilings } from './lib/raw-filings.mjs';
 import { loadStored } from './lib/gap-store.mjs';
 import {
   classifyScheduleARow,
@@ -372,6 +373,9 @@ async function main() {
         );
       }
     }
+    // Reports the FEC hasn't processed yet, from the raw filings, as for
+    // members (lib/raw-filings.mjs)
+    await addRawFilings({ fec, bulk, committeeIds: ids, cycle, insertRows: insertApiRows, log });
     for (const c of batch) {
       const pf = discovered.get(c.candidateId);
       if (!pf?.donorCommitteeIds?.length) {
