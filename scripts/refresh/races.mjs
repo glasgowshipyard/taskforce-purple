@@ -309,9 +309,7 @@ async function main() {
     cycle,
     log,
   });
-  const cm = await db.read('SELECT id, name, type FROM cm');
-  const names = new Map(cm.map(c => [c.id, c.name]));
-  const cmType = new Map(cm.map(c => [c.id, c.type]));
+  const names = new Map((await db.read('SELECT id, name FROM cm')).map(c => [c.id, c.name]));
   // FINAL-3, as for members (refresh job): every committee whose money
   // reaches a candidate, who it answers to, and its share traced to people
   const giftsFor = new Map();
@@ -324,7 +322,6 @@ async function main() {
   // (lib/raw-filings.mjs campaignPacGifts)
   const raw = await campaignPacGifts({
     fec,
-    typeOf: id => cmType.get(id),
     committeeIds: [...discovered.values()].flatMap(pf => [
       ...vehiclesOf(pf),
       ...(pf.whole?.ownFunds || []),

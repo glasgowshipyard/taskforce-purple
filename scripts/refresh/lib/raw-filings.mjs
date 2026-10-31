@@ -339,15 +339,17 @@ async function download(fileNumber, fetchImpl) {
  * disagree with the campaigns'; Susan Collins's campaign reported $1.59M
  * from PACs and the PACs $2.56M). Reports the FEC has processed come from
  * its API (10 committees a call, the most it takes); the rest from the raw filings, each used
- * only when its PAC lines add up to its own line 11(c). `typeOf(id)`: the
- * committee's FEC type (H, S: campaign reports; else PAC reports).
+ * only when its PAC lines add up to its own line 11(c). Both report forms'
+ * line 11(c) are asked for, whatever the committee is registered as: a
+ * committee registered as a PAC can file campaign reports (Bonnie Watson
+ * Coleman's, 2026-10-31, whose list was asked for on the wrong form and
+ * came back nearly empty).
  * Returns the gifts by receiving committee, and the committees whose
  * gifts couldn't all be read (for those the caller keeps the PACs' side).
  */
 export async function campaignPacGifts({
   fec,
   committeeIds,
-  typeOf,
   cycle,
   log = () => {},
   fetchImpl = fetch,
@@ -358,49 +360,45 @@ export async function campaignPacGifts({
   const processed = new Map();
   const stats = { processed: 0, raw: 0, reports: 0, unnamed: 0 };
   const keep = (recipient, g) => byRecipient.get(recipient)?.push(g);
-  const campaign = id => ['H', 'S'].includes(typeOf(id));
-  for (const [form, list] of [
-    ['F3', ids.filter(campaign)],
-    ['F3X', ids.filter(id => !campaign(id))],
-  ]) {
-    for (let i = 0; i < list.length; i += 10) {
-      const chunk = list.slice(i, i + 10);
-      try {
-        await scheduleAPages(
-          fec,
-          { committee_id: chunk, two_year_transaction_period: cycle, line_number: `${form}-11C` },
-          rows => {
-            for (const r of rows) {
-              const seen = processed.get(r.committee_id) || { files: new Set(), newest: null };
-              seen.files.add(String(r.file_number));
-              const date = String(r.contribution_receipt_date || '').slice(0, 10) || null;
-              if (date && (!seen.newest || date > seen.newest)) {
-                seen.newest = date;
-              }
-              processed.set(r.committee_id, seen);
-              if (r.memo_code === 'X') {
-                continue;
-              }
-              if (!/^C\d{8}$/.test(r.contributor_id || '')) {
-                stats.unnamed++;
-                continue;
-              }
-              stats.processed++;
-              keep(r.committee_id, {
-                giver: r.contributor_id,
-                recipient: r.committee_id,
-                amount: Math.round(Number(r.contribution_receipt_amount) * 100) / 100,
-                date,
-              });
+  for (let i = 0; i < ids.length; i += 10) {
+    const chunk = ids.slice(i, i + 10);
+    try {
+      await scheduleAPages(
+        fec,
+        {
+          committee_id: chunk,
+          two_year_transaction_period: cycle,
+          line_number: ['F3-11C', 'F3X-11C'],
+        },
+        rows => {
+          for (const r of rows) {
+            const seen = processed.get(r.committee_id) || { files: new Set(), newest: null };
+            seen.files.add(String(r.file_number));
+            const date = String(r.contribution_receipt_date || '').slice(0, 10) || null;
+            if (date && (!seen.newest || date > seen.newest)) {
+              seen.newest = date;
             }
+            processed.set(r.committee_id, seen);
+            if (r.memo_code === 'X') {
+              continue;
+            }
+            if (!/^C\d{8}$/.test(r.contributor_id || '')) {
+              stats.unnamed++;
+              continue;
+            }
+            stats.processed++;
+            keep(r.committee_id, {
+              giver: r.contributor_id,
+              recipient: r.committee_id,
+              amount: Math.round(Number(r.contribution_receipt_amount) * 100) / 100,
+              date,
+            });
           }
-        );
-      } catch (error) {
-        chunk.forEach(id => missing.add(id));
-        log(
-          `  PAC gifts for ${chunk.join(', ')}: ${error.message}; the PACs' own reports are used`
-        );
-      }
+        }
+      );
+    } catch (error) {
+      chunk.forEach(id => missing.add(id));
+      log(`  PAC gifts for ${chunk.join(', ')}: ${error.message}; the PACs' own reports are used`);
     }
   }
   const reports = unprocessedReports(

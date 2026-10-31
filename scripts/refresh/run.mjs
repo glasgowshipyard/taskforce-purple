@@ -302,10 +302,8 @@ async function main() {
       cycle,
       log,
     });
-    const cmType = new Map();
-    for (const c of await db.read('SELECT id, name, type FROM cm')) {
+    for (const c of await db.read('SELECT id, name FROM cm')) {
       conduitNames.set(c.id, c.name);
-      cmType.set(c.id, c.type);
       if (PLATFORM.test(String(c.name || '').toUpperCase())) {
         platforms.add(c.id);
       }
@@ -326,7 +324,6 @@ async function main() {
       ? null
       : await campaignPacGifts({
           fec,
-          typeOf: id => cmType.get(id),
           committeeIds: [...discovered.values()].flatMap(pf => [
             ...vehiclesOf(pf),
             ...(pf.whole?.ownFunds || []),
