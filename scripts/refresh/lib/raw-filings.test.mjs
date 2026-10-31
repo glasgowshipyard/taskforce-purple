@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { parseRawFiling, unprocessedReports } from './raw-filings.mjs';
+import { campaignPacGifts, parseRawFiling, unprocessedReports } from './raw-filings.mjs';
 
 const FS = '\x1c';
 const line = cells => cells.join(FS);
@@ -163,5 +163,46 @@ describe('PAC gifts in raw reports', () => {
     const p = parseRawFiling(file('100.00', [...donors, ...gifts], '5000.00'), 7);
     expect(p.pacs.ok).toBe(false);
     expect(p.ok).toBe(true);
+  });
+});
+
+describe('campaignPacGifts', () => {
+  // A stand-in FEC that, like the real one, answers for the first line
+  // number only. A PAC-registered committee filing campaign reports
+  // (C00000001) and a leadership PAC filing PAC reports (C00000002)
+  const records = [
+    { committee_id: 'C00000001', line: 'F3-11C', contributor_id: 'C00000009', amount: 5000 },
+    { committee_id: 'C00000002', line: 'F3X-11C', contributor_id: 'C00000008', amount: 2500 },
+  ];
+  const fec = async (path, params) => {
+    if (path === '/efile/filings/') {
+      return { results: [] };
+    }
+    if (params.last_index) {
+      return { results: [] };
+    }
+    const line = [params.line_number].flat()[0];
+    return {
+      results: records
+        .filter(r => r.line === line && params.committee_id.includes(r.committee_id))
+        .map((r, i) => ({
+          committee_id: r.committee_id,
+          contributor_id: r.contributor_id,
+          contribution_receipt_amount: r.amount,
+          contribution_receipt_date: '2026-08-01',
+          file_number: 100 + i,
+        })),
+      pagination: { last_indexes: { last_index: 'x' } },
+    };
+  };
+  it('reads both report forms for every committee', async () => {
+    const side = await campaignPacGifts({
+      fec,
+      committeeIds: ['C00000001', 'C00000002'],
+      cycle: 2026,
+    });
+    expect(side.byRecipient.get('C00000001').map(g => g.amount)).toEqual([5000]);
+    expect(side.byRecipient.get('C00000002').map(g => g.amount)).toEqual([2500]);
+    expect(side.missing.size).toBe(0);
   });
 });
