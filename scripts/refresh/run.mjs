@@ -68,6 +68,7 @@ import { ensureFara } from './lib/fara.mjs';
 import { PRODUCTION_VARIANT, VARIANTS, gradeVariants, untraced } from './lib/pac-sim.mjs';
 import {
   campaignSideGifts,
+  shortLists,
   pacGifts,
   pacProfiles,
   pacSummary,
@@ -337,6 +338,11 @@ async function main() {
         id,
         raw ? await campaignSideGifts(db, vehicles, raw) : await pacGifts(db, vehicles)
       );
+      for (const c of raw ? shortLists(pf.committees, raw) : []) {
+        log(
+          `  PAC list short: ${c.committeeId} lists $${c.listed} of the $${c.reported} its reports total`
+        );
+      }
       // FINAL-3: the member's own joint funds count in full, their PAC gifts too
       if (pf.whole?.ownFunds?.length) {
         fundGiftsFor.set(

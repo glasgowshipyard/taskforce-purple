@@ -131,6 +131,25 @@ function sinceClause(recipient, date) {
     .join(' ');
 }
 
+/**
+ * The committees whose list of PAC gifts (campaignPacGifts: `side`) comes to
+ * well under the PAC money their own reports total: under 90% and more than
+ * $10,000 short. Lines naming no FEC ID and party gifts make a list a little
+ * short; a list asked for on the wrong form came back nearly empty and
+ * nothing said so (2026-10-31). `committees`: personFunding's breakdown.
+ */
+export function shortLists(committees, side) {
+  return (committees || [])
+    .filter(c => c.role === 'campaign' || c.role === 'leadership')
+    .filter(c => side.byRecipient.has(c.committeeId) && !side.missing.has(c.committeeId))
+    .map(c => ({
+      committeeId: c.committeeId,
+      listed: cents(side.byRecipient.get(c.committeeId).reduce((t, g) => t + g.amount, 0)),
+      reported: cents(c.pac),
+    }))
+    .filter(c => c.listed < 0.9 * c.reported && c.reported - c.listed > 10000);
+}
+
 /** Gifts in the shape the grade reads (tier-calculation.js). */
 export function asPacContributions(gifts) {
   return gifts.map(g => ({

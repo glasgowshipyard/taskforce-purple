@@ -11,6 +11,7 @@ import {
   pacGifts,
   pacProfiles,
   pacSummary,
+  shortLists,
 } from './pacs.mjs';
 
 const dir = mkdtempSync(join(tmpdir(), 'tfp-pacs-'));
@@ -141,5 +142,27 @@ describe('PAC gifts (#57)', () => {
     // Each PAC's share traced to people, as the grade counts it
     expect(summary.list[0].peopleShare).toBeCloseTo(traced.get(summary.list[0].id)[2].share, 3);
     expect(summary.list.find(p => !profiles.has(p.id)).peopleShare).toBeNull();
+  });
+});
+
+describe('shortLists', () => {
+  const side = {
+    byRecipient: new Map([
+      ['C00000001', [{ giver: 'C00000009', amount: 15000 }]],
+      ['C00000002', [{ giver: 'C00000009', amount: 98000 }]],
+      ['C00000003', []],
+    ]),
+    missing: new Set(['C00000003']),
+  };
+  it('names a list well under its own reported PAC total', () => {
+    const committees = [
+      { committeeId: 'C00000001', role: 'leadership', pac: 139583 },
+      { committeeId: 'C00000002', role: 'campaign', pac: 100000 },
+      { committeeId: 'C00000003', role: 'campaign', pac: 500000 },
+      { committeeId: 'C00000004', role: 'joint', pac: 500000 },
+    ];
+    expect(shortLists(committees, side)).toEqual([
+      { committeeId: 'C00000001', listed: 15000, reported: 139583 },
+    ]);
   });
 });

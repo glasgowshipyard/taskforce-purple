@@ -37,7 +37,13 @@ import {
 import { memberDonorShape } from '../simulate/lib/inputs.mjs';
 import { analyzePool, loadFara } from './lib/analysis.mjs';
 import { buildPacs, directingCommittees, platformIds } from './lib/final3.mjs';
-import { campaignSideGifts, pacGifts, pacProfiles, upstreamGifts } from './lib/pacs.mjs';
+import {
+  campaignSideGifts,
+  shortLists,
+  pacGifts,
+  pacProfiles,
+  upstreamGifts,
+} from './lib/pacs.mjs';
 import { ensureIrs, loadIrsIndex } from './lib/sponsors.mjs';
 import { apiRowToBulkShape, ensureBulkFile, insertApiRows, loadBulk } from './lib/bulk.mjs';
 import { addRawFilings, campaignPacGifts, dropBefore } from './lib/raw-filings.mjs';
@@ -335,6 +341,11 @@ async function main() {
       id,
       raw ? await campaignSideGifts(db, vehicles, raw) : await pacGifts(db, vehicles)
     );
+    for (const c of raw ? shortLists(pf.committees, raw) : []) {
+      log(
+        `  PAC list short: ${c.committeeId} lists $${c.listed} of the $${c.reported} its reports total`
+      );
+    }
     if (pf.whole?.ownFunds?.length) {
       fundGiftsFor.set(
         id,
