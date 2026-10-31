@@ -26,6 +26,7 @@ import { appendFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } fr
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { FEC_CROSSWALK } from '../../workers/fec-crosswalk.js';
+import { crosswalkIdsFor } from '../../workers/fec-identity.js';
 import { committeesFinal3, gradeMemberFinal3 } from '../../workers/grading.js';
 import { LIST_KEY, sameValue } from '../../workers/member-store.js';
 import {
@@ -166,8 +167,12 @@ async function main() {
   );
 
   const memberOf = new Map();
-  for (const [bioguideId, ids] of Object.entries(FEC_CROSSWALK)) {
-    for (const id of ids) {
+  // The generated crosswalk plus the hand-checked additions, as for grading
+  // (fec-identity.js): without them a member found only there (Darline
+  // Graham, 2026-10-31) was graded as a candidate on the race page and showed
+  // no grade on their own
+  for (const bioguideId of Object.keys(FEC_CROSSWALK)) {
+    for (const id of crosswalkIdsFor(bioguideId)) {
       memberOf.set(id, bioguideId);
     }
   }
