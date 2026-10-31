@@ -398,28 +398,48 @@ export async function rawPacGifts({
 
 /**
  * Raw PAC gifts not already on a PAC's own processed report: matched one to
- * one on giving PAC, receiving committee and amount, within 15 days (a PAC
- * dates a gift when it's sent, the campaign when it arrives). `processed`:
- * the PACs' own lines, { giver, recipient, amount, date }.
+ * one on giving PAC, receiving committee and amount, the closest dates
+ * first. A PAC dates a gift when it sends it and the campaign when it banks
+ * it, up to weeks later (2026-10-31: a $5,000 cheque sent 10 August was
+ * banked 3 September), so a campaign's date can be up to 60 days after the
+ * PAC's or 10 days before it. `processed`: the PACs' own lines,
+ * { giver, recipient, amount, date }.
  */
+export const MATCH_DAYS = { after: 60, before: 10 };
 export function unmatchedGifts(raw, processed) {
-  const days = (a, b) => Math.abs(Date.parse(a) - Date.parse(b)) / 864e5;
+  const lag = (sent, banked) => (Date.parse(banked) - Date.parse(sent)) / 864e5;
   const pool = processed.map(g => ({ ...g, used: false }));
-  return raw.filter(g => {
-    const twin = pool.find(
-      p =>
-        !p.used &&
-        p.giver === g.giver &&
-        p.recipient === g.recipient &&
-        Math.abs(p.amount - g.amount) < 0.005 &&
-        (!p.date || !g.date || days(p.date, g.date) <= 15)
-    );
-    if (twin) {
-      twin.used = true;
+  const fits = (p, g) => {
+    if (p.used || p.giver !== g.giver || p.recipient !== g.recipient) {
       return false;
     }
-    return true;
-  });
+    if (Math.abs(p.amount - g.amount) >= 0.005) {
+      return false;
+    }
+    if (!p.date || !g.date) {
+      return true;
+    }
+    const d = lag(p.date, g.date);
+    return d <= MATCH_DAYS.after && d >= -MATCH_DAYS.before;
+  };
+  // Closest pairs first, so one PAC's two equal gifts each find their own
+  const pairs = [];
+  raw.forEach((g, gi) =>
+    pool.forEach((p, pi) => {
+      if (fits(p, g)) {
+        pairs.push({ gi, pi, d: p.date && g.date ? Math.abs(lag(p.date, g.date)) : 0 });
+      }
+    })
+  );
+  pairs.sort((a, b) => a.d - b.d);
+  const matched = new Set();
+  for (const { gi, pi } of pairs) {
+    if (!matched.has(gi) && !pool[pi].used) {
+      matched.add(gi);
+      pool[pi].used = true;
+    }
+  }
+  return raw.filter((_, gi) => !matched.has(gi));
 }
 
 /**

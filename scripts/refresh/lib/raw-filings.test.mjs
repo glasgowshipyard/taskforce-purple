@@ -165,16 +165,18 @@ describe('PAC gifts in raw reports', () => {
     expect(p.ok).toBe(true);
   });
 
-  it("drops a gift already on the PAC's own report, once", () => {
+  it("drops a gift already on the PAC's own report, once, closest dates first", () => {
     const raw = [
-      { giver: 'C1', recipient: 'R', amount: 5000, date: '2026-10-02' },
+      // banked 24 days after it was sent (seen 2026-10-31)
+      { giver: 'C1', recipient: 'R', amount: 5000, date: '2026-09-03' },
       { giver: 'C1', recipient: 'R', amount: 5000, date: '2026-10-05' },
       { giver: 'C2', recipient: 'R', amount: 1000, date: '2026-10-02' },
     ];
     const processed = [
-      { giver: 'C1', recipient: 'R', amount: 5000, date: '2026-09-29' },
+      { giver: 'C1', recipient: 'R', amount: 5000, date: '2026-08-10' },
+      { giver: 'C1', recipient: 'R', amount: 5000, date: '2026-10-01' },
       { giver: 'C2', recipient: 'R', amount: 1000, date: '2026-07-01' },
     ];
-    expect(unmatchedGifts(raw, processed)).toEqual([raw[1], raw[2]]);
+    expect(unmatchedGifts(raw, processed)).toEqual([raw[2]]);
   });
 });
