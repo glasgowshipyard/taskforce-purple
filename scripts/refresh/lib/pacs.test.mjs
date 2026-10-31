@@ -5,7 +5,13 @@ import { join } from 'node:path';
 import { DuckDBInstance } from '@duckdb/node-api';
 import { describe, expect, it } from 'vitest';
 import { pacPeopleCredit, tracePacs } from '../../../workers/tier-calculation.js';
-import { asPacContributions, pacGifts, pacProfiles, pacSummary } from './pacs.mjs';
+import {
+  asPacContributions,
+  campaignSideGifts,
+  pacGifts,
+  pacProfiles,
+  pacSummary,
+} from './pacs.mjs';
 
 const dir = mkdtempSync(join(tmpdir(), 'tfp-pacs-'));
 const indiv = (cmte, name, amount, sub) =>
@@ -81,6 +87,31 @@ describe('PAC gifts (#57)', () => {
       committee_type: 'Q',
       designation: 'B',
     });
+  });
+
+  it('the gifts as the campaign reported them, party and own committees left out', async () => {
+    const side = {
+      missing: new Set(),
+      byRecipient: new Map([
+        [
+          'C00000099',
+          [
+            { giver: 'C00000010', recipient: 'C00000099', amount: 5000, date: '2026-08-01' },
+            { giver: 'C00000010', recipient: 'C00000099', amount: 2000, date: '2026-09-01' },
+            { giver: 'C00000030', recipient: 'C00000099', amount: 5000, date: '2026-09-01' },
+            { giver: 'C00000040', recipient: 'C00000099', amount: 1000, date: '2026-09-01' },
+          ],
+        ],
+      ]),
+    };
+    const gifts = await campaignSideGifts(await db(), ['C00000099'], side, ['C00000040']);
+    expect(gifts.map(g => [g.id, g.amount, g.gifts])).toEqual([['C00000010', 7000, 2]]);
+  });
+
+  it("keeps the PACs' side for a committee whose own records couldn't be read", async () => {
+    const side = { missing: new Set(['C00000099']), byRecipient: new Map() };
+    const gifts = await campaignSideGifts(await db(), ['C00000099'], side);
+    expect(gifts.map(g => g.amount)).toEqual([7500, 5000, 1000]);
   });
 
   it("each PAC's own donors: many people versus a few", async () => {

@@ -37,10 +37,10 @@ import {
 import { memberDonorShape } from '../simulate/lib/inputs.mjs';
 import { analyzePool, loadFara } from './lib/analysis.mjs';
 import { buildPacs, directingCommittees, platformIds } from './lib/final3.mjs';
-import { pacGifts, pacProfiles, upstreamGifts, withRawGifts } from './lib/pacs.mjs';
+import { campaignSideGifts, pacGifts, pacProfiles, upstreamGifts } from './lib/pacs.mjs';
 import { ensureIrs, loadIrsIndex } from './lib/sponsors.mjs';
 import { apiRowToBulkShape, ensureBulkFile, insertApiRows, loadBulk } from './lib/bulk.mjs';
-import { addRawFilings, dropBefore, rawPacGifts } from './lib/raw-filings.mjs';
+import { addRawFilings, campaignPacGifts, dropBefore } from './lib/raw-filings.mjs';
 import { loadStored } from './lib/gap-store.mjs';
 import {
   classifyScheduleARow,
@@ -309,7 +309,9 @@ async function main() {
     cycle,
     log,
   });
-  const names = new Map((await db.read('SELECT id, name FROM cm')).map(c => [c.id, c.name]));
+  const cm = await db.read('SELECT id, name, type FROM cm');
+  const names = new Map(cm.map(c => [c.id, c.name]));
+  const cmType = new Map(cm.map(c => [c.id, c.type]));
   // FINAL-3, as for members (refresh job): every committee whose money
   // reaches a candidate, who it answers to, and its share traced to people
   const giftsFor = new Map();
@@ -318,11 +320,11 @@ async function main() {
     (pf.committees || [])
       .filter(c => c.role === 'campaign' || c.role === 'leadership')
       .map(c => c.committeeId);
-  // PAC gifts on reports the FEC hasn't processed yet, from the raw filings
-  // (lib/raw-filings.mjs), as for members
-  const raw = await rawPacGifts({
+  // Each gift as the candidate's own committees reported it, as for members
+  // (lib/raw-filings.mjs campaignPacGifts)
+  const raw = await campaignPacGifts({
     fec,
-    itcontPath: file.path,
+    typeOf: id => cmType.get(id),
     committeeIds: [...discovered.values()].flatMap(pf => [
       ...vehiclesOf(pf),
       ...(pf.whole?.ownFunds || []),
@@ -334,18 +336,14 @@ async function main() {
     const vehicles = vehiclesOf(pf);
     giftsFor.set(
       id,
-      await withRawGifts(db, await pacGifts(db, vehicles), vehicles, raw.byRecipient)
+      raw ? await campaignSideGifts(db, vehicles, raw) : await pacGifts(db, vehicles)
     );
     if (pf.whole?.ownFunds?.length) {
       fundGiftsFor.set(
         id,
-        await withRawGifts(
-          db,
-          await pacGifts(db, pf.whole.ownFunds, vehicles),
-          pf.whole.ownFunds,
-          raw.byRecipient,
-          vehicles
-        )
+        raw
+          ? await campaignSideGifts(db, pf.whole.ownFunds, raw, vehicles)
+          : await pacGifts(db, pf.whole.ownFunds, vehicles)
       );
     }
   }

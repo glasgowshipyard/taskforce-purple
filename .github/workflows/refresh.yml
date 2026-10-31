@@ -68,9 +68,11 @@ jobs:
           GRADE_ONLY: ${{ inputs.grade_only }}
           REPORT: ${{ inputs.report }}
           # The key allows 120 FEC calls a minute (upgraded 2026-10-07). The
-          # check takes about 86 of them, leaving room for a grade-only or
-          # races run alongside it (30 a minute each)
-          FEC_MIN_INTERVAL_MS: ${{ inputs.grade_only && '2000' || '700' }}
+          # check takes about 86 of them, leaving room for a races run
+          # alongside it (30 a minute). A grade-only run takes 50 since it
+          # reads every committee's own PAC lines (2026-10-31, about 1,800
+          # calls): with a races run beside it, 80
+          FEC_MIN_INTERVAL_MS: ${{ inputs.grade_only && '1200' || '700' }}
         run: |
           # Stop cleanly before the job's 350-minute limit; the next run of the
           # round continues where this one stopped

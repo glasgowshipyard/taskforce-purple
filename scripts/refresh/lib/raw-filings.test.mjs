@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { parseRawFiling, unmatchedGifts, unprocessedReports } from './raw-filings.mjs';
+import { parseRawFiling, unprocessedReports } from './raw-filings.mjs';
 
 const FS = '\x1c';
 const line = cells => cells.join(FS);
@@ -163,20 +163,5 @@ describe('PAC gifts in raw reports', () => {
     const p = parseRawFiling(file('100.00', [...donors, ...gifts], '5000.00'), 7);
     expect(p.pacs.ok).toBe(false);
     expect(p.ok).toBe(true);
-  });
-
-  it("drops a gift already on the PAC's own report, once, closest dates first", () => {
-    const raw = [
-      // banked 24 days after it was sent (seen 2026-10-31)
-      { giver: 'C1', recipient: 'R', amount: 5000, date: '2026-09-03' },
-      { giver: 'C1', recipient: 'R', amount: 5000, date: '2026-10-05' },
-      { giver: 'C2', recipient: 'R', amount: 1000, date: '2026-10-02' },
-    ];
-    const processed = [
-      { giver: 'C1', recipient: 'R', amount: 5000, date: '2026-08-10' },
-      { giver: 'C1', recipient: 'R', amount: 5000, date: '2026-10-01' },
-      { giver: 'C2', recipient: 'R', amount: 1000, date: '2026-07-01' },
-    ];
-    expect(unmatchedGifts(raw, processed)).toEqual([raw[2]]);
   });
 });
