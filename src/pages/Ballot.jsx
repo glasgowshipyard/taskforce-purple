@@ -19,7 +19,7 @@ import {
   stateName,
   usd,
 } from '../lib/people.js';
-import { racesFor, savePlace, savedPlace } from '../lib/place.js';
+import { racesFor, saveBallotPlace, savedBallotPlace } from '../lib/place.js';
 import {
   Link,
   candidatePath,
@@ -407,7 +407,7 @@ function NotYet() {
 export default function Ballot({ raceKey, raceCycle = null }) {
   const races = useAsync(() => api.races(), []);
   const outside = useAsync(() => api.outside(), []);
-  const [place, setPlace] = useState(savedPlace);
+  const [place, setPlace] = useState(savedBallotPlace);
   const all = races.data?.races || [];
   // Another cycle's race isn't in this list (past cycles: #73)
   const sameCycle = !raceCycle || raceCycle === races.data?.cycle;
@@ -467,8 +467,9 @@ export default function Ballot({ raceKey, raceCycle = null }) {
             <Lookup
               idPrefix="ballot"
               submitLabel="Find my ballot"
+              ballot
               onFound={p => {
-                savePlace(p);
+                saveBallotPlace(p);
                 setPlace(p);
               }}
             />

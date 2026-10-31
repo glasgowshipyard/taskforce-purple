@@ -13,6 +13,7 @@ import {
   parseZipEntry,
   prepareState,
 } from '../lib/geo.js';
+import { REDRAWN_2026 } from '../lib/redistricting.js';
 import { STATES, stateByCode } from '../lib/states.js';
 
 const prepared = new Map();
@@ -49,23 +50,40 @@ function position() {
 
 /**
  * onFound({ state, district }) once we know where. `submitLabel` and `dark`
- * let the same form sit in the dark hero or on a light page.
+ * let the same form sit in the dark hero or on a light page. `ballot`: for
+ * the 2026 races, where a state whose lines changed for this election
+ * (lib/redistricting.js) can't be looked up from the older district files,
+ * so the visitor finds their district on the state's own lookup and picks it.
  */
 export default function Lookup({
   onFound,
   submitLabel = 'Find my representatives',
   idPrefix = 'lookup',
+  ballot = false,
 }) {
   const [zip, setZip] = useState('');
   const [busy, setBusy] = useState(null);
   const [status, setStatus] = useState(null);
   const [choices, setChoices] = useState(null);
   const [pickState, setPickState] = useState(false);
+  const [redrawnState, setRedrawnState] = useState(null);
 
   const reset = () => {
     setStatus(null);
     setChoices(null);
     setPickState(false);
+    setRedrawnState(null);
+  };
+
+  // A place found: unless this is for the races and its state's lines
+  // changed for 2026, where the visitor picks their new district instead
+  const arrive = place => {
+    if (ballot && REDRAWN_2026[place.state]) {
+      reset();
+      setRedrawnState(place.state);
+      return;
+    }
+    onFound(place);
   };
 
   const byZip = async e => {
@@ -86,7 +104,9 @@ export default function Lookup({
         );
         setPickState(true);
       } else if (parts.length === 1) {
-        onFound({ state: parts[0].state, district: parts[0].district });
+        arrive({ state: parts[0].state, district: parts[0].district });
+      } else if (ballot && REDRAWN_2026[parts[0].state]) {
+        arrive({ state: parts[0].state, district: null });
       } else {
         setStatus(
           `ZIP code ${z} is split between ${parts.length} congressional districts. Which one do you live in?`
@@ -114,13 +134,15 @@ export default function Lookup({
           "That location isn't in a U.S. congressional district. You can enter a ZIP code or choose your state instead."
         );
         setPickState(true);
+      } else if (ballot && REDRAWN_2026[parseDistrict(found.key).state]) {
+        arrive(parseDistrict(found.key));
       } else if (found.near.length) {
         setStatus(
           "You're close to a district boundary, so it isn't clear which district you're in. Which one is yours?"
         );
         setChoices([found.key, ...found.near].map(parseDistrict));
       } else {
-        onFound(parseDistrict(found.key));
+        arrive(parseDistrict(found.key));
       }
     } catch (err) {
       setStatus(
@@ -198,6 +220,13 @@ export default function Lookup({
             ))}
           </div>
         )}
+        {redrawnState && (
+          <RedrawnPick
+            state={redrawnState}
+            idPrefix={idPrefix}
+            onPick={district => onFound({ state: redrawnState, district })}
+          />
+        )}
         {pickState && (
           <div className="choices">
             <label className="sr-only" htmlFor={`${idPrefix}-state`}>
@@ -207,7 +236,7 @@ export default function Lookup({
               id={`${idPrefix}-state`}
               className="state-select"
               defaultValue=""
-              onChange={e => e.target.value && onFound({ state: e.target.value, district: null })}
+              onChange={e => e.target.value && arrive({ state: e.target.value, district: null })}
             >
               <option value="" disabled>
                 Choose your state
@@ -224,5 +253,43 @@ export default function Lookup({
         )}
       </div>
     </div>
+  );
+}
+
+// A state whose lines changed for 2026: its official lookup, then its districts
+function RedrawnPick({ state, idPrefix, onPick }) {
+  const name = stateByCode[state]?.name || state;
+  const { districts, lookup } = REDRAWN_2026[state];
+  return (
+    <>
+      <p>
+        {name}&apos;s district lines changed for this election, and this site&apos;s district lookup
+        still has the old ones. Find your district with{' '}
+        <a href={lookup} target="_blank" rel="noopener noreferrer">
+          {name}&apos;s official voter lookup
+        </a>
+        , then choose it here.
+      </p>
+      <div className="choices">
+        <label className="sr-only" htmlFor={`${idPrefix}-district`}>
+          Your district
+        </label>
+        <select
+          id={`${idPrefix}-district`}
+          className="state-select"
+          defaultValue=""
+          onChange={e => e.target.value && onPick(Number(e.target.value))}
+        >
+          <option value="" disabled>
+            Choose your district
+          </option>
+          {Array.from({ length: districts }, (_, i) => (
+            <option key={i + 1} value={i + 1}>
+              {name} district {i + 1}
+            </option>
+          ))}
+        </select>
+      </div>
+    </>
   );
 }

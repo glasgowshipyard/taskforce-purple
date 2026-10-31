@@ -20,7 +20,7 @@ import {
 import { useAsync, useCountUp, useInView, useTitle } from '../lib/hooks.js';
 import { BOOSTED_SHORT, boostedOf } from '../lib/outside.js';
 import { ballotPartyName, displayName, raceSeat, stateName, usdShort } from '../lib/people.js';
-import { savePlace } from '../lib/place.js';
+import { saveBallotPlace } from '../lib/place.js';
 import {
   VIEWS,
   bandOf,
@@ -98,8 +98,9 @@ function Hero({ figures }) {
           <Lookup
             idPrefix="races"
             submitLabel="Find my ballot"
+            ballot
             onFound={p => {
-              savePlace(p);
+              saveBallotPlace(p);
               navigate('/ballot');
             }}
           />
