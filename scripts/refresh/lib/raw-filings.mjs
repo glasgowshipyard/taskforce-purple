@@ -17,11 +17,12 @@ export const rawFilingUrl = fileNumber => `https://docquery.fec.gov/dcdev/posted
 // period replaces the others
 export const REPORT_FORMS = ['F3N', 'F3A', 'F3XN', 'F3XA'];
 
-// Summary-line columns (FEC format 8.x): the coverage dates and line 11(a)(i),
+// Summary-line columns (FEC format 8.x): the coverage dates, line 11(a)(i),
 // itemized contributions from individuals, for the period
+// and line 11(c), contributions from other political committees (PACs)
 const SUMMARY = {
-  F3: { from: 15, to: 16, itemized: 32 },
-  F3X: { from: 13, to: 14, itemized: 29 },
+  F3: { from: 15, to: 16, itemized: 32, pacs: 36 },
+  F3X: { from: 13, to: 14, itemized: 29, pacs: 33 },
 };
 
 // Schedule A columns (FEC format 8.x)
@@ -69,17 +70,19 @@ export function parseRawFiling(text, fileNumber) {
   if (!at) {
     return { ok: false, why: `not a report (${summary[0] || 'empty'})`, rows: [] };
   }
-  const rows = lines
-    // Some filing programs write the line code in lower case ("SA11Ai"), and
-    // some leave empty fields off the end of a line
-    .filter(l => l.slice(0, 7).toUpperCase() === `SA11AI${SEPARATOR}`)
-    .map(l => {
-      const r = l.split(SEPARATOR).map(unquote);
-      while (r.length <= SA.memoText) {
-        r.push('');
-      }
-      return r;
-    });
+  // Some filing programs write the line code in lower case ("SA11Ai"), and
+  // some leave empty fields off the end of a line
+  const linesOf = code =>
+    lines
+      .filter(l => l.slice(0, code.length + 1).toUpperCase() === `${code}${SEPARATOR}`)
+      .map(l => {
+        const r = l.split(SEPARATOR).map(unquote);
+        while (r.length <= SA.memoText) {
+          r.push('');
+        }
+        return r;
+      });
+  const rows = linesOf('SA11AI');
   // The conduit an earmarked gift came through: the conduit's own line that
   // the gift refers back to, else the committee its memo names
   const committeeOf = new Map();
@@ -139,15 +142,45 @@ export function parseRawFiling(text, fileNumber) {
     to: bulkDate(reorder(unquote(summary[at.to]))),
     itemized: reported / 100,
   };
+  const pacs = pacGiftsOf(linesOf('SA11C'), cents(unquote(summary[at.pacs])));
   if (sum !== reported) {
     return {
       ok: false,
       why: `records add up to $${(sum / 100).toFixed(2)}, the report says $${(reported / 100).toFixed(2)}`,
       report,
       rows: [],
+      pacs,
     };
   }
-  return { ok: true, report, rows: records };
+  return { ok: true, report, rows: records, pacs };
+}
+
+// The report's PAC gifts (line 11c), used only when they add up to the
+// report's own line 11(c) total to the cent. A line that names no FEC ID is
+// kept out of the list: with no committee to look up it counts as no one's
+// people money, which is how the grade treats a PAC it can't test
+function pacGiftsOf(rows, reported) {
+  const counted = rows.filter(r => r[SA.memoCode] !== 'X');
+  const sum = counted.reduce((t, r) => t + cents(r[SA.amount]), 0);
+  if (sum !== reported) {
+    return {
+      ok: false,
+      why: `PAC gifts add up to $${(sum / 100).toFixed(2)}, the report says $${(reported / 100).toFixed(2)}`,
+      gifts: [],
+      unnamed: 0,
+    };
+  }
+  const named = counted.filter(r => /^C\d{8}$/.test(r[SA.donorCommittee]));
+  return {
+    ok: true,
+    gifts: named.map(r => ({
+      giver: r[SA.donorCommittee],
+      recipient: r[SA.committee],
+      amount: Math.round(Number(r[SA.amount]) * 100) / 100,
+      date: bulkDate(reorder(r[SA.date])),
+    })),
+    unnamed: counted.length - named.length,
+  };
 }
 
 // Raw filings write dates YYYYMMDD; bulkDate takes the bulk file's MMDDYYYY
@@ -238,36 +271,10 @@ export async function addRawFilings({
       },
     ])
   );
-  const filings = [];
-  for (let i = 0; i < ids.length; i += 20) {
-    const chunk = ids.slice(i, i + 20);
-    for (let page = 1; ; page++) {
-      const d = await fec('/efile/filings/', {
-        committee_id: chunk,
-        form_type: REPORT_FORMS,
-        min_receipt_date: `${cycle - 1}-01-01`,
-        per_page: 100,
-        page,
-        sort: '-receipt_date',
-      });
-      filings.push(...(d.results || []));
-      if (page >= (d.pagination?.pages || 1)) {
-        break;
-      }
-    }
-  }
+  const filings = await listFilings(fec, ids, cycle);
   for (const r of unprocessedReports(filings, processed)) {
     try {
-      const res = await fetchImpl(rawFilingUrl(r.fileNumber), {
-        headers: { 'User-Agent': 'taskforce-purple-refresh' },
-      });
-      if (!res.ok) {
-        throw new Error(`HTTP ${res.status}`);
-      }
-      const parsed = parseRawFiling(
-        Buffer.from(await res.arrayBuffer()).toString('latin1'),
-        r.fileNumber
-      );
+      const parsed = parseRawFiling(await download(r.fileNumber, fetchImpl), r.fileNumber);
       if (!parsed.ok) {
         refused.push({ ...r, why: parsed.why });
         log(
@@ -287,4 +294,129 @@ export async function addRawFilings({
     }
   }
   return { added, refused };
+}
+
+// The committees' report filings this cycle, 20 committees a call
+async function listFilings(fec, ids, cycle) {
+  const filings = [];
+  for (let i = 0; i < ids.length; i += 20) {
+    const chunk = ids.slice(i, i + 20);
+    for (let page = 1; ; page++) {
+      const d = await fec('/efile/filings/', {
+        committee_id: chunk,
+        form_type: REPORT_FORMS,
+        min_receipt_date: `${cycle - 1}-01-01`,
+        per_page: 100,
+        page,
+        sort: '-receipt_date',
+      });
+      filings.push(...(d.results || []));
+      if (page >= (d.pagination?.pages || 1)) {
+        break;
+      }
+    }
+  }
+  return filings;
+}
+
+async function download(fileNumber, fetchImpl) {
+  const res = await fetchImpl(rawFilingUrl(fileNumber), {
+    headers: { 'User-Agent': 'taskforce-purple-refresh' },
+  });
+  if (!res.ok) {
+    throw new Error(`HTTP ${res.status}`);
+  }
+  return Buffer.from(await res.arrayBuffer()).toString('latin1');
+}
+
+/**
+ * PAC gifts from the reports not yet processed, for these committees (the
+ * members' campaigns, leadership PACs and own joint funds), before the PACs
+ * are looked up. Which reports are processed comes from the bulk file of
+ * individual records (`itcontPath`): the FEC processes a report whole.
+ * Returns the gifts found, by receiving committee.
+ */
+export async function rawPacGifts({
+  fec,
+  itcontPath,
+  committeeIds,
+  cycle,
+  log = () => {},
+  fetchImpl = fetch,
+}) {
+  const ids = [...new Set(committeeIds)].filter(id => /^C\d{8}$/.test(id));
+  const byRecipient = new Map();
+  const stats = { reports: 0, refused: 0, gifts: 0, unnamed: 0 };
+  if (!ids.length) {
+    return { byRecipient, stats };
+  }
+  const { DuckDBInstance } = await import('@duckdb/node-api');
+  const conn = await (await DuckDBInstance.create(':memory:')).connect();
+  const seen = (
+    await conn.runAndReadAll(`
+    SELECT column00 AS committee_id, list(DISTINCT column17) AS files,
+      max(CASE WHEN regexp_matches(column13, '^[0-9]{8}$')
+        THEN substr(column13,5,4)||'-'||substr(column13,1,2)||'-'||substr(column13,3,2) END) AS newest
+    FROM read_csv('${itcontPath}', delim='|', header=false, quote='', escape='', all_varchar=true,
+                  ignore_errors=true, null_padding=true)
+    WHERE column00 IN (${ids.map(i => `'${i}'`).join(',')})
+    GROUP BY 1`)
+  ).getRowObjectsJS();
+  const processed = new Map(
+    seen.map(r => [
+      r.committee_id,
+      { files: new Set((r.files || []).filter(Boolean).map(String)), newest: r.newest || null },
+    ])
+  );
+  for (const r of unprocessedReports(await listFilings(fec, ids, cycle), processed)) {
+    try {
+      const parsed = parseRawFiling(await download(r.fileNumber, fetchImpl), r.fileNumber);
+      if (!parsed.pacs?.ok) {
+        stats.refused++;
+        log(
+          `  ${r.committeeId} raw report ${r.fileNumber} PAC gifts not used: ${parsed.pacs?.why || parsed.why}`
+        );
+        continue;
+      }
+      stats.reports++;
+      stats.gifts += parsed.pacs.gifts.length;
+      stats.unnamed += parsed.pacs.unnamed;
+      const list = byRecipient.get(r.committeeId) || [];
+      list.push(...parsed.pacs.gifts);
+      byRecipient.set(r.committeeId, list);
+    } catch (error) {
+      stats.refused++;
+      log(`  ${r.committeeId} raw report ${r.fileNumber}: download failed: ${error.message}`);
+    }
+  }
+  log(
+    `raw PAC gifts: ${stats.gifts} from ${stats.reports} unprocessed report(s), ${stats.unnamed} line(s) naming no FEC ID left out, ${stats.refused} report(s) not used`
+  );
+  return { byRecipient, stats };
+}
+
+/**
+ * Raw PAC gifts not already on a PAC's own processed report: matched one to
+ * one on giving PAC, receiving committee and amount, within 15 days (a PAC
+ * dates a gift when it's sent, the campaign when it arrives). `processed`:
+ * the PACs' own lines, { giver, recipient, amount, date }.
+ */
+export function unmatchedGifts(raw, processed) {
+  const days = (a, b) => Math.abs(Date.parse(a) - Date.parse(b)) / 864e5;
+  const pool = processed.map(g => ({ ...g, used: false }));
+  return raw.filter(g => {
+    const twin = pool.find(
+      p =>
+        !p.used &&
+        p.giver === g.giver &&
+        p.recipient === g.recipient &&
+        Math.abs(p.amount - g.amount) < 0.005 &&
+        (!p.date || !g.date || days(p.date, g.date) <= 15)
+    );
+    if (twin) {
+      twin.used = true;
+      return false;
+    }
+    return true;
+  });
 }

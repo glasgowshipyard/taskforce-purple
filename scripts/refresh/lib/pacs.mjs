@@ -13,6 +13,7 @@
 
 import { pacType } from '../../../src/lib/pacs.js';
 import { PAC_TRACING, pacPeopleCredit } from '../../../workers/tier-calculation.js';
+import { unmatchedGifts } from './raw-filings.mjs';
 import { ITEMIZED_TYPES } from './reconcile.mjs';
 
 const IDS = /^C\d{8}$/;
@@ -60,6 +61,66 @@ export async function pacGifts(db, recipientIds, alsoNotFrom = []) {
       gifts: r.gifts,
     }))
     .sort((a, b) => b.amount - a.amount);
+}
+
+/**
+ * A member's PAC gifts (pacGifts) with the gifts from the reports the FEC
+ * hasn't processed yet added (`raw`: receiving committee -> gifts, from
+ * raw-filings.mjs rawPacGifts): only those no PAC's own processed report
+ * shows, so none is counted twice (owner, 2026-10-31).
+ */
+export async function withRawGifts(db, gifts, recipientIds, raw, alsoNotFrom = []) {
+  const ids = recipientIds.filter(id => IDS.test(id));
+  const notFrom = new Set([...ids, ...alsoNotFrom]);
+  const incoming = ids.flatMap(id => raw.get(id) || []).filter(g => !notFrom.has(g.giver));
+  if (!incoming.length) {
+    return gifts;
+  }
+  const marks = ids.map(() => '?').join(',');
+  const processed = await db.read(
+    `SELECT committee_id AS giver, other_id AS recipient, amount, date FROM oth
+     WHERE tx_type IN ('24K', '24Z') AND other_id IN (${marks})`,
+    ...ids
+  );
+  const extra = unmatchedGifts(
+    incoming,
+    processed.map(g => ({ ...g, amount: num(g.amount) }))
+  );
+  if (!extra.length) {
+    return gifts;
+  }
+  const givers = [...new Set(extra.map(g => g.giver))];
+  const info = new Map(
+    (
+      await db.read(
+        `SELECT id, name, type, designation, org_type, connected_org FROM cm
+         WHERE id IN (${givers.map(() => '?').join(',')})`,
+        ...givers
+      )
+    ).map(c => [c.id, c])
+  );
+  const out = new Map(gifts.map(g => [g.id, { ...g }]));
+  for (const g of extra) {
+    const c = info.get(g.giver) || {};
+    if (PARTY_TYPES.has(c.type)) {
+      continue;
+    }
+    const row = out.get(g.giver) || {
+      id: g.giver,
+      name: c.name || g.giver,
+      committeeType: c.type || null,
+      designation: c.designation || null,
+      orgType: c.org_type || null,
+      connectedOrg: c.connected_org || null,
+      kind: pacType(c.type, c.designation),
+      amount: 0,
+      gifts: 0,
+    };
+    row.amount = cents(row.amount + g.amount);
+    row.gifts += 1;
+    out.set(g.giver, row);
+  }
+  return [...out.values()].filter(g => g.amount > 0).sort((a, b) => b.amount - a.amount);
 }
 
 /** Gifts in the shape the grade reads (tier-calculation.js). */

@@ -114,7 +114,10 @@ export async function loadDiscoveryFiles(cycle, dir, log = console.log) {
   // transfers out (24G, 24K) and in-kind gifts (24Z), between committees,
   // memos dropped
   await conn.run(`CREATE TABLE oth AS SELECT CMTE_ID AS committee_id, OTHER_ID AS other_id,
-      TRANSACTION_TP AS tx_type, TRY_CAST(TRANSACTION_AMT AS DOUBLE) AS amount
+      TRANSACTION_TP AS tx_type, TRY_CAST(TRANSACTION_AMT AS DOUBLE) AS amount,
+      CASE WHEN regexp_matches(TRANSACTION_DT, '^[0-9]{8}$')
+        THEN substr(TRANSACTION_DT,5,4)||'-'||substr(TRANSACTION_DT,1,2)||'-'||substr(TRANSACTION_DT,3,2)
+      END AS date
       FROM ${csv(oth, 'CMTE_ID,AMNDT_IND,RPT_TP,TRANSACTION_PGI,IMAGE_NUM,TRANSACTION_TP,ENTITY_TP,NAME,CITY,STATE,ZIP_CODE,EMPLOYER,OCCUPATION,TRANSACTION_DT,TRANSACTION_AMT,OTHER_ID,TRAN_ID,FILE_NUM,MEMO_CD,MEMO_TEXT,SUB_ID'.split(','))}
       WHERE TRANSACTION_TP IN ('18G', '18J', '24G', '24K', '24Z') AND coalesce(MEMO_CD, '') <> 'X'
         AND OTHER_ID LIKE 'C%'`);

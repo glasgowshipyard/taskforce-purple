@@ -1,16 +1,17 @@
 import { describe, expect, it } from 'vitest';
-import { parseRawFiling, unprocessedReports } from './raw-filings.mjs';
+import { parseRawFiling, unmatchedGifts, unprocessedReports } from './raw-filings.mjs';
 
 const FS = '\x1c';
 const line = cells => cells.join(FS);
 // A Form 3 summary line with the coverage dates (15, 16) and line 11(a)(i) (32)
-const f3 = itemized => {
+const f3 = (itemized, pacs = '0.00') => {
   const s = Array(40).fill('');
   s[0] = 'F3N';
   s[1] = 'C00000001';
   s[15] = '20260701';
   s[16] = '20260930';
   s[32] = itemized;
+  s[36] = pacs;
   return line(s);
 };
 const sa = ({
@@ -45,8 +46,10 @@ const sa = ({
   });
   return line(r);
 };
-const file = (itemized, rows) =>
-  ['HDR' + FS + 'FEC' + FS + '8.5', f3(itemized), ...rows].join('\n');
+const file = (itemized, rows, pacs) =>
+  ['HDR' + FS + 'FEC' + FS + '8.5', f3(itemized, pacs), ...rows].join('\n');
+const pac = (tx, committee, amount, memo = '') =>
+  sa({ tx, entity: 'PAC', org: 'A PAC', amount, memo, committee }).replace(/^SA11AI/, 'SA11C');
 
 describe('parseRawFiling', () => {
   const rows = [
@@ -140,5 +143,38 @@ describe('unprocessedReports', () => {
   it('never takes a period that starts before the newest processed record', () => {
     const processed = new Map([['C00000001', { files: new Set(), newest: '2026-07-02' }]]);
     expect(unprocessedReports(filings, processed).map(r => r.fileNumber)).toEqual(['4']);
+  });
+});
+
+describe('PAC gifts in raw reports', () => {
+  const donors = [sa({ tx: 'A1', last: 'DOE', first: 'JANE', amount: '100.00' })];
+  const gifts = [pac('C1', 'C00000009', '5000.00'), pac('C2', '', '1000.00')];
+
+  it('keeps the named gifts when the lines add up to line 11(c)', () => {
+    const p = parseRawFiling(file('100.00', [...donors, ...gifts], '6000.00'), 7);
+    expect(p.pacs.ok).toBe(true);
+    expect(p.pacs.gifts).toEqual([
+      { giver: 'C00000009', recipient: 'C00000001', amount: 5000, date: '2026-08-15' },
+    ]);
+    expect(p.pacs.unnamed).toBe(1);
+  });
+
+  it('refuses them when they do not', () => {
+    const p = parseRawFiling(file('100.00', [...donors, ...gifts], '5000.00'), 7);
+    expect(p.pacs.ok).toBe(false);
+    expect(p.ok).toBe(true);
+  });
+
+  it("drops a gift already on the PAC's own report, once", () => {
+    const raw = [
+      { giver: 'C1', recipient: 'R', amount: 5000, date: '2026-10-02' },
+      { giver: 'C1', recipient: 'R', amount: 5000, date: '2026-10-05' },
+      { giver: 'C2', recipient: 'R', amount: 1000, date: '2026-10-02' },
+    ];
+    const processed = [
+      { giver: 'C1', recipient: 'R', amount: 5000, date: '2026-09-29' },
+      { giver: 'C2', recipient: 'R', amount: 1000, date: '2026-07-01' },
+    ];
+    expect(unmatchedGifts(raw, processed)).toEqual([raw[1], raw[2]]);
   });
 });
