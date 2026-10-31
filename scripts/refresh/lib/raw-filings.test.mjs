@@ -91,6 +91,18 @@ describe('parseRawFiling', () => {
     expect(p.why).toMatch(/3525\.50.*3600\.00/);
   });
 
+  it('reads a lower-case line code and lines cut short', () => {
+    const short = line(['SA11Ai', 'C00000001', 'A3', '', '', 'IND', '', 'POE', 'ANN']).concat(
+      FS.repeat(11),
+      '20260815',
+      FS,
+      '100.00'
+    );
+    const p = parseRawFiling(file('3625.50', [...rows, short]), 123);
+    expect(p.ok).toBe(true);
+    expect(p.rows.filter(r => r.counts).map(r => r.name)).toContain('POE, ANN');
+  });
+
   it('refuses a file that is not a report', () => {
     expect(parseRawFiling(['HDR', line(['F6N', 'C00000001'])].join('\n'), 1).ok).toBe(false);
   });

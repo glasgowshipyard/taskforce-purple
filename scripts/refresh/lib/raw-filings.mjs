@@ -70,8 +70,16 @@ export function parseRawFiling(text, fileNumber) {
     return { ok: false, why: `not a report (${summary[0] || 'empty'})`, rows: [] };
   }
   const rows = lines
-    .filter(l => l.startsWith(`SA11AI${SEPARATOR}`))
-    .map(l => l.split(SEPARATOR).map(unquote));
+    // Some filing programs write the line code in lower case ("SA11Ai"), and
+    // some leave empty fields off the end of a line
+    .filter(l => l.slice(0, 7).toUpperCase() === `SA11AI${SEPARATOR}`)
+    .map(l => {
+      const r = l.split(SEPARATOR).map(unquote);
+      while (r.length <= SA.memoText) {
+        r.push('');
+      }
+      return r;
+    });
   // The conduit an earmarked gift came through: the conduit's own line that
   // the gift refers back to, else the committee its memo names
   const committeeOf = new Map();
