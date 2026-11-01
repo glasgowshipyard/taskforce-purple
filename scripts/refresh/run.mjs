@@ -82,7 +82,12 @@ import { createFecClient, replayFec } from './lib/fec.mjs';
 import { memberDonorShape, pacExtras } from '../simulate/lib/inputs.mjs';
 import { ensureIrs, fecGroup, loadIrsIndex } from './lib/sponsors.mjs';
 import { loadStored, saveStored } from './lib/gap-store.mjs';
-import { addRawFilings, campaignPacGifts, dropBefore } from './lib/raw-filings.mjs';
+import {
+  addRawFilings,
+  campaignPacGifts,
+  committeeByName,
+  dropBefore,
+} from './lib/raw-filings.mjs';
 import { publishGrades } from './lib/publish.mjs';
 
 // D1's free limits are per day for the whole account, shared with the
@@ -303,7 +308,8 @@ async function main() {
       cycle,
       log,
     });
-    for (const c of await db.read('SELECT id, name FROM cm')) {
+    const register = await db.read('SELECT id, name FROM cm');
+    for (const c of register) {
       conduitNames.set(c.id, c.name);
       if (PLATFORM.test(String(c.name || '').toUpperCase())) {
         platforms.add(c.id);
@@ -325,6 +331,7 @@ async function main() {
       ? null
       : await campaignPacGifts({
           fec,
+          idForName: committeeByName(register),
           committeeIds: [...discovered.values()].flatMap(pf => [
             ...vehiclesOf(pf),
             ...(pf.whole?.ownFunds || []),

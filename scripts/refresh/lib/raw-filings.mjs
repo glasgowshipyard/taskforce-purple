@@ -170,19 +170,49 @@ function pacGiftsOf(rows, reported) {
       why: `PAC gifts add up to $${(sum / 100).toFixed(2)}, the report says $${(reported / 100).toFixed(2)}`,
       gifts: [],
       unnamed: 0,
+      byName: [],
     };
   }
+  const gift = r => ({
+    giver: r[SA.donorCommittee],
+    recipient: r[SA.committee],
+    amount: Math.round(Number(r[SA.amount]) * 100) / 100,
+    date: bulkDate(reorder(r[SA.date])),
+  });
   const named = counted.filter(r => /^C\d{8}$/.test(r[SA.donorCommittee]));
   return {
     ok: true,
-    gifts: named.map(r => ({
-      giver: r[SA.donorCommittee],
-      recipient: r[SA.committee],
-      amount: Math.round(Number(r[SA.amount]) * 100) / 100,
-      date: bulkDate(reorder(r[SA.date])),
-    })),
+    gifts: named.map(gift),
     unnamed: counted.length - named.length,
+    // The lines naming the PAC but not its FEC ID, for campaignPacGifts to
+    // look up in the FEC's register
+    byName: counted
+      .filter(r => !/^C\d{8}$/.test(r[SA.donorCommittee]))
+      .map(r => ({ ...gift(r), giver: null, name: r[SA.organization] || '' })),
   };
+}
+
+/** A committee name as compared with the FEC's register: case and spacing only. */
+export const committeeNameKey = name =>
+  String(name || '')
+    .toUpperCase()
+    .replace(/\s+/g, ' ')
+    .trim();
+
+/**
+ * The FEC ID for a committee's exact name (committeeNameKey), from the
+ * FEC's register (`cm`: [{ id, name }]), when exactly one committee has
+ * that name; otherwise none.
+ */
+export function committeeByName(cm) {
+  const ids = new Map();
+  for (const c of cm) {
+    const key = committeeNameKey(c.name);
+    if (key) {
+      ids.set(key, ids.has(key) && ids.get(key) !== c.id ? null : c.id);
+    }
+  }
+  return name => ids.get(committeeNameKey(name)) || null;
 }
 
 // Raw filings write dates YYYYMMDD; bulkDate takes the bulk file's MMDDYYYY
@@ -393,7 +423,10 @@ async function download(fileNumber, fetchImpl) {
  * disagree with the campaigns'; Susan Collins's campaign reported $1.59M
  * from PACs and the PACs $2.56M). Reports the FEC has processed come from
  * its API (10 committees a call, the most it takes); the rest from the raw filings, each used
- * only when its PAC lines add up to its own line 11(c). Both report forms'
+ * only when its PAC lines add up to its own line 11(c); a raw line naming a
+ * PAC without its FEC ID takes the ID of the one committee in the FEC's
+ * register with exactly that name (`idForName`, committeeByName; owner,
+ * 2026-10-31), and is left out when none or several have it. Both report forms'
  * line 11(c) are asked for, whatever the committee is registered as: a
  * committee registered as a PAC can file campaign reports (Bonnie Watson
  * Coleman's, 2026-10-31, whose list was asked for on the wrong form and
@@ -406,6 +439,7 @@ export async function campaignPacGifts({
   fec,
   committeeIds,
   cycle,
+  idForName = () => null,
   log = () => {},
   fetchImpl = fetch,
 }) {
@@ -413,7 +447,7 @@ export async function campaignPacGifts({
   const byRecipient = new Map(ids.map(id => [id, []]));
   const missing = new Set();
   const processed = new Map();
-  const stats = { processed: 0, raw: 0, reports: 0, unnamed: 0 };
+  const stats = { processed: 0, raw: 0, reports: 0, unnamed: 0, byName: 0 };
   const keep = (recipient, g) => byRecipient.get(recipient)?.push(g);
   for (const line of ['F3-11C', 'F3X-11C']) {
     for (let i = 0; i < ids.length; i += 10) {
@@ -486,15 +520,23 @@ export async function campaignPacGifts({
       }
       stats.reports++;
       stats.raw += parsed.pacs.gifts.length;
-      stats.unnamed += parsed.pacs.unnamed;
       parsed.pacs.gifts.forEach(g => keep(r.committeeId, g));
+      for (const g of parsed.pacs.byName) {
+        const giver = idForName(g.name);
+        if (giver && giver !== r.committeeId) {
+          stats.byName++;
+          keep(r.committeeId, { giver, recipient: g.recipient, amount: g.amount, date: g.date });
+        } else {
+          stats.unnamed++;
+        }
+      }
     } catch (error) {
       missing.add(r.committeeId);
       log(`  ${r.committeeId} raw report ${r.fileNumber}: download failed: ${error.message}`);
     }
   }
   log(
-    `PAC gifts as the committees reported them: ${stats.processed} processed, ${stats.raw} from ${stats.reports} raw report(s), ${stats.unnamed} line(s) naming no FEC ID left out; ${missing.size} committee(s) kept on the PACs' own reports`
+    `PAC gifts as the committees reported them: ${stats.processed} processed, ${stats.raw} from ${stats.reports} raw report(s), ${stats.byName} more found by their exact name in the FEC's register, ${stats.unnamed} line(s) naming no FEC ID left out; ${missing.size} committee(s) kept on the PACs' own reports`
   );
   return { byRecipient, missing, stats };
 }

@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { campaignPacGifts, parseRawFiling, unprocessedReports } from './raw-filings.mjs';
+import {
+  campaignPacGifts,
+  committeeByName,
+  parseRawFiling,
+  unprocessedReports,
+} from './raw-filings.mjs';
 
 const FS = '\x1c';
 const line = cells => cells.join(FS);
@@ -181,6 +186,20 @@ describe('PAC gifts in raw reports', () => {
       { giver: 'C00000009', recipient: 'C00000001', amount: 5000, date: '2026-08-15' },
     ]);
     expect(p.pacs.unnamed).toBe(1);
+    expect(p.pacs.byName).toEqual([
+      { giver: null, recipient: 'C00000001', amount: 1000, date: '2026-08-15', name: 'A PAC' },
+    ]);
+  });
+
+  it('finds a PAC by its exact name only when one committee has it', () => {
+    const idFor = committeeByName([
+      { id: 'C00000007', name: 'A  pac' },
+      { id: 'C00000005', name: 'TWIN PAC' },
+      { id: 'C00000006', name: 'Twin PAC' },
+    ]);
+    expect(idFor(' A PAC ')).toBe('C00000007');
+    expect(idFor('TWIN PAC')).toBe(null);
+    expect(idFor('A PAC INC')).toBe(null);
   });
 
   it('refuses them when they do not', () => {

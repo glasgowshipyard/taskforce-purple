@@ -46,7 +46,12 @@ import {
 } from './lib/pacs.mjs';
 import { ensureIrs, loadIrsIndex } from './lib/sponsors.mjs';
 import { apiRowToBulkShape, ensureBulkFile, insertApiRows, loadBulk } from './lib/bulk.mjs';
-import { addRawFilings, campaignPacGifts, dropBefore } from './lib/raw-filings.mjs';
+import {
+  addRawFilings,
+  campaignPacGifts,
+  committeeByName,
+  dropBefore,
+} from './lib/raw-filings.mjs';
 import { loadStored } from './lib/gap-store.mjs';
 import {
   classifyScheduleARow,
@@ -315,7 +320,8 @@ async function main() {
     cycle,
     log,
   });
-  const names = new Map((await db.read('SELECT id, name FROM cm')).map(c => [c.id, c.name]));
+  const register = await db.read('SELECT id, name FROM cm');
+  const names = new Map(register.map(c => [c.id, c.name]));
   // FINAL-3, as for members (refresh job): every committee whose money
   // reaches a candidate, who it answers to, and its share traced to people
   const giftsFor = new Map();
@@ -328,6 +334,7 @@ async function main() {
   // (lib/raw-filings.mjs campaignPacGifts)
   const raw = await campaignPacGifts({
     fec,
+    idForName: committeeByName(register),
     committeeIds: [...discovered.values()].flatMap(pf => [
       ...vehiclesOf(pf),
       ...(pf.whole?.ownFunds || []),
