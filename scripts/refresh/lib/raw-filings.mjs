@@ -194,11 +194,16 @@ function reorder(yyyymmdd) {
  * The reports whose records aren't processed yet: for each committee and
  * period, the newest filing, unless a filing for that period is already in
  * the processed records (`processed`: committee id -> { files: Set of file
- * numbers, newest: the latest record date }). A period that starts on or
- * before the newest processed record is left out too, so nothing can be
- * counted twice.
+ * numbers, newest: the latest record date }). `figures` (reportFigures)
+ * says which reports have records to read: one whose `field` is 0 is left
+ * out, and one above 0 is read whatever its date, since the FEC doesn't
+ * process reports in order (a committee's October report was processed
+ * before its September one, 2026-10-31). A report not in `figures` yet is
+ * read only when it starts after the newest processed record, and none is
+ * read when a processed record (`dates`) falls in its period, so nothing
+ * can be counted twice.
  */
-export function unprocessedReports(filings, processed) {
+export function unprocessedReports(filings, processed, figures = new Map(), field = 'pacs') {
   const periods = new Map();
   for (const f of filings) {
     if (!REPORT_FORMS.includes(f.form_type) || !f.coverage_start_date || !f.coverage_end_date) {
@@ -210,13 +215,18 @@ export function unprocessedReports(filings, processed) {
     periods.set(key, list);
   }
   const out = [];
-  for (const list of periods.values()) {
+  for (const [key, list] of periods) {
     const seen = processed.get(list[0].committee_id) || { files: new Set(), newest: null };
     if (list.some(f => seen.files.has(String(f.file_number)))) {
       continue;
     }
     const start = list[0].coverage_start_date.slice(0, 10);
-    if (seen.newest && start <= seen.newest) {
+    const end = list[0].coverage_end_date.slice(0, 10);
+    const figure = figures.get(key)?.[field];
+    if (figure !== undefined ? figure <= 0 : seen.newest && start <= seen.newest) {
+      continue;
+    }
+    if ((seen.dates || []).some(d => d >= start && d <= end)) {
       continue;
     }
     const newest = [...list].sort(
@@ -259,7 +269,8 @@ export async function addRawFilings({
   }
   const list = ids.map(i => `'${i}'`).join(',');
   const seen = await bulk.read(`
-    SELECT committee_id, list(DISTINCT file_num) AS files, max(date) AS newest FROM (
+    SELECT committee_id, list(DISTINCT file_num) AS files, max(date) AS newest,
+      list(DISTINCT date) AS dates FROM (
       SELECT committee_id, file_num, date FROM bulk WHERE committee_id IN (${list})
       UNION ALL
       SELECT committee_id, file_num, date FROM api WHERE committee_id IN (${list}) AND source <> 'raw'
@@ -270,11 +281,13 @@ export async function addRawFilings({
       {
         files: new Set((r.files?.items ?? r.files ?? []).filter(Boolean).map(String)),
         newest: r.newest || null,
+        dates: (r.dates?.items ?? r.dates ?? []).filter(Boolean).map(String),
       },
     ])
   );
   const filings = await listFilings(fec, ids, cycle);
-  for (const r of unprocessedReports(filings, processed)) {
+  const figures = await reportFigures(fec, ids, cycle);
+  for (const r of unprocessedReports(filings, processed, figures, 'itemized')) {
     try {
       const parsed = parseRawFiling(await download(r.fileNumber, fetchImpl), r.fileNumber);
       if (!parsed.ok) {
@@ -319,6 +332,47 @@ async function listFilings(fec, ids, cycle) {
     }
   }
   return filings;
+}
+
+/**
+ * Each report's itemized donors (line 11(a)(i)) and PAC gifts (line 11(c))
+ * from the FEC's report figures, which arrive within days of filing, by
+ * committee and period (the key unprocessedReports uses). 100 committees a
+ * call, campaign reports and PAC reports both asked for.
+ */
+export async function reportFigures(fec, ids, cycle) {
+  const out = new Map();
+  for (const path of ['/reports/house-senate/', '/reports/pac-party/']) {
+    for (let i = 0; i < ids.length; i += 100) {
+      for (let page = 1; ; page++) {
+        const d = await fec(path, {
+          committee_id: ids.slice(i, i + 100),
+          cycle,
+          is_amended: false,
+          per_page: 100,
+          page,
+        });
+        for (const r of d.results || []) {
+          if (!r.coverage_start_date || !r.coverage_end_date) {
+            continue;
+          }
+          const key = `${r.committee_id}|${r.coverage_start_date.slice(0, 10)}|${r.coverage_end_date.slice(0, 10)}`;
+          const was = out.get(key) || { itemized: 0, pacs: 0 };
+          out.set(key, {
+            itemized: Math.max(
+              was.itemized,
+              Number(r.individual_itemized_contributions_period) || 0
+            ),
+            pacs: Math.max(was.pacs, Number(r.other_political_committee_contributions_period) || 0),
+          });
+        }
+        if (page >= (d.pagination?.pages || 1)) {
+          break;
+        }
+      }
+    }
+  }
+  return out;
 }
 
 async function download(fileNumber, fetchImpl) {
@@ -374,11 +428,18 @@ export async function campaignPacGifts({
           },
           rows => {
             for (const r of rows) {
-              const seen = processed.get(r.committee_id) || { files: new Set(), newest: null };
+              const seen = processed.get(r.committee_id) || {
+                files: new Set(),
+                newest: null,
+                dates: [],
+              };
               seen.files.add(String(r.file_number));
               const date = String(r.contribution_receipt_date || '').slice(0, 10) || null;
               if (date && (!seen.newest || date > seen.newest)) {
                 seen.newest = date;
+              }
+              if (date) {
+                seen.dates.push(date);
               }
               processed.set(r.committee_id, seen);
               if (r.memo_code === 'X') {
@@ -406,13 +467,12 @@ export async function campaignPacGifts({
       }
     }
   }
+  const read = ids.filter(id => !missing.has(id));
   const reports = unprocessedReports(
-    await listFilings(
-      fec,
-      ids.filter(id => !missing.has(id)),
-      cycle
-    ),
-    processed
+    await listFilings(fec, read, cycle),
+    processed,
+    await reportFigures(fec, read, cycle),
+    'pacs'
   );
   for (const r of reports) {
     try {

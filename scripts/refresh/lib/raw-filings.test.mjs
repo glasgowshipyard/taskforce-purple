@@ -144,6 +144,18 @@ describe('unprocessedReports', () => {
     const processed = new Map([['C00000001', { files: new Set(), newest: '2026-07-02' }]]);
     expect(unprocessedReports(filings, processed).map(r => r.fileNumber)).toEqual(['4']);
   });
+
+  it("reads an earlier report the FEC hasn't processed when its figures show money", () => {
+    // The October report is processed, the July-September one isn't
+    const processed = new Map([
+      ['C00000001', { files: new Set(['1', '4']), newest: '2026-10-14' }],
+    ]);
+    const figures = new Map([['C00000001|2026-07-01|2026-09-30', { itemized: 0, pacs: 14000 }]]);
+    expect(unprocessedReports(filings, processed, figures, 'pacs').map(r => r.fileNumber)).toEqual([
+      '3',
+    ]);
+    expect(unprocessedReports(filings, processed, figures, 'itemized')).toEqual([]);
+  });
 });
 
 describe('PAC gifts in raw reports', () => {
