@@ -432,8 +432,9 @@ async function download(fileNumber, fetchImpl) {
  * Coleman's, 2026-10-31, whose list was asked for on the wrong form and
  * came back nearly empty). One call per form: given two line numbers, the
  * FEC answers for the first only.
- * Returns the gifts by receiving committee, and the committees whose
- * gifts couldn't all be read (for those the caller keeps the PACs' side).
+ * Returns the gifts by receiving committee, the lines naming no FEC ID
+ * (`unnamed`), and the committees whose gifts couldn't all be read (for
+ * those the caller keeps the PACs' side).
  */
 export async function campaignPacGifts({
   fec,
@@ -445,10 +446,17 @@ export async function campaignPacGifts({
 }) {
   const ids = [...new Set(committeeIds)].filter(id => /^C\d{8}$/.test(id));
   const byRecipient = new Map(ids.map(id => [id, []]));
+  // Lines naming no FEC ID, by receiving committee: the PACs' own reports
+  // may name them (pacs.mjs fillFromPacReports)
+  const unnamed = new Map();
   const missing = new Set();
   const processed = new Map();
   const stats = { processed: 0, raw: 0, reports: 0, unnamed: 0, byName: 0 };
   const keep = (recipient, g) => byRecipient.get(recipient)?.push(g);
+  const noId = (recipient, g) => {
+    stats.unnamed++;
+    unnamed.set(recipient, [...(unnamed.get(recipient) || []), g]);
+  };
   for (const line of ['F3-11C', 'F3X-11C']) {
     for (let i = 0; i < ids.length; i += 10) {
       const chunk = ids.slice(i, i + 10);
@@ -480,7 +488,11 @@ export async function campaignPacGifts({
                 continue;
               }
               if (!/^C\d{8}$/.test(r.contributor_id || '')) {
-                stats.unnamed++;
+                noId(r.committee_id, {
+                  amount: Math.round(Number(r.contribution_receipt_amount) * 100) / 100,
+                  date,
+                  name: r.contributor_name || '',
+                });
                 continue;
               }
               stats.processed++;
@@ -527,7 +539,7 @@ export async function campaignPacGifts({
           stats.byName++;
           keep(r.committeeId, { giver, recipient: g.recipient, amount: g.amount, date: g.date });
         } else {
-          stats.unnamed++;
+          noId(r.committeeId, { amount: g.amount, date: g.date, name: g.name });
         }
       }
     } catch (error) {
@@ -536,9 +548,9 @@ export async function campaignPacGifts({
     }
   }
   log(
-    `PAC gifts as the committees reported them: ${stats.processed} processed, ${stats.raw} from ${stats.reports} raw report(s), ${stats.byName} more found by their exact name in the FEC's register, ${stats.unnamed} line(s) naming no FEC ID left out; ${missing.size} committee(s) kept on the PACs' own reports`
+    `PAC gifts as the committees reported them: ${stats.processed} processed, ${stats.raw} from ${stats.reports} raw report(s), ${stats.byName} more found by their exact name in the FEC's register, ${stats.unnamed} line(s) naming no FEC ID; ${missing.size} committee(s) kept on the PACs' own reports`
   );
-  return { byRecipient, missing, stats };
+  return { byRecipient, unnamed, missing, stats };
 }
 
 /**

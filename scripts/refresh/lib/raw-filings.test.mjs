@@ -216,6 +216,7 @@ describe('campaignPacGifts', () => {
   const records = [
     { committee_id: 'C00000001', line: 'F3-11C', contributor_id: 'C00000009', amount: 5000 },
     { committee_id: 'C00000002', line: 'F3X-11C', contributor_id: 'C00000008', amount: 2500 },
+    { committee_id: 'C00000001', line: 'F3-11C', contributor_id: null, amount: 1000, name: 'A PAC' },
   ];
   const fec = async (path, params) => {
     if (path === '/efile/filings/') {
@@ -231,6 +232,7 @@ describe('campaignPacGifts', () => {
         .map((r, i) => ({
           committee_id: r.committee_id,
           contributor_id: r.contributor_id,
+          contributor_name: r.name,
           contribution_receipt_amount: r.amount,
           contribution_receipt_date: '2026-08-01',
           file_number: 100 + i,
@@ -247,5 +249,9 @@ describe('campaignPacGifts', () => {
     expect(side.byRecipient.get('C00000001').map(g => g.amount)).toEqual([5000]);
     expect(side.byRecipient.get('C00000002').map(g => g.amount)).toEqual([2500]);
     expect(side.missing.size).toBe(0);
+    // A line naming no FEC ID is kept aside for the PACs' own reports
+    expect(side.unnamed.get('C00000001')).toEqual([
+      { amount: 1000, date: '2026-08-01', name: 'A PAC' },
+    ]);
   });
 });
