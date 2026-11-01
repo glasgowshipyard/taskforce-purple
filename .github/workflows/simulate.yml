@@ -70,7 +70,7 @@ jobs:
 
       - name: Fetch the saved snapshot
         if: inputs.step == 'export'
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: snapshot
           path: ${{ runner.temp }}/snapshot
