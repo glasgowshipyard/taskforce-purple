@@ -127,6 +127,21 @@ their committees' checks (below), then re-grade them (§8). Withheld grades
 (DISPUTED, UNVERIFIED) are left out on purpose: they're withheld because
 their figures don't reconcile.
 
+### Totals: does the site's money match the FEC's own totals? (added 2026-11-01)
+
+```bash
+node scripts/verify/totals-check.mjs                 # members and candidates, about 3 minutes
+node scripts/verify/totals-check.mjs --members-only
+```
+
+Compares every graded member's and candidate's money (people, small donors,
+PACs, party) with the FEC's per-committee totals file, summed over their own
+committees. It makes no FEC API calls, but costs about 1,050 Worker requests.
+"Differ, not explained" should be 0. Each name it lists is a data fault, or
+a campaign whose own reports don't add up: find the member, read their
+committees' reports on fec.gov, and fix the data or withhold the grade.
+"Counted from a date" (`COMMITTEE_SINCE`) and "no letter grade" are expected.
+
 ### Identity: is every member's money actually theirs? (added 2026-09-26)
 
 ```bash
