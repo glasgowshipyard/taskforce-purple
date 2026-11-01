@@ -9,7 +9,7 @@
 // firm's short-form list is personally registered as a foreign agent.
 
 import { execFileSync } from 'node:child_process';
-import { existsSync, statSync } from 'node:fs';
+import { existsSync, statSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 const FILES = ['FARA_All_ShortForms', 'FARA_All_ForeignPrincipals'];
@@ -24,6 +24,10 @@ function remoteSize(u) {
   return Number(last.match(/^content-length:\s*(\d+)/im)?.[1] || 0);
 }
 
+/** The text with every byte that isn't valid UTF-8 left out (what `iconv -c` does) */
+export const dropInvalidUtf8 = buf =>
+  new TextDecoder('utf-8').decode(buf).replaceAll('\uFFFD', '');
+
 /** Download the register's files if missing or changed. Returns their CSV paths. */
 export function ensureFara(dir, log = console.log) {
   const out = {};
@@ -37,11 +41,11 @@ export function ensureFara(dir, log = console.log) {
     if (!existsSync(csv) || statSync(csv).mtimeMs < statSync(zip).mtimeMs) {
       // The DOJ's files carry the odd byte that isn't valid UTF-8 (an
       // address in line 174 of the short forms, 2026-10-09), which DuckDB
-      // refuses: drop such bytes
-      execFileSync('sh', [
-        '-c',
-        `unzip -p '${zip}' '${name}.csv' | iconv -c -f UTF-8 -t UTF-8 > '${csv}'`,
-      ]);
+      // refuses: drop such bytes. Not with `iconv -c`, which on Linux exits
+      // 1 whenever it drops one, so every run from 31 October went without
+      // the register
+      const raw = execFileSync('unzip', ['-p', zip, `${name}.csv`], { maxBuffer: 1 << 28 });
+      writeFileSync(csv, dropInvalidUtf8(raw));
     }
     out[name] = csv;
   }
