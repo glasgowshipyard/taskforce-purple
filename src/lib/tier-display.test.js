@@ -51,6 +51,14 @@ describe('tier display coverage', () => {
     }
   });
 
+  it('a candidate who isn’t a member is called this candidate', () => {
+    expect(gradeInfo('DISPUTED', null, true).meaning).toMatch(
+      /not something found about this candidate\.$/
+    );
+    expect(gradeInfo('DISPUTED').meaning).toMatch(/about this member\.$/);
+    expect(gradeInfo('S', null, true).meaning).toBe(GRADES.S.meaning);
+  });
+
   it('headings read naturally', () => {
     expect(withArticle('S')).toBe('an S');
     expect(withArticle('E')).toBe('an E');

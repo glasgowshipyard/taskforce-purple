@@ -18,7 +18,7 @@ import { BoostedStamp, Evidence, MoneyLines, Stamp } from './ui.jsx';
  */
 export default function Receipt({ person, delay = 0, animate = true, headingLevel = 3 }) {
   const H = `h${headingLevel}`;
-  const g = gradeInfo(person.tier, person.withheldReason);
+  const g = gradeInfo(person.tier, person.withheldReason, person.candidate);
   const f = person.figures;
   const withheld = isRingfenced(person.tier);
   const hasMoney = f && f.totalRaised > 0;

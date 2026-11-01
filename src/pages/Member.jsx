@@ -306,7 +306,7 @@ export default function Member({ id, kind = 'member' }) {
 
   const f = gradedFigures(m);
   const reason = withheldReasonOf({ ...m, totalRaised: f.totalRaised });
-  const g = gradeInfo(m.tier, reason);
+  const g = gradeInfo(m.tier, reason, isCandidate);
   const withheld = isRingfenced(m.tier);
   const hasMoney = f.totalRaised > 0 && !withheld;
   // Outside groups' spending, beside the grade and never in it: keyed by

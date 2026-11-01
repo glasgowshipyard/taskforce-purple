@@ -56,6 +56,8 @@ function candidatePerson(c, spent = null) {
     party: ballotPartyName(c),
     tier: c.tier,
     withheldReason: withheldReasonOf(c),
+    // Not a member: the receipt's words say "this candidate"
+    candidate: !c.bioguideId,
     figures: graded ? figures : null,
     note: graded
       ? null
