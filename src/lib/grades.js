@@ -163,11 +163,16 @@ const WITHHELD = {
 /**
  * Display details for any tier, with its badge mark. Never throws.
  * `withheldReason` (a withheld grade's, from the API) picks its own words.
+ * `candidate`: a candidate who isn't a member, whose words say "this
+ * candidate" (owner, 2026-11-01).
  */
-export function gradeInfo(tier, withheldReason = null) {
+export function gradeInfo(tier, withheldReason = null, candidate = false) {
   const g = GRADES[tier] || UNKNOWN;
   const why = RINGFENCED.includes(tier) || tier === 'N/A' ? WITHHELD[withheldReason] || null : null;
-  return { tier, mark: g.mark || tier || '–', ...g, ...why };
+  const info = { tier, mark: g.mark || tier || '–', ...g, ...why };
+  return candidate && info.meaning
+    ? { ...info, meaning: info.meaning.replace(/\b([Tt])his member\b/g, '$1his candidate') }
+    : info;
 }
 
 /** A withheld grade's reason, from what the campaign raised */

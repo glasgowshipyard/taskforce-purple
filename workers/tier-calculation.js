@@ -747,6 +747,11 @@ export function gradeFinal3(m, pacs, shares) {
   if (!(D > 0)) {
     return { ...out, tier: 'N/A', reason: 'no-money', withheld: true };
   }
+  // More money graded than the committees took in (owner, 2026-11-01): the
+  // campaign's reports contradict each other, so no grade
+  if (given > T * 1.02 + 1000) {
+    return { ...out, tier: 'DISPUTED', reason: 'more-than-received', withheld: true };
+  }
   const I = s + b;
   const sourceVerified =
     m.record?.financialsVerified === true &&

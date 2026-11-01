@@ -60,6 +60,25 @@ clean-up, #71 outside spending (shown since 2026-10-25), #72 TypeScript (after t
 
 ## Change log
 
+## 2026-11-01: no grade on more money than came in
+
+- **Rule (owner's yes, 2026-11-01):** when the money graded (small + big +
+  PAC + party) is more than the committees took in (`totalRaised`) by over
+  2% and $1,000, the reports contradict each other: `DISPUTED`,
+  `disputeReason: more-than-received` (`gradeFinal3`; the simulation's copy
+  in `scripts/simulate/lib/grid.mjs`). It runs after the Self-funded and
+  no-money checks.
+- **Caught:** Vanessa Enoch (OH-8), graded B. The campaign's July and
+  October quarterly reports say $0 received while listing donations, and on
+  both the unitemized figure is repeated, to the cent, in the party box
+  ($11,204.49 and $25,118.29). The FEC's total is $3,125.21; the grade
+  counted $112,635. Depending on which box is right, it would be A or E.
+- **Simulated over everyone before publishing:** all 538 members from the
+  morning dry run's grade inputs, and all 513 graded candidates from the live
+  site after the 1:50 pm races run. Nobody else's money graded is above what
+  came in (the highest after Enoch is exactly equal). No member's grade
+  changes, so no member run is needed for it.
+
 ## 2026-11-01: PAC gifts named from the PACs' reports, reports no longer skipped, the totals check
 
 - **PAC gifts with no FEC ID (my fault, from #91).** Some campaigns list a
@@ -87,11 +106,10 @@ clean-up, #71 outside spending (shown since 2026-10-25), #72 TypeScript (after t
   concentrated), 5 more by a point.
 - **The totals check** (`scripts/verify/totals-check.mjs`, RUNBOOK §5):
   every graded person's money against the FEC's per-committee totals file.
-  On the live site, 1,040 of 1,052 match to the dollar. Open: Vanessa Enoch
-  (OH-8): her campaign's reports total $3,125 but list $74,435 from people
-  and $36,323 from parties; graded B on the lines. A rule withholding any
-  grade above what the committees received catches only her: waiting for
-  the owner. Gay Valimont (FL-1): Engage Y'all PAC, her campaign until it
+  On the live site, 1,040 of 1,052 match to the dollar. Vanessa Enoch
+  (OH-8): the campaign's reports total $3,125 but list $74,435 from people
+  and $36,323 from parties; graded B on the lines. Withheld (next entry).
+  Gay Valimont (FL-1): Engage Y'all PAC, the campaign until it
   became a PAC, is read only to 21 April 2025 ($240,135 later not counted;
   S either way): to fix after the election. 25 people got money from another
   politician's joint fund that shows nothing raised this cycle; it's left

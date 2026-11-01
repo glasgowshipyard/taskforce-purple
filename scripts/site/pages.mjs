@@ -264,7 +264,7 @@ export const candidatePage = (c, race, cycle, outside = null) =>
 
 function candidateBase(c, race, cycle) {
   const name = displayName(c.name);
-  const g = gradeInfo(c.tier, withheldReasonOf(c));
+  const g = gradeInfo(c.tier, withheldReasonOf(c), !c.bioguideId);
   const ppi = isLetter(c.tier) ? c.peoplePowerInfluence : null;
   const sentence = ppi ? peopleSentence(ppi.people) : null;
   const party = ballotPartyName(c);

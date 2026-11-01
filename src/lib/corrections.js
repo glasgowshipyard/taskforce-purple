@@ -17,6 +17,14 @@ export const KINDS = { correction: 'Correction', new: 'New' };
 // new features above corrections within a day (inOrder)
 export const CORRECTIONS = [
   {
+    id: '2026-11-01-more-than-received',
+    date: '2026-11-01',
+    kind: 'correction',
+    what: "One candidate's grade is withdrawn",
+    detail:
+      "Vanessa Enoch's campaign reports to the FEC don't add up. Two of them say nothing came in while listing thousands of dollars of donations, and the same figures appear as both small donations and party money. The grade of B was worked out from figures that contradict each other, so it's withdrawn until the reports add up. A grade is no longer given when the money it counts is clearly more than a campaign's reports say came in.",
+  },
+  {
     id: '2026-11-01-pac-gifts-reports',
     date: '2026-11-01',
     kind: 'correction',
