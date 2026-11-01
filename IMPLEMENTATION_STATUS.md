@@ -87,10 +87,48 @@ log names any committee whose list is under 90% of its reports and more
 than $10,000 short (`shortLists`, `scripts/refresh/lib/pacs.mjs`).
 
 Full dry run: 538 graded, six letters move (three up, three down), five
-committees short. Open: James Baird's campaign's newest raw reports name
-PACs without their FEC IDs (33 of 37 lines), so those gifts are left out;
-the FEC adds the IDs when it processes them, and matching by name is the
-owner's call. The other four short committees are still to be checked.
+committees short. James Baird's campaign's newest raw reports named PACs
+without their FEC IDs; at the owner's yes such a line now takes the ID of
+the one committee in the FEC's register with exactly that name
+(`committeeByName`), and is left out when none or several have it (36 of
+Baird's 40 matched). Open after the election: a run of a few members can
+give a joint fund to the wrong owner, because the other members its
+payments went to aren't in the run to be added up as one person (Steve
+Daines and Northeast Senate Victory Committee, in a nine-member dry run;
+full runs are right).
+
+## 2026-10-31 (afternoon): 2026 district lines, PAC gifts, Darline Graham
+
+- **The ballot lookup used the old district lines.** I built the ZIP and
+  location lookup from the Census Bureau's 119th Congress districts, and
+  the Races and Ballot pages used it for the 2026 races. Nine states redrew
+  for 2026 (Alabama, California, Florida, Louisiana, North Carolina, Ohio,
+  Tennessee, Texas, Utah), so a visitor there could be sent to the wrong
+  race: the owner's ZIP code, 92103, went to Peters (CA-50) with Jacobs
+  (CA-51) on the ballot. Now the races lookup uses the 2026 lines in those
+  states (`public/geo/2026`, `scripts/geo/build-geo-2026.mjs`): the Census
+  Bureau's 120th Congress districts (TIGER 2026, cd120), with ZIP codes
+  placed the way the Bureau does it, each census block in its district by
+  its internal point and the blocks' land added up by ZIP code (all 2.7
+  million blocks placed; 9,041 ZIP codes, 92103 now CA-51). The 2026
+  district is kept apart from the current one (`tfp:ballot`); the current
+  one still finds representatives. An address that can't be placed gets
+  the state's official voter lookup and a list of its districts (#89).
+- **PAC gifts from raw filings** (#88): gifts on reports the FEC hasn't
+  processed, matched to the PACs' own lines. The matching found that the
+  PACs' reports disagree with the campaigns' (Susan Collins's campaign
+  reported $1.59M from PACs, the PACs $2.56M), so lists could add up to more
+  than the PAC total; grades were unaffected (PAC credit scales to the
+  real total). Being replaced by lists from the committees' own records.
+- **Fund for America's Future** (Lindsey Graham's leadership PAC, Darline
+  Graham its sponsor from 25 July) counts from its July report on, owner's
+  decision (`COMMITTEE_SINCE`): $69,948 of $702,046. Darline Graham's FEC
+  ID (S6SC04437) is in the hand-checked additions, and the races job now
+  reads them; she's graded D and her race card links her senator's page.
+- **Texas 26 and New Jersey 7 back on the races list**: Ernest Lineberger
+  lost the Texas 26 primary and Randall Terry withdrew from New Jersey 7,
+  both recorded in `ballot.json` with sources. Texas 26 had been off the
+  list since 27 October, written down as open and not fixed.
 
 ## 2026-10-31: donor records from the FEC's raw filings
 
