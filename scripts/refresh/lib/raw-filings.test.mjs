@@ -156,6 +156,18 @@ describe('unprocessedReports', () => {
     ]);
     expect(unprocessedReports(filings, processed, figures, 'itemized')).toEqual([]);
   });
+
+  it('reads a report whose figure is negative: refunds', () => {
+    const processed = new Map([
+      ['C00000001', { files: new Set(['1', '4']), newest: '2026-10-14' }],
+    ]);
+    const figures = new Map([
+      ['C00000001|2026-07-01|2026-09-30', { itemized: -373393.99, pacs: 0 }],
+    ]);
+    expect(
+      unprocessedReports(filings, processed, figures, 'itemized').map(r => r.fileNumber)
+    ).toEqual(['3']);
+  });
 });
 
 describe('PAC gifts in raw reports', () => {

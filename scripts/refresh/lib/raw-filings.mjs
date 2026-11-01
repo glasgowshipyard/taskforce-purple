@@ -196,7 +196,8 @@ function reorder(yyyymmdd) {
  * the processed records (`processed`: committee id -> { files: Set of file
  * numbers, newest: the latest record date }). `figures` (reportFigures)
  * says which reports have records to read: one whose `field` is 0 is left
- * out, and one above 0 is read whatever its date, since the FEC doesn't
+ * out, and any other is read whatever its date (a negative figure is
+ * refunds, 2026-10-31), since the FEC doesn't
  * process reports in order (a committee's October report was processed
  * before its September one, 2026-10-31). A report not in `figures` yet is
  * read only when it starts after the newest processed record, and none is
@@ -223,7 +224,7 @@ export function unprocessedReports(filings, processed, figures = new Map(), fiel
     const start = list[0].coverage_start_date.slice(0, 10);
     const end = list[0].coverage_end_date.slice(0, 10);
     const figure = figures.get(key)?.[field];
-    if (figure !== undefined ? figure <= 0 : seen.newest && start <= seen.newest) {
+    if (figure !== undefined ? figure === 0 : seen.newest && start <= seen.newest) {
       continue;
     }
     if ((seen.dates || []).some(d => d >= start && d <= end)) {
@@ -358,12 +359,11 @@ export async function reportFigures(fec, ids, cycle) {
           }
           const key = `${r.committee_id}|${r.coverage_start_date.slice(0, 10)}|${r.coverage_end_date.slice(0, 10)}`;
           const was = out.get(key) || { itemized: 0, pacs: 0 };
+          const itemized = Number(r.individual_itemized_contributions_period) || 0;
+          const pacs = Number(r.other_political_committee_contributions_period) || 0;
           out.set(key, {
-            itemized: Math.max(
-              was.itemized,
-              Number(r.individual_itemized_contributions_period) || 0
-            ),
-            pacs: Math.max(was.pacs, Number(r.other_political_committee_contributions_period) || 0),
+            itemized: was.itemized || itemized,
+            pacs: was.pacs || pacs,
           });
         }
         if (page >= (d.pagination?.pages || 1)) {
