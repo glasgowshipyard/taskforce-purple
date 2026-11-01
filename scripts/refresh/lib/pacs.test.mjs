@@ -193,6 +193,48 @@ describe('nameFromPacReports', () => {
     ]);
   });
 
+  it("picks between gifts that both fit by the PAC's registered name", () => {
+    const spacex = 'C00411116';
+    const names = {
+      [pilots]: 'AIR LINE PILOTS ASSOCIATION PAC',
+      [spacex]: 'SPACE EXPLORATION TECHNOLOGIES CORP. PAC',
+    };
+    const found = nameFromPacReports({
+      recipient,
+      named: [],
+      unnamed: [
+        { amount: 5000, date: '2026-07-27', name: "AIR LINE PILOTS ASSOC. INT'L PAC" },
+        { amount: 5000, date: '2026-07-28', name: 'SPACE EXPLORATION TECHNOLOGIES CORP PAC' },
+      ],
+      pacSide: [
+        { giver: pilots, amount: 5000, date: '2026-07-21' },
+        { giver: spacex, amount: 5000, date: '2026-07-22' },
+      ],
+      nameOf: id => names[id],
+    });
+    expect(found).toEqual([
+      { giver: pilots, recipient, amount: 5000, date: '2026-07-27' },
+      { giver: spacex, recipient, amount: 5000, date: '2026-07-28' },
+    ]);
+  });
+
+  it('leaves a line out when no name clearly picks one PAC', () => {
+    const found = nameFromPacReports({
+      recipient,
+      named: [],
+      unnamed: [{ amount: 5000, date: '2026-07-27', name: 'PILOTS PAC' }],
+      pacSide: [
+        { giver: pilots, amount: 5000, date: '2026-07-21' },
+        { giver: owners, amount: 5000, date: '2026-07-22' },
+      ],
+      nameOf: id =>
+        id === pilots
+          ? 'AIR LINE PILOTS ASSOCIATION PAC'
+          : 'AIRCRAFT OWNERS AND PILOTS ASSOCIATION PAC',
+    });
+    expect(found).toEqual([]);
+  });
+
   it('leaves a line out when two PACs gave the same amount near its date', () => {
     const found = nameFromPacReports({
       recipient,
