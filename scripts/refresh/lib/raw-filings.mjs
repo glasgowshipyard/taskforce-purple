@@ -9,6 +9,7 @@
 // add up, to the cent, to the itemized total on the report's own summary.
 
 import { COMMITTEE_SINCE } from '../../../workers/fec-crosswalk-additions.js';
+import { scheduleAPages } from './fec.mjs';
 import { bulkDate } from './reconcile.mjs';
 
 export const rawFilingUrl = fileNumber => `https://docquery.fec.gov/dcdev/posted/${fileNumber}.fec`;
@@ -169,19 +170,49 @@ function pacGiftsOf(rows, reported) {
       why: `PAC gifts add up to $${(sum / 100).toFixed(2)}, the report says $${(reported / 100).toFixed(2)}`,
       gifts: [],
       unnamed: 0,
+      byName: [],
     };
   }
+  const gift = r => ({
+    giver: r[SA.donorCommittee],
+    recipient: r[SA.committee],
+    amount: Math.round(Number(r[SA.amount]) * 100) / 100,
+    date: bulkDate(reorder(r[SA.date])),
+  });
   const named = counted.filter(r => /^C\d{8}$/.test(r[SA.donorCommittee]));
   return {
     ok: true,
-    gifts: named.map(r => ({
-      giver: r[SA.donorCommittee],
-      recipient: r[SA.committee],
-      amount: Math.round(Number(r[SA.amount]) * 100) / 100,
-      date: bulkDate(reorder(r[SA.date])),
-    })),
+    gifts: named.map(gift),
     unnamed: counted.length - named.length,
+    // The lines naming the PAC but not its FEC ID, for campaignPacGifts to
+    // look up in the FEC's register
+    byName: counted
+      .filter(r => !/^C\d{8}$/.test(r[SA.donorCommittee]))
+      .map(r => ({ ...gift(r), giver: null, name: r[SA.organization] || '' })),
   };
+}
+
+/** A committee name as compared with the FEC's register: case and spacing only. */
+export const committeeNameKey = name =>
+  String(name || '')
+    .toUpperCase()
+    .replace(/\s+/g, ' ')
+    .trim();
+
+/**
+ * The FEC ID for a committee's exact name (committeeNameKey), from the
+ * FEC's register (`cm`: [{ id, name }]), when exactly one committee has
+ * that name; otherwise none.
+ */
+export function committeeByName(cm) {
+  const ids = new Map();
+  for (const c of cm) {
+    const key = committeeNameKey(c.name);
+    if (key) {
+      ids.set(key, ids.has(key) && ids.get(key) !== c.id ? null : c.id);
+    }
+  }
+  return name => ids.get(committeeNameKey(name)) || null;
 }
 
 // Raw filings write dates YYYYMMDD; bulkDate takes the bulk file's MMDDYYYY
@@ -193,11 +224,17 @@ function reorder(yyyymmdd) {
  * The reports whose records aren't processed yet: for each committee and
  * period, the newest filing, unless a filing for that period is already in
  * the processed records (`processed`: committee id -> { files: Set of file
- * numbers, newest: the latest record date }). A period that starts on or
- * before the newest processed record is left out too, so nothing can be
- * counted twice.
+ * numbers, newest: the latest record date }). `figures` (reportFigures)
+ * says which reports have records to read: one whose `field` is 0 is left
+ * out, and any other is read whatever its date (a negative figure is
+ * refunds, 2026-10-31), since the FEC doesn't
+ * process reports in order (a committee's October report was processed
+ * before its September one, 2026-10-31). A report not in `figures` yet is
+ * read only when it starts after the newest processed record, and none is
+ * read when a processed record (`dates`) falls in its period, so nothing
+ * can be counted twice.
  */
-export function unprocessedReports(filings, processed) {
+export function unprocessedReports(filings, processed, figures = new Map(), field = 'pacs') {
   const periods = new Map();
   for (const f of filings) {
     if (!REPORT_FORMS.includes(f.form_type) || !f.coverage_start_date || !f.coverage_end_date) {
@@ -209,13 +246,18 @@ export function unprocessedReports(filings, processed) {
     periods.set(key, list);
   }
   const out = [];
-  for (const list of periods.values()) {
+  for (const [key, list] of periods) {
     const seen = processed.get(list[0].committee_id) || { files: new Set(), newest: null };
     if (list.some(f => seen.files.has(String(f.file_number)))) {
       continue;
     }
     const start = list[0].coverage_start_date.slice(0, 10);
-    if (seen.newest && start <= seen.newest) {
+    const end = list[0].coverage_end_date.slice(0, 10);
+    const figure = figures.get(key)?.[field];
+    if (figure !== undefined ? figure === 0 : seen.newest && start <= seen.newest) {
+      continue;
+    }
+    if ((seen.dates || []).some(d => d >= start && d <= end)) {
       continue;
     }
     const newest = [...list].sort(
@@ -258,7 +300,8 @@ export async function addRawFilings({
   }
   const list = ids.map(i => `'${i}'`).join(',');
   const seen = await bulk.read(`
-    SELECT committee_id, list(DISTINCT file_num) AS files, max(date) AS newest FROM (
+    SELECT committee_id, list(DISTINCT file_num) AS files, max(date) AS newest,
+      list(DISTINCT date) AS dates FROM (
       SELECT committee_id, file_num, date FROM bulk WHERE committee_id IN (${list})
       UNION ALL
       SELECT committee_id, file_num, date FROM api WHERE committee_id IN (${list}) AND source <> 'raw'
@@ -269,11 +312,13 @@ export async function addRawFilings({
       {
         files: new Set((r.files?.items ?? r.files ?? []).filter(Boolean).map(String)),
         newest: r.newest || null,
+        dates: (r.dates?.items ?? r.dates ?? []).filter(Boolean).map(String),
       },
     ])
   );
   const filings = await listFilings(fec, ids, cycle);
-  for (const r of unprocessedReports(filings, processed)) {
+  const figures = await reportFigures(fec, ids, cycle);
+  for (const r of unprocessedReports(filings, processed, figures, 'itemized')) {
     try {
       const parsed = parseRawFiling(await download(r.fileNumber, fetchImpl), r.fileNumber);
       if (!parsed.ok) {
@@ -320,6 +365,46 @@ async function listFilings(fec, ids, cycle) {
   return filings;
 }
 
+/**
+ * Each report's itemized donors (line 11(a)(i)) and PAC gifts (line 11(c))
+ * from the FEC's report figures, which arrive within days of filing, by
+ * committee and period (the key unprocessedReports uses). 100 committees a
+ * call, campaign reports and PAC reports both asked for.
+ */
+export async function reportFigures(fec, ids, cycle) {
+  const out = new Map();
+  for (const path of ['/reports/house-senate/', '/reports/pac-party/']) {
+    for (let i = 0; i < ids.length; i += 100) {
+      for (let page = 1; ; page++) {
+        const d = await fec(path, {
+          committee_id: ids.slice(i, i + 100),
+          cycle,
+          is_amended: false,
+          per_page: 100,
+          page,
+        });
+        for (const r of d.results || []) {
+          if (!r.coverage_start_date || !r.coverage_end_date) {
+            continue;
+          }
+          const key = `${r.committee_id}|${r.coverage_start_date.slice(0, 10)}|${r.coverage_end_date.slice(0, 10)}`;
+          const was = out.get(key) || { itemized: 0, pacs: 0 };
+          const itemized = Number(r.individual_itemized_contributions_period) || 0;
+          const pacs = Number(r.other_political_committee_contributions_period) || 0;
+          out.set(key, {
+            itemized: was.itemized || itemized,
+            pacs: was.pacs || pacs,
+          });
+        }
+        if (page >= (d.pagination?.pages || 1)) {
+          break;
+        }
+      }
+    }
+  }
+  return out;
+}
+
 async function download(fileNumber, fetchImpl) {
   const res = await fetchImpl(rawFilingUrl(fileNumber), {
     headers: { 'User-Agent': 'taskforce-purple-refresh' },
@@ -331,115 +416,129 @@ async function download(fileNumber, fetchImpl) {
 }
 
 /**
- * PAC gifts from the reports not yet processed, for these committees (the
- * members' campaigns, leadership PACs and own joint funds), before the PACs
- * are looked up. Which reports are processed comes from the bulk file of
- * individual records (`itcontPath`): the FEC processes a report whole.
- * Returns the gifts found, by receiving committee.
+ * Every PAC gift to these committees as each committee itself reported it
+ * (line 11c), for the cycle: the same reports the PAC totals come from, so
+ * a member's list can't come to more than their PAC total (owner,
+ * 2026-10-31: the PACs' own reports, which the list was built from before,
+ * disagree with the campaigns'; Susan Collins's campaign reported $1.59M
+ * from PACs and the PACs $2.56M). Reports the FEC has processed come from
+ * its API (10 committees a call, the most it takes); the rest from the raw filings, each used
+ * only when its PAC lines add up to its own line 11(c); a raw line naming a
+ * PAC without its FEC ID takes the ID of the one committee in the FEC's
+ * register with exactly that name (`idForName`, committeeByName; owner,
+ * 2026-10-31), and is left out when none or several have it. Both report forms'
+ * line 11(c) are asked for, whatever the committee is registered as: a
+ * committee registered as a PAC can file campaign reports (Bonnie Watson
+ * Coleman's, 2026-10-31, whose list was asked for on the wrong form and
+ * came back nearly empty). One call per form: given two line numbers, the
+ * FEC answers for the first only.
+ * Returns the gifts by receiving committee, and the committees whose
+ * gifts couldn't all be read (for those the caller keeps the PACs' side).
  */
-export async function rawPacGifts({
+export async function campaignPacGifts({
   fec,
-  itcontPath,
   committeeIds,
   cycle,
+  idForName = () => null,
   log = () => {},
   fetchImpl = fetch,
 }) {
   const ids = [...new Set(committeeIds)].filter(id => /^C\d{8}$/.test(id));
-  const byRecipient = new Map();
-  const stats = { reports: 0, refused: 0, gifts: 0, unnamed: 0 };
-  if (!ids.length) {
-    return { byRecipient, stats };
+  const byRecipient = new Map(ids.map(id => [id, []]));
+  const missing = new Set();
+  const processed = new Map();
+  const stats = { processed: 0, raw: 0, reports: 0, unnamed: 0, byName: 0 };
+  const keep = (recipient, g) => byRecipient.get(recipient)?.push(g);
+  for (const line of ['F3-11C', 'F3X-11C']) {
+    for (let i = 0; i < ids.length; i += 10) {
+      const chunk = ids.slice(i, i + 10);
+      try {
+        await scheduleAPages(
+          fec,
+          {
+            committee_id: chunk,
+            two_year_transaction_period: cycle,
+            line_number: line,
+          },
+          rows => {
+            for (const r of rows) {
+              const seen = processed.get(r.committee_id) || {
+                files: new Set(),
+                newest: null,
+                dates: [],
+              };
+              seen.files.add(String(r.file_number));
+              const date = String(r.contribution_receipt_date || '').slice(0, 10) || null;
+              if (date && (!seen.newest || date > seen.newest)) {
+                seen.newest = date;
+              }
+              if (date) {
+                seen.dates.push(date);
+              }
+              processed.set(r.committee_id, seen);
+              if (r.memo_code === 'X') {
+                continue;
+              }
+              if (!/^C\d{8}$/.test(r.contributor_id || '')) {
+                stats.unnamed++;
+                continue;
+              }
+              stats.processed++;
+              keep(r.committee_id, {
+                giver: r.contributor_id,
+                recipient: r.committee_id,
+                amount: Math.round(Number(r.contribution_receipt_amount) * 100) / 100,
+                date,
+              });
+            }
+          }
+        );
+      } catch (error) {
+        chunk.forEach(id => missing.add(id));
+        log(
+          `  PAC gifts for ${chunk.join(', ')}: ${error.message}; the PACs' own reports are used`
+        );
+      }
+    }
   }
-  const { DuckDBInstance } = await import('@duckdb/node-api');
-  const conn = await (await DuckDBInstance.create(':memory:')).connect();
-  const seen = (
-    await conn.runAndReadAll(`
-    SELECT column00 AS committee_id, list(DISTINCT column17) AS files,
-      max(CASE WHEN regexp_matches(column13, '^[0-9]{8}$')
-        THEN substr(column13,5,4)||'-'||substr(column13,1,2)||'-'||substr(column13,3,2) END) AS newest
-    FROM read_csv('${itcontPath}', delim='|', header=false, quote='', escape='', all_varchar=true,
-                  ignore_errors=true, null_padding=true)
-    WHERE column00 IN (${ids.map(i => `'${i}'`).join(',')})
-    GROUP BY 1`)
-  ).getRowObjectsJS();
-  const processed = new Map(
-    seen.map(r => [
-      r.committee_id,
-      { files: new Set((r.files || []).filter(Boolean).map(String)), newest: r.newest || null },
-    ])
+  const read = ids.filter(id => !missing.has(id));
+  const reports = unprocessedReports(
+    await listFilings(fec, read, cycle),
+    processed,
+    await reportFigures(fec, read, cycle),
+    'pacs'
   );
-  for (const r of unprocessedReports(await listFilings(fec, ids, cycle), processed)) {
+  for (const r of reports) {
     try {
       const parsed = parseRawFiling(await download(r.fileNumber, fetchImpl), r.fileNumber);
       if (!parsed.pacs?.ok) {
-        stats.refused++;
+        missing.add(r.committeeId);
         log(
-          `  ${r.committeeId} raw report ${r.fileNumber} PAC gifts not used: ${parsed.pacs?.why || parsed.why}`
+          `  ${r.committeeId} raw report ${r.fileNumber} PAC gifts not used: ${parsed.pacs?.why || parsed.why}; the PACs' own reports are used`
         );
         continue;
       }
       stats.reports++;
-      stats.gifts += parsed.pacs.gifts.length;
-      stats.unnamed += parsed.pacs.unnamed;
-      const list = byRecipient.get(r.committeeId) || [];
-      list.push(...parsed.pacs.gifts);
-      byRecipient.set(r.committeeId, list);
+      stats.raw += parsed.pacs.gifts.length;
+      parsed.pacs.gifts.forEach(g => keep(r.committeeId, g));
+      for (const g of parsed.pacs.byName) {
+        const giver = idForName(g.name);
+        if (giver && giver !== r.committeeId) {
+          stats.byName++;
+          keep(r.committeeId, { giver, recipient: g.recipient, amount: g.amount, date: g.date });
+        } else {
+          stats.unnamed++;
+        }
+      }
     } catch (error) {
-      stats.refused++;
+      missing.add(r.committeeId);
       log(`  ${r.committeeId} raw report ${r.fileNumber}: download failed: ${error.message}`);
     }
   }
   log(
-    `raw PAC gifts: ${stats.gifts} from ${stats.reports} unprocessed report(s), ${stats.unnamed} line(s) naming no FEC ID left out, ${stats.refused} report(s) not used`
+    `PAC gifts as the committees reported them: ${stats.processed} processed, ${stats.raw} from ${stats.reports} raw report(s), ${stats.byName} more found by their exact name in the FEC's register, ${stats.unnamed} line(s) naming no FEC ID left out; ${missing.size} committee(s) kept on the PACs' own reports`
   );
-  return { byRecipient, stats };
-}
-
-/**
- * Raw PAC gifts not already on a PAC's own processed report: matched one to
- * one on giving PAC, receiving committee and amount, the closest dates
- * first. A PAC dates a gift when it sends it and the campaign when it banks
- * it, up to weeks later (2026-10-31: a $5,000 cheque sent 10 August was
- * banked 3 September), so a campaign's date can be up to 60 days after the
- * PAC's or 10 days before it. `processed`: the PACs' own lines,
- * { giver, recipient, amount, date }.
- */
-export const MATCH_DAYS = { after: 60, before: 10 };
-export function unmatchedGifts(raw, processed) {
-  const lag = (sent, banked) => (Date.parse(banked) - Date.parse(sent)) / 864e5;
-  const pool = processed.map(g => ({ ...g, used: false }));
-  const fits = (p, g) => {
-    if (p.used || p.giver !== g.giver || p.recipient !== g.recipient) {
-      return false;
-    }
-    if (Math.abs(p.amount - g.amount) >= 0.005) {
-      return false;
-    }
-    if (!p.date || !g.date) {
-      return true;
-    }
-    const d = lag(p.date, g.date);
-    return d <= MATCH_DAYS.after && d >= -MATCH_DAYS.before;
-  };
-  // Closest pairs first, so one PAC's two equal gifts each find their own
-  const pairs = [];
-  raw.forEach((g, gi) =>
-    pool.forEach((p, pi) => {
-      if (fits(p, g)) {
-        pairs.push({ gi, pi, d: p.date && g.date ? Math.abs(lag(p.date, g.date)) : 0 });
-      }
-    })
-  );
-  pairs.sort((a, b) => a.d - b.d);
-  const matched = new Set();
-  for (const { gi, pi } of pairs) {
-    if (!matched.has(gi) && !pool[pi].used) {
-      matched.add(gi);
-      pool[pi].used = true;
-    }
-  }
-  return raw.filter((_, gi) => !matched.has(gi));
+  return { byRecipient, missing, stats };
 }
 
 /**

@@ -66,7 +66,14 @@ import { PLATFORM, buildPacs, directingCommittees } from './lib/final3.mjs';
 import { analyzePool, loadFara } from './lib/analysis.mjs';
 import { ensureFara } from './lib/fara.mjs';
 import { PRODUCTION_VARIANT, VARIANTS, gradeVariants, untraced } from './lib/pac-sim.mjs';
-import { pacGifts, pacProfiles, pacSummary, upstreamGifts, withRawGifts } from './lib/pacs.mjs';
+import {
+  campaignSideGifts,
+  shortLists,
+  pacGifts,
+  pacProfiles,
+  pacSummary,
+  upstreamGifts,
+} from './lib/pacs.mjs';
 import { discoverPeople, loadDiscoveryFiles } from './lib/discovery.mjs';
 import { apiRowToBulkShape, ensureBulkFile, insertApiRows, loadBulk } from './lib/bulk.mjs';
 import { RESULTS_DB, createCloudflare } from './lib/cloudflare.mjs';
@@ -75,7 +82,12 @@ import { createFecClient, replayFec } from './lib/fec.mjs';
 import { memberDonorShape, pacExtras } from '../simulate/lib/inputs.mjs';
 import { ensureIrs, fecGroup, loadIrsIndex } from './lib/sponsors.mjs';
 import { loadStored, saveStored } from './lib/gap-store.mjs';
-import { addRawFilings, dropBefore, rawPacGifts } from './lib/raw-filings.mjs';
+import {
+  addRawFilings,
+  campaignPacGifts,
+  committeeByName,
+  dropBefore,
+} from './lib/raw-filings.mjs';
 import { publishGrades } from './lib/publish.mjs';
 
 // D1's free limits are per day for the whole account, shared with the
@@ -296,7 +308,8 @@ async function main() {
       cycle,
       log,
     });
-    for (const c of await db.read('SELECT id, name FROM cm')) {
+    const register = await db.read('SELECT id, name FROM cm');
+    for (const c of register) {
       conduitNames.set(c.id, c.name);
       if (PLATFORM.test(String(c.name || '').toUpperCase())) {
         platforms.add(c.id);
@@ -310,14 +323,15 @@ async function main() {
       (pf.committees || [])
         .filter(c => c.role === 'campaign' || c.role === 'leadership')
         .map(c => c.committeeId);
-    // Gifts on reports the FEC hasn't processed yet, from the raw filings
-    // (lib/raw-filings.mjs): without them the list ran weeks behind the PAC
-    // total. A frozen simulation grades on its snapshot only
+    // Each gift as the member's own committees reported it, the same reports
+    // the PAC total comes from (lib/raw-filings.mjs campaignPacGifts; owner,
+    // 2026-10-31): the PACs' own reports disagree with the campaigns' and ran
+    // weeks behind. A frozen simulation keeps the PACs' side, its snapshot's
     const raw = frozen
-      ? { byRecipient: new Map() }
-      : await rawPacGifts({
+      ? null
+      : await campaignPacGifts({
           fec,
-          itcontPath: file.path,
+          idForName: committeeByName(register),
           committeeIds: [...discovered.values()].flatMap(pf => [
             ...vehiclesOf(pf),
             ...(pf.whole?.ownFunds || []),
@@ -329,19 +343,20 @@ async function main() {
       const vehicles = vehiclesOf(pf);
       giftsFor.set(
         id,
-        await withRawGifts(db, await pacGifts(db, vehicles), vehicles, raw.byRecipient)
+        raw ? await campaignSideGifts(db, vehicles, raw) : await pacGifts(db, vehicles)
       );
+      for (const c of raw ? shortLists(pf.committees, raw) : []) {
+        log(
+          `  PAC list short: ${c.committeeId} lists $${c.listed} of the $${c.reported} its reports total`
+        );
+      }
       // FINAL-3: the member's own joint funds count in full, their PAC gifts too
       if (pf.whole?.ownFunds?.length) {
         fundGiftsFor.set(
           id,
-          await withRawGifts(
-            db,
-            await pacGifts(db, pf.whole.ownFunds, vehicles),
-            pf.whole.ownFunds,
-            raw.byRecipient,
-            vehicles
-          )
+          raw
+            ? await campaignSideGifts(db, pf.whole.ownFunds, raw, vehicles)
+            : await pacGifts(db, pf.whole.ownFunds, vehicles)
         );
       }
     }

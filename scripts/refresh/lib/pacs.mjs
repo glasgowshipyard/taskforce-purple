@@ -14,7 +14,6 @@
 import { pacType } from '../../../src/lib/pacs.js';
 import { PAC_TRACING, pacPeopleCredit } from '../../../workers/tier-calculation.js';
 import { COMMITTEE_SINCE } from '../../../workers/fec-crosswalk-additions.js';
-import { unmatchedGifts } from './raw-filings.mjs';
 import { ITEMIZED_TYPES } from './reconcile.mjs';
 
 const IDS = /^C\d{8}$/;
@@ -66,48 +65,38 @@ export async function pacGifts(db, recipientIds, alsoNotFrom = []) {
 }
 
 /**
- * A member's PAC gifts (pacGifts) with the gifts from the reports the FEC
- * hasn't processed yet added (`raw`: receiving committee -> gifts, from
- * raw-filings.mjs rawPacGifts): only those no PAC's own processed report
- * shows, so none is counted twice (owner, 2026-10-31).
+ * A member's PAC gifts as their own committees reported them (raw-filings.mjs
+ * campaignPacGifts: `side`), one row per giving committee, largest first, in
+ * pacGifts' shape. Party committees and the member's own committees giving
+ * to each other are left out, as in pacGifts. A committee whose gifts
+ * couldn't all be read keeps the PACs' own reports (pacGifts).
  */
-export async function withRawGifts(db, gifts, recipientIds, raw, alsoNotFrom = []) {
+export async function campaignSideGifts(db, recipientIds, side, alsoNotFrom = []) {
   const ids = recipientIds.filter(id => IDS.test(id));
   const notFrom = new Set([...ids, ...alsoNotFrom]);
-  const incoming = ids
-    .flatMap(id => raw.get(id) || [])
+  const missing = ids.filter(id => side.missing.has(id) || !side.byRecipient.has(id));
+  const fallback = missing.length ? await pacGifts(db, missing, [...ids, ...alsoNotFrom]) : [];
+  const gifts = ids
+    .filter(id => !missing.includes(id))
+    .flatMap(id => side.byRecipient.get(id) || [])
     .filter(g => !notFrom.has(g.giver))
     .filter(
       g => !COMMITTEE_SINCE[g.recipient] || (g.date && g.date >= COMMITTEE_SINCE[g.recipient].from)
     );
-  if (!incoming.length) {
-    return gifts;
+  const givers = [...new Set(gifts.map(g => g.giver))];
+  const info = new Map();
+  for (let i = 0; i < givers.length; i += 500) {
+    const chunk = givers.slice(i, i + 500);
+    for (const c of await db.read(
+      `SELECT id, name, type, designation, org_type, connected_org FROM cm
+       WHERE id IN (${chunk.map(() => '?').join(',')})`,
+      ...chunk
+    )) {
+      info.set(c.id, c);
+    }
   }
-  const marks = ids.map(() => '?').join(',');
-  const processed = await db.read(
-    `SELECT committee_id AS giver, other_id AS recipient, amount, date FROM oth
-     WHERE tx_type IN ('24K', '24Z') AND other_id IN (${marks})`,
-    ...ids
-  );
-  const extra = unmatchedGifts(
-    incoming,
-    processed.map(g => ({ ...g, amount: num(g.amount) }))
-  );
-  if (!extra.length) {
-    return gifts;
-  }
-  const givers = [...new Set(extra.map(g => g.giver))];
-  const info = new Map(
-    (
-      await db.read(
-        `SELECT id, name, type, designation, org_type, connected_org FROM cm
-         WHERE id IN (${givers.map(() => '?').join(',')})`,
-        ...givers
-      )
-    ).map(c => [c.id, c])
-  );
-  const out = new Map(gifts.map(g => [g.id, { ...g }]));
-  for (const g of extra) {
+  const out = new Map(fallback.map(g => [g.id, { ...g }]));
+  for (const g of gifts) {
     const c = info.get(g.giver) || {};
     if (PARTY_TYPES.has(c.type)) {
       continue;
@@ -140,6 +129,25 @@ function sinceClause(recipient, date) {
         `AND NOT (${recipient} = '${id}' AND (${date} IS NULL OR ${date} < '${COMMITTEE_SINCE[id].from}'))`
     )
     .join(' ');
+}
+
+/**
+ * The committees whose list of PAC gifts (campaignPacGifts: `side`) comes to
+ * well under the PAC money their own reports total: under 90% and more than
+ * $10,000 short. Lines naming no FEC ID and party gifts make a list a little
+ * short; a list asked for on the wrong form came back nearly empty and
+ * nothing said so (2026-10-31). `committees`: personFunding's breakdown.
+ */
+export function shortLists(committees, side) {
+  return (committees || [])
+    .filter(c => c.role === 'campaign' || c.role === 'leadership')
+    .filter(c => side.byRecipient.has(c.committeeId) && !side.missing.has(c.committeeId))
+    .map(c => ({
+      committeeId: c.committeeId,
+      listed: cents(side.byRecipient.get(c.committeeId).reduce((t, g) => t + g.amount, 0)),
+      reported: cents(c.pac),
+    }))
+    .filter(c => c.listed < 0.9 * c.reported && c.reported - c.listed > 10000);
 }
 
 /** Gifts in the shape the grade reads (tier-calculation.js). */

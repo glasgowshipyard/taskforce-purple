@@ -5,7 +5,14 @@ import { join } from 'node:path';
 import { DuckDBInstance } from '@duckdb/node-api';
 import { describe, expect, it } from 'vitest';
 import { pacPeopleCredit, tracePacs } from '../../../workers/tier-calculation.js';
-import { asPacContributions, pacGifts, pacProfiles, pacSummary } from './pacs.mjs';
+import {
+  asPacContributions,
+  campaignSideGifts,
+  pacGifts,
+  pacProfiles,
+  pacSummary,
+  shortLists,
+} from './pacs.mjs';
 
 const dir = mkdtempSync(join(tmpdir(), 'tfp-pacs-'));
 const indiv = (cmte, name, amount, sub) =>
@@ -83,6 +90,31 @@ describe('PAC gifts (#57)', () => {
     });
   });
 
+  it('the gifts as the campaign reported them, party and own committees left out', async () => {
+    const side = {
+      missing: new Set(),
+      byRecipient: new Map([
+        [
+          'C00000099',
+          [
+            { giver: 'C00000010', recipient: 'C00000099', amount: 5000, date: '2026-08-01' },
+            { giver: 'C00000010', recipient: 'C00000099', amount: 2000, date: '2026-09-01' },
+            { giver: 'C00000030', recipient: 'C00000099', amount: 5000, date: '2026-09-01' },
+            { giver: 'C00000040', recipient: 'C00000099', amount: 1000, date: '2026-09-01' },
+          ],
+        ],
+      ]),
+    };
+    const gifts = await campaignSideGifts(await db(), ['C00000099'], side, ['C00000040']);
+    expect(gifts.map(g => [g.id, g.amount, g.gifts])).toEqual([['C00000010', 7000, 2]]);
+  });
+
+  it("keeps the PACs' side for a committee whose own records couldn't be read", async () => {
+    const side = { missing: new Set(['C00000099']), byRecipient: new Map() };
+    const gifts = await campaignSideGifts(await db(), ['C00000099'], side);
+    expect(gifts.map(g => g.amount)).toEqual([7500, 5000, 1000]);
+  });
+
   it("each PAC's own donors: many people versus a few", async () => {
     const d = await db();
     const profiles = await pacProfiles(d, join(dir, 'itcont.txt'), ['C00000010', 'C00000020']);
@@ -110,5 +142,27 @@ describe('PAC gifts (#57)', () => {
     // Each PAC's share traced to people, as the grade counts it
     expect(summary.list[0].peopleShare).toBeCloseTo(traced.get(summary.list[0].id)[2].share, 3);
     expect(summary.list.find(p => !profiles.has(p.id)).peopleShare).toBeNull();
+  });
+});
+
+describe('shortLists', () => {
+  const side = {
+    byRecipient: new Map([
+      ['C00000001', [{ giver: 'C00000009', amount: 15000 }]],
+      ['C00000002', [{ giver: 'C00000009', amount: 98000 }]],
+      ['C00000003', []],
+    ]),
+    missing: new Set(['C00000003']),
+  };
+  it('names a list well under its own reported PAC total', () => {
+    const committees = [
+      { committeeId: 'C00000001', role: 'leadership', pac: 139583 },
+      { committeeId: 'C00000002', role: 'campaign', pac: 100000 },
+      { committeeId: 'C00000003', role: 'campaign', pac: 500000 },
+      { committeeId: 'C00000004', role: 'joint', pac: 500000 },
+    ];
+    expect(shortLists(committees, side)).toEqual([
+      { committeeId: 'C00000001', listed: 15000, reported: 139583 },
+    ]);
   });
 });
