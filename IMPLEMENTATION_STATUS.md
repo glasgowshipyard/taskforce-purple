@@ -60,6 +60,38 @@ clean-up, #71 outside spending (shown since 2026-10-25), #72 TypeScript (after t
 
 ## Change log
 
+## 2026-10-31 (evening): PAC lists from the campaigns' own reports
+
+A member's PAC list (who gave, the PAC credit in FINAL-3) came from the
+PACs' own reports (itoth 24K lines), which don't match the campaigns':
+Susan Collins's campaign reported $1.59M from PACs, the PACs $2.56M. Lists
+now come from each campaign's and leadership PAC's own line 11(c)
+(`campaignPacGifts` in `scripts/refresh/lib/raw-filings.mjs`): the FEC's
+records, 10 committees a call and one call per report form, plus the raw
+reports it hasn't processed, each used only when its PAC lines add up to
+its line 11(c). A committee whose list can't be read keeps the PACs' side.
+
+The dry runs found four bugs of mine before anything was published: I
+chose the report form from the committee's registered type, but a PAC can
+file campaign reports (Bonnie Watson Coleman's list held $15,000 of
+$139,583); asking for both forms in one call, which the FEC answers for the
+first only (my test of it happened to use two campaigns); skipping any
+unprocessed report older than the newest processed record, when the FEC
+processes out of order and one record dated 2035 blocked a committee's
+later reports (the same rule held back donor records since the morning;
+25 members gain donors); and then skipping reports with a negative
+figure, which are refunds (Bill Cassidy's). Reports are now chosen by
+their own figures (`reportFigures`: line 11(a)(i) for donors, 11(c) for
+PACs), and none is read when a processed record falls in its period. The
+log names any committee whose list is under 90% of its reports and more
+than $10,000 short (`shortLists`, `scripts/refresh/lib/pacs.mjs`).
+
+Full dry run: 538 graded, six letters move (three up, three down), five
+committees short. Open: James Baird's campaign's newest raw reports name
+PACs without their FEC IDs (33 of 37 lines), so those gifts are left out;
+the FEC adds the IDs when it processes them, and matching by name is the
+owner's call. The other four short committees are still to be checked.
+
 ## 2026-10-31: donor records from the FEC's raw filings
 
 I built the refresh to grade 3 days after a filing deadline, when the FEC's

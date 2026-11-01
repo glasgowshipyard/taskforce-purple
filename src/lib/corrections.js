@@ -17,6 +17,46 @@ export const KINDS = { correction: 'Correction', new: 'New' };
 // new features above corrections within a day (inOrder)
 export const CORRECTIONS = [
   {
+    id: '2026-10-31-donor-records',
+    date: '2026-10-31',
+    kind: 'correction',
+    what: 'Grades count every donor on the October reports',
+    detail:
+      'Grades only used donor records as far as the FEC had processed them, weeks behind the totals. They now count every donor on reports filed through 14 October. Ken Paxton went from C to E.',
+  },
+  {
+    id: '2026-10-31-ballot-lines',
+    date: '2026-10-31',
+    kind: 'correction',
+    what: 'Your ballot: new district lines in nine states',
+    detail:
+      'Alabama, California, Florida, Louisiana, North Carolina, Ohio, Tennessee, Texas and Utah redrew their districts for this election, but finding your ballot by ZIP code still used the old lines. It now uses the new ones, from the Census Bureau.',
+  },
+  {
+    id: '2026-10-31-texas-26',
+    date: '2026-10-31',
+    kind: 'correction',
+    what: 'Texas 26 was missing for four days',
+    detail:
+      "Texas's 26th district was left off the races list from 27 October while a campaign not on the ballot was checked. It's back, and so is New Jersey's 7th, which was missing for about an hour.",
+  },
+  {
+    id: '2026-10-31-darline-graham',
+    date: '2026-10-31',
+    kind: 'correction',
+    what: 'Darline Graham: no grade to D',
+    detail:
+      "This site's data didn't have Darline Graham's FEC registration, so the senator's page showed no grade. It's now graded D. Fund for America's Future counts only from July, when it became Darline Graham's PAC.",
+  },
+  {
+    id: '2026-10-31-pac-lists',
+    date: '2026-10-31',
+    kind: 'correction',
+    what: "PAC lists match each campaign's own reports",
+    detail:
+      "PAC lists came from the PACs' own reports, which don't always match the campaigns', so some added up to more than the PAC total. They now come from each campaign's own reports, including the ones the FEC hasn't processed yet. Six members' grades moved a letter: three up and three down.",
+  },
+  {
     id: '2026-10-25-super-pac-spending',
     date: '2026-10-25',
     kind: 'new',
