@@ -279,8 +279,8 @@ export function unprocessedReports(filings, processed, figures = new Map(), fiel
 
 /**
  * Add the records of every report not yet processed, for these committees,
- * to the bulk connection's `api` table. One FEC call per 20 committees (the
- * filings list) and one download per report. Returns what was added and
+ * to the bulk connection's `api` table. One FEC call per 10 committees (the
+ * filings list, everyRow) and one download per report. Returns what was added and
  * what was refused, for the log and the run summary.
  */
 export async function addRawFilings({
@@ -342,64 +342,75 @@ export async function addRawFilings({
   return { added, refused };
 }
 
-// The committees' report filings this cycle, 20 committees a call
+// The committees' report filings this cycle, 10 committees a call
 async function listFilings(fec, ids, cycle) {
-  const filings = [];
-  for (let i = 0; i < ids.length; i += 20) {
-    const chunk = ids.slice(i, i + 20);
+  return everyRow(fec, '/efile/filings/', ids, {
+    form_type: REPORT_FORMS,
+    min_receipt_date: `${cycle - 1}-01-01`,
+    sort: '-receipt_date',
+  });
+}
+
+/**
+ * Every row a page-numbered FEC listing has for these committees. Its pages
+ * aren't stable: for 100 committees' reports it gave 779 rows of which 7
+ * were repeats, so 7 reports never came (2026-11-01: Pam Delancy's July to
+ * September figures among them, and that report's 74 donor records were
+ * left out). So 10 committees a call, which nearly always fits one page,
+ * and when the rows that came don't add up to the count the FEC states,
+ * each committee is asked for on its own.
+ */
+export async function everyRow(fec, path, ids, params, size = 10) {
+  const ask = async chunk => {
+    const rows = [];
+    let count = 0;
     for (let page = 1; ; page++) {
-      const d = await fec('/efile/filings/', {
-        committee_id: chunk,
-        form_type: REPORT_FORMS,
-        min_receipt_date: `${cycle - 1}-01-01`,
-        per_page: 100,
-        page,
-        sort: '-receipt_date',
-      });
-      filings.push(...(d.results || []));
+      const d = await fec(path, { ...params, committee_id: chunk, per_page: 100, page });
+      rows.push(...(d.results || []));
+      count = d.pagination?.count ?? rows.length;
       if (page >= (d.pagination?.pages || 1)) {
         break;
       }
     }
+    const unique = new Set(rows.map(r => JSON.stringify(r)));
+    return { rows, complete: unique.size === rows.length && rows.length === count };
+  };
+  const out = [];
+  for (let i = 0; i < ids.length; i += size) {
+    const chunk = ids.slice(i, i + size);
+    const got = await ask(chunk);
+    if (got.complete || chunk.length === 1) {
+      out.push(...got.rows);
+      continue;
+    }
+    for (const id of chunk) {
+      out.push(...(await ask([id])).rows);
+    }
   }
-  return filings;
+  return out;
 }
 
 /**
  * Each report's itemized donors (line 11(a)(i)) and PAC gifts (line 11(c))
  * from the FEC's report figures, which arrive within days of filing, by
- * committee and period (the key unprocessedReports uses). 100 committees a
- * call, campaign reports and PAC reports both asked for.
+ * committee and period (the key unprocessedReports uses). 10 committees a
+ * call (everyRow), campaign reports and PAC reports both asked for.
  */
 export async function reportFigures(fec, ids, cycle) {
   const out = new Map();
   for (const path of ['/reports/house-senate/', '/reports/pac-party/']) {
-    for (let i = 0; i < ids.length; i += 100) {
-      for (let page = 1; ; page++) {
-        const d = await fec(path, {
-          committee_id: ids.slice(i, i + 100),
-          cycle,
-          is_amended: false,
-          per_page: 100,
-          page,
-        });
-        for (const r of d.results || []) {
-          if (!r.coverage_start_date || !r.coverage_end_date) {
-            continue;
-          }
-          const key = `${r.committee_id}|${r.coverage_start_date.slice(0, 10)}|${r.coverage_end_date.slice(0, 10)}`;
-          const was = out.get(key) || { itemized: 0, pacs: 0 };
-          const itemized = Number(r.individual_itemized_contributions_period) || 0;
-          const pacs = Number(r.other_political_committee_contributions_period) || 0;
-          out.set(key, {
-            itemized: was.itemized || itemized,
-            pacs: was.pacs || pacs,
-          });
-        }
-        if (page >= (d.pagination?.pages || 1)) {
-          break;
-        }
+    for (const r of await everyRow(fec, path, ids, { cycle, is_amended: false })) {
+      if (!r.coverage_start_date || !r.coverage_end_date) {
+        continue;
       }
+      const key = `${r.committee_id}|${r.coverage_start_date.slice(0, 10)}|${r.coverage_end_date.slice(0, 10)}`;
+      const was = out.get(key) || { itemized: 0, pacs: 0 };
+      const itemized = Number(r.individual_itemized_contributions_period) || 0;
+      const pacs = Number(r.other_political_committee_contributions_period) || 0;
+      out.set(key, {
+        itemized: was.itemized || itemized,
+        pacs: was.pacs || pacs,
+      });
     }
   }
   return out;
@@ -432,8 +443,9 @@ async function download(fileNumber, fetchImpl) {
  * Coleman's, 2026-10-31, whose list was asked for on the wrong form and
  * came back nearly empty). One call per form: given two line numbers, the
  * FEC answers for the first only.
- * Returns the gifts by receiving committee, and the committees whose
- * gifts couldn't all be read (for those the caller keeps the PACs' side).
+ * Returns the gifts by receiving committee, the lines naming no FEC ID
+ * (`unnamed`), and the committees whose gifts couldn't all be read (for
+ * those the caller keeps the PACs' side).
  */
 export async function campaignPacGifts({
   fec,
@@ -445,10 +457,17 @@ export async function campaignPacGifts({
 }) {
   const ids = [...new Set(committeeIds)].filter(id => /^C\d{8}$/.test(id));
   const byRecipient = new Map(ids.map(id => [id, []]));
+  // Lines naming no FEC ID, by receiving committee: the PACs' own reports
+  // may name them (pacs.mjs fillFromPacReports)
+  const unnamed = new Map();
   const missing = new Set();
   const processed = new Map();
   const stats = { processed: 0, raw: 0, reports: 0, unnamed: 0, byName: 0 };
   const keep = (recipient, g) => byRecipient.get(recipient)?.push(g);
+  const noId = (recipient, g) => {
+    stats.unnamed++;
+    unnamed.set(recipient, [...(unnamed.get(recipient) || []), g]);
+  };
   for (const line of ['F3-11C', 'F3X-11C']) {
     for (let i = 0; i < ids.length; i += 10) {
       const chunk = ids.slice(i, i + 10);
@@ -480,7 +499,11 @@ export async function campaignPacGifts({
                 continue;
               }
               if (!/^C\d{8}$/.test(r.contributor_id || '')) {
-                stats.unnamed++;
+                noId(r.committee_id, {
+                  amount: Math.round(Number(r.contribution_receipt_amount) * 100) / 100,
+                  date,
+                  name: r.contributor_name || '',
+                });
                 continue;
               }
               stats.processed++;
@@ -527,7 +550,7 @@ export async function campaignPacGifts({
           stats.byName++;
           keep(r.committeeId, { giver, recipient: g.recipient, amount: g.amount, date: g.date });
         } else {
-          stats.unnamed++;
+          noId(r.committeeId, { amount: g.amount, date: g.date, name: g.name });
         }
       }
     } catch (error) {
@@ -536,9 +559,9 @@ export async function campaignPacGifts({
     }
   }
   log(
-    `PAC gifts as the committees reported them: ${stats.processed} processed, ${stats.raw} from ${stats.reports} raw report(s), ${stats.byName} more found by their exact name in the FEC's register, ${stats.unnamed} line(s) naming no FEC ID left out; ${missing.size} committee(s) kept on the PACs' own reports`
+    `PAC gifts as the committees reported them: ${stats.processed} processed, ${stats.raw} from ${stats.reports} raw report(s), ${stats.byName} more found by their exact name in the FEC's register, ${stats.unnamed} line(s) naming no FEC ID; ${missing.size} committee(s) kept on the PACs' own reports`
   );
-  return { byRecipient, missing, stats };
+  return { byRecipient, unnamed, missing, stats };
 }
 
 /**

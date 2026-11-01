@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   campaignPacGifts,
   committeeByName,
+  everyRow,
   parseRawFiling,
   unprocessedReports,
 } from './raw-filings.mjs';
@@ -216,6 +217,13 @@ describe('campaignPacGifts', () => {
   const records = [
     { committee_id: 'C00000001', line: 'F3-11C', contributor_id: 'C00000009', amount: 5000 },
     { committee_id: 'C00000002', line: 'F3X-11C', contributor_id: 'C00000008', amount: 2500 },
+    {
+      committee_id: 'C00000001',
+      line: 'F3-11C',
+      contributor_id: null,
+      amount: 1000,
+      name: 'A PAC',
+    },
   ];
   const fec = async (path, params) => {
     if (path === '/efile/filings/') {
@@ -231,6 +239,7 @@ describe('campaignPacGifts', () => {
         .map((r, i) => ({
           committee_id: r.committee_id,
           contributor_id: r.contributor_id,
+          contributor_name: r.name,
           contribution_receipt_amount: r.amount,
           contribution_receipt_date: '2026-08-01',
           file_number: 100 + i,
@@ -247,5 +256,35 @@ describe('campaignPacGifts', () => {
     expect(side.byRecipient.get('C00000001').map(g => g.amount)).toEqual([5000]);
     expect(side.byRecipient.get('C00000002').map(g => g.amount)).toEqual([2500]);
     expect(side.missing.size).toBe(0);
+    // A line naming no FEC ID is kept aside for the PACs' own reports
+    expect(side.unnamed.get('C00000001')).toEqual([
+      { amount: 1000, date: '2026-08-01', name: 'A PAC' },
+    ]);
+  });
+});
+
+describe('everyRow', () => {
+  // A stand-in FEC whose pages, like the real one's, can repeat a row and
+  // so leave another out when asked for several committees at once
+  const reports = id => [1, 2, 3].map(n => ({ committee_id: id, file_number: `${id}-${n}` }));
+  const fec = async (path, params) => {
+    const all = params.committee_id.flatMap(reports);
+    if (params.committee_id.length === 1) {
+      return { results: all, pagination: { count: all.length, pages: 1 } };
+    }
+    const page = params.page === 1 ? all.slice(0, 4) : [all[3], ...all.slice(5)];
+    return { results: page, pagination: { count: all.length, pages: 2 } };
+  };
+
+  it('asks for each committee on its own when the pages repeat a row', async () => {
+    const rows = await everyRow(fec, '/reports/house-senate/', ['C1', 'C2'], {});
+    expect(rows.map(r => r.file_number).sort()).toEqual([
+      'C1-1',
+      'C1-2',
+      'C1-3',
+      'C2-1',
+      'C2-2',
+      'C2-3',
+    ]);
   });
 });

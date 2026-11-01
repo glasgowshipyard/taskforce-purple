@@ -12,6 +12,7 @@ import {
   pacProfiles,
   pacSummary,
   shortLists,
+  nameFromPacReports,
 } from './pacs.mjs';
 
 const dir = mkdtempSync(join(tmpdir(), 'tfp-pacs-'));
@@ -164,5 +165,118 @@ describe('shortLists', () => {
     expect(shortLists(committees, side)).toEqual([
       { committeeId: 'C00000001', listed: 15000, reported: 139583 },
     ]);
+  });
+});
+
+describe('nameFromPacReports', () => {
+  const recipient = 'C00895722';
+  const pilots = 'C00035451';
+  const owners = 'C00131185';
+  it("names a line from the PAC's own report of the gift (Jim Desmond's, 2026-11-01)", () => {
+    const found = nameFromPacReports({
+      recipient,
+      // The pilots' March gift came with its ID: it takes the March report
+      named: [{ giver: pilots, amount: 5000, date: '2026-03-26' }],
+      unnamed: [
+        { amount: 5000, date: '2026-07-27', name: "AIR LINE PILOTS ASSOC. INT'L PAC" },
+        { amount: 2500, date: '2026-08-11', name: 'AIRCRAFT OWNERS & PILOTS ASSN (AOPA)' },
+      ],
+      pacSide: [
+        { giver: pilots, amount: 5000, date: '2026-03-24' },
+        { giver: pilots, amount: 5000, date: '2026-07-21' },
+        { giver: owners, amount: 2500, date: '2026-08-05' },
+      ],
+    });
+    expect(found).toEqual([
+      { giver: pilots, recipient, amount: 5000, date: '2026-07-27' },
+      { giver: owners, recipient, amount: 2500, date: '2026-08-11' },
+    ]);
+  });
+
+  it("picks between gifts that both fit by the PAC's registered name", () => {
+    const spacex = 'C00411116';
+    const names = {
+      [pilots]: 'AIR LINE PILOTS ASSOCIATION PAC',
+      [spacex]: 'SPACE EXPLORATION TECHNOLOGIES CORP. PAC',
+    };
+    const found = nameFromPacReports({
+      recipient,
+      named: [],
+      unnamed: [
+        { amount: 5000, date: '2026-07-27', name: "AIR LINE PILOTS ASSOC. INT'L PAC" },
+        { amount: 5000, date: '2026-07-28', name: 'SPACE EXPLORATION TECHNOLOGIES CORP PAC' },
+      ],
+      pacSide: [
+        { giver: pilots, amount: 5000, date: '2026-07-21' },
+        { giver: spacex, amount: 5000, date: '2026-07-22' },
+      ],
+      nameOf: id => names[id],
+    });
+    expect(found).toEqual([
+      { giver: pilots, recipient, amount: 5000, date: '2026-07-27' },
+      { giver: spacex, recipient, amount: 5000, date: '2026-07-28' },
+    ]);
+  });
+
+  it('leaves a line out when no name clearly picks one PAC', () => {
+    const found = nameFromPacReports({
+      recipient,
+      named: [],
+      unnamed: [{ amount: 5000, date: '2026-07-27', name: 'PILOTS PAC' }],
+      pacSide: [
+        { giver: pilots, amount: 5000, date: '2026-07-21' },
+        { giver: owners, amount: 5000, date: '2026-07-22' },
+      ],
+      nameOf: id =>
+        id === pilots
+          ? 'AIR LINE PILOTS ASSOCIATION PAC'
+          : 'AIRCRAFT OWNERS AND PILOTS ASSOCIATION PAC',
+    });
+    expect(found).toEqual([]);
+  });
+
+  it('leaves a line out when two PACs gave the same amount near its date', () => {
+    const found = nameFromPacReports({
+      recipient,
+      named: [],
+      unnamed: [{ amount: 5000, date: '2026-07-27' }],
+      pacSide: [
+        { giver: pilots, amount: 5000, date: '2026-07-21' },
+        { giver: owners, amount: 5000, date: '2026-07-25' },
+      ],
+    });
+    expect(found).toEqual([]);
+  });
+
+  it('leaves both lines out when two could take the same gift', () => {
+    const found = nameFromPacReports({
+      recipient,
+      named: [],
+      unnamed: [
+        { amount: 5000, date: '2026-07-20' },
+        { amount: 5000, date: '2026-07-27' },
+      ],
+      pacSide: [{ giver: pilots, amount: 5000, date: '2026-07-21' }],
+    });
+    expect(found).toEqual([]);
+  });
+
+  it('never takes a gift already listed with its ID, a different amount, or one weeks apart', () => {
+    const found = nameFromPacReports({
+      recipient,
+      named: [{ giver: pilots, amount: 5000, date: '2026-07-22' }],
+      unnamed: [
+        { amount: 5000, date: '2026-07-27' },
+        { amount: 2000, date: '2026-08-11' },
+        { amount: 1000, date: '2026-09-30' },
+        { amount: -1000, date: '2026-07-21' },
+      ],
+      pacSide: [
+        { giver: pilots, amount: 5000, date: '2026-07-21' },
+        { giver: owners, amount: 2500, date: '2026-08-05' },
+        { giver: owners, amount: 1000, date: '2026-08-05' },
+      ],
+    });
+    expect(found).toEqual([]);
   });
 });

@@ -39,6 +39,7 @@ import { analyzePool, loadFara } from './lib/analysis.mjs';
 import { buildPacs, directingCommittees, platformIds } from './lib/final3.mjs';
 import {
   campaignSideGifts,
+  fillFromPacReports,
   shortLists,
   pacGifts,
   pacProfiles,
@@ -342,6 +343,9 @@ async function main() {
     cycle,
     log,
   });
+  log(
+    `PAC lines naming no FEC ID, named from the PACs' own reports: ${await fillFromPacReports(db, raw)}`
+  );
   for (const [id, pf] of discovered) {
     const vehicles = vehiclesOf(pf);
     giftsFor.set(

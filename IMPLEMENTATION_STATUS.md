@@ -1,6 +1,6 @@
 # Task Force Purple: implementation status
 
-**Last updated**: 2026-10-31. Current state first, then a dated change log
+**Last updated**: 2026-11-01. Current state first, then a dated change log
 (newest first, from the rebuild on 2026-10-03). The log before the rebuild
 is in `docs/history/log-2025-26.md`.
 
@@ -59,6 +59,47 @@ clean-up, #71 outside spending (shown since 2026-10-25), #72 TypeScript (after t
 ---
 
 ## Change log
+
+## 2026-11-01: PAC gifts named from the PACs' reports, reports no longer skipped, the totals check
+
+- **PAC gifts with no FEC ID (my fault, from #91).** Some campaigns list a
+  PAC's gift by name only. #91 dropped those lines, and Jim Desmond (CA-48)
+  went from S to A on 31 October: the pilots' union and the aircraft owners'
+  association, which count as people under FINAL-3, were left out. Now each
+  such line takes the PAC whose own report shows the same gift to that
+  campaign (same amount, within 14 days); when two fit, the PAC whose
+  registered name matches the line's name picks; when nothing is clear the
+  line is left out (`nameFromPacReports`, `fillFromPacReports` in
+  `scripts/refresh/lib/pacs.mjs`). 91 lines named in the races run.
+- **Reports skipped at random (my fault).** The FEC's page-numbered
+  listings repeat some rows and leave others out across pages, so
+  `listFilings` and `reportFigures` (`raw-filings.mjs`) missed reports. A
+  missed report's donors weren't read. Both now ask 10 committees at a time
+  and check the rows against the FEC's own count, asking committee by
+  committee when it doesn't match (`everyRow`).
+- **Dry runs, compared with live, every change traced:** candidates: Desmond
+  A to S, Ray Pooley (MI-9) D to B (the Machinists' union PAC's $5,000),
+  Missi Hesketh (MO-7) B to A (an October report skipped: 3 donors), Martin
+  Zamora (NM-3) C to B (a July–September report skipped: 80 donors); 6 more
+  move 1 to 4 points, same letter. Members: no letter changes; Richard
+  Hudson 41 to 31 and Pat Harrigan 26 to 22 (their own joint funds'
+  July–September cheques, skipped last night, show the money more
+  concentrated), 5 more by a point.
+- **The totals check** (`scripts/verify/totals-check.mjs`, RUNBOOK §5):
+  every graded person's money against the FEC's per-committee totals file.
+  On the live site, 1,040 of 1,052 match to the dollar. Open: Vanessa Enoch
+  (OH-8): her campaign's reports total $3,125 but list $74,435 from people
+  and $36,323 from parties; graded B on the lines. A rule withholding any
+  grade above what the committees received catches only her: waiting for
+  the owner. Gay Valimont (FL-1): Engage Y'all PAC, her campaign until it
+  became a PAC, is read only to 21 April 2025 ($240,135 later not counted;
+  S either way): to fix after the election. 25 people got money from another
+  politician's joint fund that shows nothing raised this cycle; it's left
+  out of their totals (at most $32,046; no letter changes).
+- **The FEC key ran out this morning (my fault).** A check I ran by hand
+  looped on errors and used the key's 120 calls a minute from about 8:40
+  am to 10:40 am Pacific; the races dry run timed out and was run again.
+  A refresh run I cancelled raised #102 (cancelled counts as failed).
 
 ## 2026-10-31 (night): the foreign-agent register was skipped all day
 

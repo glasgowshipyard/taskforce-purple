@@ -150,6 +150,150 @@ export function shortLists(committees, side) {
     .filter(c => c.listed < 0.9 * c.reported && c.reported - c.listed > 10000);
 }
 
+const DAY = 24 * 60 * 60 * 1000;
+const daysApart = (a, b) => Math.abs(Date.parse(a) - Date.parse(b)) / DAY;
+
+// Words that say nothing about which PAC a name is
+const FILLER = new Set(
+  'PAC POLITICAL ACTION COMMITTEE COMM CMTE FUND THE OF FOR AND INC INCORPORATED ASSOCIATION ASSOC ASSN CORP CORPORATION CO COMPANY FEDERAL NATIONAL INTL INTERNATIONAL AMERICA AMERICAN AMERICANS'.split(
+    ' '
+  )
+);
+const wordsOf = name =>
+  new Set(
+    String(name || '')
+      .toUpperCase()
+      .replace(/'/g, '')
+      .split(/[^A-Z0-9]+/)
+      .filter(w => w.length > 1 && !FILLER.has(w))
+  );
+const shared = (a, b) => {
+  const B = wordsOf(b);
+  return [...wordsOf(a)].filter(w => B.has(w)).length;
+};
+
+/**
+ * A campaign's PAC lines that name no FEC ID, named from the PACs' own
+ * reports of the same gifts (2026-11-01: Jim Desmond's campaign listed the
+ * Air Line Pilots Association's $5,000 by name alone, and leaving it out
+ * cost a grade). For one receiving committee: `named`, its lines with an
+ * ID; `unnamed`, those without ({amount, date, name}); `pacSide`, the PACs'
+ * reports of their gifts to it ({giver, amount, date}); `nameOf`, each
+ * PAC's name in the FEC's register. The PACs' gifts that match a named
+ * line (same PAC and amount, within `days`) are set aside first. A gift
+ * fits a line with its amount dated within `days` of it (a PAC dates a gift
+ * when it sends it, the campaign when it arrives). A line takes a gift's
+ * PAC when that gift is the only one that fits it and it is the only line
+ * the gift fits; or, when several fit, when the PAC's registered name
+ * shares at least two words with the line's name and clearly more than any
+ * other that fits (the pilots' $5,000 and SpaceX's PAC's $5,000 to Jim
+ * Desmond a day apart). Repeated until nothing more is named. Returns the
+ * lines named, as gifts.
+ */
+export function nameFromPacReports({
+  recipient,
+  named,
+  unnamed,
+  pacSide,
+  nameOf = () => '',
+  days = 14,
+}) {
+  const near = (a, b) => a.date && b.date && daysApart(a.date, b.date) <= days;
+  const left = pacSide.filter(p => p.amount > 0 && p.date);
+  for (const g of named) {
+    const i = left.findIndex(p => p.giver === g.giver && p.amount === g.amount && near(p, g));
+    if (i >= 0) {
+      left.splice(i, 1);
+    }
+  }
+  let lines = unnamed.filter(u => u.amount > 0 && u.date);
+  const found = [];
+  const take = (u, gift) => {
+    found.push({ giver: gift.giver, recipient, amount: u.amount, date: u.date });
+    left.splice(left.indexOf(gift), 1);
+    lines = lines.filter(x => x !== u);
+  };
+  // The one gift among `gifts` whose PAC's name clearly matches `name`
+  const byName = (name, gifts) => {
+    const scored = gifts
+      .map(g => ({ g, n: shared(name, nameOf(g.giver)) }))
+      .sort((a, b) => b.n - a.n);
+    return scored[0]?.n >= 2 && !(scored[1]?.n >= scored[0].n) ? scored[0].g : null;
+  };
+  for (let changed = true; changed;) {
+    changed = false;
+    const fits = new Map(
+      lines.map(u => [u, left.filter(p => p.amount === u.amount && near(p, u))])
+    );
+    const linesFor = gift => lines.filter(u => fits.get(u).includes(gift));
+    for (const u of lines) {
+      const mine = fits.get(u);
+      let gift = mine.length === 1 && linesFor(mine[0]).length === 1 ? mine[0] : null;
+      if (!gift && mine.length) {
+        const pick = byName(u.name, mine);
+        // ...and no other line's name matches that gift as well
+        gift =
+          pick && linesFor(pick).every(x => x === u || byName(x.name, [pick]) === null)
+            ? pick
+            : null;
+      }
+      if (gift) {
+        take(u, gift);
+        changed = true;
+        break;
+      }
+    }
+  }
+  return found;
+}
+
+/**
+ * Every receiving committee's lines naming no FEC ID (raw-filings.mjs
+ * campaignPacGifts: `side`), named from the PACs' own reports in the bulk
+ * file (oth: 24K, in-kind 24Z) and added to its gifts. Returns how many.
+ */
+export async function fillFromPacReports(db, side) {
+  const ids = [...(side.unnamed?.keys() || [])].filter(
+    id => IDS.test(id) && side.byRecipient.has(id) && !side.missing.has(id)
+  );
+  const pacSide = new Map();
+  for (let i = 0; i < ids.length; i += 500) {
+    const chunk = ids.slice(i, i + 500);
+    for (const r of await db.read(
+      `SELECT committee_id AS giver, other_id AS recipient, amount, date FROM oth
+       WHERE tx_type IN ('24K', '24Z') AND other_id IN (${chunk.map(() => '?').join(',')})`,
+      ...chunk
+    )) {
+      const g = { giver: r.giver, amount: cents(r.amount), date: r.date };
+      pacSide.set(r.recipient, [...(pacSide.get(r.recipient) || []), g]);
+    }
+  }
+  const givers = [...new Set([...pacSide.values()].flat().map(g => g.giver))];
+  const names = new Map();
+  for (let i = 0; i < givers.length; i += 500) {
+    const chunk = givers.slice(i, i + 500);
+    for (const c of await db.read(
+      `SELECT id, name FROM cm WHERE id IN (${chunk.map(() => '?').join(',')})`,
+      ...chunk
+    )) {
+      names.set(c.id, c.name);
+    }
+  }
+  let count = 0;
+  for (const id of ids) {
+    const found = nameFromPacReports({
+      recipient: id,
+      named: side.byRecipient.get(id),
+      unnamed: side.unnamed.get(id),
+      pacSide: pacSide.get(id) || [],
+      nameOf: giver => names.get(giver) || '',
+    });
+    side.byRecipient.get(id).push(...found);
+    count += found.length;
+  }
+  return count;
+}
+
 /** Gifts in the shape the grade reads (tier-calculation.js). */
 export function asPacContributions(gifts) {
   return gifts.map(g => ({

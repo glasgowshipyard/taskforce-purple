@@ -17,6 +17,14 @@ export const KINDS = { correction: 'Correction', new: 'New' };
 // new features above corrections within a day (inOrder)
 export const CORRECTIONS = [
   {
+    id: '2026-11-01-pac-gifts-reports',
+    date: '2026-11-01',
+    kind: 'correction',
+    what: "Four candidates' grades were too low",
+    detail:
+      "Some campaigns list a PAC's gift without the PAC's FEC number, and from 31 October those gifts were left out. They're now matched to the PACs' own reports. A fault in reading the FEC's lists of reports also skipped some campaigns' reports, so their donors weren't counted. Jim Desmond went from A to S, Ray Pooley from D to B, Missi Hesketh from B to A and Martin Zamora from C to B.",
+  },
+  {
     id: '2026-10-31-donor-records',
     date: '2026-10-31',
     kind: 'correction',

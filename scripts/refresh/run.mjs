@@ -68,6 +68,7 @@ import { ensureFara } from './lib/fara.mjs';
 import { PRODUCTION_VARIANT, VARIANTS, gradeVariants, untraced } from './lib/pac-sim.mjs';
 import {
   campaignSideGifts,
+  fillFromPacReports,
   shortLists,
   pacGifts,
   pacProfiles,
@@ -339,6 +340,11 @@ async function main() {
           cycle,
           log,
         });
+    if (raw) {
+      log(
+        `PAC lines naming no FEC ID, named from the PACs' own reports: ${await fillFromPacReports(db, raw)}`
+      );
+    }
     for (const [id, pf] of discovered) {
       const vehicles = vehiclesOf(pf);
       giftsFor.set(
