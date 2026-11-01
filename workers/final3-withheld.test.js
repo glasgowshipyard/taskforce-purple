@@ -3,7 +3,7 @@
 import { describe, expect, it } from 'vitest';
 import { gradeFinal3 } from './tier-calculation.js';
 
-const person = ({ raised, own = 0, small = 0, big = 0, pac = 0 }) => ({
+const person = ({ raised, own = 0, small = 0, big = 0, pac = 0, party = 0 }) => ({
   reconciliation: { ok: true },
   pf: {
     totalRaised: raised,
@@ -12,7 +12,7 @@ const person = ({ raised, own = 0, small = 0, big = 0, pac = 0 }) => ({
     grassrootsDonations: small,
     largeDonorDonations: big,
     pacMoney: pac,
-    partyMoney: 0,
+    partyMoney: party,
     committees: [],
   },
   shapeDirected: { donors: 0, nakamoto: null, total: 0 },
@@ -36,5 +36,18 @@ describe('campaigns not graded', () => {
 
   it('a small campaign keeps its grade', () => {
     expect(gradeFinal3(person({ raised: 4999, small: 4999 }), {}, new Map()).tier).toBe('S');
+  });
+
+  it('more money graded than the campaign took in is Under review', () => {
+    // Ohio 8, 2026: reports saying $3,125 came in while listing $74,435
+    // from people, and the same figures again as party money
+    const g = gradeFinal3(
+      person({ raised: 3125.21, small: 37484.51, big: 36951.03, pac: 1877.15, party: 36322.78 }),
+      {},
+      new Map()
+    );
+    expect(g).toMatchObject({ tier: 'DISPUTED', reason: 'more-than-received', withheld: true });
+    // Within 2% and $1,000 of what came in, graded as usual
+    expect(gradeFinal3(person({ raised: 100000, small: 102000 }), {}, new Map()).tier).toBe('S');
   });
 });

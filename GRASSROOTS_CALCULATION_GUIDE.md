@@ -103,6 +103,14 @@ registered for the cycle (UNVERIFIED, `no-campaign-committee`); figures that
 don't reconcile, such as own money larger than the receipts (DISPUTED). A
 stored letter grade from the old pipeline is never shown in their place.
 
+The money graded (small + big + PAC + party) can't be more than the
+committees took in (`totalRaised`). When it is, by over 2% and $1,000, the
+campaign's own reports contradict each other: no grade, `DISPUTED` with
+`disputeReason: more-than-received` (owner, 2026-11-01; `gradeFinal3`). On
+1 November 2026 it caught one campaign, Ohio 8's: two quarterly reports
+saying nothing came in while listing donations, with the small-donor figure
+repeated as party money. No member was caught.
+
 ## How the site shows a grade
 
 A member's receipt, graph and "Why" all come from the grade's own working

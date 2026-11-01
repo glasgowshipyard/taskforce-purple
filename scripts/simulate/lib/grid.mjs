@@ -348,6 +348,10 @@ export function gradeOne(m, pacs, shares, cfg, opts = {}) {
   if (!(D > 0)) {
     return { ...out, tier: 'N/A', reason: 'no-money', withheld: true };
   }
+  // More money graded than the committees took in (live rule, 2026-11-01)
+  if (given > T * 1.02 + 1000) {
+    return { ...out, tier: 'DISPUTED', reason: 'more-than-received', withheld: true };
+  }
   const I = s + b;
   // G6: donations above the receipts, not verified at source (live rule)
   const sourceVerified =
