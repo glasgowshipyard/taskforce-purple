@@ -60,6 +60,21 @@ clean-up, #71 outside spending (shown since 2026-10-25), #72 TypeScript (after t
 
 ## Change log
 
+## 2026-10-31 (night): the foreign-agent register was skipped all day
+
+Every refresh run on 31 October logged `FARA register unavailable` and went
+on without the Justice Department's register. Nothing raised an alert. The
+cause was my code in `scripts/refresh/lib/fara.mjs`: it cleaned the files
+with `iconv -c`, which on Linux exits 1 whenever it drops a byte that isn't
+UTF-8. That day's files had 15 and 46 such lines. Grades don't use the
+register, but member pages lost the firms' foreign clients and the donors
+personally registered as agents (0 on every page). The bytes are now
+dropped in Node (`dropInvalidUtf8`, with a test). A one-member dry run on
+the runner loaded both files. A full grade-only run puts the detail back.
+
+Open: this failure only reaches the log. It should reach `/api/health` so
+an alert is raised (after the election).
+
 ## 2026-10-31 (evening): PAC lists from the campaigns' own reports
 
 A member's PAC list (who gave, the PAC credit in FINAL-3) came from the
