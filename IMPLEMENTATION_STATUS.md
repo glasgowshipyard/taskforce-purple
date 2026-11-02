@@ -107,6 +107,13 @@ members go up, all campaigns whose small itemized gifts had counted as big
 (Whitehouse F 11 to B 73, Jordan D 34 to B 68). The working keeps
 `method: 'final-3'` so the deployed API worker reads it unchanged.
 
+Published 2 November (members run 41484380740, races run 41505699062);
+the live counts match the dry run. The totals check compares small money
+less the small gifts reported by name with the FEC's unitemized figure;
+after both runs every graded member and candidate matches the FEC's totals
+but Graham (a committee counted from a date) and Valimont (read only to
+April 2025; after the election).
+
 ## 2026-11-01: all of other politicians' joint fund money in the total
 
 - **The fault (mine, since FINAL-2):** money another politician's joint fund
