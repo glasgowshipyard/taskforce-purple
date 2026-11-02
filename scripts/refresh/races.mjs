@@ -482,6 +482,9 @@ async function main() {
         donors: shapeDirected.donors,
         nakamoto: shapeDirected.nakamoto,
         total: shapeDirected.total,
+        // The wealthy donors: over $3,500 each (ballroom + elites)
+        eliteDonors: shapeDirected.eliteDonors,
+        elite: shapeDirected.elite,
         // Where the big money came from, by donor state (owner and Craig, 2026-10-13)
         byState: shapeDirected.byState || [],
       };
@@ -548,6 +551,10 @@ async function main() {
       nakamoto: g.analysis?.donorTest?.nakamoto ?? g.analysis?.nakamotoCoefficient ?? null,
       peoplePowerInfluence: peoplePowerInfluence(g.grade?.detail),
       ownMoney: ownOf(g.pf?.ownMoney),
+      // Too few donor records to grade: its own words on the site
+      ...(g.grade?.withheldReason === 'records-incomplete'
+        ? { withheldReason: 'records-incomplete' }
+        : {}),
     };
   };
   const races = buildRaces(field_.map(entry));
@@ -607,6 +614,7 @@ async function main() {
                 ...(g.grade.disputeReason
                   ? { disputed: true, disputeReason: g.grade.disputeReason }
                   : {}),
+                ...(g.grade.withheldReason ? { withheldReason: g.grade.withheldReason } : {}),
                 gradeBasis: g.grade.gradeBasis,
                 personFigures: g.grade.personFigures,
                 evidenceChecked: g.grade.evidenceChecked,

@@ -8,7 +8,7 @@
 // workers/tier-calculation.js), as shares of the money given. People
 // is the grade's score, so the page has one figure for "from people".
 import { GRADES, LETTERS } from './grades.js';
-import { final3AllowanceLimits, peoplePowerInfluence } from '../../workers/tier-calculation.js';
+import { FINAL3, peoplePowerInfluence } from '../../workers/tier-calculation.js';
 
 export const isFinal3 = grade => grade?.detail?.method === 'final-3';
 
@@ -158,22 +158,37 @@ export function moneyStrips(detail) {
 const splitOf = pairs => pairs.filter(([, v]) => v > 0).map(([part, v]) => ({ part, v }));
 
 /**
- * Why the big money is split as it is: whichever of the allowance's two limits
- * applied (final3AllowanceLimits in tier-calculation.js).
+ * Why the big money is split as it is (ballroom + elites, final3BigCounted
+ * in tier-calculation.js): the wealthy donors, over $3,500 each, and how
+ * few people gave half of it.
  */
-function bigMoneyReason(d, power) {
-  if (!(d.reliable && d.fewestHoldingHalf && d.donors)) {
-    return "There aren't enough of the donor records yet to tell how many people gave it, so a middle rule is used.";
-  }
+function bigMoneyReason(d) {
   const n = d.fewestHoldingHalf;
-  const { shareLimit, countLimit } = final3AllowanceLimits(n, d.donors);
-  if (!(power > 0)) {
-    return `${bigDonorLine(n, d.donors)} That's a broad group, so all of it is People money.`;
+  if (d.roomLimit === undefined || d.roomLimit === null) {
+    // A working from before the test changed (2026-11-01): no reason to give
+    return bigDonorLine(n, d.donors) || '';
   }
-  if (countLimit < shareLimit) {
-    return `${bigDonorLine(n, d.donors, { just: true })} When that few give half of it, part of it is Power.`;
+  const over = `$${FINAL3.eliteOver.toLocaleString('en-US')}`;
+  const elites = d.eliteDonors > 0 && d.bigElite > 0;
+  const room = d.roomLimit < 1 && n > 0 && d.donors > 0;
+  if (!elites && !room) {
+    return n > 0 && d.donors > 0
+      ? `${bigDonorLine(n, d.donors)} No one gave more than ${over}, so all of it is People money.`
+      : 'All of it is People money.';
   }
-  return `${bigDonorLine(n, d.donors, { just: true })} The fewer the donors who give half of it, the more of it is Power.`;
+  const why = [];
+  if (elites) {
+    const k = Math.round(d.eliteDonors).toLocaleString('en-US');
+    why.push(
+      `${k} ${d.eliteDonors === 1 ? 'donor' : 'donors'} gave more than ${over} each, so their money is Power.`
+    );
+  }
+  if (room) {
+    why.push(
+      `${bigDonorLine(n, d.donors, { just: true })} When fewer than ${FINAL3.room} people give half of it, part of it is Power.`
+    );
+  }
+  return why.join(' ');
 }
 
 /**
@@ -216,7 +231,7 @@ export function explainGrade({ tier, grade, name }) {
         ['power', power.big],
       ]),
       tone: power.big > 0 ? 'bad' : 'good',
-      text: `Donations over $200. ${bigMoneyReason(d, power.big)}`,
+      text: `Donations over $200. ${bigMoneyReason(d)}`.trim(),
     });
   }
 

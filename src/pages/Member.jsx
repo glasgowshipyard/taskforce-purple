@@ -305,7 +305,14 @@ export default function Member({ id, kind = 'member' }) {
   }
 
   const f = gradedFigures(m);
-  const reason = withheldReasonOf({ ...m, totalRaised: f.totalRaised });
+  const reason = withheldReasonOf({
+    ...m,
+    totalRaised: f.totalRaised,
+    // Too few donor records: the grade's own reason, until the API serves it
+    withheldReason:
+      m.withheldReason ??
+      (d?.grade?.disputeReason === 'records-incomplete' ? 'records-incomplete' : null),
+  });
   const g = gradeInfo(m.tier, reason, isCandidate);
   const withheld = isRingfenced(m.tier);
   const hasMoney = f.totalRaised > 0 && !withheld;
@@ -356,8 +363,9 @@ export default function Member({ id, kind = 'member' }) {
   const fewest =
     final3?.reliable && final3.fewestHoldingHalf
       ? bigDonorLine(final3.fewestHoldingHalf, final3.donors, {
-          // "just" when the concentration cost People money (some is Power)
-          just: (ppi?.power ?? 0) > 0,
+          // "just" when fewer than a room's worth gave half (ballroom: some
+          // of it is Power)
+          just: final3.roomLimit < 1,
         })
       : null;
   const states = hasMoney ? stateShares(d?.bigByState, stateCode(m.state)) : null;

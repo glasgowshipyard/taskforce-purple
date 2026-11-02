@@ -1,5 +1,7 @@
 // The explanations use real members' FINAL-3 working as served by
-// /api/member-detail on 2026-10-13.
+// /api/member-detail on 2026-10-13, in the big-donor test's shape since
+// 2026-11-01 (ballroom + elites): the wealthy donors and the room limit
+// set to give the same big money counted.
 import { describe, expect, it } from 'vitest';
 import {
   bigDonorLine,
@@ -26,7 +28,10 @@ const schiff = {
       given: 9624086.59,
       donors: 6512,
       fewestHoldingHalf: 339,
-      allowance: 0.4247,
+      roomLimit: 1,
+      eliteDonors: 412,
+      eliteShare: 0.1528,
+      bigElite: 674098.11,
       reliable: true,
       bigCounted: 3737280.99,
       fromPeople: 8125863.5,
@@ -53,7 +58,10 @@ const jacobs = {
       given: 932826.44,
       donors: 323,
       fewestHoldingHalf: 32,
-      allowance: 0.32,
+      roomLimit: 0.32,
+      eliteDonors: 0,
+      eliteShare: 0,
+      bigElite: 0,
       reliable: true,
       bigCounted: 160840.48,
       fromPeople: 314281.41,
@@ -80,7 +88,10 @@ const aoc = {
       given: 32390104.39,
       donors: 31235,
       fewestHoldingHalf: 4609,
-      allowance: 1,
+      roomLimit: 1,
+      eliteDonors: 0,
+      eliteShare: 0,
+      bigElite: 0,
       reliable: true,
       bigCounted: 10473654.31,
       fromPeople: 32165054.39,
@@ -169,27 +180,40 @@ describe('explainGrade', () => {
       { part: 'influence', v: 4 },
     ]);
     expect(e.steps[3].split).toEqual([{ part: 'influence', v: 2 }]);
-    // 339 of 6,512: the share decides it, so the share is the reason given
+    // Over 100 people gave half of it: the wealthy donors are the reason
     expect(e.steps[1].text).toBe(
-      'Donations over $200. Half the big money came from just 339 of 6,512 big donors. The fewer the donors who give half of it, the more of it is Power.'
+      'Donations over $200. 412 donors gave more than $3,500 each, so their money is Power.'
     );
   });
 
   it('a middle grade: few donors make part of the big money Power', () => {
     const e = explainGrade(jacobs);
     expect(e.ppi).toEqual({ people: 47, power: 20, influence: 33 });
-    // 32 of 323 is a broad enough share, but only 32 people: the count decides it
+    // Only 32 people gave half of it: a room's worth
     expect(e.steps.find(s => s.key === 'big').text).toBe(
-      'Donations over $200. Half the big money came from just 32 of 323 big donors. When that few give half of it, part of it is Power.'
+      'Donations over $200. Half the big money came from just 32 of 323 big donors. When fewer than 100 people give half of it, part of it is Power.'
     );
     expect(e.headline).toBe('47% of the money came from people');
   });
 
   it('a broad group of big donors: all of it is People money', () => {
     const e = explainGrade(aoc);
-    expect(e.steps[1].text).toMatch(/That's a broad group, so all of it is People money\.$/);
+    expect(e.steps[1].text).toBe(
+      'Donations over $200. Half the big money came from 4,609 of 31,235 big donors. No one gave more than $3,500, so all of it is People money.'
+    );
     // All of the big money went to People: one entry, no Power
     expect(e.steps[1].split.map(x => x.part)).toEqual(['people']);
+  });
+
+  it('a working from before the big-donor test changed gives no reason', () => {
+    const old = { ...schiff.grade.detail };
+    for (const k of ['roomLimit', 'eliteDonors', 'eliteShare', 'bigElite']) {
+      delete old[k];
+    }
+    const e = explainGrade({ ...schiff, grade: { ...schiff.grade, detail: old } });
+    expect(e.steps[1].text).toBe(
+      'Donations over $200. Half the big money came from 339 of 6,512 big donors.'
+    );
   });
 
   it('never uses the word "count"', () => {

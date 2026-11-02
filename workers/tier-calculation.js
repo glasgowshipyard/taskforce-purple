@@ -540,9 +540,20 @@ export function pacPeopleCredit(gifts, traced, tracing = PAC_TRACING) {
 //     the fund's mix and count 0 (still in G)
 //   directed gifts e (earmarked through a committee other than ActBlue,
 //     WinRed or Democracy Engine) come out of b and the donor test
-//   a = min(0.10 + 0.90·clamp((n/N − 0.025)/0.075, 0, 1), min(1, n/100)),
-//       0.40 when the records cover under half the FEC's big-donor total
-//   x = 100·(s + min(b, a·(s + b)) + PAC money counted + directed counted) / G
+//   the big-donor test ("ballroom + elites", owner 2026-11-01), on the donor
+//     records, each person's gifts to the member's committees added up:
+//     elites: anyone over $3,500 (more than one maximum donation, for one
+//       election) is a wealthy donor, and all their money is Power; w = their
+//       share of the records' money
+//     ballroom: c = min(1, n/100), n the fewest donors who gave half the big
+//       money: fewer than 100 is a room's worth
+//     big money counted = min(b·(1 − w), c·(s + b))
+//     no grade when the records cover under half the FEC's big-donor total
+//   It replaced FINAL-3's share-of-donors limit, which measured how evenly
+//   big money was spread: the legal limit makes maxed-out donors' gifts
+//   equal, so thousands of them read as a movement (a Senate campaign 75%
+//   big donors graded S, found 2026-11-01)
+//   x = 100·(s + big money counted + PAC money counted + directed counted) / G
 //   PAC money counted: gifts × the PAC's traced people share, PEOPLE PACs
 //     that pass the people test only, scaled to the PAC money received
 //   grade on round(x): S 90, A 75, B 60, C 45, D 30, E 15
@@ -557,7 +568,11 @@ export const FINAL3 = {
     ['D', 30],
     ['E', 15],
   ],
-  fallback: 0.4, // the allowance when the donor records aren't reliable
+  // More than one maximum donation to a candidate for one election
+  // (the FEC's limit for 2025-26): a wealthy donor
+  eliteOver: 3500,
+  room: 100, // fewer people than this giving half the big money: a room's worth
+  fallback: 0.4, // a PAC's limit when its donor records aren't reliable
   coverage: 0.5, // records must hold half the FEC's big-donor total
   credit: { people: 1 }, // every other group counts 0
   // A campaign that's half or more the candidate's own money can't be graded
@@ -569,28 +584,19 @@ export const FINAL3 = {
 const n0 = x => (Number.isFinite(Number(x)) ? Number(x) : 0);
 const clamp01 = (x, lo, hi) => Math.max(lo, Math.min(hi, x));
 
-/** The allowance (0-1) from n (fewest donors holding half) and N (all big donors). */
-export function final3Allowance(nRaw, NRaw, reliable) {
-  if (!reliable) {
-    return FINAL3.fallback;
-  }
-  const { shareLimit, countLimit } = final3AllowanceLimits(nRaw, NRaw);
-  return Math.min(shareLimit, countLimit);
+/** The ballroom limit (0-1) from n, the fewest donors who gave half the big money. */
+export function final3RoomLimit(nRaw) {
+  return Math.min(1, Math.max(0, Number(nRaw) || 0) / FINAL3.room);
 }
 
 /**
- * The two limits the allowance is the smaller of: one from how small a share
- * of the big donors gave half the big money, one from how few people that is
- * (under 100). The member page says which one applied.
+ * Big-donor money that counts as people's: what the elites didn't give
+ * (`eliteShare`, 0-1, of the records' money), within the ballroom limit of
+ * the money from individuals (`individuals`, small + big).
  */
-export function final3AllowanceLimits(nRaw, NRaw) {
-  const n = Number(nRaw) || 0;
-  const N = Number(NRaw) || 0;
-  const share = N > 0 ? n / N : 0;
-  return {
-    shareLimit: 0.1 + 0.9 * clamp01((share - 0.025) / 0.075, 0, 1),
-    countLimit: Math.min(1, n / 100),
-  };
+export function final3BigCounted(big, individuals, eliteShare, n) {
+  const kept = Math.max(0, big) * (1 - clamp01(n0(eliteShare), 0, 1));
+  return Math.min(kept, final3RoomLimit(n) * Math.max(0, individuals));
 }
 
 /**
@@ -612,7 +618,7 @@ const creditOf = p => FINAL3.credit[final3Group(p)] ?? 0;
  * Every committee's share of money traced to people (0-1), two steps back:
  * its own donors (the FEC's small/big split, its own donor test), plus money
  * from committees that fund it, where those count. `pacs`: { [id]: { profile:
- * { receipts, individuals, itemized, donors, nakamoto }, fec: { receipts,
+ * { receipts, individuals, itemized, donors, nakamoto, elite }, fec: { receipts,
  * itemized, unitemized } | null, upstream: [{ id, amount }], sponsor,
  * peopleTest } }. Returns Map id -> share.
  */
@@ -637,16 +643,18 @@ export function final3PacShares(pacs) {
     const records = prof.itemized || 0;
     const N = prof.donors ?? 0;
     const n = prof.nakamoto;
-    const hasRecords = n !== null && n !== undefined && N > 0;
+    const hasRecords = n !== null && n !== undefined && N > 0 && Number.isFinite(prof.elite);
     let reliable = hasRecords || it <= 0;
     if (reliable && p.fec && n0(p.fec.itemized) > 0) {
       const fecItemized = n0(p.fec.itemized);
       reliable = fecItemized <= 0 || records >= FINAL3.coverage * fecItemized;
     }
-    const a = final3Allowance(n, N, reliable);
-    const raw = (ind / R) * 100;
-    const itemizedPercent = ind > 0 ? (it / ind) * 100 : 0;
-    const share = (raw - (Math.max(0, itemizedPercent - a * 100) / 100) * raw) / 100;
+    // The members' big-donor test on the PAC's own donors; a cautious limit
+    // where its records are short
+    const counted = !reliable
+      ? Math.min(it, FINAL3.fallback * ind)
+      : final3BigCounted(it, ind, records > 0 ? n0(prof.elite) / records : 0, n ?? 0);
+    const share = (ind - it + counted) / R;
     views.set(id, { R, ind });
     one.set(id, { share: clamp01(share, 0, 1), traceable: Math.min(1, ind / R) });
   }
@@ -776,20 +784,24 @@ export function gradeFinal3(m, pacs, shares) {
       withheld: true,
     };
   }
-  // The donor test: donors who net above $0, directed gifts left out
+  // The big-donor test (ballroom + elites): donors who net above $0,
+  // directed gifts left out
   const sh = m.shapeDirected;
   const N = sh?.donors ?? 0;
   const n = sh?.nakamoto;
   const collected = n0(sh?.total);
   const covered = b <= 0 || collected >= FINAL3.coverage * b;
-  const hasRecords = n !== null && n !== undefined && N > 0;
+  const hasRecords = n !== null && n !== undefined && N > 0 && Number.isFinite(sh?.elite);
   const reliable = (hasRecords || b <= 0) && covered;
-  const a = final3Allowance(n, N, reliable);
-  const counted = Math.min(b, a * I);
-  const raw = (I / D) * 100;
-  const itemizedPercent = I > 0 ? (b / I) * 100 : 0;
-  let x = raw - (Math.max(0, itemizedPercent - a * 100) / 100) * raw;
-  x = Math.min(100, x);
+  if (!reliable) {
+    // Not enough of the donor records to tell who gave the big money: no
+    // grade until they arrive (in place of a middle allowance, 2026-11-01)
+    return { ...out, tier: 'DISPUTED', reason: 'records-incomplete', withheld: true };
+  }
+  const eliteShare = b > 0 && collected > 0 ? clamp01(n0(sh.elite) / collected, 0, 1) : 0;
+  const roomLimit = b > 0 ? final3RoomLimit(n) : 1;
+  const counted = b > 0 ? final3BigCounted(b, I, eliteShare, n) : 0;
+  let x = Math.min(100, ((s + counted) / D) * 100);
   // PAC money counted, never above the PAC money received
   const gifts = [...(m.gifts || []), ...(m.giftsToFunds || [])];
   const giftTotal = gifts.reduce((t, [, amt]) => t + amt, 0);
@@ -819,7 +831,10 @@ export function gradeFinal3(m, pacs, shares) {
     score,
     N,
     n: n ?? null,
-    allowance: a,
+    roomLimit,
+    eliteDonors: sh?.eliteDonors ?? null,
+    eliteShare,
+    elite: b * eliteShare,
     reliable,
     counted,
     fromPeople: s + counted,
@@ -832,7 +847,8 @@ export function gradeFinal3(m, pacs, shares) {
  * A FINAL-3 grade's money in three parts, as shares of the money given
  * (owner and Craig, 2026-10-13: how the site shows the grade):
  *   People    = small + big counted + PAC counted + directed counted (the score)
- *   Power     = big donations above the allowance
+ *   Power     = big donations from wealthy donors (over $3,500 each), and
+ *               the big money the ballroom limit leaves out
  *   Influence = PAC money not counted + party + other politicians' funds
  *               + directed gifts not counted
  * `detail`: gradeMemberFinal3's detail (dollars). Whole percents that add up

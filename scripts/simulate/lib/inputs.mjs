@@ -4,9 +4,12 @@
 //   - donors who net above $0 only (F11; PACs already count only those)
 //   - the money held by the biggest donors
 //   - each donor's money capped at $500, $1,000 and $2,000 (variant D)
+//   - the wealthy donors (over $3,500 in all) and their money: the live
+//     grade's elites (FINAL3.eliteOver, 2026-11-01)
 //   - for PACs, the share of their donors' money from the top employer
 // Nothing here grades: scripts/simulate/lib/grid.mjs does.
 
+import { FINAL3 } from '../../../workers/tier-calculation.js';
 import { ITEMIZED_TYPES } from '../../refresh/lib/reconcile.mjs';
 
 const IDS = /^C\d{8}$/;
@@ -63,7 +66,9 @@ export async function memberDonorShape(bulk, poolIds, liveN, weights = null, opt
       FROM pos),
     agg AS (
       SELECT count(*)::INTEGER AS donors, coalesce(sum(amt), 0) AS total,
-        ${CAPS.map(k => `coalesce(sum(least(amt, ${k})), 0) AS capped${k}`).join(', ')}
+        ${CAPS.map(k => `coalesce(sum(least(amt, ${k})), 0) AS capped${k}`).join(', ')},
+        count(*) FILTER (WHERE amt > ${FINAL3.eliteOver})::INTEGER AS eliteDonors,
+        coalesce(sum(amt) FILTER (WHERE amt > ${FINAL3.eliteOver}), 0) AS elite
       FROM pos),
     nak AS (SELECT count(*)::INTEGER AS n FROM ranked, agg WHERE ranked.cum - ranked.amt < agg.total * 0.5)
     SELECT agg.*, nak.n AS nakamoto,
@@ -102,6 +107,8 @@ export async function memberDonorShape(bulk, poolIds, liveN, weights = null, opt
     topLive: round2(r.topLive),
     topPositive: round2(r.topPositive),
     capped: Object.fromEntries(CAPS.map(k => [k, round2(r[`capped${k}`])])),
+    eliteDonors: r.eliteDonors,
+    elite: round2(r.elite),
     ...(directedOut ? { directedOut } : {}),
     ...(byState ? { byState } : {}),
   };

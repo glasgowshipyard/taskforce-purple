@@ -215,11 +215,10 @@ export function HowSteps() {
         <ul className="source-list">
           <li>
             <strong className="part is-people">People:</strong> money from many different people,
-            whether a check is for $5 or $5,000.
+            whether a check is for $5 or $3,500.
           </li>
           <li>
-            <strong className="part is-power">Power:</strong> big money from only a few wealthy
-            donors.
+            <strong className="part is-power">Power:</strong> big money from wealthy donors.
           </li>
           <li>
             <strong className="part is-influence">Influence:</strong> money from PACs (including

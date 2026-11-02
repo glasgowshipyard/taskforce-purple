@@ -736,6 +736,9 @@ async function main() {
           donors: shapeDirected.donors,
           nakamoto: shapeDirected.nakamoto,
           total: shapeDirected.total,
+          // The wealthy donors: over $3,500 each (ballroom + elites)
+          eliteDonors: shapeDirected.eliteDonors,
+          elite: shapeDirected.elite,
           // Where the big money came from, by donor state (owner and Craig, 2026-10-13)
           byState: shapeDirected.byState || [],
         };

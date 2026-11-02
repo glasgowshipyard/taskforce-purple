@@ -46,7 +46,7 @@ export const esc = text =>
 const SHORT_TITLE = { Senator: 'Sen.', Representative: 'Rep.', Delegate: 'Del.' };
 
 const HOME_DESCRIPTION =
-  'Task Force Purple grades every member of Congress, S to F, on where their campaign money comes from: many people, a few wealthy donors, or PACs and politicians. All figures from public FEC filings.';
+  'Task Force Purple grades every member of Congress, S to F, on where their campaign money comes from: many people, wealthy donors, or PACs and politicians. All figures from public FEC filings.';
 
 /** A member's three parts and sentence, or null for a withheld grade */
 function figures(m) {
@@ -109,7 +109,7 @@ function memberBase(m, scores) {
     ? `Who funds ${name}? ${m.tier}: ${f.ppi.people}% from people${TITLE_SUFFIX}`
     : `Who funds ${name}?${TITLE_SUFFIX}`;
   const description = f
-    ? `${name} (${party}, ${seat.replace(' · ', ', ')}) gets ${withArticle(m.tier)}, ${g.name}. ${f.sentence} ${f.ppi.power}% was big money from a few wealthy donors and ${f.ppi.influence}% came from PACs, politicians and parties. From public FEC filings.`
+    ? `${name} (${party}, ${seat.replace(' · ', ', ')}) gets ${withArticle(m.tier)}, ${g.name}. ${f.sentence} ${f.ppi.power}% was big money from wealthy donors and ${f.ppi.influence}% came from PACs, politicians and parties. From public FEC filings.`
     : `${name} (${party}, ${seat.replace(' · ', ', ')}): ${g.meaning}`;
   const raised = m.personFigures?.totalRaised ?? m.totalRaised;
   const body = `<main class="wrap section" data-prerendered>
@@ -120,7 +120,7 @@ function memberBase(m, scores) {
 ${
   f
     ? `<p>${esc(f.sentence)}${placement ? ` ${esc(placement)}.` : ''}</p>
-<p>Of all the money given to ${esc(name)}: ${f.ppi.people}% from people (many different donors), ${f.ppi.power}% from power (big money from a few wealthy donors) and ${f.ppi.influence}% from influence (PACs, politicians and parties).</p>
+<p>Of all the money given to ${esc(name)}: ${f.ppi.people}% from people (many different donors), ${f.ppi.power}% from power (big money from wealthy donors) and ${f.ppi.influence}% from influence (PACs, politicians and parties).</p>
 ${raised > 0 ? `<p>Raised ${esc(usd(raised))} in the ${cycleLabel(m.gradeCycle ?? undefined)} election cycle, from public FEC filings.${m.evidenceChecked === true ? ' Every donation checked against the FEC’s records.' : m.evidenceChecked === false ? ' Still being checked against the FEC’s records.' : ''}</p>` : ''}`
     : `<p>${esc(g.meaning)}</p>`
 }
@@ -279,7 +279,7 @@ function candidateBase(c, race, cycle) {
   const own =
     c.ownMoney > 0 && c.totalRaised > 0 ? ` They put in ${usd(c.ownMoney)} of their own.` : '';
   const description = ppi
-    ? `${name} (${party}, candidate for ${seat.replace(' · ', ', ')}) gets ${withArticle(c.tier)}, ${g.name}. ${sentence} ${ppi.power}% was big money from a few wealthy donors and ${ppi.influence}% came from PACs, politicians and parties.${own} From public FEC filings.`
+    ? `${name} (${party}, candidate for ${seat.replace(' · ', ', ')}) gets ${withArticle(c.tier)}, ${g.name}. ${sentence} ${ppi.power}% was big money from wealthy donors and ${ppi.influence}% came from PACs, politicians and parties.${own} From public FEC filings.`
     : `${name} (${party}, candidate for ${seat.replace(' · ', ', ')}): ${g.meaning}`;
   return {
     path,
@@ -475,7 +475,7 @@ export function congressPage(members) {
       return `<li><a href="${memberPath(m.bioguideId, m.name)}">${esc(displayName(m.name))}</a>, ${esc(partyName(m.party))}, ${esc(seatLabel(m))}: ${f ? `${esc(m.tier)} (${esc(g.name)}), ${f.ppi.people}% from people` : esc(g.name)}</li>`;
     })
     .join('\n');
-  const description = `Campaign funding grades for all ${members.length} members of Congress, S to F, from public FEC filings: how much of each member's money came from many people, a few wealthy donors, or PACs and politicians.`;
+  const description = `Campaign funding grades for all ${members.length} members of Congress, S to F, from public FEC filings: how much of each member's money came from many people, wealthy donors, or PACs and politicians.`;
   return {
     path: '/congress',
     title: `All of Congress: who funds every member${TITLE_SUFFIX}`,
@@ -627,7 +627,7 @@ export function llmsTxt(members, lastUpdated) {
 
 > Task Force Purple grades all members of the U.S. Congress, S to F, on where their campaign money comes from, using public Federal Election Commission (FEC) filings. It is not connected to any party or campaign.
 
-Every dollar given to a member (their campaigns, leadership PAC and own joint fundraising committees; their own money, loans and transfers left out) is sorted into three parts: People (money from many different people), Power (big money from a few wealthy donors) and Influence (money from PACs, including companies' PACs, politicians and parties). The grade is the People share: S is 90% or more, A 75% to 89%, B 60% to 74%, C 45% to 59%, D 30% to 44%, E 15% to 29%, F under 15%. Grades are updated after each FEC filing deadline.
+Every dollar given to a member (their campaigns, leadership PAC and own joint fundraising committees; their own money, loans and transfers left out) is sorted into three parts: People (money from many different people), Power (big money from wealthy donors, who gave more than $3,500 in all, or from so few donors that fewer than 100 gave half of it) and Influence (money from PACs, including companies' PACs, politicians and parties). The grade is the People share: S is 90% or more, A 75% to 89%, B 60% to 74%, C 45% to 59%, D 30% to 44%, E 15% to 29%, F under 15%. Grades are updated after each FEC filing deadline.
 
 ## Pages
 

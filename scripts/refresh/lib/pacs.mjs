@@ -12,7 +12,7 @@
 // people money (tier-calculation.js tracePacs, pacPeopleCredit).
 
 import { pacType } from '../../../src/lib/pacs.js';
-import { PAC_TRACING, pacPeopleCredit } from '../../../workers/tier-calculation.js';
+import { FINAL3, PAC_TRACING, pacPeopleCredit } from '../../../workers/tier-calculation.js';
 import { COMMITTEE_SINCE } from '../../../workers/fec-crosswalk-additions.js';
 import { ITEMIZED_TYPES } from './reconcile.mjs';
 
@@ -310,7 +310,7 @@ export function asPacContributions(gifts) {
  * (webk), and its named donors (indiv): how many, and how few gave half its
  * itemized money. One pass over the itemized file for all PACs at once.
  * Returns Map id -> { receipts, individuals, fromAffiliates, otherCommittees,
- * itemized, donors, nakamoto }.
+ * itemized, donors, nakamoto, elite }.
  */
 export async function pacProfiles(db, itcontPath, pacIds) {
   const ids = [...new Set(pacIds)].filter(id => IDS.test(id));
@@ -332,6 +332,7 @@ export async function pacProfiles(db, itcontPath, pacIds) {
       itemized: 0,
       donors: 0,
       nakamoto: null,
+      elite: 0,
     });
   }
   const list = ids.map(id => `('${id}')`).join(',');
@@ -360,7 +361,8 @@ export async function pacProfiles(db, itcontPath, pacIds) {
       FROM rows
     )
     SELECT id, count(*)::INTEGER AS donors, max(all_total) AS itemized,
-      count(*) FILTER (WHERE cum - total < all_total * 0.5)::INTEGER AS nakamoto
+      count(*) FILTER (WHERE cum - total < all_total * 0.5)::INTEGER AS nakamoto,
+      coalesce(sum(total) FILTER (WHERE total > ${FINAL3.eliteOver}), 0) AS elite
     FROM ranked GROUP BY id`);
   for (const d of donors) {
     const p = out.get(d.id) || {
@@ -369,7 +371,14 @@ export async function pacProfiles(db, itcontPath, pacIds) {
       fromAffiliates: null,
       otherCommittees: null,
     };
-    out.set(d.id, { ...p, itemized: cents(d.itemized), donors: d.donors, nakamoto: d.nakamoto });
+    out.set(d.id, {
+      ...p,
+      itemized: cents(d.itemized),
+      donors: d.donors,
+      nakamoto: d.nakamoto,
+      // Its wealthy donors' money (over $3,500 each): the members' test
+      elite: cents(d.elite),
+    });
   }
   return out;
 }

@@ -2,8 +2,8 @@
 // means in plain English. Grades come from workers/tier-calculation.js; this
 // file only presents them. The names are the owner's and Craig's
 // (2026-10-13). "People", "Power" and "Influence" are the three parts of
-// the money (peoplePowerInfluence in tier-calculation.js): many people, a
-// few wealthy donors, and PACs (companies' PACs among them), politicians and
+// the money (peoplePowerInfluence in tier-calculation.js): many people,
+// wealthy donors, and PACs (companies' PACs among them), politicians and
 // parties. Companies can't give to federal campaigns themselves: their money
 // comes through their PACs (an outside review's catch, 2026-10-17).
 
@@ -18,7 +18,7 @@ export const GRADE_SCOPE = 'Grades are based on how a candidate is funded.';
 // The three parts of the money given, as the graph names them
 export const PARTS = [
   { key: 'people', label: 'People', about: 'Money from many different people' },
-  { key: 'power', label: 'Power', about: 'Big money from a few wealthy donors' },
+  { key: 'power', label: 'Power', about: 'Big money from wealthy donors' },
   {
     key: 'influence',
     label: 'Influence',
@@ -69,7 +69,7 @@ export const GRADES = {
     rank: 4,
     range: '30% to 44%',
     meaning:
-      '30% to 44% of the money came from people. The rest came from a few wealthy donors, or from PACs and politicians.',
+      '30% to 44% of the money came from people. The rest came from wealthy donors, or from PACs and politicians.',
   },
   E: {
     name: 'Heavily influenced',
@@ -78,7 +78,7 @@ export const GRADES = {
     rank: 3,
     range: '15% to 29%',
     meaning:
-      '15% to 29% of the money came from people. The rest came from a few wealthy donors, or from PACs and politicians.',
+      '15% to 29% of the money came from people. The rest came from wealthy donors, or from PACs and politicians.',
   },
   F: {
     name: 'Beholden',
@@ -151,6 +151,12 @@ const WITHHELD = {
     name: 'Nothing from others',
     meaning:
       "This campaign has reported no money from anyone other than the candidate, so there's nothing to grade.",
+  },
+  // Too few of the donor records to tell who gave the big money (2026-11-01)
+  'records-incomplete': {
+    name: 'Checking records',
+    meaning:
+      "Not enough of this campaign's donor records are in yet to work out the grade. It's a gap in the records, not something found about this member.",
   },
   'not-graded': {
     name: 'Checking records',
