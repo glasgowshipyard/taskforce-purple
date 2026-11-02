@@ -9,12 +9,11 @@
 
 export const LETTERS = ['S', 'A', 'B', 'C', 'D', 'E', 'F'];
 
-// What a grade is and isn't, beside every grade a visitor can land on: the
-// member page, the share card and link previews (two outside reviews,
-// 2026-10-17: a letter grade can read as a verdict on the person)
-export const GRADE_SCOPE =
-  'The grade is only about where the money comes from, not how they vote, their character or the law.';
-export const GRADE_SCOPE_SHORT = 'Grades show where the money comes from, not votes or character.';
+// What a grade is, beside every grade a visitor can land on: the member
+// page, the share card and link previews (two outside reviews, 2026-10-17:
+// a letter grade can read as a verdict on the person; the owner's
+// wording, 2026-11-01)
+export const GRADE_SCOPE = 'Grades are based on how a candidate is funded.';
 
 // The three parts of the money given, as the graph names them
 export const PARTS = [

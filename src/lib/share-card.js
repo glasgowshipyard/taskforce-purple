@@ -3,7 +3,7 @@
 // server, so it costs nothing however many people share.
 import { monotonePath } from './curve.js';
 import { cycleShort } from './election.js';
-import { GRADE_SCOPE_SHORT, GRAPH_GRADIENT, PARTS, gradeInfo } from './grades.js';
+import { GRADE_SCOPE, GRAPH_GRADIENT, PARTS, gradeInfo } from './grades.js';
 import { usdShort } from './people.js';
 
 const W = 1200;
@@ -362,7 +362,7 @@ export async function drawShareCard(card) {
   // What a grade is and isn't, so the card can't read as a verdict
   x.fillStyle = '#DDD3FE';
   x.font = `400 17px ${BODY}`;
-  x.fillText(GRADE_SCOPE_SHORT, left, H - 104);
+  x.fillText(GRADE_SCOPE, left, H - 104);
 
   // brand and address
   x.fillStyle = '#FFFFFF';

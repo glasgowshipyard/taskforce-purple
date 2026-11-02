@@ -8,7 +8,7 @@ import { DEFAULT_CYCLE, cycleLabel } from '../../src/lib/election.js';
 import { LEFT_OUT, peopleSentence, placementLine } from '../../src/lib/explain.js';
 import {
   GRADES,
-  GRADE_SCOPE_SHORT,
+  GRADE_SCOPE,
   LETTERS,
   PARTS,
   gradeInfo,
@@ -137,7 +137,7 @@ ${raised > 0 ? `<p>Raised ${esc(usd(raised))} in the ${cycleLabel(m.gradeCycle ?
           sub: `Grade ${m.tier}: ${g.name}.${placement ? ` ${placement}.` : ''}`,
           tier: m.tier,
           ppi: f.ppi,
-          note: GRADE_SCOPE_SHORT,
+          note: GRADE_SCOPE,
           cycle: m.gradeCycle ?? null,
         }
       : m.tier === 'SELF-FUNDED' && ownOf(m) > 0 && raised > 0
@@ -292,7 +292,7 @@ function candidateBase(c, race, cycle) {
           sub: `Grade ${c.tier}: ${g.name}.`,
           tier: c.tier,
           ppi,
-          note: GRADE_SCOPE_SHORT,
+          note: GRADE_SCOPE,
           cycle,
         }
       : c.tier === 'SELF-FUNDED' && c.ownMoney > 0 && c.totalRaised > 0
@@ -358,7 +358,7 @@ export function racePage(race, cycle) {
       eyebrow: `${seat} · ${cycleLabel(cycle)}`,
       headline: "Who's paying the candidates?",
       sub: top.map(n => `${n.name}: ${n.words}`).join(' · '),
-      note: GRADE_SCOPE_SHORT,
+      note: GRADE_SCOPE,
     },
     cardAlt: `${seat}: ${top.map(n => `${n.name}, ${n.words}`).join('; ')}`,
     jsonLd: {

@@ -253,8 +253,10 @@ redesigned them wasted days and, twice, proposed breaking them. Build on them.
     `--influence`) only where they're being explained, and a grade letter
     being explained wears its grade colour; never in running sentences;
   - beside every grade a visitor can land on (member pages, share card,
-    link previews): it's only about where the money comes from, not votes,
-    character or the law (`GRADE_SCOPE` in grades.js);
+    link previews): "Grades are based on how a candidate is funded."
+    (`GRADE_SCOPE` in grades.js; the owner's wording, 2026-11-01, in place
+    of a longer list of what a grade isn't);
+  - cut every word that doesn't change the meaning;
   - a figure is never rounded into a claim it isn't ("Nearly half", not
     "Half", for 47.6%); every claim about research links its source.
 - **The numbers have one source (owner, 2026-10-17):** a member's receipt,
