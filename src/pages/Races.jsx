@@ -10,7 +10,7 @@ import { api } from '../lib/api.js';
 import { ELECTION_LABEL, daysUntilElection } from '../lib/election.js';
 import {
   GRADES,
-  GRADE_SCOPE_SHORT,
+  GRADE_SCOPE,
   LETTERS,
   PARTS,
   gradeInfo,
@@ -333,7 +333,7 @@ function RaceList({ races, byState, state, onClearState, cycle, outside }) {
             {i < PARTS.length - 1 ? ', ' : '. '}
           </React.Fragment>
         ))}
-        {GRADE_SCOPE_SHORT}
+        {GRADE_SCOPE}
       </p>
       {list.length === 0 ? (
         <p className="lede" style={{ color: 'var(--ink-2)' }}>
