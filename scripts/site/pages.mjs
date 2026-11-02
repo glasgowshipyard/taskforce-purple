@@ -627,7 +627,7 @@ export function llmsTxt(members, lastUpdated) {
 
 > Task Force Purple grades all members of the U.S. Congress, S to F, on where their campaign money comes from, using public Federal Election Commission (FEC) filings. It is not connected to any party or campaign.
 
-Every dollar given to a member (their campaigns, leadership PAC and own joint fundraising committees; their own money, loans and transfers left out) is sorted into three parts: People (money from many different people), Power (big money from wealthy donors, who gave more than $3,500 in all, or from so few donors that fewer than 100 gave half of it) and Influence (money from PACs, including companies' PACs, politicians and parties). The grade is the People share: S is 90% or more, A 75% to 89%, B 60% to 74%, C 45% to 59%, D 30% to 44%, E 15% to 29%, F under 15%. Grades are updated after each FEC filing deadline.
+Every dollar given to a member (their campaigns, leadership PAC and own joint fundraising committees; their own money, loans and transfers left out) is sorted into three parts: People (money from many different people), Power (big money from wealthy donors, who gave $7,000 or more in all, or from only a few donors) and Influence (money from PACs, including companies' PACs, politicians and parties). The grade is the People share: S is 90% or more, A 75% to 89%, B 60% to 74%, C 45% to 59%, D 30% to 44%, E 15% to 29%, F under 15%. Grades are updated after each FEC filing deadline.
 
 ## Pages
 

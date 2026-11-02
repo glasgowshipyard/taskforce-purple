@@ -1,7 +1,6 @@
 // The explanations use real members' FINAL-3 working as served by
 // /api/member-detail on 2026-10-13, in the big-donor test's shape since
-// 2026-11-01 (ballroom + elites): the wealthy donors and the room limit
-// set to give the same big money counted.
+// 2026-11-02: the wealthy donors set to give the same big money counted.
 import { describe, expect, it } from 'vitest';
 import {
   bigDonorLine,
@@ -28,6 +27,7 @@ const schiff = {
       given: 9624086.59,
       donors: 6512,
       fewestHoldingHalf: 339,
+      shareLimit: 0.4247,
       roomLimit: 1,
       eliteDonors: 412,
       eliteShare: 0.1528,
@@ -58,6 +58,7 @@ const jacobs = {
       given: 932826.44,
       donors: 323,
       fewestHoldingHalf: 32,
+      shareLimit: 0.988,
       roomLimit: 0.32,
       eliteDonors: 0,
       eliteShare: 0,
@@ -88,6 +89,7 @@ const aoc = {
       given: 32390104.39,
       donors: 31235,
       fewestHoldingHalf: 4609,
+      shareLimit: 1,
       roomLimit: 1,
       eliteDonors: 0,
       eliteShare: 0,
@@ -182,7 +184,7 @@ describe('explainGrade', () => {
     expect(e.steps[3].split).toEqual([{ part: 'influence', v: 2 }]);
     // Over 100 people gave half of it: the wealthy donors are the reason
     expect(e.steps[1].text).toBe(
-      'Donations over $200. 412 donors gave more than $3,500 each, so their money is Power.'
+      'Donations over $200. 412 donors gave $7,000 or more each, so their money is Power.'
     );
   });
 
@@ -199,15 +201,23 @@ describe('explainGrade', () => {
   it('a broad group of big donors: all of it is People money', () => {
     const e = explainGrade(aoc);
     expect(e.steps[1].text).toBe(
-      'Donations over $200. Half the big money came from 4,609 of 31,235 big donors. No one gave more than $3,500, so all of it is People money.'
+      'Donations over $200. Half the big money came from 4,609 of 31,235 big donors. No one gave $7,000 or more, so all of it is People money.'
     );
     // All of the big money went to People: one entry, no Power
     expect(e.steps[1].split.map(x => x.part)).toEqual(['people']);
   });
 
+  it('a small share of the big donors giving half: the share is the reason', () => {
+    const d = { ...jacobs.grade.detail, fewestHoldingHalf: 150, donors: 10000, shareLimit: 0.1 };
+    const e = explainGrade({ ...jacobs, grade: { ...jacobs.grade, detail: d } });
+    expect(e.steps.find(s => s.key === 'big').text).toBe(
+      'Donations over $200. Half the big money came from just 150 of 10,000 big donors. The fewer the donors who give half of it, the more of it is Power.'
+    );
+  });
+
   it('a working from before the big-donor test changed gives no reason', () => {
     const old = { ...schiff.grade.detail };
-    for (const k of ['roomLimit', 'eliteDonors', 'eliteShare', 'bigElite']) {
+    for (const k of ['shareLimit', 'roomLimit', 'eliteDonors', 'eliteShare', 'bigElite']) {
       delete old[k];
     }
     const e = explainGrade({ ...schiff, grade: { ...schiff.grade, detail: old } });

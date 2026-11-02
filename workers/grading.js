@@ -158,11 +158,15 @@ export function gradeMemberFinal3(inputs, pacs, shares) {
       otherPoliticiansFunds: round2(g.j),
       directed: round2(g.e),
       given: round2(g.denominator),
-      // The big-donor test (ballroom + elites): how few gave half the big
-      // money and the limit that sets, and the wealthy donors (over $3,500)
-      // and their share of the big money
+      // Small gifts reported by name, from people who gave $200 or less in
+      // all: counted in `small` above, out of `big`
+      smallItemized: round2(g.smallItemized),
+      // The big-donor test, on people who gave more than $200: how few gave
+      // half the big money and the limits that sets, and the wealthy donors
+      // ($7,000 or more) and their share of the big money
       donors: g.N ?? null,
       fewestHoldingHalf: g.n ?? null,
+      shareLimit: Number.isFinite(g.shareLimit) ? Math.round(g.shareLimit * 10000) / 10000 : null,
       roomLimit: Number.isFinite(g.roomLimit) ? Math.round(g.roomLimit * 10000) / 10000 : null,
       eliteDonors: g.eliteDonors ?? null,
       eliteShare: Number.isFinite(g.eliteShare) ? Math.round(g.eliteShare * 10000) / 10000 : null,

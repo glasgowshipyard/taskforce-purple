@@ -128,13 +128,14 @@ describe('PAC gifts (#57)', () => {
       donors: 40,
       nakamoto: 20,
       elite: 0,
+      smallItemized: 0,
     });
-    // Two donors of $5,000: both over $3,500, so all of it is the wealthy donors'
+    // Two donors of $5,000: under $7,000 each, so not wealthy donors
     expect(profiles.get('C00000020')).toMatchObject({
       itemized: 10000,
       donors: 2,
       nakamoto: 1,
-      elite: 10000,
+      elite: 0,
     });
     const gifts = await pacGifts(d, ['C00000099']);
     const traced = tracePacs(profiles);

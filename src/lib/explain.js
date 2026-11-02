@@ -158,34 +158,51 @@ export function moneyStrips(detail) {
 const splitOf = pairs => pairs.filter(([, v]) => v > 0).map(([part, v]) => ({ part, v }));
 
 /**
- * Why the big money is split as it is (ballroom + elites, final3BigCounted
- * in tier-calculation.js): the wealthy donors, over $3,500 each, and how
- * few people gave half of it.
+ * Whether how few people gave half the big money cut it further than the
+ * wealthy donors did (final3BigCounted in tier-calculation.js): the share
+ * of donors, or fewer than 100 people.
+ */
+export function concentrationApplied(d) {
+  const v = x => Math.max(0, Number(x) || 0);
+  if (!Number.isFinite(d?.shareLimit) || !Number.isFinite(d?.roomLimit)) {
+    return false;
+  }
+  const kept = v(d.big) * (1 - Math.min(1, v(d.eliteShare)));
+  return Math.min(d.shareLimit, d.roomLimit) * (v(d.small) + v(d.big)) < kept - 0.5;
+}
+
+/**
+ * Why the big money is split as it is: the wealthy donors ($7,000 or more
+ * each), and how few people gave half of it.
  */
 function bigMoneyReason(d) {
   const n = d.fewestHoldingHalf;
-  if (d.roomLimit === undefined || d.roomLimit === null) {
-    // A working from before the test changed (2026-11-01): no reason to give
+  if (!Number.isFinite(d.shareLimit) || !Number.isFinite(d.roomLimit)) {
+    // A working from before the test changed (2026-11-02): no reason to give
     return bigDonorLine(n, d.donors) || '';
   }
-  const over = `$${FINAL3.eliteOver.toLocaleString('en-US')}`;
+  const from = `$${FINAL3.eliteFrom.toLocaleString('en-US')}`;
   const elites = d.eliteDonors > 0 && d.bigElite > 0;
-  const room = d.roomLimit < 1 && n > 0 && d.donors > 0;
-  if (!elites && !room) {
+  const few = concentrationApplied(d) && n > 0 && d.donors > 0;
+  if (!elites && !few) {
     return n > 0 && d.donors > 0
-      ? `${bigDonorLine(n, d.donors)} No one gave more than ${over}, so all of it is People money.`
+      ? `${bigDonorLine(n, d.donors)} No one gave ${from} or more, so all of it is People money.`
       : 'All of it is People money.';
   }
   const why = [];
   if (elites) {
     const k = Math.round(d.eliteDonors).toLocaleString('en-US');
     why.push(
-      `${k} ${d.eliteDonors === 1 ? 'donor' : 'donors'} gave more than ${over} each, so their money is Power.`
+      `${k} ${d.eliteDonors === 1 ? 'donor' : 'donors'} gave ${from} or more each, so their money is Power.`
     );
   }
-  if (room) {
+  if (few) {
     why.push(
-      `${bigDonorLine(n, d.donors, { just: true })} When fewer than ${FINAL3.room} people give half of it, part of it is Power.`
+      `${bigDonorLine(n, d.donors, { just: true })} ${
+        d.roomLimit <= d.shareLimit
+          ? `When fewer than ${FINAL3.room} people give half of it, part of it is Power.`
+          : 'The fewer the donors who give half of it, the more of it is Power.'
+      }`
     );
   }
   return why.join(' ');

@@ -4,8 +4,10 @@
 //   - donors who net above $0 only (F11; PACs already count only those)
 //   - the money held by the biggest donors
 //   - each donor's money capped at $500, $1,000 and $2,000 (variant D)
-//   - the wealthy donors (over $3,500 in all) and their money: the live
-//     grade's elites (FINAL3.eliteOver, 2026-11-01)
+//   - for the live grade (2026-11-02): the money of people who gave $200
+//     or less in all (small donors, though itemized), and the rest measured
+//     on people who gave more: the wealthy donors ($7,000 or more,
+//     FINAL3.eliteFrom) and how few gave half
 //   - for PACs, the share of their donors' money from the top employer
 // Nothing here grades: scripts/simulate/lib/grid.mjs does.
 
@@ -59,22 +61,26 @@ export async function memberDonorShape(bulk, poolIds, liveN, weights = null, opt
         sum(${amount}) AS amt
       FROM ${rows} GROUP BY 1),
     pos AS (SELECT donor, amt FROM d WHERE amt > 0),
+    big AS (SELECT donor, amt FROM pos WHERE amt > ${FINAL3.smallUpTo}),
     ranked AS (
       SELECT amt,
         row_number() OVER (ORDER BY amt DESC, donor) AS rk,
         sum(amt) OVER (ORDER BY amt DESC, donor ROWS UNBOUNDED PRECEDING) AS cum
-      FROM pos),
+      FROM big),
     agg AS (
       SELECT count(*)::INTEGER AS donors, coalesce(sum(amt), 0) AS total,
         ${CAPS.map(k => `coalesce(sum(least(amt, ${k})), 0) AS capped${k}`).join(', ')},
-        count(*) FILTER (WHERE amt > ${FINAL3.eliteOver})::INTEGER AS eliteDonors,
-        coalesce(sum(amt) FILTER (WHERE amt > ${FINAL3.eliteOver}), 0) AS elite
-      FROM pos),
+        count(*) FILTER (WHERE amt >= ${FINAL3.eliteFrom})::INTEGER AS eliteDonors,
+        coalesce(sum(amt) FILTER (WHERE amt >= ${FINAL3.eliteFrom}), 0) AS elite
+      FROM big),
+    small AS (
+      SELECT count(*)::INTEGER AS smallDonors, coalesce(sum(amt), 0) AS smallItemized
+      FROM pos WHERE amt <= ${FINAL3.smallUpTo}),
     nak AS (SELECT count(*)::INTEGER AS n FROM ranked, agg WHERE ranked.cum - ranked.amt < agg.total * 0.5)
-    SELECT agg.*, nak.n AS nakamoto,
+    SELECT agg.*, small.*, nak.n AS nakamoto,
       (SELECT coalesce(sum(amt), 0) FROM ranked WHERE rk <= ?) AS topLive,
       (SELECT coalesce(sum(ranked.amt), 0) FROM ranked, nak WHERE ranked.rk <= nak.n) AS topPositive
-    FROM agg, nak`,
+    FROM agg, small, nak`,
     Number(liveN) || 0
   );
   // The directed gifts left out, by the committee that directed them
@@ -97,7 +103,8 @@ export async function memberDonorShape(bulk, poolIds, liveN, weights = null, opt
               || '|' || upper(trim(coalesce(state, ''))) || '|' || coalesce(zip5, '') AS donor,
             sum(${amount}) AS amt
           FROM ${rows} GROUP BY 1, 2)
-        SELECT st AS state, sum(amt) AS amount FROM d WHERE amt > 0 GROUP BY 1 ORDER BY 2 DESC, 1`)
+        SELECT st AS state, sum(amt) AS amount FROM d WHERE amt > ${FINAL3.smallUpTo}
+        GROUP BY 1 ORDER BY 2 DESC, 1`)
       ).map(x => ({ state: x.state || null, amount: round2(x.amount) }))
     : undefined;
   return {
@@ -109,6 +116,8 @@ export async function memberDonorShape(bulk, poolIds, liveN, weights = null, opt
     capped: Object.fromEntries(CAPS.map(k => [k, round2(r[`capped${k}`])])),
     eliteDonors: r.eliteDonors,
     elite: round2(r.elite),
+    smallDonors: r.smallDonors,
+    smallItemized: round2(r.smallItemized),
     ...(directedOut ? { directedOut } : {}),
     ...(byState ? { byState } : {}),
   };

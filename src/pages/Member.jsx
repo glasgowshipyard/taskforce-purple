@@ -23,6 +23,7 @@ import { classifyOrganization, sectorInfo } from '../lib/donor-taxonomy.js';
 import { cycleLabel } from '../lib/election.js';
 import {
   bigDonorLine,
+  concentrationApplied,
   explainGrade,
   moneyStrips,
   peopleSentence,
@@ -363,9 +364,8 @@ export default function Member({ id, kind = 'member' }) {
   const fewest =
     final3?.reliable && final3.fewestHoldingHalf
       ? bigDonorLine(final3.fewestHoldingHalf, final3.donors, {
-          // "just" when fewer than a room's worth gave half (ballroom: some
-          // of it is Power)
-          just: final3.roomLimit < 1,
+          // "just" when how few gave half made some of it Power
+          just: concentrationApplied(final3),
         })
       : null;
   const states = hasMoney ? stateShares(d?.bigByState, stateCode(m.state)) : null;

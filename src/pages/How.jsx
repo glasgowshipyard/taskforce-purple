@@ -55,15 +55,15 @@ function blocks(md) {
 const PILES = {
   people: (
     <>
-      Donations from many different people. A $5 gift and a $3,500 check are both People money, as
+      Donations from many different people. A $5 gift and a $5,000 check are both People money, as
       long as lots of different people gave. So is part of the money from a PAC whose group is run
       by its members, like a union: the part that came from many people.
     </>
   ),
   power: (
     <>
-      Money from wealthy donors, who gave more than $3,500 in all. Big donations are Power too when
-      fewer than 100 people gave half of them.
+      Money from wealthy donors, who gave $7,000 or more in all. Big donations are Power too when
+      only a few donors gave half of them.
     </>
   ),
   influence: (
