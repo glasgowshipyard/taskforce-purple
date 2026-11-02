@@ -10,7 +10,8 @@
  * grade's working (grade.detail):
  *
  *   people  small + big + directed    vs  individuals (INDV_CONTB)
- *   small   small                     vs  unitemized (INDV_UNITEM_CONTB)
+ *   small   small, less small gifts    vs  unitemized (INDV_UNITEM_CONTB)
+ *           reported by name
  *   pac     pac                       vs  other committees (OTH_CMTE_CONTB)
  *   party   party                     vs  party committees (PTY_CMTE_CONTB)
  *   given   the grade's whole total   at most everything received (TTL_RECEIPTS)
@@ -158,7 +159,9 @@ function compare(detail, trail) {
   }
   const site = {
     people: (d.small ?? 0) + (d.big ?? 0) + (d.directed ?? 0),
-    small: d.small ?? 0,
+    // Small gifts reported by name count as small since 2026-11-02; the
+    // FEC's unitemized figure leaves them out
+    small: (d.small ?? 0) - (d.smallItemized ?? 0),
     pac: d.pac ?? 0,
     party: d.party ?? 0,
   };
