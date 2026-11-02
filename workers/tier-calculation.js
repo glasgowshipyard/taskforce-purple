@@ -709,19 +709,31 @@ export function gradeFinal3(m, pacs, shares) {
   const own = n0(pf.ownMoney?.contributions) + n0(pf.ownMoney?.loans);
   const T = n0(pf.totalRaised);
   const fromOthers = T - own;
-  const given = s + b + p + y;
-  // Other politicians' joint funds: out of each bucket by the fund's mix
+  // Other politicians' joint funds: everything they passed on is theirs.
+  // The part in the buckets (split there by the fund's mix) comes out of
+  // them; the rest isn't in any bucket (a fund that raised nothing this
+  // cycle, or money that wasn't donations), so it's added (2026-11-01)
   let j = 0;
+  let outside = 0;
   for (const c of (m.pf.committees || []).filter(x => x.role === 'joint' && !x.ownFund)) {
     const t = n0(c.toMemberCounted ?? c.toMember);
-    if (t > 0 && c.mix) {
-      s -= t * n0(c.mix.s);
-      b -= t * n0(c.mix.b);
-      p -= t * n0(c.mix.p);
-      y -= t * n0(c.mix.y);
-      j += t * (n0(c.mix.s) + n0(c.mix.b) + n0(c.mix.p) + n0(c.mix.y));
+    if (t > 0) {
+      const mix = c.mix || {};
+      s -= t * n0(mix.s);
+      b -= t * n0(mix.b);
+      p -= t * n0(mix.p);
+      y -= t * n0(mix.y);
+      const inBuckets = t * (n0(mix.s) + n0(mix.b) + n0(mix.p) + n0(mix.y));
+      outside += Math.max(0, t - inBuckets);
+      j += Math.max(t, inBuckets);
     }
   }
+  const given =
+    n0(pf.grassrootsDonations) +
+    n0(pf.largeDonorDonations) +
+    n0(pf.pacMoney) +
+    n0(pf.partyMoney) +
+    outside;
   [s, b, p, y] = [s, b, p, y].map(v => Math.max(0, v));
   // Directed gifts: out of big-donor money
   const directed = Object.entries(m.shapeDirected?.directedOut || {}).filter(([, a]) => a > 0);

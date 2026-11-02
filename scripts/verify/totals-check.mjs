@@ -14,12 +14,12 @@
  *   pac     pac                       vs  other committees (OTH_CMTE_CONTB)
  *   party   party                     vs  party committees (PTY_CMTE_CONTB)
  *   given   the grade's whole total   at most everything received (TTL_RECEIPTS)
+ *   others  other politicians' funds  all their joint funds passed on
  *
- * A difference is named when it's over $1,000 and over 1%. Some are by
- * rule and are listed apart: no letter grade (self-funded, disputed), a
- * committee counted only from a date (COMMITTEE_SINCE). Also listed: money
- * from other politicians' joint funds left out of the total because the
- * fund shows no money raised this cycle, with what it would do to the grade.
+ * A difference is named when it's over $1,000 and over 1% (other
+ * politicians' funds: over $1). Some are by rule and are listed apart: no
+ * letter grade (self-funded, disputed), a committee counted only from a
+ * date (COMMITTEE_SINCE).
  *
  *   node scripts/verify/totals-check.mjs [--members-only] [--file committee_summary.csv] [--out report.json]
  *
@@ -125,15 +125,6 @@ if (!membersOnly) {
 }
 
 const round = x => Math.round(x * 100) / 100;
-const BANDS = [
-  ['S', 90],
-  ['A', 75],
-  ['B', 60],
-  ['C', 45],
-  ['D', 30],
-  ['E', 15],
-];
-const letter = x => BANDS.find(([, from]) => x >= from)?.[0] ?? 'F';
 function compare(detail, trail) {
   const d = detail ?? {};
   const fec = { people: 0, small: 0, pac: 0, party: 0 };
@@ -142,14 +133,11 @@ function compare(detail, trail) {
   const missing = [];
   const since = [];
   const through = new Set();
-  let leftOut = 0;
+  // What other politicians' joint funds passed on: all of it in the grade
+  let passed = 0;
   for (const c of trail?.committees ?? []) {
-    // Another politician's joint fund: in the grade by its mix, and left
-    // out when it shows no money raised this cycle (no mix)
     if (c.role === 'joint' && !c.ownFund) {
-      if (!c.mix) {
-        leftOut += c.toMemberCounted ?? 0;
-      }
+      passed += c.toMemberCounted ?? 0;
       receipts += c.toMemberCounted ?? 0;
       continue;
     }
@@ -185,13 +173,11 @@ function compare(detail, trail) {
       off[k] = { site: round(site[k]), fec: round(fec[k]), diff: round(diff) };
     }
   }
-  // What the left-out money would do to the grade, were it in the total
-  let ifCounted = null;
-  if (leftOut > 0 && d.given > 0) {
-    const x = (d.score * d.given) / (d.given + leftOut);
-    ifCounted = { leftOut: round(leftOut), score: Math.round(x), letter: letter(Math.round(x)) };
+  const others = d.otherPoliticiansFunds ?? 0;
+  if (Math.abs(others - passed) > 1) {
+    off.others = { site: round(others), fec: round(passed), diff: round(others - passed) };
   }
-  return { off, missing, since, ifCounted, fecThrough: [...through].sort() };
+  return { off, missing, since, fecThrough: [...through].sort() };
 }
 
 const results = [];
@@ -235,7 +221,6 @@ const byId = (a, b) => a.kind.localeCompare(b.kind) || a.id.localeCompare(b.id);
 const notGraded = results.filter(r => !graded(r));
 const bySince = results.filter(r => graded(r) && differs(r) && r.since?.length);
 const unexplained = results.filter(r => graded(r) && differs(r) && !r.since?.length);
-const leftOut = results.filter(r => graded(r) && r.ifCounted);
 
 const members = people.filter(p => p.kind === 'member').length;
 console.log(
@@ -252,16 +237,6 @@ for (const r of bySince.sort(byId)) {
 console.log(`Differ, not explained: ${unexplained.length}`);
 for (const r of unexplained.sort(byId)) {
   console.log(`  ${describe(r)}`);
-}
-console.log(
-  `Other politicians' joint fund money left out (fund shows nothing raised this cycle): ${leftOut.length}`
-);
-for (const r of leftOut.sort(byId)) {
-  const c = r.ifCounted;
-  const moved = c.letter === r.tier ? 'same letter' : `would be ${c.letter}`;
-  console.log(
-    `  ${r.kind} ${r.id} ${r.name} [${r.tier}]: $${c.leftOut}; counted, score ${c.score}, ${moved}`
-  );
 }
 const out = arg('--out');
 if (out) {
