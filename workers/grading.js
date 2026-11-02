@@ -125,7 +125,8 @@ export function gradeMemberFinal3(inputs, pacs, shares) {
     tier: g.tier,
     individualFundingPercent: graded ? g.score : null,
     ...(g.tier === 'DISPUTED' ? { disputed: true, disputeReason: g.reason } : {}),
-    ...(g.tier === 'N/A' ? { withheldReason: g.reason } : {}),
+    // Withheld for want of donor records: its own words on the site
+    ...(g.tier === 'N/A' || g.reason === 'records-incomplete' ? { withheldReason: g.reason } : {}),
     gradeBasis: g.reason === 'mixed-source' ? null : 'all-committees',
     evidenceChecked: g.reason === 'mixed-source' ? null : reconciled,
     personFigures:
@@ -145,6 +146,8 @@ export function gradeMemberFinal3(inputs, pacs, shares) {
             ...(pf.filedThrough ? { filedThrough: pf.filedThrough } : {}),
           },
     detail: {
+      // Still 'final-3' since the big-donor test changed (2026-11-01): the
+      // deployed API worker and the site read the working by this name
       method: 'final-3',
       // Money given, by kind, after other politicians' funds and directed
       // gifts are taken out (dollars)
@@ -155,10 +158,19 @@ export function gradeMemberFinal3(inputs, pacs, shares) {
       otherPoliticiansFunds: round2(g.j),
       directed: round2(g.e),
       given: round2(g.denominator),
-      // The donor test and the allowance
+      // Small gifts reported by name, from people who gave $200 or less in
+      // all: counted in `small` above, out of `big`
+      smallItemized: round2(g.smallItemized),
+      // The big-donor test, on people who gave more than $200: how few gave
+      // half the big money and the limits that sets, and the wealthy donors
+      // ($7,000 or more) and their share of the big money
       donors: g.N ?? null,
       fewestHoldingHalf: g.n ?? null,
-      allowance: Number.isFinite(g.allowance) ? Math.round(g.allowance * 10000) / 10000 : null,
+      shareLimit: Number.isFinite(g.shareLimit) ? Math.round(g.shareLimit * 10000) / 10000 : null,
+      roomLimit: Number.isFinite(g.roomLimit) ? Math.round(g.roomLimit * 10000) / 10000 : null,
+      eliteDonors: g.eliteDonors ?? null,
+      eliteShare: Number.isFinite(g.eliteShare) ? Math.round(g.eliteShare * 10000) / 10000 : null,
+      bigElite: round2(g.elite),
       reliable: g.reliable ?? null,
       bigCounted: round2(g.counted),
       // What counts

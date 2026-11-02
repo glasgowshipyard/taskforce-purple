@@ -156,7 +156,8 @@ export function publishedMember(record, result) {
   return {
     ...record,
     tier: g.tier,
-    withheldReason: undefined, // graded: nothing withheld
+    // Graded: nothing withheld, unless the donor records fell short
+    withheldReason: g.tier === 'DISPUTED' ? (g.withheldReason ?? undefined) : undefined,
     individualFundingPercent: g.individualFundingPercent ?? null,
     // The money given in three parts (FINAL-3): People, Power, Influence
     peoplePowerInfluence: peoplePowerInfluence(g.detail),

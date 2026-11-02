@@ -12,7 +12,7 @@
 // people money (tier-calculation.js tracePacs, pacPeopleCredit).
 
 import { pacType } from '../../../src/lib/pacs.js';
-import { PAC_TRACING, pacPeopleCredit } from '../../../workers/tier-calculation.js';
+import { FINAL3, PAC_TRACING, pacPeopleCredit } from '../../../workers/tier-calculation.js';
 import { COMMITTEE_SINCE } from '../../../workers/fec-crosswalk-additions.js';
 import { ITEMIZED_TYPES } from './reconcile.mjs';
 
@@ -310,7 +310,7 @@ export function asPacContributions(gifts) {
  * (webk), and its named donors (indiv): how many, and how few gave half its
  * itemized money. One pass over the itemized file for all PACs at once.
  * Returns Map id -> { receipts, individuals, fromAffiliates, otherCommittees,
- * itemized, donors, nakamoto }.
+ * itemized, smallItemized, donors, nakamoto, elite }.
  */
 export async function pacProfiles(db, itcontPath, pacIds) {
   const ids = [...new Set(pacIds)].filter(id => IDS.test(id));
@@ -332,6 +332,8 @@ export async function pacProfiles(db, itcontPath, pacIds) {
       itemized: 0,
       donors: 0,
       nakamoto: null,
+      elite: 0,
+      smallItemized: 0,
     });
   }
   const list = ids.map(id => `('${id}')`).join(',');
@@ -353,15 +355,27 @@ export async function pacProfiles(db, itcontPath, pacIds) {
       GROUP BY 1, 2
       HAVING sum(TRY_CAST(TRANSACTION_AMT AS DOUBLE)) > 0
     ),
+    big AS (SELECT * FROM rows WHERE total > ${FINAL3.smallUpTo}),
     ranked AS (
       SELECT id, total,
         sum(total) OVER (PARTITION BY id ORDER BY total DESC, donor ROWS UNBOUNDED PRECEDING) AS cum,
         sum(total) OVER (PARTITION BY id) AS all_total
-      FROM rows
+      FROM big
+    ),
+    bigs AS (
+      SELECT id, count(*)::INTEGER AS donors,
+        count(*) FILTER (WHERE cum - total < all_total * 0.5)::INTEGER AS nakamoto,
+        coalesce(sum(total) FILTER (WHERE total >= ${FINAL3.eliteFrom}), 0) AS elite
+      FROM ranked GROUP BY id
+    ),
+    alls AS (
+      SELECT id, sum(total) AS itemized,
+        coalesce(sum(total) FILTER (WHERE total <= ${FINAL3.smallUpTo}), 0) AS small_itemized
+      FROM rows GROUP BY id
     )
-    SELECT id, count(*)::INTEGER AS donors, max(all_total) AS itemized,
-      count(*) FILTER (WHERE cum - total < all_total * 0.5)::INTEGER AS nakamoto
-    FROM ranked GROUP BY id`);
+    SELECT alls.id, alls.itemized, alls.small_itemized, coalesce(bigs.donors, 0) AS donors,
+      bigs.nakamoto, coalesce(bigs.elite, 0) AS elite
+    FROM alls LEFT JOIN bigs ON bigs.id = alls.id`);
   for (const d of donors) {
     const p = out.get(d.id) || {
       receipts: null,
@@ -369,7 +383,17 @@ export async function pacProfiles(db, itcontPath, pacIds) {
       fromAffiliates: null,
       otherCommittees: null,
     };
-    out.set(d.id, { ...p, itemized: cents(d.itemized), donors: d.donors, nakamoto: d.nakamoto });
+    out.set(d.id, {
+      ...p,
+      itemized: cents(d.itemized),
+      // People who gave $200 or less in all: small donors, though itemized
+      smallItemized: cents(d.small_itemized),
+      // The rest, people who gave more: how many, how few gave half, and the
+      // wealthy donors' money ($7,000 or more each): the members' test
+      donors: d.donors,
+      nakamoto: d.nakamoto ?? null,
+      elite: cents(d.elite),
+    });
   }
   return out;
 }

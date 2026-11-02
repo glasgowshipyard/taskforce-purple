@@ -23,6 +23,7 @@ import { classifyOrganization, sectorInfo } from '../lib/donor-taxonomy.js';
 import { cycleLabel } from '../lib/election.js';
 import {
   bigDonorLine,
+  concentrationApplied,
   explainGrade,
   moneyStrips,
   peopleSentence,
@@ -305,7 +306,14 @@ export default function Member({ id, kind = 'member' }) {
   }
 
   const f = gradedFigures(m);
-  const reason = withheldReasonOf({ ...m, totalRaised: f.totalRaised });
+  const reason = withheldReasonOf({
+    ...m,
+    totalRaised: f.totalRaised,
+    // Too few donor records: the grade's own reason, until the API serves it
+    withheldReason:
+      m.withheldReason ??
+      (d?.grade?.disputeReason === 'records-incomplete' ? 'records-incomplete' : null),
+  });
   const g = gradeInfo(m.tier, reason, isCandidate);
   const withheld = isRingfenced(m.tier);
   const hasMoney = f.totalRaised > 0 && !withheld;
@@ -356,8 +364,8 @@ export default function Member({ id, kind = 'member' }) {
   const fewest =
     final3?.reliable && final3.fewestHoldingHalf
       ? bigDonorLine(final3.fewestHoldingHalf, final3.donors, {
-          // "just" when the concentration cost People money (some is Power)
-          just: (ppi?.power ?? 0) > 0,
+          // "just" when how few gave half made some of it Power
+          just: concentrationApplied(final3),
         })
       : null;
   const states = hasMoney ? stateShares(d?.bigByState, stateCode(m.state)) : null;

@@ -114,10 +114,20 @@ script); rebuild only when district lines change.
 The owner has spent months settling these. Sessions that "rediscovered" and
 redesigned them wasted days and, twice, proposed breaking them. Build on them.
 
-- **Ballroom principle (settled Jan 2026).** Itemized (>$200) money counts as
-  _individual support_. It is penalised only when the donor base is
-  _concentrated_ (trust anchor from donor concentration). Never redesign
-  scoring as "itemized = bad" — that drops AOC from S (simulated 2026-09-26).
+- **Ballroom principle (settled Jan 2026), wealthy donors and small gifts
+  (owner, 2026-11-02).** Itemized (>$200) money counts as _individual
+  support_, except from wealthy donors and concentrated donor bases. Small
+  or big goes by what each person gave in all: $200 or less is a small
+  donor even when the campaign itemized the gifts ("Small gifts are not big
+  donations"). $7,000 or more to a politician's committees (two maximum
+  donations) is a wealthy donor: all their money is Power ("maxed out
+  people are POWER"; "two are a real indicator"). Concentration still
+  limits the rest: the share of big donors who gave half, and fewer than
+  100 people (a room's worth), on people who gave over $200. Never redesign
+  scoring as "itemized = bad" — that drops AOC from S (simulated
+  2026-09-26). Before 2026-11-02 thousands of maxed-out donors read as a
+  movement (a Senate campaign 75% big donors got an S), and thousands of
+  small itemized gifts made broad campaigns look concentrated.
 - **The person is the unit (agreed 2026-09-26, #41/#32).** A member's money
   is everything raised across their campaign(s), joint fundraising funds and
   leadership PACs, counted once. Scoring only the campaign committee grades
@@ -139,8 +149,10 @@ redesigned them wasted days and, twice, proposed breaking them. Build on them.
   "Grade pending", which was decided before the bulk file was found.
 - **FINAL-3 is the grading (owner: frozen 2026-10-12, live 2026-10-13).** The
   method is GRASSROOTS_CALCULATION_GUIDE.md and /how (one-page spec): grade
-  on the money given (s + b + p + y), the allowance from how few donors gave
-  half the big-donor money, PAC money counted only for PACs whose sponsor's
+  on the money given (s + b + p + y), big-donor money (from people who gave
+  over $200 in all) less the wealthy donors' ($7,000 or more each) and
+  within the concentration allowance (since 2026-11-02), PAC money counted
+  only for PACs whose sponsor's
   members elect most of its board (Form 990 Part VI and Schedule O;
   LMRDA-covered unions pass on the law), at the share traced to people;
   businesses, politicians, parties, boards and no-sponsor PACs count 0;

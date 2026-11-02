@@ -1,6 +1,6 @@
 # Task Force Purple: implementation status
 
-**Last updated**: 2026-11-01. Current state first, then a dated change log
+**Last updated**: 2026-11-02. Current state first, then a dated change log
 (newest first, from the rebuild on 2026-10-03). The log before the rebuild
 is in `docs/history/log-2025-26.md`.
 
@@ -10,9 +10,11 @@ is in `docs/history/log-2025-26.md`.
 
 **What it is.** taskforcepurple.com grades every member of Congress, S to
 F, on where their campaign money comes from: People (many different
-people), Power (big money from a few wealthy donors) and Influence (PACs,
-politicians and parties). The grade is the People share, worked out by
-FINAL-3 (live since 2026-10-13; `GRASSROOTS_CALCULATION_GUIDE.md`, `/how`).
+people), Power (big money from wealthy donors, or from only a few donors)
+and Influence (PACs, politicians and parties). The grade is the People
+share, worked out by FINAL-3 (live since 2026-10-13; big-donor test changed
+2026-11-02: small itemized gifts are small, and $7,000 or more in all is a
+wealthy donor; `GRASSROOTS_CALCULATION_GUIDE.md`, `/how`).
 
 **How it runs.**
 
@@ -59,6 +61,51 @@ clean-up, #71 outside spending (shown since 2026-10-25), #72 TypeScript (after t
 ---
 
 ## Change log
+
+## 2026-11-02: the big-donor test sees wealth, and small gifts are small
+
+The owner found Mike Rogers (Michigan Senate) at S on 75% big-donor money:
+1,488 of 14,300 big donors gave half (10.4%), so FINAL-3's share test gave
+full credit, though most of those donors had given the maximum for both the
+primary and the general. The legal limit makes maxed-out gifts equal, so
+the share test read them as a movement; nothing in it looked at how much
+anyone gave. I removed the 50% cap in the 2026-10-11 simulation and set up
+the weak-spot check (top donors giving 40% or more of all the money), which
+couldn't see thousands of maxed-out donors; my 2026-10-10 math review never
+tested the rules against the owner's July complaint about low-small-donor
+members in S.
+
+The test now (`gradeFinal3`, `final3BigCounted`, `final3Limits` in
+tier-calculation.js; the donor records in `memberDonorShape`,
+scripts/simulate/lib/inputs.mjs, and `pacProfiles` for PACs):
+
+- **Small gifts are small.** People who gave $200 or less in all are small
+  donors even when the campaign itemized their gifts (many itemize every
+  online gift: one candidate's $680,000 "big" money came from 12,123 people
+  averaging $56). Their share of the donor records' money moves from big to
+  small (`detail.smallItemized`). Owner: "Small gifts are not big donations."
+- **Wealthy donors.** $7,000 or more in all to the politician's committees
+  (two maximum donations) is a wealthy donor: all their money is Power.
+  Owner: "maxed out people are POWER"; "two are a real indicator".
+- **Concentration** stays as FINAL-3 had it (share of donors and the
+  100-donor count), measured only on people who gave over $200.
+- **Short records:** under half the FEC's itemized total covered is "?"
+  (`records-incomplete`, "Checking records") in place of the 0.40 middle
+  allowance: 7 tiny campaigns ($7,000 to $66,000 raised, 0 to 20 donors).
+- PACs' own donors get the same test.
+
+Simulated in full before publishing (dry runs 41457952320 and 41457958681),
+after three other versions: a $3,500 line with the share test dropped
+(299 members' grades moved, 37 of 52 states' map colour redder, Pelosi C to
+B), and $7,000 and above-$3,500 variants. The owner chose $7,000 with the
+share test kept, and the small-gift fix. Result: 238 members' grades and
+148 other candidates' change; members S37 A74 B83 C110 D99 E96 F32 become
+S13 A41 B62 C116 D155 E114 F30; 24 states' map colour changes, mostly one
+step. Sanders and Ocasio-Cortez stay S (99); Rogers S to B 69; Pelosi C 54
+to C 57; Jeffries D 32 to D 34; Johnson E 16 to E 17; Paxton stays E. 22
+members go up, all campaigns whose small itemized gifts had counted as big
+(Whitehouse F 11 to B 73, Jordan D 34 to B 68). The working keeps
+`method: 'final-3'` so the deployed API worker reads it unchanged.
 
 ## 2026-11-01: all of other politicians' joint fund money in the total
 

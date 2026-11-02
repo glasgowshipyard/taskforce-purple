@@ -59,30 +59,40 @@ describe('simulation donor measures', () => {
   it("a member's donors who net above $0, the biggest donors' money, and capped money", async () => {
     const bulk = await loadBulk(itcont, ['C00000001']);
     const s = await memberDonorShape(bulk, ['C00000001'], 1);
-    expect(s.donors).toBe(4); // Diaz nets -200: left out
-    expect(s.total).toBe(4650);
-    expect(s.nakamoto).toBe(1); // Adams alone holds half of 4,650
+    // Diaz nets -200: left out. Evans gave $150 in all: a small donor,
+    // though itemized (2026-11-02), so not in the big-donor test
+    expect(s.donors).toBe(3);
+    expect(s.total).toBe(4500);
+    expect(s.smallDonors).toBe(1);
+    expect(s.smallItemized).toBe(150);
+    expect(s.nakamoto).toBe(1); // Adams alone holds half of 4,500
     expect(s.topLive).toBe(3000);
     expect(s.topPositive).toBe(3000);
-    expect(s.capped).toEqual({ 500: 1650, 1000: 2650, 2000: 3650 });
-    // A joint fund that passed on a tenth of its money: its gifts at a tenth
+    expect(s.capped).toEqual({ 500: 1500, 1000: 2500, 2000: 3500 });
+    // Nobody gave $7,000 or more
+    expect(s.elite).toBe(0);
+    // A joint fund that passed on a tenth of its money: its gifts at a
+    // tenth, which leaves only Adams over $200
     const w = await memberDonorShape(bulk, ['C00000001'], 1, { C00000001: 0.1 });
-    expect(w.total).toBe(465);
-    expect(w.donors).toBe(4);
+    expect(w.total).toBe(300);
+    expect(w.donors).toBe(1);
+    expect(w.smallItemized).toBe(165);
   });
 
   it('gifts directed by a committee leave the donor test; platform gifts stay', async () => {
     const bulk = await loadBulk(itcont, ['C00000002']);
-    expect((await memberDonorShape(bulk, ['C00000002'], 1)).total).toBe(2600);
+    // Hill gave $100: a small donor, not in the big-donor test
+    expect((await memberDonorShape(bulk, ['C00000002'], 1)).total).toBe(2500);
     const s = await memberDonorShape(bulk, ['C00000002'], 1, null, { platforms: ['C00401224'] });
-    expect(s.total).toBe(600);
-    expect(s.donors).toBe(2);
+    expect(s.total).toBe(500);
+    expect(s.donors).toBe(1);
+    expect(s.smallItemized).toBe(100);
     expect(s.directedOut).toEqual({ C00000077: 2000 });
     const st = await memberDonorShape(bulk, ['C00000002'], 1, null, {
       platforms: ['C00401224'],
       byState: true,
     });
-    expect(st.byState).toEqual([{ state: 'DC', amount: 600 }]);
+    expect(st.byState).toEqual([{ state: 'DC', amount: 500 }]);
   });
 
   it("a PAC's capped money and its top employer's share", async () => {

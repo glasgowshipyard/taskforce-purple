@@ -62,8 +62,8 @@ const PILES = {
   ),
   power: (
     <>
-      Big donations, over $200, when only a few donors gave most of them. The grade counts how few
-      donors gave half of the big money. The fewer they are, the more of the big money is Power.
+      Money from wealthy donors, who gave $7,000 or more in all. Big donations are Power too when
+      only a few donors gave half of them.
     </>
   ),
   influence: (

@@ -17,6 +17,14 @@ export const KINDS = { correction: 'Correction', new: 'New' };
 // new features above corrections within a day (inOrder)
 export const CORRECTIONS = [
   {
+    id: '2026-11-02-wealthy-donors',
+    date: '2026-11-02',
+    kind: 'correction',
+    what: 'Money from wealthy donors is now Power',
+    detail:
+      "Someone who gives a politician $7,000 or more, the most one person can give a campaign for a primary and a general election together, now counts as a wealthy donor, and all of their money is Power. Until now, big donations counted as money from people whenever thousands of donors gave them, even when most had given the maximum, which gave an S to some campaigns funded mostly by wealthy donors. Small gifts no longer count as big ones either: some campaigns report every gift by name, even $5 ones. 238 members' grades and 148 other candidates' grades changed.",
+  },
+  {
     id: '2026-11-01-more-than-received',
     date: '2026-11-01',
     kind: 'correction',

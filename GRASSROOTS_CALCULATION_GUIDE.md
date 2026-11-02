@@ -1,40 +1,73 @@
 # Tier Calculation Guide
 
-**Last Updated**: 2026-10-18
+**Last Updated**: 2026-11-01
 **Implementation**: `workers/tier-calculation.js` `gradeFinal3` (pure, unit-tested; checked
 member by member against the simulation by `scripts/simulate/check-final3.mjs`), wrapped by
 `workers/grading.js` `gradeMemberFinal3`. Inputs gathered by the refresh job
 (`scripts/refresh/run.mjs`, `scripts/refresh/lib/final3.mjs`); PAC sorting and the people
 test in `scripts/refresh/lib/sponsors.mjs` with the data in `scripts/refresh/data/`.
 
-## FINAL-3: the method since 13 October 2026
+## FINAL-3: the method since 13 October 2026, big-donor test since 2 November
 
 The owner froze this on 2026-10-12 after four simulation rounds on one FEC snapshot (Final,
 FINAL-2, FINAL-3; reports in IMPLEMENTATION_STATUS.md). It replaced version A (the trust anchor,
 half credit for PAC money traced to people, and the PAC bar), now in
-`docs/history/method-version-a.md`.
-The one-page spec, as shown on /how:
+`docs/history/method-version-a.md`. On 2026-11-02 the owner changed its big-donor test: small
+itemized gifts are small, and wealthy donors' money is Power (below). The one-page spec, as shown
+on /how:
 
-**Meaning.** A member's grade is the share of the money given to them, and to their own joint funds, that comes from many different people. Big donations count only as far as the people who gave them are many and spread out. PAC money counts only when the PAC's sponsor is run by its members (they elect most of its board, or it is a union bound by federal labor law to hold member elections), and only as far as the PAC's own money traces back to many people. Money from companies' PACs, politicians, parties, and PACs that answer to a board or to their organizers counts 0.
+**Meaning.** A member's grade is the share of the money given to them, and to their own joint funds, that comes from many different people. Big donations count only from people who gave less than $7,000 in all, and only as far as many people gave them. PAC money counts only when the PAC's sponsor is run by its members (they elect most of its board, or it is a union bound by federal labor law to hold member elections), and only as far as the PAC's own money traces back to many people. Money from companies' PACs, politicians, parties, and PACs that answer to a board or to their organizers counts 0.
 
 **Formula** (per member, cycle 2026):
 
 - money given: `G = s + b + p + y` across the member's campaigns, leadership PACs and own joint funds (in full; transfers between them counted once). Own money, interest, refunds, loans and transfers are left out.
 - other politicians' joint funds: what they passed to the member comes out of `s, b, p, y` by each fund's own mix and counts 0 (POLITICIAN); it stays in `G`. The part in no bucket (a fund that raised nothing this cycle, so has no mix, or money that wasn't donations) is added to `G` as theirs too, so all of it is in the total (2026-11-01; before, it was left out). Together they never count for more than the member's committees report receiving as transfers, less what came from the member's own committees and funds (a campaign can re-report a fund's transfer as the donations behind it; counting both counted that money twice; 2026-10-18).
 - directed gifts: gifts earmarked through a committee other than ActBlue, WinRed or Democracy Engine come out of `b` and the donor test, and count as that committee's gift: `e × share` if it passes the people test, else 0. Never under the PAC cap.
-- donor test, on the remaining big-donor records of those committees, each donor's gifts at full size, donors who net above $0: `N` big donors, `n` the fewest who gave half the big-donor money.
-- allowance: `a = min(0.10 + 0.90 × clamp((n/N − 0.025) / 0.075, 0, 1), min(1, n/100))`; `a = 0.40` only when the records cover under half the FEC's big-donor total.
-- big money counted: `min(b, a × (s + b))`.
-- each PAC's share from people: the same test on the PAC's own money (the FEC's small/big split, its own donors), plus the money of committees that funded it (2 steps back) where those committees pass the people test; all other committee money, and money that can't be traced, counts 0.
+- small gifts reported by name: on the remaining donor records of those committees, each donor's gifts added up at full size, donors who net above $0, the share of the money from people who gave $200 or less in all moves from `b` to `s` (`smallItemized`). The FEC's itemized total holds them when a campaign itemizes every gift, as many do with online gifts.
+- donor test, on the people who gave more than $200: `N` big donors, `n` the fewest who gave half the big-donor money, and `w` the share of the money from wealthy donors, who gave $7,000 or more in all (two maximum donations).
+- allowance: `a = min(0.10 + 0.90 × clamp((n/N − 0.025) / 0.075, 0, 1), min(1, n/100))`: a small share of the big donors, or fewer than 100 people, giving half of it.
+- big money counted: `min(b × (1 − w), a × (s + b))`.
+- no grade (?) when the records cover under half the FEC's itemized total (`DISPUTED`, `records-incomplete`; shown as "Checking records").
+- each PAC's share from people: the same test on the PAC's own money (the FEC's small/big split, its own donors; where its records cover under half, its big-donor money counts up to 0.40 of its money from individuals), plus the money of committees that funded it (2 steps back) where those committees pass the people test; all other committee money, and money that can't be traced, counts 0.
 - the people test: a labor union covered by the Labor-Management Reporting and Disclosure Act passes on the law. Any other PEOPLE sponsor passes only if its members elect most of its voting board: its latest Form 990 answers Yes on Part VI line 7a, line 6 says it has members, and its Schedule O doesn't show members electing only a minority (or the board being its own membership). Otherwise BOARD (0). No Form 990: a stated fact decides; otherwise not tested (0) and listed.
 - PAC money counted: `Σ gift × share` for PEOPLE PACs that pass the test, scaled down so it never exceeds the PAC money in the member's figures.
-- score: `x = 100 × (s + min(b, a(s + b)) + PAC money counted + directed gifts counted) / G`, at most 100.
+- score: `x = 100 × (s + big money counted + PAC money counted + directed gifts counted) / G`, at most 100.
 - grade on `round(x)`: S at least 90, A 75, B 60, C 45, D 30, E 15, otherwise F.
-- no grade (?): no confirmed FEC identity; no campaign committee for the cycle; own money that doesn't fit inside the receipts.
+- no grade (?): no confirmed FEC identity; no campaign committee for the cycle; own money that doesn't fit inside the receipts; donor records that cover under half the itemized money.
 
-**Why the allowance has a count of 100 as well as a share** (owner, 2026-10-24; the reasoning was never written down until now). It's the ballroom principle (CLAUDE.md, settled January 2026): big donations count as individual support unless the donor base is concentrated, and 100 people is about one room's worth. If half the big-donor money came from fewer people than could sit at one fundraiser, the base is concentrated, however the share works out. The share limit alone can't see that: a campaign with very few donors passes it by default (5 of 40 is 12.5%). The count limit is `min(1, n/100)`; the allowance is the smaller of the two. History: the earlier trust-anchor table (version A, `docs/history/method-version-a.md`, Step 3) put it as a small room: "Nakamoto < 50 donors: 10%, dinner party: coordination trivial", and a donor base of 10% or more of all donors as a "movement: coordination impossible"; the 100-person count came in with the 2026-10-11 simplification simulation (`count` in `scripts/simulate/lib/grid.mjs`), where the lower of the spread test and the number test was the leading candidate (E), frozen as FINAL-3 on 2026-10-12. Neither limit looks at how large each gift is, only how many people and what share.
+**Why the big-donor test changed** (owner, 2026-11-01 and 11-02). The ballroom principle
+(CLAUDE.md, settled January 2026) says big donations count as individual support unless the
+donor base is concentrated. FINAL-3 measured only concentration: how few people gave half the
+big money (the count, under 100: one room's worth) and what share of the big donors they were
+(the share, 2.5% to 10%). Two faults:
 
-**Constants**: 0.10 and 0.90 (allowance range), 2.5% and 10% (spread), 100 donors, 0.40 fallback, 50% record coverage, credit 1 (PEOPLE that pass the test) and 0 (everything else), 2 steps back, bands 90/75/60/45/30/15.
+- It couldn't see wealth. The legal limit makes every maxed-out donor's gift the same, so they
+  look evenly spread: a Senate campaign whose big money came mostly from donors giving the
+  maximum for both the primary and the general (1,488 of 14,300 gave half, 10.4%) got full
+  credit and an S on 75% big-donor money. The owner: "maxed out people are POWER"; "one donation
+  is fine, two are a real indicator". So $7,000 or more in all (two maximum donations, $3,500 for
+  each election in 2025-26), across the politician's committees, is a wealthy donor, and all of
+  their money is Power (the whole person, not the part over the line). A $3,500 line was built
+  and simulated first: it moved 299 members' grades and turned 37 of 52 states' map colour
+  redder; the owner chose $7,000.
+- It counted small gifts as big. The FEC's itemized total holds every gift a campaign reports by
+  name, and many itemize every online gift: one House candidate's $680,000 "big" money came from
+  12,123 people averaging $56. Those donors made the top donors look like a tiny share, so the
+  share test read broad campaigns as concentrated. The owner: "Small gifts are not big
+  donations." Small or big now goes by what each person gave in all.
+
+The share test stays, measured on real big donors (over $200): it still catches real
+concentration (32 people giving half of one leader's big money). The 0.40 middle allowance for
+short records is gone: a grade that can't be worked out from the records isn't given.
+
+The history: version A's trust-anchor table (`docs/history/method-version-a.md`, Step 3) capped
+big money at 50% of the money from individuals even for its "movement" bases; the 2026-10-11
+simplification simulation removed that cap (239 grades on its own) and dropped variant D (each
+donor counted up to $500/$1,000/$2,000) for cutting big donations "however many people gave".
+The weak-spot check then (top donors giving 40% or more of all the money) couldn't see thousands
+of maxed-out donors.
+
+**Constants**: $200 (this or less in all is a small donor), $7,000 (this or more in all is a wealthy donor), 0.10 and 0.90 (allowance range), 2.5% and 10% (spread), 100 donors (a room), 50% record coverage, 0.40 (a PAC's limit when its records are short), credit 1 (PEOPLE that pass the test) and 0 (everything else), 2 steps back, bands 90/75/60/45/30/15.
 
 **Sorting rule** (each PAC in one group, in this order): a stated fact, where one is listed. POLITICIAN: leadership PACs (FEC designation D, or the FEC's leadership-PAC flag or sponsoring candidate), candidates' committees, other politicians' joint funds, PACs whose connected organization is a candidate's committee, leadership PAC, joint fund or politician, and PACs linked to a congressional caucus or run by members of Congress (one test, both parties). PARTY: party committees, and PACs whose connected organization is one. NO SPONSOR: a connected organization that is another (non-party, non-politician) committee, or none. BUSINESS: FEC sponsor type corporation (C) or trade association (T), whatever the IRS says; cooperatives; credit unions, insurers (fraternal benefit societies that sell insurance included), health plans and chambers of commerce; agricultural producers' groups; a sponsor whose members are businesses; a 501(c)(6) business league or exempt co-op, credit union or mutual insurer by IRS status; a sponsor with no IRS exempt record (a corporation without capital stock, W, included) or a company name. PEOPLE: a labor organization (FEC type L, or 501(c)(5) not a producers' group) or another member or issue organization by IRS status or FEC type M or W. The IRS can make a PAC BUSINESS, never un-make a C or T; leaving BUSINESS takes a stated fact. An IRS match made on another name, or under mixed records, is checked and listed.
 
