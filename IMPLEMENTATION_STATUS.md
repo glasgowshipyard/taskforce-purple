@@ -60,6 +60,22 @@ clean-up, #71 outside spending (shown since 2026-10-25), #72 TypeScript (after t
 
 ## Change log
 
+## 2026-11-01: all of other politicians' joint fund money in the total
+
+- **The fault (mine, since FINAL-2):** money another politician's joint fund
+  passed on was split into the donor buckets by the fund's mix and taken
+  out again as theirs. The part in no bucket was left out of the total:
+  everything, when the fund raised nothing this cycle (no mix), or the
+  share of its receipts that wasn't donations. Found by the totals check.
+- **Fix (owner's yes, 2026-11-01):** `gradeFinal3` adds that part to the
+  total as other politicians' money, so all of it is in (counts 0 toward
+  people, as before). The simulation's copy (`grid.mjs`) likewise. The
+  totals check now checks that other politicians' funds in the grade equal
+  what their joint funds passed on, in place of its "left out" list.
+- **Measured before the dry runs:** 135 members have such money; one score
+  moves, Jefferson Van Drew 83 to 82 (A either way). Nobody trips a
+  withheld-grade check.
+
 ## 2026-11-01: no grade on more money than came in
 
 - **Rule (owner's yes, 2026-11-01):** when the money graded (small + big +
