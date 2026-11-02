@@ -136,7 +136,9 @@ node scripts/verify/totals-check.mjs --members-only
 
 Compares every graded member's and candidate's money (people, small donors,
 PACs, party) with the FEC's per-committee totals file, summed over their own
-committees. It makes no FEC API calls, but costs about 1,050 Worker requests.
+committees, and checks that everything other politicians' joint funds
+passed on is in the grade. It makes no FEC API calls, but costs about 1,050
+Worker requests.
 "Differ, not explained" should be 0. Each name it lists is a data fault, or
 a campaign whose own reports don't add up: find the member, read their
 committees' reports on fec.gov, and fix the data or withhold the grade.

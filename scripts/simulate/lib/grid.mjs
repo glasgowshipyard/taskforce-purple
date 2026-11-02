@@ -306,19 +306,23 @@ export function gradeOne(m, pacs, shares, cfg, opts = {}) {
   const own = ownOf(pf);
   const T = num(pf.totalRaised);
   const fromOthers = T - own;
-  const given = s + b + p + y;
+  let given = s + b + p + y;
   // FINAL-2: other politicians' joint funds' transfers, out of each bucket
-  // by the fund's mix, into POLITICIAN money (j: counted 0, still given)
+  // by the fund's mix, into POLITICIAN money (j: counted 0, still given).
+  // The part in no bucket is added, as live (2026-11-01)
   let j = 0;
   if (cfg.nonOwnAsPolitician) {
     for (const c of (m.pf.committees || []).filter(x => x.role === 'joint' && !x.ownFund)) {
       const t = num(c.toMemberCounted ?? c.toMember);
-      if (t > 0 && c.mix) {
-        s -= t * num(c.mix.s);
-        b -= t * num(c.mix.b);
-        p -= t * num(c.mix.p);
-        y -= t * num(c.mix.y);
-        j += t * (num(c.mix.s) + num(c.mix.b) + num(c.mix.p) + num(c.mix.y));
+      if (t > 0) {
+        const mix = c.mix || {};
+        s -= t * num(mix.s);
+        b -= t * num(mix.b);
+        p -= t * num(mix.p);
+        y -= t * num(mix.y);
+        const inBuckets = t * (num(mix.s) + num(mix.b) + num(mix.p) + num(mix.y));
+        given += Math.max(0, t - inBuckets);
+        j += Math.max(t, inBuckets);
       }
     }
     [s, b, p, y] = [s, b, p, y].map(v => Math.max(0, v));
