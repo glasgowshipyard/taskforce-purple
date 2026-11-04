@@ -11,7 +11,7 @@ CLAUDE.md.
 | --------------------- | -------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------- |
 | `members:list`        | The site's member list: each member's seat, published grade and list figures (`/api/members`)      | The refresh job's publish step (once per batch, only on change) and the roster update |
 | `member:{bioguideId}` | Each member's stored record (name, seat, PAC list, social handles). The page's grade comes from D1 | The roster update (new members, changed seats or parties); admin endpoints            |
-| `races:list`          | The 2026 races: everyone on November's ballot, by seat (`/api/races`)                              | The races job (only on change)                                                        |
+| `races:list`          | The 2026 races: everyone on November's ballot, by seat (`/api/races`); who won (`result`, `won`)   | The races job (only on change); the daily check's results step (only on a new result) |
 
 Legacy keys, frozen and never read for grades: `members:all`,
 `itemized_analysis_v2:*`, the old queue and tracking keys, and

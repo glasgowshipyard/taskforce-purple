@@ -32,7 +32,15 @@ const races = [
 
 describe('the Races page (2026-10-23)', () => {
   it('counts candidates who get most of their money from people', () => {
-    expect(nationalFigures(races)).toEqual({ races: 3, candidates: 7, graded: 5, mostlyPeople: 4 });
+    expect(nationalFigures(races)).toEqual({
+      races: 3,
+      candidates: 7,
+      graded: 5,
+      mostlyPeople: 4,
+      called: 0,
+    });
+    // A called race counts once (2026-11-04)
+    expect(nationalFigures([{ ...races[0], result: { winner: 'X', revid: 1 } }]).called).toBe(1);
   });
 
   it('leaves withheld grades out of every count', () => {

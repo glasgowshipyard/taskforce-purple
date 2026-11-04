@@ -16,7 +16,10 @@ const graded = cands => cands.filter(c => peopleShare(c) !== null);
 /** More than half the money from people */
 export const mostlyPeople = c => peopleShare(c) > 50;
 
-/** The headline figures: races, candidates, how many get most from people */
+/**
+ * The headline figures: races, candidates, how many get most from people,
+ * and how many races have been called
+ */
 export function nationalFigures(races) {
   const all = races.flatMap(r => r.candidates);
   const withGrade = graded(all);
@@ -25,8 +28,12 @@ export function nationalFigures(races) {
     candidates: all.length,
     graded: withGrade.length,
     mostlyPeople: withGrade.filter(mostlyPeople).length,
+    called: races.filter(r => r.result).length,
   };
 }
+
+/** A version of a Wikipedia page, by its revision */
+export const wikiLink = revid => `https://en.wikipedia.org/w/index.php?oldid=${revid}`;
 
 /**
  * Each state's graded candidates, how many get most from people, and its

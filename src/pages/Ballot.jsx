@@ -5,7 +5,7 @@ import { Share2 } from 'lucide-react';
 import FeedbackDialog from '../components/FeedbackDialog.jsx';
 import Lookup from '../components/Lookup.jsx';
 import Receipt from '../components/Receipt.jsx';
-import { Skeleton, Stamp, VoteLink } from '../components/ui.jsx';
+import { Skeleton, Stamp, VoteLink, WonTag } from '../components/ui.jsx';
 import { api } from '../lib/api.js';
 import { ELECTION_DAY_TEXT, ELECTION_LABEL, daysUntilElection } from '../lib/election.js';
 import { GRADES, gradeInfo, withheldReasonOf } from '../lib/grades.js';
@@ -20,6 +20,7 @@ import {
   usd,
 } from '../lib/people.js';
 import { racesFor, saveBallotPlace, savedBallotPlace } from '../lib/place.js';
+import { wikiLink } from '../lib/races.js';
 import {
   Link,
   candidatePath,
@@ -53,6 +54,7 @@ function candidatePerson(c, spent = null) {
     id: c.candidateId,
     name: displayName(c.name),
     seat: c.ici === 'I' ? 'In office' : c.ici === 'O' ? 'Open seat' : 'Challenger',
+    won: Boolean(c.won),
     party: ballotPartyName(c),
     tier: c.tier,
     withheldReason: withheldReasonOf(c),
@@ -193,7 +195,7 @@ function ShareRace({ race, cycle }) {
   );
 }
 
-function RaceView({ race, others, cycle, outside }) {
+function RaceView({ race, others, cycle, outside, resultsOut }) {
   const [flagging, setFlagging] = useState(false);
   const days = daysUntilElection();
   const cands = race.candidates;
@@ -216,6 +218,12 @@ function RaceView({ race, others, cycle, outside }) {
             >
               Who&apos;s paying the candidates?
             </h1>
+            {/* Who won, once the race is called (owner, 2026-11-04) */}
+            {(race.result || resultsOut) && (
+              <p className="lede race-won">
+                {race.result ? `Won by ${race.result.winner}.` : 'No result yet.'}
+              </p>
+            )}
             <div className="row" style={{ marginTop: 22 }}>
               <ShareRace race={race} cycle={cycle} />
             </div>
@@ -256,6 +264,7 @@ function RaceView({ race, others, cycle, outside }) {
                   ) : (
                     displayName(c.name)
                   )}
+                  {c.won && <WonTag />}
                   <span className="muted small"> · {ballotPartyName(c)}</span>
                   <span className="leader" aria-hidden="true" />
                   <span className="mono small">
@@ -299,6 +308,12 @@ function RaceView({ race, others, cycle, outside }) {
         <p className="fine" style={{ marginTop: 20 }}>
           Who&apos;s running comes from Wikipedia&apos;s lists of candidates, each matched to the
           candidate&apos;s own registration with the FEC.{' '}
+          {race.result && (
+            <>
+              Who won comes from <a href={wikiLink(race.result.revid)}>Wikipedia&apos;s results</a>,
+              which mark a winner once news organizations have called the race.{' '}
+            </>
+          )}
           <button type="button" className="link-button" onClick={() => setFlagging(true)}>
             Something wrong with this race?
           </button>
@@ -339,6 +354,14 @@ function RaceView({ race, others, cycle, outside }) {
                               .join(' vs. ')}
                             {r.candidates.length > 2 ? ` and ${r.candidates.length - 2} more` : ''}
                           </span>
+                          {r.result && (
+                            <span
+                              className="small muted"
+                              style={{ display: 'block', marginTop: 2 }}
+                            >
+                              Won by {r.result.winner}
+                            </span>
+                          )}
                         </span>
                         <span className="mini-stamps" aria-hidden="true">
                           {r.candidates.slice(0, 2).map(c => (
@@ -483,5 +506,13 @@ export default function Ballot({ raceKey, raceCycle = null }) {
   const others = (place ? mine : all.filter(r => r.state === shown.state)).filter(
     r => r.key !== shown.key
   );
-  return <RaceView race={shown} others={others} cycle={races.data.cycle} outside={outside.data} />;
+  return (
+    <RaceView
+      race={shown}
+      others={others}
+      cycle={races.data.cycle}
+      outside={outside.data}
+      resultsOut={Boolean(races.data.results)}
+    />
+  );
 }

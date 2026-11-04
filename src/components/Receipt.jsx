@@ -9,7 +9,7 @@ import { gradeInfo, isRingfenced } from '../lib/grades.js';
 import { peopleSentence } from '../lib/explain.js';
 import { moneyLines, usd } from '../lib/people.js';
 import MoneyGraph from './MoneyGraph.jsx';
-import { BoostedStamp, Evidence, MoneyLines, Stamp } from './ui.jsx';
+import { BoostedStamp, Evidence, MoneyLines, Stamp, WonTag } from './ui.jsx';
 
 /**
  * person: { name, seat, party, tier, figures (gradedFigures), ppi (People,
@@ -36,6 +36,7 @@ export default function Receipt({ person, delay = 0, animate = true, headingLeve
         <div style={{ minWidth: 0 }}>
           <p className="eyebrow" style={{ fontSize: 12 }}>
             {person.seat}
+            {person.won && <WonTag />}
           </p>
           <H className="receipt-name">
             {person.href ? <Link to={person.href}>{person.name}</Link> : person.name}

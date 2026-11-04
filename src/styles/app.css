@@ -3410,6 +3410,35 @@ p {
   align-items: baseline;
 }
 
+/* Who won a called race (owner, 2026-11-04): plain words under the race's
+   name and a plain tag on the winner, in ink: no trophy, no colour */
+.race-card-won {
+  display: block;
+  margin-top: 4px;
+  font-weight: 700;
+  font-size: 15px;
+}
+
+.won-tag {
+  display: inline-block;
+  margin-left: 8px;
+  padding: 1px 6px 0;
+  border: 1.5px solid currentColor;
+  border-radius: 4px;
+  font-family: var(--mono);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  line-height: 1.5;
+  vertical-align: 2px;
+}
+
+.race-won {
+  margin-top: 14px;
+  font-weight: 700;
+}
+
 .race-card-people {
   display: flex;
   flex-direction: column;

@@ -1,6 +1,6 @@
 # Task Force Purple: implementation status
 
-**Last updated**: 2026-11-02. Current state first, then a dated change log
+**Last updated**: 2026-11-04. Current state first, then a dated change log
 (newest first, from the rebuild on 2026-10-03). The log before the rebuild
 is in `docs/history/log-2025-26.md`.
 
@@ -18,15 +18,15 @@ wealthy donor; `GRASSROOTS_CALCULATION_GUIDE.md`, `/how`).
 
 **How it runs.**
 
-| Piece                                         | What it does                                                                                                                                                                                                                                                                                                                                                                                       | When                                                               |
-| --------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------ |
-| `refresh.yml` (`scripts/refresh/run.mjs`)     | Grades members from the FEC's bulk files (grade-only lane, minutes), and checks every committee's records against the FEC's (check lane, hours; chains its own runs); publishes `members:list` once per batch, only on change; rebuilds the pre-built pages when grades changed                                                                                                                    | Started by the calendar check, by hand, or by its own previous run |
-| `calendar.yml` (`calendar.mjs`, `roster.mjs`) | One FEC request for the reporting dates: 3 days after a deadline members file for (Q1, Q2, Q3, year-end, pre- and post-general) it starts the refresh; keeps the member list in step with Congress (new members, departures, party and seat changes, the identity crosswalk); rebuilds the site when the FEC's outside-spending file changed (until 3 Dec 2026); turns `/api/health` into an alert | Daily, 9 am Pacific: the one clock (owner's yes, 2026-10-18)       |
-| `races.yml` (`races.mjs`)                     | Grades everyone on November's ballot for Congress and publishes `races:list`                                                                                                                                                                                                                                                                                                                       | 23 and 27 October 2026, then it switches itself off                |
-| `races-check.yml` (`check-candidates.mjs`)    | The record check for race candidates; re-grades the races when it finishes                                                                                                                                                                                                                                                                                                                         | Started by the races job                                           |
-| `code-quality.yml`                            | Tests, lint, type check, audit on every push                                                                                                                                                                                                                                                                                                                                                       | Every push                                                         |
-| Cloudflare Pages                              | The site (`src/`), plus pre-built pages, link-preview pictures, sitemap, llms.txt and grades.csv (`scripts/site/prerender.mjs`)                                                                                                                                                                                                                                                                    | Every push to main, and the refresh's deploy hook                  |
-| API worker (`workers/data-pipeline.js`)       | Serves the list, member detail (from D1), races, `/api/health` and `/admin`                                                                                                                                                                                                                                                                                                                        | Always; deployed by the owner (`npx wrangler deploy`)              |
+| Piece                                                        | What it does                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      | When                                                               |
+| ------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------ |
+| `refresh.yml` (`scripts/refresh/run.mjs`)                    | Grades members from the FEC's bulk files (grade-only lane, minutes), and checks every committee's records against the FEC's (check lane, hours; chains its own runs); publishes `members:list` once per batch, only on change; rebuilds the pre-built pages when grades changed                                                                                                                                                                                                                                                   | Started by the calendar check, by hand, or by its own previous run |
+| `calendar.yml` (`calendar.mjs`, `roster.mjs`, `results.mjs`) | One FEC request for the reporting dates: 3 days after a deadline members file for (Q1, Q2, Q3, year-end, pre- and post-general) it starts the refresh; keeps the member list in step with Congress (new members, departures, party and seat changes, the identity crosswalk); rebuilds the site when the FEC's outside-spending file changed (until 3 Dec 2026); marks called races' winners from Wikipedia and rebuilds the site on a new one (until every race has a result, or 31 Jan 2027); turns `/api/health` into an alert | Daily, 9 am Pacific: the one clock (owner's yes, 2026-10-18)       |
+| `races.yml` (`races.mjs`)                                    | Grades everyone on November's ballot for Congress and publishes `races:list`                                                                                                                                                                                                                                                                                                                                                                                                                                                      | 23 and 27 October 2026, then it switches itself off                |
+| `races-check.yml` (`check-candidates.mjs`)                   | The record check for race candidates; re-grades the races when it finishes                                                                                                                                                                                                                                                                                                                                                                                                                                                        | Started by the races job                                           |
+| `code-quality.yml`                                           | Tests, lint, type check, audit on every push                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      | Every push                                                         |
+| Cloudflare Pages                                             | The site (`src/`), plus pre-built pages, link-preview pictures, sitemap, llms.txt and grades.csv (`scripts/site/prerender.mjs`)                                                                                                                                                                                                                                                                                                                                                                                                   | Every push to main, and the refresh's deploy hook                  |
+| API worker (`workers/data-pipeline.js`)                      | Serves the list, member detail (from D1), races, `/api/health` and `/admin`                                                                                                                                                                                                                                                                                                                                                                                                                                                       | Always; deployed by the owner (`npx wrangler deploy`)              |
 
 Off: the old Worker crons, the hourly `health-alert.yml`, `d1-repack.yml`
 (a one-off). `simulate.yml` is by hand, for grading-change simulations.
@@ -61,6 +61,32 @@ clean-up, #71 outside spending (shown since 2026-10-25), #72 TypeScript (after t
 ---
 
 ## Change log
+
+## 2026-11-04: who won
+
+- **Rule (owner, 2026-11-04):** "If they've been called they get marked",
+  in place of waiting for each state to certify (ROADMAP, 2026-10-24). A
+  called race shows "Won by …" under its name, and the winner's card on
+  the race page a plain "Won" tag: no trophy. A race not called yet says
+  "No result yet" on its own page.
+- **Source:** Wikipedia's House and Senate results pages, which tick a
+  winner once news organizations call the race; each result links the
+  version it was read from. The winner is matched inside their own race
+  to the candidates it already lists (`scripts/refresh/lib/results.mjs`):
+  no search. A result stays when a later version drops the tick, and is
+  replaced (with a warning) only when one ticks someone else.
+- **When:** part of the daily check (`scripts/refresh/results.mjs`, two
+  Wikipedia requests and one KV read), until every race has a result, or
+  31 January 2027. It writes `races:list` and rebuilds the site only when
+  there's a new result. A failure, or a ticked name that fits no
+  candidate, is alerted and never stops the rest of the daily check. If
+  the races job is ever run again it keeps the published results.
+- **First read (4 November, 7 am Pacific):** 342 of 475 races ticked
+  (309 House, 33 Senate), every winner matched. Wikipedia's summary pages
+  are still being filled in (Texas, Washington, Virginia, North Carolina
+  and Wisconsin mostly not yet), so the rest arrive as they're updated.
+- **Also:** the candidate lists' parser now drops the tick (it read
+  "YJerry Carl").
 
 ## 2026-11-02: the big-donor test sees wealth, and small gifts are small
 
