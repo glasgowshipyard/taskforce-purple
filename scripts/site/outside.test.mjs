@@ -132,6 +132,11 @@ describe('outside spending (2026-10-25)', () => {
     );
     const people = byPerson(o.candidates, { X000001: ['S6TX00001', 'H6TX00002'] }, ['H6CA00003']);
     expect(people.X000001.for).toBe(301);
+    // Split by the election it was for (2026-11-04)
+    expect(people.X000001.byStage).toEqual({
+      G: { for: 100, against: 0 },
+      P: { for: 200, against: 0 },
+    });
     expect(people.X000001.spenders).toEqual([
       { id: 'C00000001', name: 'Real PAC', side: 'for', amount: 301, stages: ['P', 'G'] },
     ]);

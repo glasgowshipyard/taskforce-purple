@@ -62,6 +62,16 @@ clean-up, #71 outside spending (shown since 2026-10-25), #72 TypeScript (after t
 
 ## Change log
 
+## 2026-11-04: outside spending by election
+
+- `outside.json` now splits each person's outside spending by the election
+  it was for (`byStage`: P primary, R runoff, G general, S special, O
+  other), from the FEC file's own election type (`scripts/site/outside.mjs`),
+  so the post-election visuals (ROADMAP 0b) can use the general election
+  alone. The site's figures and BOOSTED are unchanged (all stages). Measured
+  on the called races: general-election help went $281M to winners and
+  $335M to losers; with primaries counted it was $499M and $380M.
+
 ## 2026-11-04: who won
 
 - **Rule (owner, 2026-11-04):** "If they've been called they get marked",
