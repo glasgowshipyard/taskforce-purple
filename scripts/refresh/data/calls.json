@@ -1,0 +1,149 @@
+{
+  "_about": "Race calls checked by hand (owner, 2026-11-04: \"Mark called races. Find a way.\"): a news organization's call, read from its own results page, for a race Wikipedia's results pages have not ticked yet. Each: the winner as the call names them, who called it, the day, and the page. Applied by scripts/refresh/results.mjs (lib/results.mjs), matched to a candidate in the race like Wikipedia's ticks.",
+  "calls": {
+    "H-VA-02": {
+      "winner": "Elaine G. Luria",
+      "by": "AP",
+      "on": "2026-11-03",
+      "source": "https://apnews.com/projects/elections-2026/virginia-us-house-results/#2"
+    },
+    "H-VA-03": {
+      "winner": "Bobby Scott",
+      "by": "AP",
+      "on": "2026-11-03",
+      "source": "https://apnews.com/projects/elections-2026/virginia-us-house-results/#3"
+    },
+    "H-VA-04": {
+      "winner": "Jennifer L. McClellan",
+      "by": "AP",
+      "on": "2026-11-03",
+      "source": "https://apnews.com/projects/elections-2026/virginia-us-house-results/#4"
+    },
+    "H-VA-06": {
+      "winner": "Ben L. Cline",
+      "by": "AP",
+      "on": "2026-11-03",
+      "source": "https://apnews.com/projects/elections-2026/virginia-us-house-results/#6"
+    },
+    "H-VA-07": {
+      "winner": "Eugene S. Vindman",
+      "by": "AP",
+      "on": "2026-11-03",
+      "source": "https://apnews.com/projects/elections-2026/virginia-us-house-results/#7"
+    },
+    "H-VA-08": {
+      "winner": "Donald S. Beyer Jr.",
+      "by": "AP",
+      "on": "2026-11-03",
+      "source": "https://apnews.com/projects/elections-2026/virginia-us-house-results/#8"
+    },
+    "H-VA-10": {
+      "winner": "Suhas Subramanyam",
+      "by": "AP",
+      "on": "2026-11-03",
+      "source": "https://apnews.com/projects/elections-2026/virginia-us-house-results/#10"
+    },
+    "H-VA-11": {
+      "winner": "James R. Walkinshaw",
+      "by": "AP",
+      "on": "2026-11-03",
+      "source": "https://apnews.com/projects/elections-2026/virginia-us-house-results/#11"
+    },
+    "H-WA-01": {
+      "winner": "Suzan DelBene",
+      "by": "AP",
+      "on": "2026-11-03",
+      "source": "https://apnews.com/projects/elections-2026/washington-us-house-results/#1"
+    },
+    "H-WA-02": {
+      "winner": "Rick Larsen",
+      "by": "AP",
+      "on": "2026-11-03",
+      "source": "https://apnews.com/projects/elections-2026/washington-us-house-results/#2"
+    },
+    "H-WA-06": {
+      "winner": "Emily Randall",
+      "by": "AP",
+      "on": "2026-11-03",
+      "source": "https://apnews.com/projects/elections-2026/washington-us-house-results/#6"
+    },
+    "H-WA-07": {
+      "winner": "Pramila Jayapal",
+      "by": "AP",
+      "on": "2026-11-03",
+      "source": "https://apnews.com/projects/elections-2026/washington-us-house-results/#7"
+    },
+    "H-WA-08": {
+      "winner": "Kim Schrier",
+      "by": "AP",
+      "on": "2026-11-03",
+      "source": "https://apnews.com/projects/elections-2026/washington-us-house-results/#8"
+    },
+    "H-WA-09": {
+      "winner": "Adam Smith",
+      "by": "AP",
+      "on": "2026-11-03",
+      "source": "https://apnews.com/projects/elections-2026/washington-us-house-results/#9"
+    },
+    "H-WA-10": {
+      "winner": "Marilyn Strickland",
+      "by": "AP",
+      "on": "2026-11-03",
+      "source": "https://apnews.com/projects/elections-2026/washington-us-house-results/#10"
+    },
+    "H-WI-01": {
+      "winner": "Mitchell Berman",
+      "by": "AP",
+      "on": "2026-11-03",
+      "source": "https://apnews.com/projects/elections-2026/wisconsin-us-house-results/#1"
+    },
+    "H-WI-03": {
+      "winner": "Rebecca Cooke",
+      "by": "AP",
+      "on": "2026-11-03",
+      "source": "https://apnews.com/projects/elections-2026/wisconsin-us-house-results/#3"
+    },
+    "H-WI-04": {
+      "winner": "Gwen Moore",
+      "by": "AP",
+      "on": "2026-11-03",
+      "source": "https://apnews.com/projects/elections-2026/wisconsin-us-house-results/#4"
+    },
+    "H-WI-05": {
+      "winner": "Scott Fitzgerald",
+      "by": "AP",
+      "on": "2026-11-03",
+      "source": "https://apnews.com/projects/elections-2026/wisconsin-us-house-results/#5"
+    },
+    "H-WI-06": {
+      "winner": "Glenn Grothman",
+      "by": "AP",
+      "on": "2026-11-03",
+      "source": "https://apnews.com/projects/elections-2026/wisconsin-us-house-results/#6"
+    },
+    "H-WI-07": {
+      "winner": "Michael Alfonso",
+      "by": "AP",
+      "on": "2026-11-03",
+      "source": "https://apnews.com/projects/elections-2026/wisconsin-us-house-results/#7"
+    },
+    "H-WI-08": {
+      "winner": "Tony Wied",
+      "by": "AP",
+      "on": "2026-11-03",
+      "source": "https://apnews.com/projects/elections-2026/wisconsin-us-house-results/#8"
+    },
+    "H-WV-01": {
+      "winner": "Carol Miller",
+      "by": "AP",
+      "on": "2026-11-03",
+      "source": "https://apnews.com/projects/elections-2026/west-virginia-us-house-results/#1"
+    },
+    "H-WV-02": {
+      "winner": "Riley Moore",
+      "by": "AP",
+      "on": "2026-11-03",
+      "source": "https://apnews.com/projects/elections-2026/west-virginia-us-house-results/#2"
+    }
+  }
+}

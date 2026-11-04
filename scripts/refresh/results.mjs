@@ -3,16 +3,17 @@
  * Who won (owner, 2026-11-04: "If they've been called they get marked").
  * Part of the daily check (calendar.yml) until every race has a result, or
  * 31 January 2027, then it stops itself. Two requests to Wikipedia (its
- * House and Senate results pages) and one read of the published races;
- * marks each called race's winner (lib/results.mjs) and writes races:list
- * once, only when there's a new result.
+ * House and Senate results pages), the calls read by hand (data/calls.json)
+ * and one read of the published races; marks each called race's winner
+ * (lib/results.mjs) and writes races:list once, only when there's a new
+ * result.
  * Outputs for the workflow: changed (true/false), problem (a message for
  * the alert, or empty). A failure here is alerted, never fails the daily
  * check: the rest of it still runs.
  *
  *   node scripts/refresh/results.mjs [--dry-run]
  */
-import { appendFileSync } from 'node:fs';
+import { appendFileSync, readFileSync } from 'node:fs';
 import { sameValue } from '../../workers/member-store.js';
 import { stateByName } from '../../src/lib/states.js';
 import { WIKI_PAGES, wikiSeats } from './lib/ballot.mjs';
@@ -23,6 +24,8 @@ import { wikiPage } from './lib/wiki.mjs';
 // As in races.mjs (importing that would run the races job)
 const RACES_KEY = 'races:list';
 const UNTIL = '2027-01-31';
+// Calls read by hand from news organizations' own results pages
+const CALLS = new URL('./data/calls.json', import.meta.url).pathname;
 const dryRun = process.argv.includes('--dry-run');
 const log = (...a) => console.log('Results:', ...a);
 
@@ -46,7 +49,8 @@ async function check() {
     const p = await wikiPage(WIKI_PAGES[office](current.cycle));
     pages.push({ office, title: p.title, revid: p.revid, seats: wikiSeats(p.html, office) });
   }
-  const r = applyResults(current.races, pages, stateByName, current.cycle);
+  const { calls } = JSON.parse(readFileSync(CALLS, 'utf8'));
+  const r = applyResults(current.races, pages, stateByName, current.cycle, calls);
   log(
     `${r.marked.length} new, ${r.replaced.length} with a different winner; ` +
       `${r.races.filter(x => x.result).length} of ${r.races.length} races have a result`

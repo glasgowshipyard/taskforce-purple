@@ -85,6 +85,15 @@ clean-up, #71 outside spending (shown since 2026-10-25), #72 TypeScript (after t
   (309 House, 33 Senate), every winner matched. Wikipedia's summary pages
   are still being filled in (Texas, Washington, Virginia, North Carolina
   and Wisconsin mostly not yet), so the rest arrive as they're updated.
+- **Calls read by hand (owner, same day: "Mark called races. Find a
+  way.")**: for races Wikipedia hasn't ticked, the AP's call read from its
+  own results page, in `scripts/refresh/data/calls.json` (winner, who
+  called it, the page), linked from the race. First 24: Virginia 8,
+  Washington 7, Wisconsin 7, West Virginia 2. Checked at 8 am: the other
+  races Wikipedia hadn't ticked were mostly not called by the AP either
+  (Texas's last 7, North Carolina, Florida, Arizona, New York,
+  California). CNN's results feed was ruled out: the permission check
+  blocked reading it.
 - **Also:** the candidate lists' parser now drops the tick (it read
   "YJerry Carl").
 
