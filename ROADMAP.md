@@ -31,6 +31,19 @@ roadmap (the pre-rebuild phases) is in `docs/history/roadmap-2026-07.md`.
    race current: "No races right now", and the 2026 races below as they
    stood on election day (the money voters saw), the first page of the
    Flux Capacitor (#73).
+   0b. **Post-election visuals** (owner's brief, 2026-11-04): how grades,
+   money and outside money relate to who won, letting the data decide the
+   findings, null or opposite ones included. Every comparison is run on
+   all called races first; headlines come from the computed numbers and
+   say how many races each covers. Agreed the same day: grade-and-winning
+   comparisons count only real contests (two or more graded candidates)
+   and always show incumbents, challengers and open seats apart; the party
+   split is worked out but shown only if needed to explain another chart
+   (owner's call); outside spending is described, never implied to decide
+   a race; small groups as counts, not percentages; the new Congress
+   includes the senators not up; election-day grades (races.json) only;
+   spending per vote dropped until certified counts. Deliver the numbers
+   and a proposal before building.
 1. **TypeScript conversion (#72)**, after the election: Workers first, then
    the refresh job (code the job's Node runs stays JavaScript until then).
 2. **PACs.csv download (#67)**: grades.csv is live; add each PAC's group,

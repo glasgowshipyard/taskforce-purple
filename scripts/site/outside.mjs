@@ -28,6 +28,8 @@ export const registerUrl = cycle =>
 
 // Spenders shown per side for each person
 const SHOWN = 5;
+// The FEC's election types kept apart; anything else (convention, other) is O
+const STAGES = ['P', 'R', 'G', 'S'];
 
 /** A CSV of quoted or plain fields, with "" for a quote inside a field */
 export function parseCsv(text) {
@@ -133,8 +135,11 @@ const amendment = text => (text === 'N' ? 0 : Number(String(text).replace(/\D/g,
 /**
  * Each candidate's outside spending for the cycle, from the file's rows.
  * `registered`: the register's committee IDs. Returns
- *   { candidates: { [candidateId]: { for, against, spenders } }, through, left }
- * where spenders are the biggest on each side ({ id, name, side, amount }),
+ *   { candidates: { [candidateId]: { for, against, byStage, spenders } }, through, left }
+ * where byStage splits for and against by the election it was for (P
+ * primary, R runoff, G general, S special, O anything else: owner,
+ * 2026-11-04, so the general election can be looked at on its own),
+ * spenders are the biggest on each side ({ id, name, side, amount }),
  * `through` is the newest filing in the file, and `left` counts the
  * unregistered filers left out.
  */
@@ -189,9 +194,16 @@ export function outsideSpending(rows, registered, cycle) {
     files.add(r.file_num);
     seen.set(same, files);
 
-    const c = (candidates[r.cand_id] ||= { for: 0, against: 0, bySpender: new Map() });
+    const c = (candidates[r.cand_id] ||= {
+      for: 0,
+      against: 0,
+      byStage: {},
+      bySpender: new Map(),
+    });
     const side = r.sup_opp === 'S' ? 'for' : 'against';
     c[side] += amount;
+    const stage = STAGES.includes(r.ele_type) ? r.ele_type : 'O';
+    (c.byStage[stage] ||= { for: 0, against: 0 })[side] += amount;
     const k = `${side}|${r.spe_id}`;
     const s = c.bySpender.get(k) || {
       id: r.spe_id,
@@ -234,6 +246,12 @@ const whole = c => ({
   ...c,
   for: Math.round(c.for),
   against: Math.round(c.against),
+  byStage: Object.fromEntries(
+    Object.entries(c.byStage || {}).map(([k, v]) => [
+      k,
+      { for: Math.round(v.for), against: Math.round(v.against) },
+    ])
+  ),
   spenders: c.spenders.map(s => ({
     ...s,
     amount: Math.round(s.amount),
@@ -267,9 +285,18 @@ export function byPerson(candidates, crosswalk, others) {
       }
     }
     const all = [...spenders.values()].sort((a, b) => b.amount - a.amount);
+    const byStage = {};
+    for (const p of parts) {
+      for (const [k, v] of Object.entries(p.byStage || {})) {
+        const t = (byStage[k] ||= { for: 0, against: 0 });
+        t.for += v.for;
+        t.against += v.against;
+      }
+    }
     people[key] = whole({
       for: parts.reduce((s, p) => s + p.for, 0),
       against: parts.reduce((s, p) => s + p.against, 0),
+      byStage,
       spenders: ['for', 'against'].flatMap(side =>
         all.filter(s => s.side === side).slice(0, SHOWN)
       ),
