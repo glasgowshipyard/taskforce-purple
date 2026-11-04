@@ -26,6 +26,8 @@ import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { cardPng } from './og-card.mjs';
 import { loadOutside } from './outside.mjs';
+import { LEGISLATORS_URL, seatsFrom } from './seats.mjs';
+import { calledRaces, votingRaces } from '../../src/lib/results.js';
 import { isBoosted } from '../../src/lib/outside.js';
 import { gradedFigures } from '../../src/lib/people.js';
 import { FEC_CROSSWALK } from '../../workers/fec-crosswalk.js';
@@ -37,6 +39,7 @@ import {
   homePage,
   howPage,
   racesPage,
+  resultsPage,
   correctionsPage,
   correctionsRss,
   candidatePage,
@@ -89,6 +92,17 @@ if (racesList) {
 // here, so it needs no key, no storage and no job. If the FEC can't be
 // reached the live site's copy is kept, and the build goes on
 const cycle = racesList?.cycle || list.members?.[0]?.gradeCycle || new Date().getFullYear();
+// Who holds each seat (the results page's before and after), from the
+// public roster. Without it the page leaves that chart out
+const seats = await getJson(LEGISLATORS_URL)
+  .then(l => seatsFrom(l, cycle))
+  .catch(error => {
+    console.warn(`seats: ${error.message}; the results page goes without its before and after`);
+    return null;
+  });
+if (seats && Object.keys(seats).length >= 450) {
+  write(join(DIST, 'data', 'seats.json'), JSON.stringify({ cycle, seats }));
+}
 const ballotIds = racesList?.field === 'ballot' ? racesList.races.flatMap(r => r.candidates) : [];
 const idsByMember = Object.fromEntries(
   Object.entries(FEC_CROSSWALK).map(([id, ids]) => [id, [...ids]])
@@ -179,6 +193,9 @@ const pages = [
   homePage(members),
   howPage(),
   racesPage(),
+  ...(racesList?.field === 'ballot' && calledRaces(racesList.races).length
+    ? [resultsPage(calledRaces(racesList.races).length, votingRaces(racesList.races).length)]
+    : []),
   correctionsPage(),
   congressPage(members),
   ...members.map(m => memberPage(m, scores, outsideOf(m.bioguideId))),

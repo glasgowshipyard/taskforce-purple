@@ -466,6 +466,30 @@ export function racesPage() {
   };
 }
 
+/** The results (owner, 2026-11-04): a page for search engines and link previews */
+export function resultsPage(called, voting) {
+  const description = `Who won the 2026 election for Congress, set beside where each candidate's money came from: the costliest races, the incumbents who lost, who won by grade, and the seats before and after. ${called} of ${voting} seats called.`;
+  return {
+    path: '/results',
+    title: `The 2026 results${TITLE_SUFFIX}`,
+    description,
+    card: {
+      eyebrow: '2026 election · results',
+      headline: 'Who won, and where their money came from',
+      sub: `${called} of ${voting} seats called, set beside where each candidate's money came from.`,
+      note: GRADE_SCOPE,
+    },
+    cardAlt: `Task Force Purple: the 2026 results, ${called} of ${voting} seats called`,
+    jsonLd: { '@type': 'WebPage', name: 'The 2026 results', url: `${SITE}/results` },
+    body: `<main class="wrap section" data-prerendered>
+<h1 class="display display-xl">The results</h1>
+<p class="lede">${esc(description)}</p>
+<p><a href="/races">Every race</a> · <a href="/how">How grades work</a></p>
+</main>`,
+    signature: `results-1-${called}`,
+  };
+}
+
 export function congressPage(members) {
   const rows = [...members]
     .sort((a, b) => displayName(a.name).localeCompare(displayName(b.name)))

@@ -96,6 +96,8 @@ export const api = {
     once('outside', () =>
       getJson(import.meta.env.VITE_OUTSIDE_URL || '/data/outside.json').catch(() => null)
     ),
+  /** Who holds each seat (scripts/site/seats.mjs), for the results page */
+  seats: () => once('seats', () => getJson('/data/seats.json').catch(() => null)),
 };
 
 // Static files built from the Census Bureau's (scripts/geo/build-geo.mjs)

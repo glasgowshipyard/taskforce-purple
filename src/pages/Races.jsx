@@ -83,6 +83,14 @@ function Hero({ figures }) {
             money comes from, not votes or character. {BOOSTED_SHORT}{' '}
             <Link to="/how">How grades work</Link>
           </p>
+          {figures.called > 0 && (
+            <p className="races-results-link">
+              <Link to="/results" className="btn btn-light">
+                See the results
+                <span aria-hidden="true"> →</span>
+              </Link>
+            </p>
+          )}
           <div className="races-stats" ref={ref}>
             <Counter value={figures.races} run={seen} label="races" />
             <Counter value={figures.candidates} run={seen} label="candidates" />

@@ -12,7 +12,7 @@ const NAV = [
     label: 'Races',
     short: 'Races',
     icon: Vote,
-    pages: ['races', 'ballot', 'race', 'candidate'],
+    pages: ['races', 'results', 'ballot', 'race', 'candidate'],
   },
   {
     to: '/congress',

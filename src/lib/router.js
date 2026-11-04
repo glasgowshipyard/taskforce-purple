@@ -65,6 +65,9 @@ export function matchRoute(path) {
   if (first === 'races' && !second) {
     return { page: 'races' };
   }
+  if (first === 'results' && !second) {
+    return { page: 'results' };
+  }
   if (first === 'ballot' && !second) {
     return { page: 'ballot' };
   }

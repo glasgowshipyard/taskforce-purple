@@ -62,6 +62,34 @@ clean-up, #71 outside spending (shown since 2026-10-25), #72 TypeScript (after t
 
 ## Change log
 
+## 2026-11-04: the results page
+
+- **/results** (owner's brief and go, 2026-11-04; ROADMAP 0b): who won,
+  set beside where each candidate's money came from, in six views: the
+  costliest races (general-election outside money for and against each
+  candidate), the incumbents who lost (matchup rows, the one view with
+  party), who won by grade (a dot per candidate, incumbents, challengers
+  and open seats apart), money and the result, outside money for and
+  against winners and losers (with BOOSTED candidates and self-funders),
+  and the called seats before and after by grade. Linked from the Races
+  page once a race is called.
+- **Rules:** voting seats only (the delegates left out, said on the page);
+  grades as on election day; real contests (two or more graded
+  candidates) for anything linking grade and winning; every view says how
+  many races it covers. The figures are worked out in the browser from
+  the published files (`src/lib/results.js`, tested), so the page updates
+  whenever the daily check marks new winners and rebuilds the site.
+- **Who held each seat:** `/data/seats.json`, built with the site from the
+  public roster (`scripts/site/seats.mjs`): House members by district,
+  senators whose class is up. The race's own incumbent comes first, so
+  redrawn districts and special elections use the member who defended the
+  seat.
+- **First figures (406 of 470 seats called):** the bigger fundraiser won
+  279 of 307 contests and the more people-funded candidate 151; 28
+  incumbents lost, and in all 28 the winner had more of their money from
+  people (26 were Republicans, one Independent, one Democrat); called
+  seats graded S or A went from 30 to 74.
+
 ## 2026-11-04: outside spending by election
 
 - `outside.json` now splits each person's outside spending by the election
