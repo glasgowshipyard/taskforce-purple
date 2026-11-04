@@ -20,7 +20,7 @@ import {
   usd,
 } from '../lib/people.js';
 import { racesFor, saveBallotPlace, savedBallotPlace } from '../lib/place.js';
-import { wikiLink } from '../lib/races.js';
+import { callBy, wikiLink } from '../lib/races.js';
 import {
   Link,
   candidatePath,
@@ -308,11 +308,18 @@ function RaceView({ race, others, cycle, outside, resultsOut }) {
         <p className="fine" style={{ marginTop: 20 }}>
           Who&apos;s running comes from Wikipedia&apos;s lists of candidates, each matched to the
           candidate&apos;s own registration with the FEC.{' '}
-          {race.result && (
+          {race.result?.source ? (
             <>
-              Who won comes from <a href={wikiLink(race.result.revid)}>Wikipedia&apos;s results</a>,
-              which mark a winner once news organizations have called the race.{' '}
+              Who won comes from <a href={race.result.source}>{callBy(race.result.by)}</a>.{' '}
             </>
+          ) : (
+            race.result && (
+              <>
+                Who won comes from{' '}
+                <a href={wikiLink(race.result.revid)}>Wikipedia&apos;s results</a>, which mark a
+                winner once news organizations have called the race.{' '}
+              </>
+            )
           )}
           <button type="button" className="link-button" onClick={() => setFlagging(true)}>
             Something wrong with this race?

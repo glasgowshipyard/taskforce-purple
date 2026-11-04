@@ -161,6 +161,45 @@ describe('who won', () => {
     expect(r.races[0].result).toBeUndefined();
   });
 
+  it("marks a race from a call read by hand, which wins over Wikipedia's tick", () => {
+    const races = [
+      race('H-AL-01', 'Jerry Carl', 'Clyde Jones Jr.'),
+      race('H-AL-02', 'Figures, Shomari', 'Rhett Marques'),
+    ];
+    const source = 'https://apnews.com/projects/elections-2026/alabama-us-house-results/#2';
+    const r = applyResults(
+      races,
+      [
+        {
+          office: 'H',
+          revid: 1,
+          seats: wikiSeats(
+            page([
+              [
+                'Alabama&#160;1',
+                [
+                  ['Jerry Carl', 'Republican', true],
+                  ['Clyde Jones Jr.', 'Democratic'],
+                ],
+              ],
+            ]),
+            'H'
+          ),
+        },
+      ],
+      stateByName,
+      2026,
+      {
+        'H-AL-02': { winner: 'Shomari Figures', by: 'AP', source },
+        'H-AL-09': { winner: 'Nobody', by: 'AP', source },
+      }
+    );
+    expect(r.races[0].result).toEqual({ winner: 'Jerry Carl', revid: 1 });
+    expect(r.races[1].result).toEqual({ winner: 'Shomari Figures', by: 'AP', source });
+    expect(r.races[1].candidates[0].won).toBe(true);
+    expect(r.unknown).toEqual([{ label: 'H-AL-09', name: 'Nobody' }]);
+  });
+
   it('a rebuilt races list keeps the published results', () => {
     const before = {
       races: [

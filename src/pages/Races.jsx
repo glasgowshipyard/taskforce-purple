@@ -366,7 +366,7 @@ function RaceList({ races, byState, state, onClearState, cycle, outside }) {
   );
 }
 
-function Sources({ sources, results }) {
+function Sources({ sources, results, calls }) {
   const link = s => wikiLink(s.revid);
   return (
     <p className="fine" style={{ marginTop: 32 }}>
@@ -384,6 +384,8 @@ function Sources({ sources, results }) {
           {results.H ? <a href={link(results.H)}>House</a> : 'House'} and the{' '}
           {results.S ? <a href={link(results.S)}>Senate</a> : 'Senate'}, which mark a winner once
           news organizations have called the race.
+          {calls &&
+            " Where Wikipedia hasn't marked a winner yet, it comes from the AP's call, linked on the race's page."}
         </>
       )}
     </p>
@@ -441,7 +443,11 @@ export default function Races() {
           cycle={races.data.cycle}
           onClearState={() => setState(null)}
         />
-        <Sources sources={races.data.sources} results={races.data.results} />
+        <Sources
+          sources={races.data.sources}
+          results={races.data.results}
+          calls={all.some(r => r.result?.source)}
+        />
       </div>
     </>
   );

@@ -35,6 +35,9 @@ export function nationalFigures(races) {
 /** A version of a Wikipedia page, by its revision */
 export const wikiLink = revid => `https://en.wikipedia.org/w/index.php?oldid=${revid}`;
 
+/** Whose call a hand-checked result is: "the AP's call" */
+export const callBy = by => `${by === 'AP' ? 'the AP' : by}’s call`;
+
 /**
  * Each state's graded candidates, how many get most from people, and its
  * typical candidate's share from people: the middle one when they're ranked
