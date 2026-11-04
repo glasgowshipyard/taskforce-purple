@@ -42,7 +42,12 @@ roadmap (the pre-rebuild phases) is in `docs/history/roadmap-2026-07.md`.
    (owner's call); outside spending is described, never implied to decide
    a race; small groups as counts, not percentages; the new Congress
    includes the senators not up; election-day grades (races.json) only;
-   spending per vote dropped until certified counts. Deliver the numbers
+   spending per vote dropped until certified counts. Owner, same day:
+   voting seats only (435 House, 100 Senate): the delegates, who can't vote
+   on laws, are left out of every results chart, with a footnote saying so;
+   party is shown on the incumbents-who-lost table only; that table is
+   matchup rows (who lost, who won, each one's grade and share from
+   people), not lines. Deliver the numbers
    and a proposal before building.
 1. **TypeScript conversion (#72)**, after the election: Workers first, then
    the refresh job (code the job's Node runs stays JavaScript until then).
