@@ -180,12 +180,20 @@ const text = s =>
 const cellsOf = row =>
   [...row.matchAll(/<(t[hd])[^>]*>([\s\S]*?)<\/t[hd]>/g)].map(m => ({ tag: m[1], html: m[2] }));
 
-/** The candidates in a table cell: "▌Name (Party)" list items */
+/**
+ * The candidates in a table cell: "▌Name (Party)" list items. Once a race
+ * is called, its winner wears a green tick (with a hidden "Y" for sorting):
+ * `won: true`
+ */
 function listed(cell) {
   return [...cell.matchAll(/<li>([\s\S]*?)<\/li>/g)].map(m => {
-    const t = text(m[1]).replace(/▌/g, '').trim();
-    const p = t.match(/^(.*?)\s*\(([^()]*)\)$/);
-    return p ? { name: p[1].trim(), party: p[2].trim() } : { name: t, party: null };
+    const won = /alt="Green tick"/.test(m[1]);
+    const t = text(m[1].replace(/<span style="display:none">[\s\S]*?<\/span>/g, ''))
+      .replace(/▌/g, '')
+      .trim();
+    const p = t.match(/^(.*?)\s*\(([^()]*)\)(?:\s*[\d.]+%)?$/);
+    const c = p ? { name: p[1].trim(), party: p[2].trim() } : { name: t, party: null };
+    return won ? { ...c, won: true } : c;
   });
 }
 

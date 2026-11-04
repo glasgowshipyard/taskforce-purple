@@ -41,6 +41,16 @@ if [ -n "${OUTSIDE_STALE:-}" ]; then
   }]' <<<"$health")
 fi
 
+# Who won (the daily check's results.mjs): the check failed, or a called
+# race's winner fits no candidate in it, so that race shows no winner
+if [ -n "${RESULTS_PROBLEM:-}" ]; then
+  health=$(jq --arg msg "$RESULTS_PROBLEM" '.ok = false | .problems += [{
+    id: "results",
+    message: $msg,
+    fix: "If the check failed, read the daily check'"'"'s log: Wikipedia down clears itself the next day. If a winner fits no candidate, compare the name Wikipedia ticks with the race'"'"'s candidates: a spelling difference goes in winnerIn (scripts/refresh/lib/results.mjs); a wrong tick clears itself when the page is corrected."
+  }]' <<<"$health")
+fi
+
 ok=$(jq -r '.ok' <<<"$health")
 sig=$(jq -r '[.problems[].id] | sort | join(",")' <<<"$health")
 open=$(gh issue list --label "$LABEL" --state open --json number -q '.[0].number // empty' 2>/dev/null || true)

@@ -63,6 +63,8 @@ import { discoverPeople, ensureZip, loadDiscoveryFiles } from './lib/discovery.m
 import { createFecClient } from './lib/fec.mjs';
 import { buildRaces, displayName, parseWeball } from './lib/races.mjs';
 import { ballotField, parseCn, seatChanges, seatOf, WIKI_PAGES, wikiSeats } from './lib/ballot.mjs';
+import { keepResults } from './lib/results.mjs';
+import { wikiPage } from './lib/wiki.mjs';
 import { stateByName } from '../../src/lib/states.js';
 
 export const RACES_KEY = 'races:list';
@@ -89,20 +91,6 @@ function fecKey() {
   }
   const local = new URL('../../API_KEYS.md', import.meta.url).pathname;
   return existsSync(local) ? readFileSync(local, 'utf8').match(/`([A-Za-z0-9]{40})`/)?.[1] : null;
-}
-
-/** A Wikipedia page's HTML, at its current revision or `oldid`, through its API */
-async function wikiPage(title, oldid = null) {
-  const which = oldid ? { oldid: String(oldid) } : { page: title };
-  const url = `https://en.wikipedia.org/w/api.php?${new URLSearchParams({ action: 'parse', ...which, prop: 'text|revid', format: 'json', formatversion: '2' })}`;
-  const res = await fetch(url, {
-    headers: { 'User-Agent': 'TaskForcePurple/1.0 (https://taskforcepurple.com)' },
-  });
-  const d = await res.json();
-  if (!d.parse?.text) {
-    throw new Error(`Wikipedia page ${title}: ${d.error?.info || res.status}`);
-  }
-  return { title: d.parse.title, revid: d.parse.revid, html: d.parse.text };
 }
 
 // Committees that filed the pre-general report: the general-election field.
@@ -631,8 +619,15 @@ async function main() {
     // The races list: one KV write, only if it changed. Never from a run
     // for some states only: the list would hold just those states' races
     // (2026-10-25)
-    const body = { cycle, field, sources, races };
+    // ...keeping the winners already marked (results.mjs)
     const current = JSON.parse((await cf.kvGet(RACES_KEY)) || 'null');
+    const body = {
+      cycle,
+      field,
+      sources,
+      ...(current?.results ? { results: current.results } : {}),
+      races: keepResults(races, current),
+    };
     if (states.length) {
       log(`races list not published: this run covered ${states.join(', ')} only`);
     } else if (current && sameValue({ ...current, updatedAt: undefined }, body)) {

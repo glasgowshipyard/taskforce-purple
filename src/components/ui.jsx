@@ -156,6 +156,11 @@ export function BoostedStamp({ small = false, animate = false, delay = 0 }) {
   );
 }
 
+/** A called race's winner (owner, 2026-11-04): a plain tag, no trophy */
+export function WonTag() {
+  return <span className="won-tag">Won</span>;
+}
+
 export function Skeleton({ height = 20, width = '100%', style }) {
   return <div className="skeleton" style={{ height, width, ...style }} aria-hidden="true" />;
 }

@@ -29,6 +29,7 @@ import {
   racesInView,
   searchRaces,
   stateFigures,
+  wikiLink,
 } from '../lib/races.js';
 import { Link, navigate, racePath } from '../lib/router.js';
 import { TILES } from '../lib/tilemap.js';
@@ -85,6 +86,9 @@ function Hero({ figures }) {
           <div className="races-stats" ref={ref}>
             <Counter value={figures.races} run={seen} label="races" />
             <Counter value={figures.candidates} run={seen} label="candidates" />
+            {figures.called > 0 && (
+              <Counter value={figures.called} run={seen} label="races called" />
+            )}
             <div className="races-stat">
               <b>
                 {count(mostly)}
@@ -229,6 +233,9 @@ function RaceCard({ race, cycle, outside }) {
         <span className="race-card-head">
           <span className="eyebrow">{raceSeat(race)}</span>
         </span>
+        {/* Who won, once the race is called (owner, 2026-11-04): plain words,
+            no trophy beside a grade */}
+        {race.result && <span className="race-card-won">Won by {race.result.winner}</span>}
         <span className="race-card-people">
           {top.map((c, i) => {
             const share = peopleShare(c);
@@ -359,8 +366,8 @@ function RaceList({ races, byState, state, onClearState, cycle, outside }) {
   );
 }
 
-function Sources({ sources }) {
-  const link = s => `https://en.wikipedia.org/w/index.php?oldid=${s.revid}`;
+function Sources({ sources, results }) {
+  const link = s => wikiLink(s.revid);
   return (
     <p className="fine" style={{ marginTop: 32 }}>
       Who&apos;s running comes from Wikipedia&apos;s lists of candidates for the{' '}
@@ -370,6 +377,15 @@ function Sources({ sources }) {
       the reports campaigns filed before the election. Candidates who aren&apos;t in Congress are
       graded from the FEC&apos;s bulk data files, and their donations are checked against the
       FEC&apos;s own records afterwards. <Link to="/how">How grades work</Link>.
+      {results && (
+        <>
+          {' '}
+          Who won comes from Wikipedia&apos;s results for the{' '}
+          {results.H ? <a href={link(results.H)}>House</a> : 'House'} and the{' '}
+          {results.S ? <a href={link(results.S)}>Senate</a> : 'Senate'}, which mark a winner once
+          news organizations have called the race.
+        </>
+      )}
     </p>
   );
 }
@@ -425,7 +441,7 @@ export default function Races() {
           cycle={races.data.cycle}
           onClearState={() => setState(null)}
         />
-        <Sources sources={races.data.sources} />
+        <Sources sources={races.data.sources} results={races.data.results} />
       </div>
     </>
   );
