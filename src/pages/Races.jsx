@@ -94,9 +94,6 @@ function Hero({ figures }) {
           <div className="races-stats" ref={ref}>
             <Counter value={figures.races} run={seen} label="races" />
             <Counter value={figures.candidates} run={seen} label="candidates" />
-            {figures.called > 0 && (
-              <Counter value={figures.called} run={seen} label="races called" />
-            )}
             <div className="races-stat">
               <b>
                 {count(mostly)}
