@@ -3882,20 +3882,28 @@ p {
    (and --gl, the light step, on dark surfaces); outside money for and
    against has its own pair */
 :root {
-  --spend-for: #5b21b6;
-  --spend-against: #c4b5fd;
+  /* Not green or red (the grades), not party red or blue; checked for
+     colour-blind readers in light and dark (2026-11-06) */
+  --spend-for: #2b6f9e;
+  --spend-against: #e97fc1;
+  --spend-for-arrows: rgba(255, 255, 255, 0.7);
+  --spend-against-arrows: rgba(21, 19, 28, 0.45);
 }
 
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme='light']) {
-    --spend-for: #a78bfa;
-    --spend-against: #4c3d7a;
+    --spend-for: #4f93c8;
+    --spend-against: #b03c86;
+    --spend-for-arrows: rgba(18, 16, 25, 0.55);
+    --spend-against-arrows: rgba(255, 255, 255, 0.6);
   }
 }
 
 :root[data-theme='dark'] {
-  --spend-for: #a78bfa;
-  --spend-against: #4c3d7a;
+  --spend-for: #4f93c8;
+  --spend-against: #b03c86;
+  --spend-for-arrows: rgba(18, 16, 25, 0.55);
+  --spend-against-arrows: rgba(255, 255, 255, 0.6);
 }
 
 .res-body {
@@ -3910,11 +3918,46 @@ p {
   margin-bottom: 10px;
 }
 
-.res-lead {
+.res-summary {
   max-width: 40em;
-  margin: 10px 0 22px;
-  font-size: 17px;
+  margin: 12px 0 22px;
+  font-size: 18px;
+  line-height: 1.5;
   color: var(--ink-2);
+}
+
+.res-summary b {
+  color: var(--ink);
+}
+
+/* A long view shown in part, fading into its button (owner, 2026-11-06) */
+.res-fold {
+  position: relative;
+  max-height: var(--fold);
+  overflow: hidden;
+}
+
+.res-fold::after {
+  content: '';
+  position: absolute;
+  inset: auto 0 0 0;
+  height: 160px;
+  background: linear-gradient(transparent, var(--paper));
+  pointer-events: none;
+}
+
+.res-fold.is-open {
+  max-height: none;
+}
+
+.res-fold.is-open::after {
+  display: none;
+}
+
+.res-more {
+  display: flex;
+  justify-content: center;
+  margin: 14px 0 0;
 }
 
 .res-note {
@@ -4030,15 +4073,41 @@ p {
 .res-track {
   display: flex;
   gap: 2px;
-  height: 10px;
+  height: 14px;
   margin-top: 6px;
+  line-height: 14px;
 }
 
 .res-track > span {
+  position: relative;
   width: 0;
   min-width: 0;
   height: 100%;
+  overflow: hidden;
   transition: width 0.9s cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+
+/* The arrows (›› for, ‹‹ against), drawn over the bar: they take up no
+   width of their own, and the bar cuts them off */
+.res-track > span::before {
+  position: absolute;
+  top: 0;
+  left: 3px;
+  font-family: var(--mono);
+  font-size: 12px;
+  line-height: inherit;
+  letter-spacing: 1px;
+  white-space: nowrap;
+}
+
+.res-track > .res-for::before {
+  content: '››››››››››››››››››››››››››››››››››››››››››››››››››››››››››››››››››››››››››››››››';
+  color: var(--spend-for-arrows);
+}
+
+.res-track > .res-against::before {
+  content: '‹‹‹‹‹‹‹‹‹‹‹‹‹‹‹‹‹‹‹‹‹‹‹‹‹‹‹‹‹‹‹‹‹‹‹‹‹‹‹‹‹‹‹‹‹‹‹‹‹‹‹‹‹‹‹‹‹‹‹‹‹‹‹‹‹‹‹‹‹‹‹‹‹‹‹‹‹‹';
+  color: var(--spend-against-arrows);
 }
 
 .res-track > span:first-child {
@@ -4191,34 +4260,94 @@ p {
   transform: none;
 }
 
-/* Money and the result: big figures */
-.res-figures {
+/* Winners by grade: how often each group won */
+.res-rate-card {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr));
-  gap: 16px 40px;
-  margin-top: 22px;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 340px), 1fr));
+  gap: 22px 40px;
+  margin-bottom: 18px;
 }
 
-.res-figure b {
+.res-rate {
+  display: grid;
+  grid-template-columns: 116px minmax(0, 1fr) 96px;
+  gap: 10px;
+  align-items: center;
+  margin-top: 10px;
+  font-size: 15px;
+}
+
+.res-rate-track {
+  height: 12px;
+  background: var(--fill);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.res-rate-track span {
   display: block;
-  font-family: var(--display);
-  font-weight: 900;
-  font-size: clamp(48px, 7vw, 84px);
-  line-height: 1;
+  width: 0;
+  height: 100%;
+  background: var(--ink);
+  border-radius: 4px;
+  transition: width 0.9s cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+
+.is-in .res-rate-track span {
+  width: var(--w);
+}
+
+.res-rate-value {
+  font-weight: 700;
   font-variant-numeric: tabular-nums;
 }
 
-.res-figure b small {
-  font-size: 0.42em;
-  font-weight: 800;
+.res-rate-value small {
+  font-weight: 400;
+  font-size: 12px;
+  color: var(--muted);
 }
 
-.res-figure span {
-  display: block;
-  max-width: 22em;
-  margin-top: 8px;
-  font-size: 16px;
-  color: var(--ink-2);
+/* Money and winning: ten dots, how many in every ten races went that way */
+.res-money {
+  max-width: 820px;
+}
+
+.res-money-row {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 8px 20px;
+  align-items: center;
+  padding: 16px 0;
+  border-top: 1px solid var(--line);
+}
+
+.res-money-text {
+  font-size: 17px;
+  line-height: 1.4;
+}
+
+.res-tens {
+  display: flex;
+  gap: 5px;
+}
+
+.res-tens i {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  border: 2px solid var(--ink);
+  background: linear-gradient(90deg, var(--ink) var(--p), transparent var(--p));
+}
+
+@media (max-width: 560px) {
+  .res-money-row {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .res-rate {
+    grid-template-columns: 100px minmax(0, 1fr) 84px;
+  }
 }
 
 /* Outside money for and against the winners and the losers */
@@ -4228,10 +4357,10 @@ p {
 
 .res-total-row {
   display: grid;
-  grid-template-columns: 110px minmax(0, 1fr) 72px;
+  grid-template-columns: 100px minmax(0, 1fr) 64px;
   gap: 12px;
   align-items: center;
-  margin-top: 8px;
+  margin-top: 14px;
 }
 
 .res-total-label {
@@ -4245,7 +4374,11 @@ p {
 }
 
 .res-track.is-wide {
-  height: 16px;
+  height: 18px;
+}
+
+.res-track.is-wide {
+  line-height: 18px;
 }
 
 .res-track.is-wide > span {
@@ -4307,10 +4440,6 @@ p {
   height: 14px;
   border-radius: 3px;
   background: var(--leader);
-}
-
-.res-figure .res-small {
-  margin-top: 6px;
 }
 
 .races-results-link {

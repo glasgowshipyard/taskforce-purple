@@ -68,6 +68,9 @@ export const usd = n =>
 /** $2.1M, $610K, $9,400 */
 export function usdShort(n) {
   const v = Math.abs(n || 0);
+  if (v >= 1e9) {
+    return `$${(n / 1e9).toFixed(1).replace(/\.0$/, '')}B`;
+  }
   if (v >= 1e6) {
     return `$${(n / 1e6).toFixed(v >= 1e7 ? 0 : 1).replace(/\.0$/, '')}M`;
   }
