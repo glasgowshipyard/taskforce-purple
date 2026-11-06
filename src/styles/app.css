@@ -4122,6 +4122,93 @@ p {
   width: var(--w);
 }
 
+/* Who spent the most in a race, by side (owner, 2026-11-06) */
+.res-who {
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid var(--line);
+}
+
+.res-who-toggle {
+  display: inline-flex;
+  gap: 8px;
+  align-items: center;
+  padding: 4px 0;
+  background: none;
+  border: 0;
+  color: var(--ink);
+  font: inherit;
+  font-weight: 700;
+  font-size: 15px;
+  cursor: pointer;
+}
+
+.res-who-toggle span {
+  display: inline-block;
+  transition: transform 0.2s ease;
+}
+
+.res-who-toggle[aria-expanded='true'] span {
+  transform: rotate(90deg);
+}
+
+.res-who-panel {
+  margin-top: 10px;
+}
+
+.res-sides {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 200px), 1fr));
+  gap: 16px 24px;
+  margin-bottom: 10px;
+}
+
+.res-groups {
+  margin: 6px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.res-groups li {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 3px 10px;
+  margin-top: 8px;
+  font-size: 14px;
+}
+
+.res-group-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: inherit;
+  text-decoration: none;
+}
+
+.res-group-name:hover {
+  text-decoration: underline;
+}
+
+.res-group-value {
+  font-family: var(--mono);
+  font-size: 13px;
+}
+
+.res-group-bar {
+  grid-column: 1 / -1;
+  height: 6px;
+  background: var(--fill);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.res-group-bar span {
+  display: block;
+  height: 100%;
+  background: var(--ink);
+  border-radius: 3px;
+}
+
 /* Incumbents who lost: one row per seat, who lost and who won */
 .res-lost {
   display: grid;

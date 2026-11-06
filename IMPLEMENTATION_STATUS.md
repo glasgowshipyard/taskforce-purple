@@ -62,6 +62,19 @@ clean-up, #71 outside spending (shown since 2026-10-25), #72 TypeScript (after t
 
 ## Change log
 
+## 2026-11-06: who spent the most, by side
+
+Owner's pick (option A of two mockups). Each costliest-race card on
+/results has "Who spent the most", closed until opened: the biggest
+groups on each candidate's side, where a group is on a candidate's side
+when it spent for them or against their opponent; general election only,
+each group linked to its FEC page. Worked out in the site build
+(`raceSpenders` in `scripts/site/outside.mjs`, from every group's spending,
+not just the five kept per person) into `outside.json`'s `races`: 100 races
+with $1M or more of general-election outside money, groups with at least
+1% of their race's money, five a side. Opening a list inside a folded view
+unfolds it.
+
 ## 2026-11-06: the results page, second round
 
 Owner's review, 2026-11-06. Each view now opens with a short summary

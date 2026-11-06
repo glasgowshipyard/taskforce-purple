@@ -5,7 +5,7 @@
 // incumbents-who-lost table only (owner, same day). Each view opens with a
 // short summary worked out from its own figures, and the long ones fold,
 // open and close again (owner, 2026-11-06).
-import React, { useMemo, useRef, useState } from 'react';
+import React, { createContext, useContext, useMemo, useRef, useState } from 'react';
 import { Skeleton, Stamp, WonTag } from '../components/ui.jsx';
 import { api } from '../lib/api.js';
 import { ELECTION_LABEL } from '../lib/election.js';
@@ -63,6 +63,9 @@ function Section({ eyebrow, title, summary, children, note }) {
   );
 }
 
+// Opens the fold a view sits in (a card's list opened inside a folded view)
+const UnfoldContext = createContext(() => {});
+
 /** A long view shown in part, fading into a button that opens and closes it */
 function Fold({ height, label, children }) {
   const [open, setOpen] = useState(false);
@@ -74,7 +77,7 @@ function Fold({ height, label, children }) {
         className={`res-fold${open ? ' is-open' : ''}`}
         style={{ '--fold': `${height}px` }}
       >
-        {children}
+        <UnfoldContext.Provider value={() => setOpen(true)}>{children}</UnfoldContext.Provider>
       </div>
       <p className="res-more">
         <button
@@ -137,7 +140,70 @@ function OutsideBar({ c, max, raceKey, cycle }) {
   );
 }
 
-function Costliest({ list, cycle }) {
+/**
+ * Who spent the most in a race, by whose side they were on (owner,
+ * 2026-11-06), from outside.json's races: closed until opened
+ */
+function WhoSpent({ race, sides }) {
+  const [open, setOpen] = useState(false);
+  const unfold = useContext(UnfoldContext);
+  if (!sides?.length) {
+    return null;
+  }
+  const nameOf = id => displayName(race.candidates.find(c => c.candidateId === id)?.name || '');
+  const max = Math.max(1, ...sides.flatMap(s => s.groups.map(g => g.amount)));
+  return (
+    <div className="res-who">
+      <button
+        type="button"
+        className="res-who-toggle"
+        aria-expanded={open}
+        onClick={() => {
+          if (!open) {
+            unfold();
+          }
+          setOpen(!open);
+        }}
+      >
+        <span aria-hidden="true">›</span> Who spent the most
+      </button>
+      {open && (
+        <div className="res-who-panel">
+          <div className="res-sides">
+            {sides.map(side => (
+              <div key={side.candidateId}>
+                <p className="eyebrow">On {nameOf(side.candidateId)}&rsquo;s side</p>
+                <ol className="res-groups">
+                  {side.groups.map(g => (
+                    <li key={g.id}>
+                      <a
+                        href={`https://www.fec.gov/data/committee/${g.id}/`}
+                        className="res-group-name"
+                        title={g.name}
+                      >
+                        {g.name}
+                      </a>
+                      <span className="res-group-value">{usdShort(g.amount)}</span>
+                      <span className="res-group-bar" aria-hidden="true">
+                        <span style={{ width: `${(g.amount / max) * 100}%` }} />
+                      </span>
+                    </li>
+                  ))}
+                </ol>
+              </div>
+            ))}
+          </div>
+          <p className="res-small">
+            A group is on a candidate&rsquo;s side when it spent for them or against their opponent.
+            General election only.
+          </p>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function Costliest({ list, cycle, outside }) {
   const max = Math.max(1, ...list.flatMap(x => x.candidates.map(c => c.for + c.against)));
   return (
     <ol className="res-costly">
@@ -156,6 +222,7 @@ function Costliest({ list, cycle }) {
               cycle={cycle}
             />
           ))}
+          <WhoSpent race={x.race} sides={outside?.races?.[x.race.key]?.sides} />
         </li>
       ))}
     </ol>
@@ -516,11 +583,11 @@ export default function Results() {
             <div className="res-costly-cols">
               <div>
                 <h3 className="res-col-title">Senate</h3>
-                <Costliest list={f.senate} cycle={cycle} />
+                <Costliest list={f.senate} cycle={cycle} outside={outside.data} />
               </div>
               <div>
                 <h3 className="res-col-title">House</h3>
-                <Costliest list={f.house} cycle={cycle} />
+                <Costliest list={f.house} cycle={cycle} outside={outside.data} />
               </div>
             </div>
           </Fold>

@@ -7,6 +7,7 @@ import {
   outsideRebuild,
   outsideSpending,
   parseCsv,
+  raceSpenders,
   registeredIds,
   unzipOne,
 } from './outside.mjs';
@@ -141,6 +142,75 @@ describe('outside spending (2026-10-25)', () => {
       { id: 'C00000001', name: 'Real PAC', side: 'for', amount: 301, stages: ['P', 'G'] },
     ]);
     expect(people.H6CA00003.for).toBe(50);
+  });
+});
+
+describe('who backed whom, race by race (2026-11-06)', () => {
+  it('adds up each group on the side it took, from the general election only', () => {
+    const o = outsideSpending(
+      [
+        // Real PAC: for X and against Y in the general: X's side
+        row({ cand_id: 'S6TX00001', exp_amo: '900000', ele_type: 'G' }),
+        row({
+          tran_id: 'SE.2',
+          cand_id: 'S6TX00002',
+          sup_opp: 'O',
+          exp_amo: '600000',
+          ele_type: 'G',
+        }),
+        // Other PAC: against X in the general (Y's side), and for Y in the
+        // primary (left out)
+        row({
+          tran_id: 'SE.3',
+          spe_id: 'C00000002',
+          spe_nam: 'Other PAC',
+          sup_opp: 'O',
+          exp_amo: '700000',
+          ele_type: 'G',
+        }),
+        row({
+          tran_id: 'SE.4',
+          spe_id: 'C00000002',
+          spe_nam: 'Other PAC',
+          cand_id: 'S6TX00002',
+          exp_amo: '5000000',
+          ele_type: 'P',
+        }),
+      ],
+      REGISTERED,
+      2026
+    );
+    const race = {
+      key: 'S-TX',
+      special: false,
+      candidates: [{ candidateId: 'S6TX00001' }, { candidateId: 'S6TX00002' }],
+    };
+    const r = raceSpenders(o.everySpender, [race])['S-TX'];
+    expect(r.sides).toEqual([
+      {
+        candidateId: 'S6TX00001',
+        groups: [{ id: 'C00000001', name: 'Real PAC', amount: 1500000 }],
+      },
+      {
+        candidateId: 'S6TX00002',
+        groups: [{ id: 'C00000002', name: 'Other PAC', amount: 700000 }],
+      },
+    ]);
+    // What's published for each person is unchanged: no election split per group
+    expect(Object.keys(o.candidates.S6TX00001.spenders[0])).toEqual([
+      'id',
+      'name',
+      'side',
+      'amount',
+      'stages',
+    ]);
+  });
+
+  it('gives no sides to a race with little outside money', () => {
+    const o = outsideSpending([row({ exp_amo: '5000', ele_type: 'G' })], REGISTERED, 2026);
+    expect(
+      raceSpenders(o.everySpender, [{ key: 'S-TX', candidates: [{ candidateId: 'S6TX00001' }] }])
+    ).toEqual({});
   });
 });
 
