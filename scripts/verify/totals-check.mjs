@@ -4,23 +4,11 @@
  * holds it, against the FEC's own per-committee totals (the bulk file
  * committee_summary_{cycle}.csv: one download, no calls on the FEC key).
  *
- * For each person it adds up the FEC's figures for their own committees
- * (campaign, leadership PAC, the joint funds that are theirs) plus what other
- * politicians' joint funds passed to them, and compares that with the
- * grade's working (grade.detail):
- *
- *   people  small + big + directed    vs  individuals (INDV_CONTB)
- *   small   small, less small gifts    vs  unitemized (INDV_UNITEM_CONTB)
- *           reported by name
- *   pac     pac                       vs  other committees (OTH_CMTE_CONTB)
- *   party   party                     vs  party committees (PTY_CMTE_CONTB)
- *   given   the grade's whole total   at most everything received (TTL_RECEIPTS)
- *   others  other politicians' funds  all their joint funds passed on
- *
- * A difference is named when it's over $1,000 and over 1% (other
- * politicians' funds: over $1). Some are by rule and are listed apart: no
- * letter grade (self-funded, disputed), a committee counted only from a
- * date (COMMITTEE_SINCE).
+ * What's compared, and when a difference counts: lib/totals.mjs, which every
+ * refresh run also uses (2026-11-06). Some differences are by rule and are
+ * listed apart: no letter grade (self-funded, disputed), a committee counted
+ * only from a date (COMMITTEE_SINCE), and the FEC's file running to another
+ * report than the site's figures (after a filing deadline, for a few days).
  *
  *   node scripts/verify/totals-check.mjs [--members-only] [--file committee_summary.csv] [--out report.json]
  *
@@ -32,6 +20,7 @@ import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { COMMITTEE_SINCE } from '../../workers/fec-crosswalk-additions.js';
+import { compareTotals, parseSummary, summaryUrl, totalsVerdict } from './lib/totals.mjs';
 
 const API = 'https://taskforce-purple-api.dev-a4b.workers.dev/api';
 const CYCLE = 2026;
@@ -45,46 +34,9 @@ const membersOnly = process.argv.includes('--members-only');
 let file = arg('--file');
 if (!file) {
   file = join(mkdtempSync(join(tmpdir(), 'tfp-totals-')), `committee_summary_${CYCLE}.csv`);
-  execFileSync('curl', [
-    '-sSLf',
-    '-o',
-    file,
-    `https://www.fec.gov/files/bulk-downloads/${CYCLE}/committee_summary_${CYCLE}.csv`,
-  ]);
+  execFileSync('curl', ['-sSLf', '-o', file, summaryUrl(CYCLE)]);
 }
-const csvRow = line => {
-  const cells = [];
-  let cur = '';
-  let quoted = false;
-  for (const ch of line) {
-    if (ch === '"') {
-      quoted = !quoted;
-    } else if (ch === ',' && !quoted) {
-      cells.push(cur);
-      cur = '';
-    } else {
-      cur += ch;
-    }
-  }
-  cells.push(cur);
-  return cells;
-};
-const lines = readFileSync(file, 'utf8').split('\n').filter(Boolean);
-const head = csvRow(lines[0]);
-const col = name => head.indexOf(name);
-const fecById = new Map();
-for (const line of lines.slice(1)) {
-  const c = csvRow(line);
-  const n = name => Number(c[col(name)]) || 0;
-  fecById.set(c[col('CMTE_ID')], {
-    individuals: n('INDV_CONTB'),
-    unitemized: n('INDV_UNITEM_CONTB'),
-    others: n('OTH_CMTE_CONTB'),
-    party: n('PTY_CMTE_CONTB'),
-    receipts: n('TTL_RECEIPTS'),
-    through: c[col('CVG_END_DT')],
-  });
-}
+const fecById = parseSummary(readFileSync(file, 'utf8'));
 
 const get = async path => {
   for (let tries = 0; ; tries++) {
@@ -125,64 +77,6 @@ if (!membersOnly) {
   walk(races);
 }
 
-const round = x => Math.round(x * 100) / 100;
-function compare(detail, trail) {
-  const d = detail ?? {};
-  const fec = { people: 0, small: 0, pac: 0, party: 0 };
-  // Everything the committees took in, joint funds' passed money included
-  let receipts = 0;
-  const missing = [];
-  const since = [];
-  const through = new Set();
-  // What other politicians' joint funds passed on: all of it in the grade
-  let passed = 0;
-  for (const c of trail?.committees ?? []) {
-    if (c.role === 'joint' && !c.ownFund) {
-      passed += c.toMemberCounted ?? 0;
-      receipts += c.toMemberCounted ?? 0;
-      continue;
-    }
-    if (COMMITTEE_SINCE[c.committeeId]) {
-      since.push(`${c.committeeId} from ${COMMITTEE_SINCE[c.committeeId].from}`);
-    }
-    const f = fecById.get(c.committeeId);
-    if (!f) {
-      missing.push(c.committeeId);
-      continue;
-    }
-    fec.people += f.individuals;
-    fec.small += f.unitemized;
-    fec.pac += f.others;
-    fec.party += f.party;
-    receipts += f.receipts;
-    through.add(f.through);
-  }
-  const site = {
-    people: (d.small ?? 0) + (d.big ?? 0) + (d.directed ?? 0),
-    // Small gifts reported by name count as small since 2026-11-02; the
-    // FEC's unitemized figure leaves them out
-    small: (d.small ?? 0) - (d.smallItemized ?? 0),
-    pac: d.pac ?? 0,
-    party: d.party ?? 0,
-  };
-  const off = {};
-  // The grade can't count more money than the committees took in
-  if ((d.given ?? 0) > receipts * 1.02 + 1000) {
-    off.given = { site: round(d.given), fec: round(receipts), diff: round(d.given - receipts) };
-  }
-  for (const k of Object.keys(site)) {
-    const diff = site[k] - fec[k];
-    if (Math.abs(diff) > 1000 && Math.abs(diff) > 0.01 * Math.max(fec[k], site[k])) {
-      off[k] = { site: round(site[k]), fec: round(fec[k]), diff: round(diff) };
-    }
-  }
-  const others = d.otherPoliticiansFunds ?? 0;
-  if (Math.abs(others - passed) > 1) {
-    off.others = { site: round(others), fec: round(passed), diff: round(others - passed) };
-  }
-  return { off, missing, since, fecThrough: [...through].sort() };
-}
-
 const results = [];
 let next = 0;
 async function worker() {
@@ -193,7 +87,12 @@ async function worker() {
         p.kind === 'member'
           ? await get(`/member-detail?bioguideId=${p.id}`)
           : await get(`/candidate-detail?id=${p.id}`);
-      const r = compare(det.grade?.detail, det.moneyTrail);
+      const r = compareTotals(
+        det.grade?.detail,
+        det.moneyTrail?.committees,
+        fecById,
+        COMMITTEE_SINCE
+      );
       results.push({
         ...p,
         siteThrough: det.member?.personFigures?.filedThrough ?? null,
@@ -222,8 +121,10 @@ const describe = r => {
 };
 const byId = (a, b) => a.kind.localeCompare(b.kind) || a.id.localeCompare(b.id);
 const notGraded = results.filter(r => !graded(r));
-const bySince = results.filter(r => graded(r) && differs(r) && r.since?.length);
-const unexplained = results.filter(r => graded(r) && differs(r) && !r.since?.length);
+const verdict = r => (r.error ? 'differs' : totalsVerdict(r, r.siteThrough));
+const bySince = results.filter(r => graded(r) && verdict(r) === 'since');
+const waiting = results.filter(r => graded(r) && verdict(r) === 'waiting');
+const unexplained = results.filter(r => graded(r) && verdict(r) === 'differs');
 
 const members = people.filter(p => p.kind === 'member').length;
 console.log(
@@ -233,9 +134,15 @@ console.log(
   `Graded and matching the FEC's totals: ${results.filter(r => graded(r) && !differs(r)).length}`
 );
 console.log(`No letter grade (not compared): ${notGraded.length}`);
-console.log(`Differ by a committee counted from a date (owner's decision): ${bySince.length}`);
+console.log(
+  `Differ by a committee counted by rule (from a date, or a campaign that became a PAC): ${bySince.length}`
+);
 for (const r of bySince.sort(byId)) {
   console.log(`  ${describe(r)} [${r.since.join(', ')}]`);
+}
+console.log(`Differ while the FEC's file runs to another report (wait for it): ${waiting.length}`);
+for (const r of waiting.sort(byId)) {
+  console.log(`  ${describe(r)}`);
 }
 console.log(`Differ, not explained: ${unexplained.length}`);
 for (const r of unexplained.sort(byId)) {

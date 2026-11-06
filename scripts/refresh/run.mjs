@@ -6,7 +6,18 @@
  *   node scripts/refresh/run.mjs [--members ID,ID] [--cycle 2026] [--dry-run]
  *     [--bulk-dir DIR] [--trigger manual|calendar|event] [--new-round REASON]
  *     [--budget-minutes 300] [--batch 25] [--grade-only] [--discovery zips|api]
- *     [--report FILE]
+ *     [--report FILE] [--allow-big-changes]
+ *
+ * Safe to run with nobody watching (owner, 2026-11-06):
+ *   - a run holds its publishing when more than a quarter of the members it
+ *     has graded would change grade (HOLD_SHARE, from HOLD_AFTER members):
+ *     a filing refresh moves about one in twelve, a change of method one in
+ *     two. Nothing more is published that run, the grades it worked out are
+ *     kept in D1, and the alert lists the changes. --allow-big-changes (the
+ *     workflow's allow_big_changes) lets an intended change through.
+ *   - every run ends with the totals check (scripts/verify/lib/totals.mjs):
+ *     each graded member's money against the FEC's own totals; a difference
+ *     not explained is alerted.
  *
  * PAC money (#57, version A, owner 2026-10-09): the grade reads every PAC
  * gift to the member's campaign and leadership PAC from the bulk files, and
@@ -52,6 +63,13 @@ import { appendFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } fr
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { COMMITTEE_SINCE } from '../../workers/fec-crosswalk-additions.js';
+import {
+  compareTotals,
+  describeTotals,
+  parseSummary,
+  summaryUrl,
+  totalsVerdict,
+} from '../verify/lib/totals.mjs';
 import { FEC_CROSSWALK } from '../../workers/fec-crosswalk.js';
 import { crosswalkIdsFor } from '../../workers/fec-identity.js';
 import { committeesFinal3, gradeMember, gradeMemberFinal3 } from '../../workers/grading.js';
@@ -147,12 +165,18 @@ const gradeRank = t => ({ S: 8, A: 7, B: 6, C: 5, D: 4, E: 3, F: 2, 'N/A': 1 })[
 
 // Set once the run is recorded: on a crash, marks it failed and charges the
 // D1 rows already written, so health sees the failure and the ledger is right
+// The hold (owner, 2026-11-06): more than this share of the members graded
+// in a run changing grade, once this many have been graded
+const HOLD_SHARE = 0.25;
+const HOLD_AFTER = 50;
+
 let recordCrash = null;
 
 async function main() {
   const started = Date.now();
   const dryRun = process.argv.includes('--dry-run');
   const gradeOnly = process.argv.includes('--grade-only');
+  const allowBig = process.argv.includes('--allow-big-changes');
   const cycle = Number(arg('--cycle', gradingCycle()));
   const only = arg('--members', '')
     .split(',')
@@ -411,6 +435,17 @@ async function main() {
   };
   const summary = { complete: 0, provisional: 0, pending: 0, failed: 0, skipped: 0 };
   let processed = 0;
+  // What the totals check compares at the end: each graded member's working
+  // and committees
+  const totalsInputs = [];
+  // Set when this run's grade changes were too many to publish unwatched
+  let held = null;
+  const holdReason = changes => {
+    const moved = (summary.gradeChanges || 0) + changes.length;
+    return !allowBig && processed >= HOLD_AFTER && moved > HOLD_SHARE * processed
+      ? `${moved} of the ${processed} members graded in this run would change grade, more than ${Math.round(HOLD_SHARE * 100)}%`
+      : null;
+  };
   let stopReason = 'done'; // done | time | d1
   // Soft deadline: start no new member or committee after it. Hard deadline:
   // a committee mid-search stops (the job's own limit is 350 minutes)
@@ -858,6 +893,16 @@ async function main() {
         }
         const status = !grade ? 'pending' : ok ? 'complete' : pending ? 'provisional' : 'pending';
         summary[status]++;
+        if (grade) {
+          totalsInputs.push({
+            id: p.id,
+            name: p.name,
+            tier: grade.tier,
+            detail: grade.detail,
+            committees: p.pf.committees,
+            through: grade.personFigures?.filedThrough ?? null,
+          });
+        }
         log(
           `  ${p.name}: ${status}${grade ? ` -> ${grade.tier} (${grade.gradeBasis}), donors ${analysis.uniqueDonors}, Nakamoto ${analysis.nakamotoCoefficient}` : ''}${
             ok || pending
@@ -933,11 +978,20 @@ async function main() {
     // Publish this batch to the site (Stage 3): one list write, only if it
     // differs. Per batch, so the list and the member pages (which read D1
     // directly) never disagree for long
-    if (!dryRun) {
-      const pub = await publishGrades({ cf, d1, cycle, log });
-      summary.gradeChanges = (summary.gradeChanges || 0) + pub.gradeChanges.length;
-      // The site's pre-built pages are rebuilt only when this happened
-      summary.listChanged ||= pub.changed;
+    if (!dryRun && !held) {
+      const pub = await publishGrades({ cf, d1, cycle, log, hold: holdReason });
+      if (pub.held) {
+        held = pub.held;
+        summary.held = held;
+        log(`publishing held: ${held}. Not published:`);
+        for (const c of pub.gradeChanges.slice(0, 60)) {
+          log(`  ${c.name}: ${c.from} -> ${c.to}`);
+        }
+      } else {
+        summary.gradeChanges = (summary.gradeChanges || 0) + pub.gradeChanges.length;
+        // The site's pre-built pages are rebuilt only when this happened
+        summary.listChanged ||= pub.changed;
+      }
     }
     if (cutShort) {
       log(`time budget reached mid-batch: the rest is left for the next run of ${roundId}`);
@@ -1043,6 +1097,40 @@ async function main() {
     log(`report written to ${reportPath}`);
   }
 
+  // The totals check: each graded member's money against the FEC's totals
+  let totalsProblem = '';
+  if (totalsInputs.length) {
+    try {
+      const res = await fetch(summaryUrl(cycle));
+      if (!res.ok) {
+        throw new Error(`HTTP ${res.status}`);
+      }
+      const fecById = parseSummary(await res.text());
+      const differs = [];
+      let matched = 0;
+      for (const t of totalsInputs.filter(x => /^[SABCDEF]$/.test(x.tier))) {
+        const r = compareTotals(t.detail, t.committees, fecById, COMMITTEE_SINCE);
+        const v = totalsVerdict(r, t.through);
+        if (v === 'differs') {
+          differs.push(`${t.name}: ${describeTotals(r)}`);
+        } else if (v === 'match') {
+          matched++;
+        }
+      }
+      summary.totals = { compared: totalsInputs.length, matched, differs: differs.length };
+      log(
+        `totals check: ${matched} of ${totalsInputs.length} graded members match the FEC's totals; ${differs.length} differ`
+      );
+      differs.forEach(d => log(`  ${d}`));
+      if (differs.length) {
+        totalsProblem = `${differs.length} member(s) graded in this run don't match the FEC's own totals: ${differs.slice(0, 5).join(' | ')}`;
+      }
+    } catch (error) {
+      totalsProblem = `The totals check couldn't read the FEC's totals file: ${error.message}`;
+      log(totalsProblem);
+    }
+  }
+
   const remaining = targets.length - processed;
   const stats = {
     ...summary,
@@ -1061,7 +1149,8 @@ async function main() {
     const progressed = summary.complete + summary.provisional + summary.pending + summary.skipped;
     appendFileSync(
       process.env.GITHUB_OUTPUT,
-      `stop_reason=${stopReason}\nremaining=${remaining}\nprogressed=${progressed}\nlist_changed=${summary.listChanged ? 'true' : 'false'}\n`
+      `stop_reason=${stopReason}\nremaining=${remaining}\nprogressed=${progressed}\nlist_changed=${summary.listChanged ? 'true' : 'false'}\n` +
+        `held=${(held || '').replace(/\n/g, ' ')}\ntotals=${totalsProblem.replace(/\n/g, ' ')}\n`
     );
   }
   if (!dryRun) {

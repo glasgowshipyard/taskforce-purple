@@ -62,6 +62,35 @@ clean-up, #71 outside spending (shown since 2026-10-25), #72 TypeScript (after t
 
 ## Change log
 
+## 2026-11-06: a refresh that's safe to run unwatched
+
+Before the post-election reports (due 3 December) start a refresh nobody
+watches (owner's yes, 2026-11-06):
+
+- **The hold:** a run stops publishing when more than a quarter of the
+  members it has graded would change grade, once 50 are graded
+  (`HOLD_SHARE`, `HOLD_AFTER` in `scripts/refresh/run.mjs`; the check is
+  `publishGrades`' `hold`). The grade history set the line: filing
+  refreshes moved about 40 grades (17 and 24 October), changes of method
+  150 to 300 (6, 10 and 13 October, 2 November). Nothing more is published
+  that run; the site keeps its grades; the alert (`refresh-held`) links the
+  run's log, which lists the changes. `allow_big_changes` lets an intended
+  change through and carries to the runs a pass starts.
+- **The totals check in every run:** each member graded is compared with
+  the FEC's own totals at the end of the run, from the job's own figures
+  (no Worker requests); a difference not explained raises the `totals`
+  alert. The comparison moved to `scripts/verify/lib/totals.mjs`, shared
+  with `totals-check.mjs`. New: a difference while the FEC's file runs to a
+  report up to about a quarter before or after the site's figures is
+  "waiting", not a fault; a campaign that became a PAC (the FEC's file
+  lists it as a PAC) is "counted by rule".
+- **Valimont:** not a fault after all. Engage Y'all PAC was her 2024
+  campaign and became a PAC on 21 April 2025; the site counts it to that
+  day (`campaignReportTotals`), and the FEC's file adds up the PAC's whole
+  cycle. The check now recognises such committees by itself. Left: Randall
+  Terry (VA-7), $5,309 short of FEC figures amended since the races froze
+  in October; candidates aren't re-graded, by rule.
+
 ## 2026-11-06: who spent the most, by side
 
 Owner's pick (option A of two mockups). Each costliest-race card on
