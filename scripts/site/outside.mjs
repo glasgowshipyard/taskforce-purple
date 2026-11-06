@@ -211,8 +211,14 @@ export function outsideSpending(rows, registered, cycle) {
       side,
       amount: 0,
       stages: [],
+      general: 0,
+      special: 0,
     };
     s.amount += amount;
+    // The general election's own (and a special election's), for the
+    // results page's sides (raceSpenders)
+    s.general += r.ele_type === 'G' ? amount : 0;
+    s.special += r.ele_type === 'S' ? amount : 0;
     // Which election it was for (primary, runoff, general), so a page can
     // say a group spent against them in the primary (owner, 2026-10-25)
     if (['P', 'R', 'G'].includes(r.ele_type) && !s.stages.includes(r.ele_type)) {
@@ -220,10 +226,17 @@ export function outsideSpending(rows, registered, cycle) {
     }
     c.bySpender.set(k, s);
   }
-  for (const c of Object.values(candidates)) {
+  // Every spender on each candidate, kept apart from what's published
+  // for them (raceSpenders adds them up race by race)
+  const everySpender = {};
+  for (const [id, c] of Object.entries(candidates)) {
     const all = [...c.bySpender.values()].sort((a, b) => b.amount - a.amount);
+    everySpender[id] = all;
     c.spenders = ['for', 'against'].flatMap(side =>
-      all.filter(s => s.side === side).slice(0, SHOWN)
+      all
+        .filter(s => s.side === side)
+        .slice(0, SHOWN)
+        .map(s => ({ id: s.id, name: s.name, side: s.side, amount: s.amount, stages: s.stages }))
     );
     c.spenderCount = { for: 0, against: 0 };
     for (const s of all) {
@@ -233,12 +246,71 @@ export function outsideSpending(rows, registered, cycle) {
   }
   return {
     candidates,
+    everySpender,
     through,
     left: {
       filers: left.size,
       amount: [...left.values()].reduce((s, l) => s + l.amount, 0),
     },
   };
+}
+
+// A race is given its sides when outside groups spent at least this in its
+// general election
+const SIDES_FROM = 1e6;
+// Groups listed on each side, each with at least 1% of the race's money
+const SIDE_GROUPS = 5;
+const SIDE_SHARE = 0.01;
+
+/**
+ * Who backed whom, race by race (the results page, owner 2026-11-06): the
+ * general election's outside money (and a special election's own), each
+ * group's spending added up on the side it took. A group is on a
+ * candidate's side when it spent for them or against their opponent; the
+ * two sides are the two candidates outside money was most spent on.
+ * `races`: the published races. Returns { raceKey: { sides: [{
+ * candidateId, groups: [{ id, name, amount }] }] } }, the biggest
+ * SIDE_GROUPS groups on each side with SIDE_SHARE of the race's money
+ */
+export function raceSpenders(everySpender, races) {
+  const out = {};
+  for (const race of races || []) {
+    const amountOf = s => s.general + (race.special ? s.special : 0);
+    const spent = race.candidates
+      .filter(c => c.candidateId && everySpender[c.candidateId])
+      .map(c => {
+        const list = everySpender[c.candidateId].filter(s => amountOf(s) > 0);
+        return { c, list, total: list.reduce((t, s) => t + amountOf(s), 0) };
+      })
+      .filter(x => x.total > 0)
+      .sort((a, b) => b.total - a.total);
+    const main = spent.slice(0, 2);
+    const total = spent.reduce((t, x) => t + x.total, 0);
+    if (main.length < 2 || total < SIDES_FROM) {
+      continue;
+    }
+    const sides = main.map(() => new Map());
+    main.forEach((m, i) => {
+      for (const s of m.list) {
+        // For this candidate: their side; against them: their opponent's
+        const side = sides[s.side === 'for' ? i : 1 - i];
+        const g = side.get(s.id) || { id: s.id, name: s.name, amount: 0 };
+        g.amount += amountOf(s);
+        side.set(s.id, g);
+      }
+    });
+    out[race.key] = {
+      sides: main.map((m, i) => ({
+        candidateId: m.c.candidateId,
+        groups: [...sides[i].values()]
+          .filter(g => g.amount >= SIDE_SHARE * total)
+          .sort((a, b) => b.amount - a.amount)
+          .slice(0, SIDE_GROUPS)
+          .map(g => ({ ...g, amount: Math.round(g.amount) })),
+      })),
+    };
+  }
+  return out;
 }
 
 /** Whole dollars, rounded once at the end, so a person's figures add up */
@@ -319,7 +391,7 @@ export function byPerson(candidates, crosswalk, others) {
  * Download and work out the cycle's outside spending. Throws if either file
  * can't be read; the build then keeps the live site's copy.
  */
-export async function loadOutside(cycle, crosswalk, others) {
+export async function loadOutside(cycle, crosswalk, others, races = []) {
   const get = async url => {
     const response = await fetch(url);
     if (!response.ok) {
@@ -336,7 +408,7 @@ export async function loadOutside(cycle, crosswalk, others) {
   if (rows.length < 1000 || registered.size < 1000) {
     throw new Error(`outside spending: ${rows.length} rows, ${registered.size} committees`);
   }
-  const { candidates, through, left } = outsideSpending(rows, registered, cycle);
+  const { candidates, everySpender, through, left } = outsideSpending(rows, registered, cycle);
   return {
     cycle,
     through,
@@ -345,6 +417,7 @@ export async function loadOutside(cycle, crosswalk, others) {
     source: ieUrl(cycle),
     left,
     people: byPerson(candidates, crosswalk, others),
+    races: raceSpenders(everySpender, races),
   };
 }
 

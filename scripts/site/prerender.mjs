@@ -115,7 +115,8 @@ for (const c of ballotIds) {
 const outside = await loadOutside(
   cycle,
   idsByMember,
-  ballotIds.filter(c => c.candidateId && !c.bioguideId).map(c => c.candidateId)
+  ballotIds.filter(c => c.candidateId && !c.bioguideId).map(c => c.candidateId),
+  racesList?.races || []
 ).catch(async error => {
   console.warn(`outside spending: ${error.message}; keeping the live site's copy`);
   // Marked with the day it was first kept, so the daily check can say when
