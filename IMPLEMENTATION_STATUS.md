@@ -62,6 +62,24 @@ clean-up, #71 outside spending (shown since 2026-10-25), #72 TypeScript (after t
 
 ## Change log
 
+## 2026-11-06: the results page, second round
+
+Owner's review, 2026-11-06. Each view now opens with a short summary
+worked out from its own figures (so it stays true as races are called),
+and the long ones (the costliest races, the incumbents who lost, every
+candidate's dot) fold and open again. Outside spending: titled so, steel
+blue for and pink against (checked for colour-blind readers in light and
+dark; not the grades' green and red, not party red and blue), with arrows
+in the bars and plain amounts; the outside money totals the same. The
+incumbents who lost are "Winning grades" (in all 34 the winner's grade was
+higher); "Winners by grade" adds win rates by grade group. "Money and
+winning" replaces two figures that read as comparing unlike things: race
+by race, the candidate who raised the most won 303 of 336, the higher grade
+138 of 288 where grades differed; raising the most with the higher grade
+won 114 of 120, with the lower grade still 144 of 168. Not on the page, by
+the owner's call: that most high-grade challengers were Democrats in a
+year Democrats gained seats.
+
 ## 2026-11-04: the results page
 
 - **/results** (owner's brief and go, 2026-11-04; ROADMAP 0b): who won,

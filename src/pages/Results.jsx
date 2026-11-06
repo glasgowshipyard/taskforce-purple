@@ -2,8 +2,10 @@
 // where each candidate's money came from, in six views. Every figure comes
 // from lib/results.js and says how many races it covers; the page updates
 // as the daily check marks new winners. Party is shown on the
-// incumbents-who-lost table only (owner, same day).
-import React, { useMemo, useRef } from 'react';
+// incumbents-who-lost table only (owner, same day). Each view opens with a
+// short summary worked out from its own figures, and the long ones fold,
+// open and close again (owner, 2026-11-06).
+import React, { useMemo, useRef, useState } from 'react';
 import { Skeleton, Stamp, WonTag } from '../components/ui.jsx';
 import { api } from '../lib/api.js';
 import { ELECTION_LABEL } from '../lib/election.js';
@@ -14,42 +16,110 @@ import {
   calledRaces,
   contests,
   costliest,
+  dollarsInWords,
   gradeMix,
   incumbentsWhoLost,
-  moneyAndResult,
+  lostSummary,
+  moneyAndGrade,
   outsideAndResult,
   seatsBeforeAndAfter,
+  shareWords,
   votingRaces,
+  winRates,
   winsByGrade,
 } from '../lib/results.js';
 import { Link, racePath } from '../lib/router.js';
 
 const count = n => n.toLocaleString('en-US');
+const pct = (won, of) => (of ? Math.round((won / of) * 100) : 0);
 // A grade's colour and its light step (for dark surfaces), as CSS variables
 const colours = tier =>
   isLetter(tier)
     ? { '--g': GRADES[tier].color, '--gl': GRADES[tier].light }
     : { '--g': 'var(--leader)', '--gl': 'var(--leader)' };
 const peopleOf = c => c?.peoplePowerInfluence?.people ?? null;
+// "all 5", "4 of the 5", "none of the 5"
+const howMany = (k, n) =>
+  k === n ? `all ${n}` : k === 0 ? `none of the ${n}` : `${k} of the ${n}`;
+// "Graded S or A", "Graded B", "Graded C to F"
+const gradesLabel = g =>
+  g.length === 1
+    ? `Graded ${g[0]}`
+    : g.length === 2
+      ? `Graded ${g[0]} or ${g[1]}`
+      : `Graded ${g[0]} to ${g[g.length - 1]}`;
 
-function Section({ eyebrow, title, lead, children, note }) {
+function Section({ eyebrow, title, summary, children, note }) {
   const ref = useRef(null);
   const seen = useInView(ref);
   return (
     <section ref={ref} className={`res-section${seen ? ' is-in' : ''}`}>
       <p className="eyebrow">{eyebrow}</p>
       <h2 className="display display-m">{title}</h2>
-      {lead && <p className="res-lead">{lead}</p>}
+      {summary && <p className="res-summary">{summary}</p>}
       {children}
       {note && <p className="fine res-note">{note}</p>}
     </section>
   );
 }
 
-/** One candidate's outside money as a bar: spent for, then against */
+/** A long view shown in part, fading into a button that opens and closes it */
+function Fold({ height, label, children }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef(null);
+  return (
+    <>
+      <div
+        ref={ref}
+        className={`res-fold${open ? ' is-open' : ''}`}
+        style={{ '--fold': `${height}px` }}
+      >
+        {children}
+      </div>
+      <p className="res-more">
+        <button
+          type="button"
+          className="btn"
+          aria-expanded={open}
+          onClick={() => {
+            setOpen(!open);
+            // Folding back: return to where the view starts
+            if (open && ref.current && ref.current.getBoundingClientRect().top < 0) {
+              ref.current.scrollIntoView({ block: 'start' });
+            }
+          }}
+        >
+          {open ? 'Show fewer' : label}
+        </button>
+      </p>
+    </>
+  );
+}
+
+/** Outside money as one bar: spent for (›››), then against (‹‹‹) */
+function SpendBar({ forAmount, against, max, wide = false }) {
+  return (
+    <span className={`res-track${wide ? ' is-wide' : ''}`} aria-hidden="true">
+      <span className="res-for" style={{ '--w': `${max ? (forAmount / max) * 100 : 0}%` }} />
+      <span className="res-against" style={{ '--w': `${max ? (against / max) * 100 : 0}%` }} />
+    </span>
+  );
+}
+
+function SpendKey() {
+  return (
+    <div className="res-key" aria-hidden="true">
+      <span>
+        <i className="res-for" /> Spent for ›››
+      </span>
+      <span>
+        <i className="res-against" /> ‹‹‹ Spent against
+      </span>
+    </div>
+  );
+}
+
 function OutsideBar({ c, max, raceKey, cycle }) {
-  const forW = max ? (c.for / max) * 100 : 0;
-  const againstW = max ? (c.against / max) * 100 : 0;
   return (
     <Link to={racePath(raceKey, cycle)} className="res-spend">
       <Stamp tier={c.c.tier} size={30} word={false} rot={0} />
@@ -58,10 +128,7 @@ function OutsideBar({ c, max, raceKey, cycle }) {
           {displayName(c.c.name)}
           {c.c.won && <WonTag />}
         </span>
-        <span className="res-track" aria-hidden="true">
-          <span className="res-for" style={{ '--w': `${forW}%` }} />
-          <span className="res-against" style={{ '--w': `${againstW}%` }} />
-        </span>
+        <SpendBar forAmount={c.for} against={c.against} max={max} />
         <span className="res-small">
           {usdShort(c.for)} for · {usdShort(c.against)} against
         </span>
@@ -143,6 +210,25 @@ function Lost({ list, cycle }) {
   );
 }
 
+function Rates({ title, rows }) {
+  return (
+    <div className="res-rates">
+      <p className="eyebrow">{title}</p>
+      {rows.map(r => (
+        <div key={r.grades.join('')} className="res-rate">
+          <span className="res-rate-label">{gradesLabel(r.grades)}</span>
+          <span className="res-rate-track" aria-hidden="true">
+            <span style={{ '--w': `${pct(r.won, r.ran)}%` }} />
+          </span>
+          <span className="res-rate-value">
+            {pct(r.won, r.ran)}%<small>{` ${r.won} of ${r.ran}`}</small>
+          </span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 const ROLES = [
   ['incumbent', 'Incumbents'],
   ['challenger', 'Challengers'],
@@ -156,6 +242,9 @@ function ByGrade({ wins }) {
       role="table"
       aria-label="Candidates who won and ran, by grade and role"
     >
+      <p className="eyebrow" style={{ margin: 0 }}>
+        Every candidate: a filled dot won
+      </p>
       <div className="res-dots-row" role="row">
         <span role="columnheader" />
         {ROLES.map(([role, label]) => (
@@ -199,43 +288,52 @@ function ByGrade({ wins }) {
   );
 }
 
-function Figure({ value, of, words, detail }) {
+/** Ten dots: how many races in every ten went this way */
+function Tens({ won, of }) {
+  const v = of ? (won / of) * 10 : 0;
   return (
-    <div className="res-figure">
-      <b>
-        {count(value)}
-        <small> of {count(of)}</small>
-      </b>
-      <span>{words}</span>
-      {detail && <span className="res-small">{detail}</span>}
+    <span className="res-tens" aria-hidden="true">
+      {Array.from({ length: 10 }, (_, i) => {
+        const f = Math.max(0, Math.min(1, v - i));
+        return <i key={i} style={{ '--p': `${Math.round(f * 100)}%` }} />;
+      })}
+    </span>
+  );
+}
+
+function MoneyRow({ won, of, text, note }) {
+  return (
+    <div className="res-money-row">
+      <Tens won={won} of={of} />
+      <span className="res-money-text">
+        {text}
+        <span className="res-small">
+          {count(won)} of {count(of)} races{note ? ` · ${note}` : ''}
+        </span>
+      </span>
     </div>
   );
 }
 
-const split = (m, k) =>
-  `${m.incumbent[k]} of ${m.incumbent.races} with an incumbent running, ${m.open[k]} of ${m.open.races} open seats.`;
-
 function OutsideTotals({ t }) {
-  const max = Math.max(1, t.winners.for, t.losers.for, t.winners.against, t.losers.against);
-  const row = (label, v, cls) => (
+  const max = Math.max(1, t.winners.for + t.winners.against, t.losers.for + t.losers.against);
+  const row = (label, x) => (
     <div className="res-total-row">
       <span className="res-total-label">{label}</span>
-      <span className="res-track is-wide" aria-hidden="true">
-        <span className={cls} style={{ '--w': `${(v / max) * 100}%` }} />
+      <span>
+        <SpendBar forAmount={x.for} against={x.against} max={max} wide />
+        <span className="res-small">
+          {usdShort(x.for)} for · {usdShort(x.against)} against
+        </span>
       </span>
-      <span className="res-total-value">{usdShort(v)}</span>
+      <span className="res-total-value">{usdShort(x.for + x.against)}</span>
     </div>
   );
   return (
     <div className="res-card res-totals">
-      <p className="eyebrow">Spent for</p>
-      {row('The winners', t.winners.for, 'res-for')}
-      {row('The losers', t.losers.for, 'res-for')}
-      <p className="eyebrow" style={{ marginTop: 18 }}>
-        Spent against
-      </p>
-      {row('The winners', t.winners.against, 'res-against')}
-      {row('The losers', t.losers.against, 'res-against')}
+      <SpendKey />
+      {row('The winners', t.winners)}
+      {row('The losers', t.losers)}
     </div>
   );
 }
@@ -257,7 +355,7 @@ function Squares({ label, seats }) {
   );
 }
 
-function BeforeAfter({ seats }) {
+function BeforeAfter({ seats, before, after }) {
   const rank = t => (isLetter(t) ? LETTERS.indexOf(t) : LETTERS.length);
   const side = pick =>
     seats
@@ -270,8 +368,6 @@ function BeforeAfter({ seats }) {
         };
       })
       .sort((a, b) => rank(a.tier) - rank(b.tier));
-  const before = gradeMix(seats.map(s => s.before?.tier));
-  const after = gradeMix(seats.map(s => s.after?.tier));
   return (
     <div className="res-card res-before-after">
       <Squares label="Before the election" seats={side(s => s.before)} />
@@ -308,22 +404,29 @@ export default function Results() {
   const all = useMemo(() => races.data?.races || [], [races.data]);
   const cycle = races.data?.cycle;
 
-  const figures = useMemo(() => {
+  const f = useMemo(() => {
     const o = outside.data;
+    const lost = incumbentsWhoLost(all);
+    const wins = winsByGrade(all);
+    const bySeat =
+      seats.data && members.data
+        ? seatsBeforeAndAfter(all, seats.data.seats, members.data.members)
+        : null;
     return {
       voting: votingRaces(all).length,
       called: calledRaces(all).length,
       contests: contests(all).length,
       senate: costliest(all, o, 'S'),
       house: costliest(all, o, 'H'),
-      lost: incumbentsWhoLost(all),
-      wins: winsByGrade(all),
-      money: moneyAndResult(all),
+      lost,
+      lostSum: lostSummary(lost),
+      wins,
+      rates: winRates(wins),
+      money: moneyAndGrade(all),
       totals: o ? outsideAndResult(all, o) : null,
-      seats:
-        seats.data && members.data
-          ? seatsBeforeAndAfter(all, seats.data.seats, members.data.members)
-          : null,
+      seats: bySeat,
+      before: bySeat && gradeMix(bySeat.map(s => s.before?.tier)),
+      after: bySeat && gradeMix(bySeat.map(s => s.after?.tier)),
     };
   }, [all, outside.data, seats.data, members.data]);
 
@@ -335,7 +438,7 @@ export default function Results() {
       </div>
     );
   }
-  if (!figures.called) {
+  if (!f.called) {
     return (
       <div className="wrap section">
         <h1 className="display display-l">No results yet</h1>
@@ -345,7 +448,23 @@ export default function Results() {
       </div>
     );
   }
-  const m = figures.money;
+
+  // The summaries, from the figures
+  const total = list => list.reduce((t, x) => t + x.total, 0);
+  const againstWinner = list =>
+    list.filter(x => {
+      const w = x.candidates.find(y => y.c.won);
+      return w && w.against > w.for;
+    }).length;
+  const ls = f.lostSum;
+  const hiChallenger = f.rates.challenger[0];
+  const loChallenger = f.rates.challenger[f.rates.challenger.length - 1];
+  const hiRate = hiChallenger.won / (hiChallenger.ran || 1);
+  const loRate = loChallenger.won / (loChallenger.ran || 1);
+  const m = f.money;
+  const t = f.totals;
+  const sumOf = (mix, ls2) => ls2.reduce((s, l) => s + mix[l], 0);
+
   return (
     <>
       <section className="race-hero band on-dark races-hero" aria-labelledby="results-title">
@@ -368,8 +487,8 @@ export default function Results() {
             <div className="races-stats">
               <div className="races-stat">
                 <b>
-                  {count(figures.called)}
-                  <small> of {count(figures.voting)}</small>
+                  {count(f.called)}
+                  <small> of {count(f.voting)}</small>
                 </b>
                 <span>seats called</span>
               </div>
@@ -380,97 +499,167 @@ export default function Results() {
 
       <div className="wrap res-body">
         <Section
-          eyebrow="General election · outside spending"
-          title="The costliest races"
-          lead="What outside groups spent for and against each candidate."
+          eyebrow="The costliest races · general election"
+          title="Outside spending"
+          summary={
+            <>
+              Groups <b>outside the campaigns</b> spent {dollarsInWords(total(f.senate))} on the{' '}
+              {f.senate.length} costliest Senate races. In{' '}
+              {howMany(againstWinner(f.senate), f.senate.length)}, more was spent against the winner
+              than for them. The same was true in {howMany(againstWinner(f.house), f.house.length)}{' '}
+              costliest House races.
+            </>
+          }
         >
-          <div className="res-key" aria-hidden="true">
-            <span>
-              <i className="res-for" /> Spent for
-            </span>
-            <span>
-              <i className="res-against" /> Spent against
-            </span>
-          </div>
-          <div className="res-costly-cols">
-            <div>
-              <h3 className="res-col-title">Senate</h3>
-              <Costliest list={figures.senate} cycle={cycle} />
+          <SpendKey />
+          <Fold height={560} label={`Show all ${f.senate.length + f.house.length} races`}>
+            <div className="res-costly-cols">
+              <div>
+                <h3 className="res-col-title">Senate</h3>
+                <Costliest list={f.senate} cycle={cycle} />
+              </div>
+              <div>
+                <h3 className="res-col-title">House</h3>
+                <Costliest list={f.house} cycle={cycle} />
+              </div>
             </div>
-            <div>
-              <h3 className="res-col-title">House</h3>
-              <Costliest list={figures.house} cycle={cycle} />
-            </div>
+          </Fold>
+        </Section>
+
+        <Section
+          eyebrow={`${count(ls.seats)} incumbents lost their seats`}
+          title="Winning grades"
+          summary={
+            <>
+              In{' '}
+              {ls.higherGrade === ls.seats
+                ? `all ${ls.seats}`
+                : `${ls.higherGrade} of the ${ls.seats}`}{' '}
+              seats where the incumbent lost, the winning grade was higher. The typical winner got{' '}
+              <b>{ls.winners}%</b> of their money from people. The typical incumbent who lost got{' '}
+              <b>{ls.incumbents}%</b>.
+            </>
+          }
+        >
+          {f.lost.length > 5 ? (
+            <Fold height={640} label={`Show all ${f.lost.length} seats`}>
+              <Lost list={f.lost} cycle={cycle} />
+            </Fold>
+          ) : (
+            <Lost list={f.lost} cycle={cycle} />
+          )}
+        </Section>
+
+        <Section
+          eyebrow={`${count(f.contests)} races with two or more graded candidates`}
+          title="Winners by grade"
+          summary={
+            <>
+              Incumbents kept their seat in{' '}
+              <b>{pct(f.rates.incumbent.won, f.rates.incumbent.ran)}%</b> of races.{' '}
+              {hiRate > loRate * 2 && hiRate - loRate >= 0.1
+                ? 'Challengers with high grades won far more often than those with low grades.'
+                : hiRate > loRate
+                  ? 'Challengers with high grades won more often than those with low grades.'
+                  : 'Challengers with high grades won no more often than those with low grades.'}
+            </>
+          }
+        >
+          <div className="res-card res-rate-card">
+            <Rates title="How often challengers won" rows={f.rates.challenger} />
+            <Rates title="How often open-seat candidates won" rows={f.rates.open} />
           </div>
+          <Fold height={300} label="Show every candidate">
+            <ByGrade wins={f.wins} />
+          </Fold>
         </Section>
 
         <Section
-          eyebrow={`${count(figures.lost.length)} seats`}
-          title="Incumbents who lost"
-          lead="Who lost their seat, who won it, and how much of each one's money came from people."
-        >
-          <Lost list={figures.lost} cycle={cycle} />
-        </Section>
-
-        <Section
-          eyebrow={`${count(figures.contests)} races with two or more graded candidates`}
-          title="Who won, by grade"
-          lead="Each dot is a candidate. Filled dots won."
-        >
-          <ByGrade wins={figures.wins} />
-        </Section>
-
-        <Section
-          eyebrow={`${count(m.all.races)} races with two or more graded candidates`}
-          title="Money and the result"
+          eyebrow={`${count(m.raisedMost.of)} races with two or more graded candidates`}
+          title="Money and winning"
+          summary={
+            <b>
+              {m.raisedMost.won / m.raisedMost.of >= 0.5
+                ? 'In most races, the candidate who raised the most money won.'
+                : `The candidate who raised the most money won ${shareWords(m.raisedMost.won, m.raisedMost.of)}.`}{' '}
+              The candidate with the higher grade won{' '}
+              {shareWords(m.higherGrade.won, m.higherGrade.of)}.
+            </b>
+          }
           note="Each winner is compared with the opponent who raised the most."
         >
-          <div className="res-figures">
-            <Figure
-              value={m.all.raisedMore}
-              of={m.all.races}
-              words="were won by the candidate who raised more money."
-              detail={split(m, 'raisedMore')}
+          <div className="res-money">
+            <MoneyRow
+              won={m.raisedMost.won}
+              of={m.raisedMost.of}
+              text="The candidate who raised the most money won."
             />
-            <Figure
-              value={m.all.morePeople}
-              of={m.all.races}
-              words="were won by the candidate with more of their money from people."
-              detail={split(m, 'morePeople')}
+            <MoneyRow
+              won={m.higherGrade.won}
+              of={m.higherGrade.of}
+              text="The candidate with the higher grade won."
+              note="races where the two grades were different"
+            />
+            <MoneyRow
+              won={m.both.won}
+              of={m.both.of}
+              text={
+                <>
+                  Candidates who raised the most <b>and</b> had the higher grade won.
+                </>
+              }
+            />
+            <MoneyRow
+              won={m.split.won}
+              of={m.split.of}
+              text="Candidates who raised the most but had the lower grade still won."
             />
           </div>
         </Section>
 
-        {figures.totals && (
+        {t && (
           <Section
-            eyebrow={`General election · ${count(figures.called)} called seats`}
+            eyebrow={`General election · ${count(f.called)} called seats`}
             title="Outside money"
-            lead="What outside groups spent for and against the people who won, and the people who lost."
+            summary={
+              <>
+                Outside groups spent{' '}
+                {t.winners.against + t.losers.against > 2 * (t.winners.for + t.losers.for)
+                  ? 'far more'
+                  : t.winners.against + t.losers.against > t.winners.for + t.losers.for
+                    ? 'more'
+                    : 'less'}{' '}
+                <b>against</b> candidates than for them:{' '}
+                <b>{dollarsInWords(t.winners.against + t.losers.against)}</b> against and{' '}
+                <b>{dollarsInWords(t.winners.for + t.losers.for)}</b> for.{' '}
+                {t.losers.for > t.winners.for && t.losers.against > t.winners.against
+                  ? 'The losers had more spent on them both ways.'
+                  : t.winners.for > t.losers.for && t.winners.against > t.losers.against
+                    ? 'The winners had more spent on them both ways.'
+                    : `More was spent for the ${t.winners.for > t.losers.for ? 'winners' : 'losers'}, and more against the ${t.winners.against > t.losers.against ? 'winners' : 'losers'}.`}{' '}
+                {t.boosted.won} of {t.boosted.ran} BOOSTED candidates won. {t.selfFunded.won} of{' '}
+                {t.selfFunded.ran} candidates who put in half or more of their own money won.
+              </>
+            }
           >
-            <OutsideTotals t={figures.totals} />
-            <div className="res-figures">
-              <Figure
-                value={figures.totals.boosted.won}
-                of={figures.totals.boosted.ran}
-                words="BOOSTED candidates won."
-              />
-              <Figure
-                value={figures.totals.selfFunded.won}
-                of={figures.totals.selfFunded.ran}
-                words="candidates who put in half or more of their own money won."
-              />
-            </div>
+            <OutsideTotals t={t} />
           </Section>
         )}
 
-        {figures.seats && (
+        {f.seats && (
           <Section
-            eyebrow={`${count(figures.seats.length)} called seats`}
-            title="The seats, before and after"
-            lead="Each square is a called seat, coloured by the grade of the member who held it, then of the person who won it."
-            note="Where districts were redrawn, a seat's member before the election is the one who defended it."
+            eyebrow={`${count(f.seats.length)} called seats`}
+            title="Seats, before and after"
+            summary={
+              <>
+                Seats graded S or A went from <b>{sumOf(f.before, ['S', 'A'])}</b> to{' '}
+                <b>{sumOf(f.after, ['S', 'A'])}</b>. Seats graded E or F went from{' '}
+                <b>{sumOf(f.before, ['E', 'F'])}</b> to <b>{sumOf(f.after, ['E', 'F'])}</b>.
+              </>
+            }
+            note="Each square is a called seat, coloured by the grade of the member who held it, then of the person who won it. Where districts were redrawn, a seat's member before the election is the one who defended it."
           >
-            <BeforeAfter seats={figures.seats} />
+            <BeforeAfter seats={f.seats} before={f.before} after={f.after} />
           </Section>
         )}
 

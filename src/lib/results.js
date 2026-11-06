@@ -120,30 +120,6 @@ export function winsByGrade(races) {
 }
 
 /**
- * In real contests, how often the winner raised more than their main
- * opponent, and how often they had more of their money from people:
- * { all, incumbent, open } each { races, raisedMore, morePeople }
- */
-export function moneyAndResult(races) {
-  const tally = list => {
-    const pairs = list
-      .map(r => [winnerOf(r), opponentOf(r)])
-      .filter(([w, o]) => o && peopleOf(w) !== null);
-    return {
-      races: pairs.length,
-      raisedMore: pairs.filter(([w, o]) => (w.totalRaised || 0) > (o.totalRaised || 0)).length,
-      morePeople: pairs.filter(([w, o]) => peopleOf(w) > peopleOf(o)).length,
-    };
-  };
-  const all = contests(races);
-  return {
-    all: tally(all),
-    incumbent: tally(all.filter(hasIncumbent)),
-    open: tally(all.filter(r => !hasIncumbent(r))),
-  };
-}
-
-/**
  * Outside money in the general election, for and against the winners and
  * the losers of the called races; and how BOOSTED candidates and
  * self-funders (half or more of their money their own) did
@@ -194,6 +170,135 @@ export function seatsBeforeAndAfter(races, seats, members) {
     const m = byId.get(id);
     return { race, before: m ? { name: m.name, tier: m.tier } : null, after: winnerOf(race) };
   });
+}
+
+/** The middle of a list of numbers (the mean of the middle two), whole */
+export function median(values) {
+  const v = values.filter(Number.isFinite).sort((a, b) => a - b);
+  if (!v.length) {
+    return null;
+  }
+  const mid = Math.floor(v.length / 2);
+  return Math.round(v.length % 2 ? v[mid] : (v[mid - 1] + v[mid]) / 2);
+}
+
+// A better grade is earlier in LETTERS
+const gradeRank = t => (isLetter(t) ? LETTERS.indexOf(t) : null);
+const betterGrade = (a, b) =>
+  gradeRank(a) !== null && gradeRank(b) !== null && gradeRank(a) < gradeRank(b);
+
+/**
+ * The incumbents who lost, in sum: how many, in how many the winner's grade
+ * was higher, and the typical (median) share from people of the winners
+ * and of the incumbents who lost
+ */
+export function lostSummary(list) {
+  return {
+    seats: list.length,
+    higherGrade: list.filter(x => betterGrade(x.winner.tier, x.incumbent.tier)).length,
+    winners: median(list.map(x => peopleOf(x.winner))),
+    incumbents: median(list.map(x => peopleOf(x.incumbent))),
+  };
+}
+
+// The grade groups whose win rates are shown (owner, 2026-11-06)
+export const RATE_GROUPS = {
+  challenger: [['S', 'A'], ['B'], ['C', 'D', 'E', 'F']],
+  open: [
+    ['S', 'A'],
+    ['B', 'C'],
+    ['D', 'E', 'F'],
+  ],
+};
+
+/**
+ * How often each group won, from winsByGrade: { incumbent: { won, ran },
+ * challenger: [{ grades, won, ran }], open: [...] }
+ */
+export function winRates(wins) {
+  const add = (role, grades) =>
+    grades.reduce((t, l) => ({ won: t.won + wins[role][l].won, ran: t.ran + wins[role][l].ran }), {
+      won: 0,
+      ran: 0,
+    });
+  return {
+    incumbent: add('incumbent', LETTERS),
+    ...Object.fromEntries(
+      Object.entries(RATE_GROUPS).map(([role, groups]) => [
+        role,
+        groups.map(grades => ({ grades, ...add(role, grades) })),
+      ])
+    ),
+  };
+}
+
+/**
+ * Money and grade, race by race (owner, 2026-11-06): each real contest's
+ * winner against the opponent who raised most. { raisedMost: how often the
+ * candidate who raised the most won; higherGrade: how often the candidate
+ * with the higher grade won, where the grades differ; both: how often a
+ * candidate who raised the most and had the higher grade won; split: how
+ * often a candidate who raised the most but had the lower grade still won },
+ * each { won, of }
+ */
+export function moneyAndGrade(races) {
+  const out = {
+    raisedMost: { won: 0, of: 0 },
+    higherGrade: { won: 0, of: 0 },
+    both: { won: 0, of: 0 },
+    split: { won: 0, of: 0 },
+  };
+  for (const race of contests(races)) {
+    const w = winnerOf(race);
+    const o = opponentOf(race);
+    if (!o || !isLetter(w.tier)) {
+      continue;
+    }
+    const winnerRaisedMore = (w.totalRaised || 0) > (o.totalRaised || 0);
+    out.raisedMost.of += 1;
+    out.raisedMost.won += winnerRaisedMore ? 1 : 0;
+    if (w.tier === o.tier) {
+      continue;
+    }
+    const winnerHigher = betterGrade(w.tier, o.tier);
+    out.higherGrade.of += 1;
+    out.higherGrade.won += winnerHigher ? 1 : 0;
+    // The candidate who raised the most: did they also have the higher grade?
+    const richerHigher = winnerRaisedMore ? winnerHigher : !winnerHigher;
+    const group = richerHigher ? out.both : out.split;
+    group.of += 1;
+    group.won += winnerRaisedMore ? 1 : 0;
+  }
+  return out;
+}
+
+/** How often, in words, never rounded into a claim it isn't */
+export function shareWords(won, of) {
+  if (!of) {
+    return null;
+  }
+  const r = won / of;
+  if (won === of) {
+    return 'every time';
+  }
+  if (won === 0) {
+    return 'never';
+  }
+  if (r >= 0.95) {
+    return 'almost every time';
+  }
+  if (Math.abs(r - 0.5) < 0.05) {
+    return r < 0.5 ? 'nearly half the time' : r > 0.5 ? 'just over half the time' : 'half the time';
+  }
+  return `about ${Math.round(r * 10)} times in 10`;
+}
+
+/** A sum of money in words: "almost $1.7 billion", "over $678 million" */
+export function dollarsInWords(n) {
+  const [unit, word] = n >= 1e9 ? [1e9, 'billion'] : [1e6, 'million'];
+  const shown = unit === 1e9 ? Math.round((n / unit) * 10) / 10 : Math.round(n / unit);
+  const near = shown * unit > n ? 'almost ' : shown * unit < n ? 'over ' : '';
+  return `${near}$${shown.toLocaleString('en-US')} ${word}`;
 }
 
 /** How many of a list of tiers fall in each grade, and how many aren't graded */

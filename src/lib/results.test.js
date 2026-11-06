@@ -6,7 +6,12 @@ import {
   generalOutside,
   gradeMix,
   incumbentsWhoLost,
-  moneyAndResult,
+  dollarsInWords,
+  lostSummary,
+  median,
+  moneyAndGrade,
+  shareWords,
+  winRates,
   outsideAndResult,
   seatsBeforeAndAfter,
   votingRaces,
@@ -81,11 +86,42 @@ describe('the results page (2026-11-04)', () => {
     expect(w.open.B).toEqual({ won: 0, ran: 1 });
   });
 
-  it('compares each winner with the opponent who raised most', () => {
-    const m = moneyAndResult(RACES);
-    expect(m.all).toEqual({ races: 2, raisedMore: 1, morePeople: 1 });
-    expect(m.incumbent).toEqual({ races: 1, raisedMore: 0, morePeople: 1 });
-    expect(m.open).toEqual({ races: 1, raisedMore: 1, morePeople: 0 });
+  it('sets money against grade, race by race', () => {
+    // PA-01: the winner (A) raised less than the incumbent (E): the higher
+    // grade won, the one who raised the most lost. OH: the winner (D)
+    // raised more with the lower grade
+    const m = moneyAndGrade(RACES);
+    expect(m.raisedMost).toEqual({ won: 1, of: 2 });
+    expect(m.higherGrade).toEqual({ won: 1, of: 2 });
+    expect(m.both).toEqual({ won: 0, of: 0 });
+    expect(m.split).toEqual({ won: 1, of: 2 });
+  });
+
+  it('sums up the incumbents who lost and the win rates', () => {
+    expect(lostSummary(incumbentsWhoLost(RACES))).toEqual({
+      seats: 1,
+      higherGrade: 1,
+      winners: 80,
+      incumbents: 20,
+    });
+    const r = winRates(winsByGrade(RACES));
+    expect(r.incumbent).toEqual({ won: 0, ran: 1 });
+    expect(r.challenger[0]).toEqual({ grades: ['S', 'A'], won: 1, ran: 1 });
+    expect(r.open.map(x => x.ran)).toEqual([0, 1, 1]);
+    expect(median([3, 1, 2])).toBe(2);
+    expect(median([1, 2, 3, 4])).toBe(3);
+    expect(median([])).toBeNull();
+  });
+
+  it('says shares and sums in words without rounding them into a claim', () => {
+    expect(shareWords(138, 288)).toBe('nearly half the time');
+    expect(shareWords(303, 336)).toBe('about 9 times in 10');
+    expect(shareWords(114, 116)).toBe('almost every time');
+    expect(shareWords(5, 5)).toBe('every time');
+    expect(dollarsInWords(1_182_000_000)).toBe('almost $1.2 billion');
+    expect(dollarsInWords(1_668_952_042)).toBe('almost $1.7 billion');
+    expect(dollarsInWords(677_916_656)).toBe('almost $678 million');
+    expect(dollarsInWords(1_210_000_000)).toBe('over $1.2 billion');
   });
 
   it('uses general-election outside money, and a special election its own', () => {
