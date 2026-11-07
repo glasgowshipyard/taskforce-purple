@@ -32,6 +32,12 @@ export function nationalFigures(races) {
   };
 }
 
+/**
+ * Every race has a winner (the Races page after the election, owner
+ * 2026-10-24 and 2026-11-07: "No current races" until the next ones)
+ */
+export const everyRaceDecided = races => races.length > 0 && races.every(r => r.result);
+
 /** A version of a Wikipedia page, by its revision */
 export const wikiLink = revid => `https://en.wikipedia.org/w/index.php?oldid=${revid}`;
 

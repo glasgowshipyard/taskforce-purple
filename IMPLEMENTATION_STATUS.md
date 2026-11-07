@@ -62,6 +62,17 @@ clean-up, #71 outside spending (shown since 2026-10-25), #72 TypeScript (after t
 
 ## Change log
 
+## 2026-11-07: the Races page once every race is decided
+
+Owner, 2026-10-24 and 2026-11-07 (ROADMAP 0 (b)): when every race has a
+winner (`everyRaceDecided`, src/lib/races.js), the Races page says "No
+current races", that every 2026 race has been decided and that the races
+are kept below as they stood on election day, with buttons to the results
+and to the visitor's representatives. The map and the list stay, in the
+past tense ("The 2026 races"). It switches itself; until then the page is
+as it was. The playful past-cycles view (the Flux Capacitor, #73) is its
+own feature, to come.
+
 ## 2026-11-07: the PAC tables and the grades' dollars for download (#67, #70)
 
 Owner's choice: the refresh job commits the files (no Worker deploy, no
