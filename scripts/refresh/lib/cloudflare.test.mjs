@@ -28,40 +28,41 @@ describe('the Cloudflare client (#64)', () => {
     expect(calls).toHaveLength(2);
   });
 
-  it('waits 30 seconds, a minute, 5, 10 and 30 minutes, an hour and 2 hours, then gives up', async () => {
-    const { fetchImpl, calls } = api(refused);
+  // A clock the waits move on, and the waits written down
+  const clock = () => {
     const waits = [];
+    let t = 0;
+    return { waits, now: () => t, wait: async ms => waits.push(ms) && (t += ms) };
+  };
+
+  it("builds up to 5 minutes, then tries every 5 minutes until the job's time limit", async () => {
+    const { fetchImpl, calls } = api(refused);
+    const { waits, now, wait } = clock();
     const log = vi.spyOn(console, 'log').mockImplementation(() => {});
-    const cf = createCloudflare({ token: 't', fetchImpl, wait: async ms => waits.push(ms) });
-    await expect(cf.d1(RESULTS_DB, 'SELECT 1')).rejects.toThrow(/7403.*refused on every try/);
-    expect(waits).toEqual([30, 60, 300, 600, 1800, 3600, 7200].map(s => s * 1000));
-    expect(calls).toHaveLength(8);
+    const cf = createCloudflare({ token: 't', fetchImpl, now, wait, deadline: 30 * 60000 });
+    await expect(cf.d1(RESULTS_DB, 'SELECT 1')).rejects.toThrow(/7403.*no time left in this job/);
+    // 8.5 minutes of building up, then 5-minute waits while they fit in 30
+    expect(waits).toEqual([30, 60, 120, 300, 300, 300, 300, 300].map(s => s * 1000));
+    expect(calls).toHaveLength(9);
     const said = log.mock.calls.map(c => c[0]);
-    expect(said[0]).toMatch(/^::warning::Cloudflare POST .*7403.*trying again in 30 seconds \(#64\)$/);
+    expect(said[0]).toMatch(
+      /^::warning::Cloudflare POST .*7403.*trying again in 30 seconds \(#64\)$/
+    );
     expect(said[1]).toMatch(/trying again in 1 minute \(#64\)$/);
-    expect(said[6]).toMatch(/trying again in 2 hours \(#64\)$/);
+    expect(said[2]).toMatch(/trying again in 2 minutes \(#64\)$/);
+    expect(said[7]).toMatch(/trying again in 5 minutes \(#64\)$/);
     log.mockRestore();
   });
 
-  it("never waits past the job's own time limit", async () => {
+  it('run by hand, with no job limit, gives up after an hour of refusals', async () => {
     const { fetchImpl, calls } = api(refused);
-    const waits = [];
-    let t = 0;
-    const cf = createCloudflare({
-      token: 't',
-      fetchImpl,
-      now: () => t,
-      wait: async ms => {
-        waits.push(ms);
-        t += ms;
-      },
-      deadline: 10 * 60000,
-    });
+    const { waits, now, wait } = clock();
     vi.spyOn(console, 'log').mockImplementation(() => {});
-    // 30 s, 1 and 5 minutes fit in ten; the 10-minute wait doesn't
-    await expect(cf.d1(RESULTS_DB, 'SELECT 1')).rejects.toThrow(/no time left in this job/);
-    expect(waits).toEqual([30000, 60000, 300000]);
-    expect(calls).toHaveLength(4);
+    const cf = createCloudflare({ token: 't', fetchImpl, now, wait, deadline: Infinity });
+    await expect(cf.d1(RESULTS_DB, 'SELECT 1')).rejects.toThrow(/7403.*refused for an hour/);
+    expect(waits.reduce((a, b) => a + b, 0)).toBeLessThanOrEqual(3600000);
+    expect(waits).toHaveLength(14);
+    expect(calls).toHaveLength(15);
     vi.restoreAllMocks();
   });
 

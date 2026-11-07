@@ -28,11 +28,14 @@ function localWranglerToken() {
 
 // Cloudflare's "account not valid or not authorized" (7403), seen now and
 // then on D1 queries and gone a minute later (#64): refused before it ran,
-// so it's safe to send again. The waits between tries, in seconds (owner,
-// 2026-11-07). No wait runs past the job's own time limit: each workflow
-// sets JOB_DEADLINE (epoch seconds) a few minutes before it
+// so it's safe to send again. The waits between tries build up to 5 minutes,
+// then stay at 5 minutes until the job's own time limit (owner, 2026-11-07):
+// each workflow sets JOB_DEADLINE (epoch seconds) a few minutes before it,
+// and the next run carries on. Run by hand, with no job limit, it gives up
+// after an hour of refusals
 const PASSING = new Set([7403]);
-export const PASSING_WAITS = [30, 60, 300, 600, 1800, 3600, 7200];
+export const PASSING_WAITS = [30, 60, 120, 300];
+const BY_HAND_MS = 3600000;
 // Busy (429) or failing (5xx): a short wait, four times
 const BUSY_WAITS = [2, 4, 6, 8];
 
@@ -59,6 +62,7 @@ export function createCloudflare({
     // Each kind of failure has its own count of tries
     let busy = 0;
     let refused = 0;
+    let refusedSince = null;
     for (;;) {
       const res = await fetchImpl(`${API}${path}`, {
         method,
@@ -81,12 +85,13 @@ export function createCloudflare({
       const json = await res.json();
       const said = JSON.stringify(json.errors ?? null).slice(0, 300);
       if (!json.success && (json.errors || []).some(e => PASSING.has(e.code))) {
-        const s = PASSING_WAITS[refused];
-        if (s === undefined) {
-          throw new Error(`${where}: ${said}; refused on every try (#64)`);
-        }
-        if (now() + s * 1000 > deadline) {
-          throw new Error(`${where}: ${said}; no time left in this job to try again (#64)`);
+        refusedSince ??= now();
+        const s = PASSING_WAITS[Math.min(refused, PASSING_WAITS.length - 1)];
+        const inJob = Number.isFinite(deadline);
+        if (now() + s * 1000 > (inJob ? deadline : refusedSince + BY_HAND_MS)) {
+          throw new Error(
+            `${where}: ${said}; ${inJob ? 'no time left in this job to try again' : 'refused for an hour'} (#64)`
+          );
         }
         refused++;
         // Kept in the log every time, with Cloudflare's own words (#64)
