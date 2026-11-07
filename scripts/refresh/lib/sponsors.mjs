@@ -202,7 +202,7 @@ const COMPANY_ENDING =
 // own super PAC or fund), not an organization sponsoring the PAC
 const POLITICAL_COMMITTEE =
   /\b(PAC|POLITICAL ACTION|VICTORY|CAMPAIGN|FOR CONGRESS|FOR SENATE|SUPER PAC)\b|\bVOTE\b/;
-const FEC_ORG = {
+export const FEC_ORG = {
   C: 'a corporation',
   L: 'a labor organization',
   M: 'a membership organization',

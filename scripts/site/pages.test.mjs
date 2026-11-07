@@ -101,14 +101,38 @@ describe('grades.csv (#67)', () => {
           totalRaised: 50,
         },
       ],
-      '2026-10-17T02:40:00Z'
+      '2026-10-17T02:40:00Z',
+      // The grade's working, in dollars (2026-11-07)
+      new Map([
+        [
+          'X1',
+          {
+            method: 'final-3',
+            score: 61,
+            given: 1200.4,
+            fromPeople: 732,
+            small: 500,
+            big: 300,
+            bigElite: 100,
+            pac: 400,
+            pacCounted: 32,
+            party: 0,
+            otherPoliticiansFunds: 0,
+          },
+        ],
+      ])
     );
     const [head, a, b] = csv.trim().split('\n');
     expect(head.split(',')).toContain('people_pct');
+    expect(head.split(',').slice(-9)[0]).toBe('money_given');
     expect(a).toMatch(/^X1,Jane Doe,House,Ohio,3,Democrat\w*,B,[^,]+,61,9,30,1235,yes,/);
-    expect(a).toMatch(/,2026-10-17,https:\/\/taskforcepurple\.com\/member\/jane-doe-X1$/);
+    expect(a).toMatch(
+      /,2026-10-17,https:\/\/taskforcepurple\.com\/member\/jane-doe-X1,1200,732,500,300,100,400,32,0,0$/
+    );
     expect(b.startsWith('X2,')).toBe(true);
     expect(b).toMatch(/,,,,50,/);
+    // A withheld grade: no dollar working
+    expect(b.endsWith(',,,,,,,,,')).toBe(true);
   });
 });
 

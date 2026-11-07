@@ -10,6 +10,18 @@ import { getPACTransparencyWeight } from '../../workers/tier-calculation.js';
 export const COUNTRY_FOCUS_NOTE =
   "Groups that don't pay tax file a Form 990 with the IRS every year, describing their mission in their own words. A PAC is marked Country-focused when the group behind it says, on that form, that it exists to advance a particular country's interests or its relationship with the United States. The same test is used for every country. It can only check PACs set up by a group that files a Form 990, so a company's PAC, or a PAC with no group behind it, is never marked, whatever it works on. The label doesn't change any grade.";
 
+// FINAL-3's PAC groups in words: who the PAC answers to (the member pages'
+// PAC panel and the pacs.csv download, #67)
+export const PAC_GROUP_NAMES = {
+  people: 'Run by their members',
+  board: 'Run by a board',
+  untested: 'Not checked yet',
+  nosponsor: 'No group behind them',
+  business: 'Businesses',
+  politician: 'Politicians',
+  party: 'Parties',
+};
+
 export const PAC_TYPES = {
   super: {
     label: 'Super PAC',

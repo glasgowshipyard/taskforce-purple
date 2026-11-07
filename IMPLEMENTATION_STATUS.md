@@ -62,6 +62,30 @@ clean-up, #71 outside spending (shown since 2026-10-25), #72 TypeScript (after t
 
 ## Change log
 
+## 2026-11-07: the PAC tables and the grades' dollars for download (#67, #70)
+
+Owner's choice: the refresh job commits the files (no Worker deploy, no
+KV or D1 writes, and git keeps a dated record of every PAC's
+classification).
+
+- **pacs.csv:** every PAC that gave to a member: who it answers to (the
+  member pages' words), the share of its money traced to people, what it
+  gave to members and what counted as people money, how many members, its
+  sponsor and sponsor type as filed, the reason or stated fact, the people
+  test's evidence, any country focus, and its FEC page.
+- **pac-sponsor-gaps.csv (#70):** the PACs among them whose FEC
+  registration names a sponsor but leaves its type blank.
+- Written by every refresh run that grades every member
+  (`scripts/refresh/lib/downloads.mjs`) into `public/data/`, and committed by
+  the workflow's "Save the PAC tables" step only when they changed; the
+  site's rebuild then serves them at /data/pacs.csv and
+  /data/pac-sponsor-gaps.csv. The refresh workflow can now write contents
+  for this.
+- **grades.csv** gains each member's dollars from the grade's own working:
+  money given, people money, small donors, big donors, wealthy donors,
+  PACs and what of it counted, parties and other politicians' funds.
+- PAC group names now live in one place (`PAC_GROUP_NAMES`, src/lib/pacs.js).
+
 ## 2026-11-07: a passing Cloudflare refusal is retried; Node 22
 
 - **#64:** a D1 query refused with Cloudflare's 7403 ("account not valid or

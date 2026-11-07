@@ -150,6 +150,8 @@ const details = [
     : []),
 ];
 const raisedBy = new Map();
+// Each member's grade working, for the dollar columns in grades.csv (#67)
+const workingOf = new Map();
 let missed = 0;
 for (let i = 0; i < details.length; i += 8) {
   await Promise.all(
@@ -157,6 +159,9 @@ for (let i = 0; i < details.length; i += 8) {
       try {
         const detail = await getJson(url);
         write(file, JSON.stringify(detail));
+        if (detail?.grade?.detail) {
+          workingOf.set(id, detail.grade.detail);
+        }
         raisedBy.set(id, gradedFigures({ ...base, ...(detail?.member || {}) }).totalRaised);
       } catch {
         // No file: the page asks the API, as before
@@ -260,7 +265,7 @@ console.log(`prerender: ${moved.length} older addresses sent on`);
 const llms = llmsTxt(members, list.lastUpdated);
 write(join(DIST, 'llms.txt'), llms.brief);
 write(join(DIST, 'llms-full.txt'), llms.full);
-write(join(DIST, 'grades.csv'), gradesCsv(members, list.lastUpdated));
+write(join(DIST, 'grades.csv'), gradesCsv(members, list.lastUpdated, workingOf));
 write(join(DIST, 'updates.xml'), correctionsRss());
 write(join(DIST, `${INDEXNOW_KEY}.txt`), INDEXNOW_KEY);
 

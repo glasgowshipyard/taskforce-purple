@@ -5,20 +5,20 @@
 // gifts on to the member. Members graded before FINAL-3 show the plain list.
 import React from 'react';
 import { Link } from '../lib/router.js';
-import { pacRows } from '../lib/pacs.js';
+import { PAC_GROUP_NAMES, pacRows } from '../lib/pacs.js';
 import { usd } from '../lib/people.js';
 import { CountryChip, Section } from './ui.jsx';
 
 // `people`: the group whose gifts can be People money
 const PAC_GROUPS = [
-  { group: 'people', label: 'Run by their members', color: '#5B21B6', people: true },
-  { group: 'board', label: 'Run by a board', color: '#8F7FA8' },
-  { group: 'untested', label: 'Not checked yet', color: '#CFCBC1' },
-  { group: 'nosponsor', label: 'No group behind them', color: '#9C98A6' },
-  { group: 'business', label: 'Businesses', color: '#E07A5F' },
-  { group: 'politician', label: 'Politicians', color: '#C2412B' },
-  { group: 'party', label: 'Parties', color: '#7B1E3A' },
-];
+  { group: 'people', color: '#5B21B6', people: true },
+  { group: 'board', color: '#8F7FA8' },
+  { group: 'untested', color: '#CFCBC1' },
+  { group: 'nosponsor', color: '#9C98A6' },
+  { group: 'business', color: '#E07A5F' },
+  { group: 'politician', color: '#C2412B' },
+  { group: 'party', color: '#7B1E3A' },
+].map(g => ({ ...g, label: PAC_GROUP_NAMES[g.group] }));
 const LABEL = Object.fromEntries(PAC_GROUPS.map(g => [g.group, g.label]));
 
 const Explainer = () => (
