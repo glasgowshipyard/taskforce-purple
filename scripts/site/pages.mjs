@@ -587,11 +587,30 @@ ${urls.join('\n')}
 `;
 }
 
+const whole = x => (Number.isFinite(x) ? Math.round(x) : '');
+// The grade's working in dollars, when it's FINAL-3's (a withheld grade has none)
+const workingCells = d =>
+  d?.method === 'final-3' && Number.isFinite(d.score)
+    ? [
+        whole(d.given),
+        whole(d.fromPeople),
+        whole(d.small),
+        whole(d.big),
+        whole(d.bigElite),
+        whole(d.pac),
+        whole(d.pacCounted),
+        whole(d.party),
+        whole(d.otherPoliticiansFunds),
+      ]
+    : Array(9).fill('');
+
 /**
  * Every grade as a spreadsheet (grades.csv, #67): one row per member, the
  * figures the site shows. A withheld grade has its word and no percentages.
+ * `working`: each member's grade working (Map id -> grade.detail), for the
+ * dollar columns at the end (2026-11-07), in the grade's own figures
  */
-export function gradesCsv(members, lastUpdated) {
+export function gradesCsv(members, lastUpdated, working = new Map()) {
   const cell = v => {
     const s = String(v ?? '');
     return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
@@ -613,6 +632,16 @@ export function gradesCsv(members, lastUpdated) {
     'cycle',
     'data_as_of',
     'page',
+    // The grade's working, in dollars (#67)
+    'money_given',
+    'people_money',
+    'small_donors',
+    'big_donors',
+    'wealthy_donors',
+    'pacs',
+    'pacs_counted_as_people',
+    'parties',
+    'other_politicians',
   ];
   const rows = [...members]
     .sort((a, b) => displayName(a.name).localeCompare(displayName(b.name)))
@@ -637,6 +666,7 @@ export function gradesCsv(members, lastUpdated) {
         cycleLabel(m.gradeCycle ?? undefined),
         String(lastUpdated ?? '').slice(0, 10),
         `${SITE}${memberPath(m.bioguideId, m.name)}`,
+        ...workingCells(working.get(m.bioguideId)),
       ]
         .map(cell)
         .join(',');

@@ -70,6 +70,7 @@ import {
   summaryUrl,
   totalsVerdict,
 } from '../verify/lib/totals.mjs';
+import { givenToMembers, pacsCsv, sponsorGapsCsv } from './lib/downloads.mjs';
 import { FEC_CROSSWALK } from '../../workers/fec-crosswalk.js';
 import { crosswalkIdsFor } from '../../workers/fec-identity.js';
 import { committeesFinal3, gradeMember, gradeMemberFinal3 } from '../../workers/grading.js';
@@ -1132,6 +1133,17 @@ async function main() {
   }
 
   const remaining = targets.length - processed;
+
+  // The PAC tables for download (#67, #70): from a run that graded every
+  // member, so they cover every gift; the workflow commits them if changed
+  if (gradeOnly && !only.length && !frozen && remaining === 0 && Object.keys(pacs).length) {
+    const given = givenToMembers([...giftsFor.entries(), ...fundGiftsFor.entries()]);
+    mkdirSync('public/data', { recursive: true });
+    writeFileSync('public/data/pacs.csv', pacsCsv(pacs, shares, given));
+    writeFileSync('public/data/pac-sponsor-gaps.csv', sponsorGapsCsv(pacs, given));
+    log(`PAC tables: ${given.size} PACs that gave to members written to public/data/`);
+  }
+
   const stats = {
     ...summary,
     remaining,

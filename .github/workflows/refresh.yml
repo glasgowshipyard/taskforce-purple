@@ -35,7 +35,7 @@ on:
         default: false
 
 permissions:
-  contents: read
+  contents: write # the PAC tables for download, when they change (#67)
   issues: write
   actions: write # to start the next run of a pass
 
@@ -91,12 +91,28 @@ jobs:
           if [ "$ALLOW_BIG" = "true" ]; then args+=(--allow-big-changes); fi
           node scripts/refresh/run.mjs "${args[@]}"
 
+      # The PAC tables for download (#67, #70), written by a run that graded
+      # every member: committed only when they changed, so the site serves
+      # them and git keeps a dated record of every PAC's classification
+      - name: Save the PAC tables
+        id: tables
+        if: ${{ !inputs.dry_run && inputs.grade_only && inputs.members == '' }}
+        run: |
+          [ -f public/data/pacs.csv ] || { echo "No PAC tables written"; exit 0; }
+          git add public/data/pacs.csv public/data/pac-sponsor-gaps.csv
+          if git diff --cached --quiet; then echo "PAC tables unchanged"; exit 0; fi
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m 'Refresh: the PAC tables for download (#67) [CF-Pages-Skip]'
+          git pull --rebase -q && git push
+          echo "changed=true" >> "$GITHUB_OUTPUT"
+
       # The site's pre-built pages (titles, link previews, sitemap: see
       # scripts/site/prerender.mjs) are rebuilt only when this run changed
       # the published grades. The hook is a Cloudflare Pages deploy hook; if
       # it's missing or the build fails, /api/health reports pages-stale
       - name: Rebuild the site's pages
-        if: steps.refresh.outputs.list_changed == 'true' && !inputs.dry_run
+        if: (steps.refresh.outputs.list_changed == 'true' || steps.tables.outputs.changed == 'true') && !inputs.dry_run
         env:
           HOOK: ${{ secrets.PAGES_DEPLOY_HOOK }}
         run: |
