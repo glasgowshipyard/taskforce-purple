@@ -24,6 +24,7 @@ import { saveBallotPlace } from '../lib/place.js';
 import {
   VIEWS,
   bandOf,
+  everyRaceDecided,
   nationalFigures,
   peopleShare,
   racesInView,
@@ -46,6 +47,45 @@ function Counter({ value, run, label }) {
       <b>{count(n)}</b>
       <span>{label}</span>
     </div>
+  );
+}
+
+/**
+ * After the election (owner, 2026-10-24 and 2026-11-07): once every race
+ * has a winner, the page says so, and the 2026 races stay below as they
+ * stood on election day
+ */
+function DecidedHero() {
+  return (
+    <section className="race-hero band on-dark races-hero" aria-labelledby="races-title">
+      <div className="wrap">
+        <div style={{ flex: '1 1 560px', minWidth: 0 }}>
+          <p className="eyebrow" style={{ marginBottom: 14 }}>
+            {ELECTION_LABEL}
+          </p>
+          <h1
+            id="races-title"
+            className="display display-xl"
+            style={{ fontSize: 'clamp(48px, 7.4vw, 104px)' }}
+          >
+            No current races
+          </h1>
+          <p className="lede" style={{ marginTop: 18, maxWidth: '36em' }}>
+            Every 2026 race for Congress has been decided. Below are the races as they stood on
+            election day: who ran, where their money came from, and who won.
+          </p>
+          <p className="races-results-link row" style={{ gap: 12 }}>
+            <Link to="/results" className="btn btn-light">
+              See the results
+              <span aria-hidden="true"> →</span>
+            </Link>
+            <Link to="/" className="btn btn-ghost-light">
+              Find your representatives
+            </Link>
+          </p>
+        </div>
+      </div>
+    </section>
   );
 }
 
@@ -119,18 +159,18 @@ function Hero({ figures }) {
   );
 }
 
-function TileMap({ byState, selected, onPick }) {
+function TileMap({ byState, selected, onPick, decided }) {
   const ref = useRef(null);
   const seen = useInView(ref);
   return (
     <section className="section-tight" aria-labelledby="map-title">
       <h2 id="map-title" className="display display-m">
-        Where the candidates&apos; money comes from, state by state
+        Where the candidates&apos; money {decided ? 'came' : 'comes'} from, state by state
       </h2>
       <p style={{ margin: '10px 0 18px', maxWidth: '44em', color: 'var(--ink-2)' }}>
-        Each state is coloured by the grade of its typical candidate. Green means most of their
-        money comes from people. Red means it comes from wealthy donors, or from PACs, politicians
-        and parties. Tap a state to see its races.
+        {decided
+          ? 'Each state is coloured by the grade of its typical candidate. Green means most of their money came from people. Red means it came from wealthy donors, or from PACs, politicians and parties. Tap a state to see its races.'
+          : 'Each state is coloured by the grade of its typical candidate. Green means most of their money comes from people. Red means it comes from wealthy donors, or from PACs, politicians and parties. Tap a state to see its races.'}
       </p>
       <div className={`tilemap${seen ? ' is-in' : ''}`} ref={ref}>
         {Object.entries(TILES).map(([code, [row, col]]) => {
@@ -285,7 +325,7 @@ function RaceCard({ race, cycle, outside }) {
   );
 }
 
-function RaceList({ races, byState, state, onClearState, cycle, outside }) {
+function RaceList({ races, byState, state, onClearState, cycle, outside, decided }) {
   const [view, setView] = useState('all');
   const [query, setQuery] = useState('');
   const [limit, setLimit] = useState(PAGE);
@@ -295,8 +335,18 @@ function RaceList({ races, byState, state, onClearState, cycle, outside }) {
   return (
     <section className="section-tight" id="race-list" aria-labelledby="list-title">
       <h2 id="list-title" className="display display-m">
-        {state ? `The races in ${stateName(state)}` : 'The races'}
+        {state
+          ? `The ${decided ? '2026 ' : ''}races in ${stateName(state)}`
+          : decided
+            ? 'The 2026 races'
+            : 'The races'}
       </h2>
+      {decided && !state && (
+        <p style={{ margin: '10px 0 0', color: 'var(--ink-2)' }}>
+          Each candidate&apos;s grade and money as they stood on election day, 3 November 2026. The
+          members who won are graded from here on with their new reports.
+        </p>
+      )}
       {s && (
         <p style={{ margin: '10px 0 0', color: 'var(--ink-2)' }}>
           {count(s.races)} {s.races === 1 ? 'race' : 'races'}.{' '}
@@ -405,6 +455,7 @@ export default function Races() {
   const all = useMemo(() => races.data?.races || [], [races.data]);
   const figures = useMemo(() => nationalFigures(all), [all]);
   const byState = useMemo(() => stateFigures(all), [all]);
+  const decided = useMemo(() => everyRaceDecided(all), [all]);
 
   if (races.loading) {
     return (
@@ -436,10 +487,11 @@ export default function Races() {
   };
   return (
     <>
-      <Hero figures={figures} />
+      {decided ? <DecidedHero /> : <Hero figures={figures} />}
       <div className="wrap races-body">
-        <TileMap byState={byState} selected={state} onPick={pick} />
+        <TileMap byState={byState} selected={state} onPick={pick} decided={decided} />
         <RaceList
+          decided={decided}
           key={state || 'all'}
           outside={outside.data}
           races={all}

@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  everyRaceDecided,
   bandOf,
   isOpen,
   nationalFigures,
@@ -29,6 +30,14 @@ const races = [
     candidates: [cand('A', 80, 'O'), cand('DISPUTED', 70, 'O')],
   },
 ];
+
+describe('the Races page after the election (2026-11-07)', () => {
+  it('says no races are current only once every race has a winner', () => {
+    expect(everyRaceDecided([{ result: { winner: 'A' } }, { result: { winner: 'B' } }])).toBe(true);
+    expect(everyRaceDecided([{ result: { winner: 'A' } }, {}])).toBe(false);
+    expect(everyRaceDecided([])).toBe(false);
+  });
+});
 
 describe('the Races page (2026-10-23)', () => {
   it('counts candidates who get most of their money from people', () => {
