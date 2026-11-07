@@ -85,7 +85,13 @@ classification).
   sponsor and sponsor type as filed, the reason or stated fact, the people
   test's evidence, any country focus, and its FEC page.
 - **pac-sponsor-gaps.csv (#70):** the PACs among them whose FEC
-  registration names a sponsor but leaves its type blank.
+  registration names a sponsor but leaves its type blank, leaving out
+  politicians' and parties' committees (a leadership PAC names its
+  politician's fund, and the FEC asks no type of it): 74 on the first run,
+  among them the American Medical Association's PAC.
+- **First written** by the real grade-only run 42349555933 (7 November,
+  the Kennel Club ruling): 4,666 PACs; committed by the job (0d90364).
+  Linked from the Congress page and llms.txt.
 - Written by every refresh run that grades every member
   (`scripts/refresh/lib/downloads.mjs`) into `public/data/`, and committed by
   the workflow's "Save the PAC tables" step only when they changed; the

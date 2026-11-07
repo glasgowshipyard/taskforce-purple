@@ -21,6 +21,13 @@ const pacs = {
     connectedOrg: 'NONE',
     sponsor: { group: 'nosponsor' },
   },
+  // A leadership PAC names its politician's fund: no sponsor type asked of it
+  C00000004: {
+    name: 'Leader PAC',
+    orgType: '',
+    connectedOrg: 'LEADER VICTORY FUND',
+    sponsor: { group: 'politician' },
+  },
 };
 const shares = new Map([
   ['C00000001', 0.8],
@@ -41,6 +48,7 @@ describe('the PAC tables for download (#67, #70)', () => {
       [
         { id: 'C00000001', amount: 2500 },
         { id: 'C00000003', amount: 0 },
+        { id: 'C00000004', amount: 5000 },
       ],
     ],
   ]);
@@ -52,7 +60,11 @@ describe('the PAC tables for download (#67, #70)', () => {
   });
 
   it('lists every PAC with who it answers to and what counted as people money', () => {
-    const [head, union, widget] = pacsCsv(pacs, shares, given).trim().split('\n');
+    const [head, ...rows] = pacsCsv(pacs, shares, given).trim().split('\n');
+    const row = id => rows.find(r => r.startsWith(`${id},`));
+    const union = row('C00000001');
+    const widget = row('C00000002');
+    expect(rows.map(r => r.slice(0, 9))).toEqual(['C00000001', 'C00000004', 'C00000002']);
     expect(head.split(',').slice(0, 7)).toEqual([
       'committee_id',
       'name',
