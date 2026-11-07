@@ -21,9 +21,18 @@ import {
 const parse = s => (s ? JSON.parse(s) : null);
 
 /**
- * @returns {{ changed: boolean, published: number, gradeChanges: object[] }}
+ * `hold(gradeChanges)`: a reason not to publish, or null (the refresh job's
+ * hold on unusually big changes, owner 2026-11-06).
+ * @returns {{ changed: boolean, published: number, gradeChanges: object[], held?: string }}
  */
-export async function publishGrades({ cf, d1, cycle, log = () => {}, dryRun = false }) {
+export async function publishGrades({
+  cf,
+  d1,
+  cycle,
+  log = () => {},
+  dryRun = false,
+  hold = () => null,
+}) {
   const current = parse(await cf.kvGet(LIST_KEY));
   if (!current?.members?.length) {
     throw new Error('publish: members:list is missing; nothing to publish onto');
@@ -81,6 +90,11 @@ export async function publishGrades({ cf, d1, cycle, log = () => {}, dryRun = fa
   if (sameValue(body, current)) {
     log(`publish: ${published} graded member(s), nothing on the site changes`);
     return { changed: false, published, gradeChanges };
+  }
+  const reason = hold(gradeChanges);
+  if (reason) {
+    log(`publish: held, ${reason}`);
+    return { changed: false, published, gradeChanges, held: reason };
   }
   log(
     `publish: ${published} graded member(s); ${gradeChanges.length} grade(s) change${dryRun ? ' (dry run: not written)' : ''}`

@@ -41,6 +41,26 @@ if [ -n "${OUTSIDE_STALE:-}" ]; then
   }]' <<<"$health")
 fi
 
+# The refresh job held its publishing: more grades would change than a
+# filing refresh moves (run.mjs HOLD_SHARE)
+if [ -n "${REFRESH_HELD:-}" ]; then
+  health=$(jq --arg msg "Publishing was held: $REFRESH_HELD. The site keeps its current grades." --arg url "${RUN_URL:-}" '.ok = false | .problems += [{
+    id: "refresh-held",
+    message: $msg,
+    fix: ("Read the changes listed in the run log (" + $url + "). If they come from new filings or a change you meant, run the refresh again with allow_big_changes on; if not, find what moved them before publishing.")
+  }]' <<<"$health")
+fi
+
+# The totals check at the end of a refresh run found a member whose money
+# doesn't match the FEC's own totals (scripts/verify/lib/totals.mjs)
+if [ -n "${REFRESH_TOTALS:-}" ]; then
+  health=$(jq --arg msg "$REFRESH_TOTALS" '.ok = false | .problems += [{
+    id: "totals",
+    message: $msg,
+    fix: "Run node scripts/verify/totals-check.mjs for the full list (RUNBOOK §5), then check each member'"'"'s committees against the FEC: a committee missing from their pool, or counted from the wrong date."
+  }]' <<<"$health")
+fi
+
 # Who won (the daily check's results.mjs): the check failed, or a called
 # race's winner fits no candidate in it, so that race shows no winner
 if [ -n "${RESULTS_PROBLEM:-}" ]; then

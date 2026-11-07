@@ -84,8 +84,10 @@ npx wrangler deploy
 node scripts/refresh/run.mjs --members W000788 --dry-run
 
 # Re-grade everyone after changing tier maths (simulate first: CLAUDE.md
-# settled decisions); grades publish to the site at the end of each batch
-gh workflow run refresh.yml -f grade_only=true -f dry_run=false
+# settled decisions); grades publish to the site at the end of each batch.
+# A run that would move more than a quarter of grades holds itself unless
+# told the change is meant (RUNBOOK §5)
+gh workflow run refresh.yml -f grade_only=true -f dry_run=false -f allow_big_changes=true
 node scripts/refresh/publish.mjs --dry-run      # what publishing would change
 
 # Simulate a grading change: dry, grade-only runs with the report, on main

@@ -142,7 +142,28 @@ Worker requests.
 "Differ, not explained" should be 0. Each name it lists is a data fault, or
 a campaign whose own reports don't add up: find the member, read their
 committees' reports on fec.gov, and fix the data or withhold the grade.
-"Counted from a date" (`COMMITTEE_SINCE`) and "no letter grade" are expected.
+Expected, and listed apart: "no letter grade"; "counted by rule" (a
+committee counted from a date, `COMMITTEE_SINCE`, or a campaign that became a
+PAC, counted to its last campaign report); "wait for it" (the FEC's file
+runs to a different report than the site's figures, for a few days after a
+filing deadline). Race candidates' figures stopped in October, so an
+amended report since then shows as a difference for them.
+
+Since 2026-11-06 every refresh run does the same check for the members it
+graded (no Worker requests: it uses its own figures) and alerts on any
+difference not explained. The comparison itself: `scripts/verify/lib/totals.mjs`.
+
+### A held refresh (added 2026-11-06)
+
+A refresh stops publishing when more than a quarter of the members it has
+graded would change grade (after 50): a filing refresh moves about one in
+twelve, a change of method one in two. The site keeps its grades, the
+grades worked out are kept in D1, and the alert links the run, whose log
+lists the changes. If they're right (new filings, or a change you meant):
+
+```bash
+gh workflow run refresh.yml -f grade_only=true -f dry_run=false -f allow_big_changes=true
+```
 
 ### Identity: is every member's money actually theirs? (added 2026-09-26)
 

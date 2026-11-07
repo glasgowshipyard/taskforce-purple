@@ -29,6 +29,10 @@ on:
         description: "Write every member's grade, and under the PAC settings still being chosen, as a downloadable report: the simulation before a grading change"
         type: boolean
         default: false
+      allow_big_changes:
+        description: 'Publish even if more than a quarter of the members graded change grade (an intended change of method; simulate it first)'
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -67,6 +71,7 @@ jobs:
           NEW_ROUND: ${{ inputs.new_round }}
           GRADE_ONLY: ${{ inputs.grade_only }}
           REPORT: ${{ inputs.report }}
+          ALLOW_BIG: ${{ inputs.allow_big_changes }}
           # The key allows 120 FEC calls a minute (upgraded 2026-10-07). The
           # check takes about 86 of them, leaving room for a races run
           # alongside it (30 a minute). A grade-only run takes 50 since it
@@ -83,6 +88,7 @@ jobs:
           # Grading only reads the bulk file: bigger batches mean fewer scans of it
           if [ "$GRADE_ONLY" = "true" ]; then args+=(--grade-only --batch 100); fi
           if [ "$REPORT" = "true" ]; then args+=(--report "$RUNNER_TEMP/grade-report.json"); fi
+          if [ "$ALLOW_BIG" = "true" ]; then args+=(--allow-big-changes); fi
           node scripts/refresh/run.mjs "${args[@]}"
 
       # The site's pre-built pages (titles, link previews, sitemap: see
@@ -118,6 +124,9 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
           JOB_FAILED_URL: ${{ job.status != 'success' && format('{0}/{1}/actions/runs/{2}', github.server_url, github.repository, github.run_id) || '' }}
+          REFRESH_HELD: ${{ steps.refresh.outputs.held }}
+          REFRESH_TOTALS: ${{ steps.refresh.outputs.totals }}
+          RUN_URL: ${{ format('{0}/{1}/actions/runs/{2}', github.server_url, github.repository, github.run_id) }}
         run: bash scripts/health-alert.sh
 
       # A pass over Congress takes several runs. When this run stopped on its
@@ -131,4 +140,4 @@ jobs:
           GH_REPO: ${{ github.repository }}
         run: |
           echo "${{ steps.refresh.outputs.remaining }} member(s) left: starting the next run of this pass"
-          gh workflow run refresh.yml -f dry_run=false
+          gh workflow run refresh.yml -f dry_run=false -f allow_big_changes=${{ inputs.allow_big_changes }}
