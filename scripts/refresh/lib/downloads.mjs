@@ -93,12 +93,19 @@ export function pacsCsv(pacs, shares, given) {
 
 /**
  * PACs that gave to a member whose FEC registration names a sponsor but
- * leaves the sponsor type (ORG_TP) blank (#70), most given first
+ * leaves the sponsor type (ORG_TP) blank (#70), most given first.
+ * Politicians' and parties' committees are left out: a leadership PAC names
+ * its politician or their fund, and the FEC asks no sponsor type of it
  */
 export function sponsorGapsCsv(pacs, given) {
   const head = ['committee_id', 'name', 'sponsor_as_filed', 'given_to_members', 'fec_page'];
   const rows = [...given.entries()]
-    .filter(([id]) => sponsorNamed(pacs[id]?.connectedOrg) && !pacs[id]?.orgType)
+    .filter(
+      ([id]) =>
+        sponsorNamed(pacs[id]?.connectedOrg) &&
+        !pacs[id]?.orgType &&
+        !['politician', 'party'].includes(final3Group(pacs[id]))
+    )
     .sort((a, b) => b[1].given - a[1].given || a[0].localeCompare(b[0]))
     .map(([id, t]) => [
       id,

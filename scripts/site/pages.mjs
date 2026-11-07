@@ -688,7 +688,9 @@ Every dollar given to a member (their campaigns, leadership PAC and own joint fu
 - [How grades work](${SITE}/how): the method in plain English, with the exact formula
 - [All of Congress](${SITE}/congress): every member's grade
 - [Every grade as text](${SITE}/llms-full.txt): one line per member, for AI tools
-- [Every grade as a spreadsheet](${SITE}/grades.csv): one row per member (CSV)
+- [Every grade as a spreadsheet](${SITE}/grades.csv): one row per member, with the grade's dollars (CSV)
+- [Every PAC that gave to a member](${SITE}/data/pacs.csv): who each answers to, why, its people share and what counted (CSV)
+- [PACs that name a sponsor but no sponsor type](${SITE}/data/pac-sponsor-gaps.csv): gaps in their FEC registrations (CSV)
 - Each member has a page at ${SITE}/member/{name}-{Bioguide ID}, for example ${SITE}/member/adam-b-schiff-S001150 (the Bioguide ID alone also works)
 `;
   const lines = [...members]
