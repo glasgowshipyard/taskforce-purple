@@ -28,13 +28,28 @@ function localWranglerToken() {
 
 // Cloudflare's "account not valid or not authorized" (7403), seen now and
 // then on D1 queries and gone a minute later (#64): refused before it ran,
-// so it's safe to send again
+// so it's safe to send again. The waits between tries build up to 5 minutes,
+// then stay at 5 minutes until the job's own time limit (owner, 2026-11-07):
+// each workflow sets JOB_DEADLINE (epoch seconds) a few minutes before it,
+// and the next run carries on. Run by hand, with no job limit, it gives up
+// after an hour of refusals
 const PASSING = new Set([7403]);
+export const PASSING_WAITS = [30, 60, 120, 300];
+const BY_HAND_MS = 3600000;
+// Busy (429) or failing (5xx): a short wait, four times
+const BUSY_WAITS = [2, 4, 6, 8];
+
+const inWords = s => {
+  const [n, unit] = s < 60 ? [s, 'second'] : s < 3600 ? [s / 60, 'minute'] : [s / 3600, 'hour'];
+  return `${n} ${unit}${n === 1 ? '' : 's'}`;
+};
 
 export function createCloudflare({
   token = process.env.CLOUDFLARE_API_TOKEN,
   fetchImpl = fetch,
   wait = sleep,
+  deadline = Number(process.env.JOB_DEADLINE) * 1000 || Infinity,
+  now = Date.now,
 } = {}) {
   const tok = token || localWranglerToken();
   if (!tok) {
@@ -43,7 +58,12 @@ export function createCloudflare({
   const stats = { kvReads: 0, kvWrites: 0, d1Queries: 0, d1RowsWritten: 0, d1RowsRead: 0 };
 
   async function call(method, path, { body, contentType = 'application/json', raw = false } = {}) {
-    for (let attempt = 0; ; attempt++) {
+    const where = `Cloudflare ${method} ${path.replace(/\?.*/, '')}`;
+    // Each kind of failure has its own count of tries
+    let busy = 0;
+    let refused = 0;
+    let refusedSince = null;
+    for (;;) {
       const res = await fetchImpl(`${API}${path}`, {
         method,
         headers: { Authorization: `Bearer ${tok}`, 'Content-Type': contentType },
@@ -52,31 +72,35 @@ export function createCloudflare({
       if (raw && res.status === 404) {
         return null;
       }
-      if (res.status === 429 || res.status >= 500) {
-        if (attempt < 4) {
-          await wait(2000 * (attempt + 1));
-          continue;
-        }
+      if ((res.status === 429 || res.status >= 500) && busy < BUSY_WAITS.length) {
+        await wait(BUSY_WAITS[busy++] * 1000);
+        continue;
       }
       if (raw) {
         if (!res.ok) {
-          throw new Error(`Cloudflare ${method} ${path.replace(/\?.*/, '')}: HTTP ${res.status}`);
+          throw new Error(`${where}: HTTP ${res.status}`);
         }
         return res.text();
       }
       const json = await res.json();
-      if (!json.success && attempt < 3 && (json.errors || []).some(e => PASSING.has(e.code))) {
+      const said = JSON.stringify(json.errors ?? null).slice(0, 300);
+      if (!json.success && (json.errors || []).some(e => PASSING.has(e.code))) {
+        refusedSince ??= now();
+        const s = PASSING_WAITS[Math.min(refused, PASSING_WAITS.length - 1)];
+        const inJob = Number.isFinite(deadline);
+        if (now() + s * 1000 > (inJob ? deadline : refusedSince + BY_HAND_MS)) {
+          throw new Error(
+            `${where}: ${said}; ${inJob ? 'no time left in this job to try again' : 'refused for an hour'} (#64)`
+          );
+        }
+        refused++;
         // Kept in the log every time, with Cloudflare's own words (#64)
-        console.log(
-          `::warning::Cloudflare ${method} ${path.replace(/\?.*/, '')}: ${JSON.stringify(json.errors).slice(0, 300)}; trying again (#64)`
-        );
-        await wait(5000 * (attempt + 1));
+        console.log(`::warning::${where}: ${said}; trying again in ${inWords(s)} (#64)`);
+        await wait(s * 1000);
         continue;
       }
       if (!json.success) {
-        throw new Error(
-          `Cloudflare ${method} ${path.replace(/\?.*/, '')}: ${JSON.stringify(json.errors).slice(0, 300)}`
-        );
+        throw new Error(`${where}: ${said}`);
       }
       return json;
     }
