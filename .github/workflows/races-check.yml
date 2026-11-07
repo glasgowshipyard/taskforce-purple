@@ -39,7 +39,7 @@ jobs:
       - name: Note the job's deadline
         run: echo "JOB_DEADLINE=$(( $(date +%s) + 340 * 60 ))" >> "$GITHUB_ENV"
 
-      - uses: actions/setup-node@v5
+      - uses: actions/setup-node@v7
         with:
           node-version: '22'
           cache: 'npm'
