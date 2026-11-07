@@ -36,7 +36,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 300
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
 
       # No wait for Cloudflare's passing refusal (#64) runs past this job's
       # time limit: scripts/refresh/lib/cloudflare.mjs stops before it
