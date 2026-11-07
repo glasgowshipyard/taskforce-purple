@@ -505,8 +505,8 @@
     "rule": 4
   },
   "C00441808": {
-    "group": "people",
-    "fact": "Checked (rule 9): the sponsor is AMERICAN KENNEL CLUB INC, a 501(c)(4) social welfare organization, EIN 134923060; matched on the sponsor's name less the PAC words.",
+    "group": "business",
+    "fact": "The American Kennel Club is the breed registry for purebred dogs (its Form 990 for 2024: \"a purebred dog registry\"), a 501(c)(4), EIN 134923060: a breed registry, like the Jockey Club and the American Quarter Horse Association, is an agricultural producers' group (rule 8; owner's decision, 2026-10-13, #68).",
     "ein": "134923060"
   },
   "C00458042": {
