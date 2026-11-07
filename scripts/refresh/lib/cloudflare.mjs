@@ -26,9 +26,15 @@ function localWranglerToken() {
   return readFileSync(file, 'utf8').match(/^oauth_token = "([^"]+)"/m)?.[1] || null;
 }
 
+// Cloudflare's "account not valid or not authorized" (7403), seen now and
+// then on D1 queries and gone a minute later (#64): refused before it ran,
+// so it's safe to send again
+const PASSING = new Set([7403]);
+
 export function createCloudflare({
   token = process.env.CLOUDFLARE_API_TOKEN,
   fetchImpl = fetch,
+  wait = sleep,
 } = {}) {
   const tok = token || localWranglerToken();
   if (!tok) {
@@ -48,7 +54,7 @@ export function createCloudflare({
       }
       if (res.status === 429 || res.status >= 500) {
         if (attempt < 4) {
-          await sleep(2000 * (attempt + 1));
+          await wait(2000 * (attempt + 1));
           continue;
         }
       }
@@ -59,6 +65,14 @@ export function createCloudflare({
         return res.text();
       }
       const json = await res.json();
+      if (!json.success && attempt < 3 && (json.errors || []).some(e => PASSING.has(e.code))) {
+        // Kept in the log every time, with Cloudflare's own words (#64)
+        console.log(
+          `::warning::Cloudflare ${method} ${path.replace(/\?.*/, '')}: ${JSON.stringify(json.errors).slice(0, 300)}; trying again (#64)`
+        );
+        await wait(5000 * (attempt + 1));
+        continue;
+      }
       if (!json.success) {
         throw new Error(
           `Cloudflare ${method} ${path.replace(/\?.*/, '')}: ${JSON.stringify(json.errors).slice(0, 300)}`

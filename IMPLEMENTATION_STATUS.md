@@ -62,6 +62,17 @@ clean-up, #71 outside spending (shown since 2026-10-25), #72 TypeScript (after t
 
 ## Change log
 
+## 2026-11-07: a passing Cloudflare refusal is retried; Node 22
+
+- **#64:** a D1 query refused with Cloudflare's 7403 ("account not valid or
+  not authorized") is sent again, up to three times with a growing pause,
+  and each refusal is written to the log with Cloudflare's own words
+  (`scripts/refresh/lib/cloudflare.mjs`). It's refused before it runs, so
+  sending it again is safe. Until now it failed the member, or the run.
+- **The workflows** run on Node 22 (Node 20's support ended in April) with
+  actions/checkout and actions/setup-node v5, which GitHub was warning
+  about.
+
 ## 2026-11-06: a refresh that's safe to run unwatched
 
 Before the post-election reports (due 3 December) start a refresh nobody
