@@ -39,6 +39,11 @@ jobs:
     steps:
       - uses: actions/checkout@v5
 
+      # No wait for Cloudflare's passing refusal (#64) runs past this job's
+      # time limit: scripts/refresh/lib/cloudflare.mjs stops before it
+      - name: Note the job's deadline
+        run: echo "JOB_DEADLINE=$(( $(date +%s) + 110 * 60 ))" >> "$GITHUB_ENV"
+
       - uses: actions/setup-node@v5
         with:
           node-version: '22'

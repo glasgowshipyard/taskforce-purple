@@ -106,10 +106,18 @@ classification).
 ## 2026-11-07: a passing Cloudflare refusal is retried; Node 22
 
 - **#64:** a D1 query refused with Cloudflare's 7403 ("account not valid or
-  not authorized") is sent again, up to three times with a growing pause,
-  and each refusal is written to the log with Cloudflare's own words
-  (`scripts/refresh/lib/cloudflare.mjs`). It's refused before it runs, so
-  sending it again is safe. Until now it failed the member, or the run.
+  not authorized") is sent again, and each refusal is written to the log
+  with Cloudflare's own words (`scripts/refresh/lib/cloudflare.mjs`). It's
+  refused before it runs, so sending it again is safe. Until now it failed
+  the member, or the run. The waits between tries are the owner's: 30
+  seconds, 1, 5, 10 and 30 minutes, 1 hour and 2 hours (about 3 hours 47
+  minutes in all), and none runs past the job's own time limit: each
+  workflow sets `JOB_DEADLINE` a few minutes before it, and the client
+  gives up rather than wait beyond it. The daily check's limit went from 20
+  minutes to 250 to make room. Busy (429) and failing (5xx) answers keep
+  their short waits (2 to 8 seconds), now counted apart from refusals. A
+  real permission fault, refused every time, now takes until the job's
+  deadline to fail instead of seconds.
 - **The workflows** run on Node 22 (Node 20's support ended in April) with
   actions/checkout and actions/setup-node v5, which GitHub was warning
   about.

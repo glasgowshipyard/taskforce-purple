@@ -62,8 +62,9 @@ roadmap (the pre-rebuild phases) is in `docs/history/roadmap-2026-07.md`.
    show the 2028 cycle's money so far beside the 2026 grade.
 5. **Retries with growing gaps** (REBUILD_SPEC §8): a member whose refresh
    fails retries on the next refresh; §8 asks for 1, 3 and 7 days.
-6. **The intermittent D1 error 7403 (#64)**: log the full error when it
-   happens; retry once.
+6. **The intermittent D1 error 7403 (#64)**: logged and retried for up to
+   about four hours since 2026-11-07; open to collect occurrences until the
+   end of January 2027, then close if none.
 
 ## Ideas, not scheduled
 

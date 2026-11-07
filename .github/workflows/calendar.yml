@@ -40,9 +40,15 @@ concurrency:
 jobs:
   check:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    # Room for Cloudflare's passing refusal to be waited out (#64)
+    timeout-minutes: 250
     steps:
       - uses: actions/checkout@v5
+
+      # No wait for Cloudflare's passing refusal (#64) runs past this job's
+      # time limit: scripts/refresh/lib/cloudflare.mjs stops before it
+      - name: Note the job's deadline
+        run: echo "JOB_DEADLINE=$(( $(date +%s) + 240 * 60 ))" >> "$GITHUB_ENV"
 
       - uses: actions/setup-node@v5
         with:
